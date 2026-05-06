@@ -5,10 +5,11 @@ import com.fluxfund.api.domain.organization.dto.OrganizationResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -25,8 +26,8 @@ public class OrganizationController {
     }
 
     @GetMapping
-    public List<OrganizationResponse> findAll() {
-        return organizationService.findAll();
+    public Page<OrganizationResponse> findAll(Pageable pageable) {
+        return organizationService.findAll(pageable);
     }
 
     @GetMapping("/{id}")
@@ -37,8 +38,7 @@ public class OrganizationController {
     @PutMapping("/{id}")
     public OrganizationResponse update(
             @PathVariable UUID id,
-            @RequestBody @Valid CreateOrganizationRequest request
-    ) {
+            @RequestBody @Valid CreateOrganizationRequest request) {
         return organizationService.update(id, request);
     }
 

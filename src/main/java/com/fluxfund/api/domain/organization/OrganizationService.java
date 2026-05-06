@@ -1,9 +1,10 @@
 package com.fluxfund.api.domain.organization;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,11 +31,10 @@ public class OrganizationService {
         return OrganizationMapper.toResponse(savedOrganization);
     }
 
-    public List<OrganizationResponse> findAll() {
-        return organizationRepository.findAll()
-                .stream()
-                .map(OrganizationMapper::toResponse)
-                .toList();
+    public Page<OrganizationResponse> findAll(Pageable pageable) {
+        Objects.requireNonNull(pageable, "pageable must not be null");
+        return organizationRepository.findAll(pageable)
+                .map(OrganizationMapper::toResponse);
     }
 
     public OrganizationResponse findById(UUID id) {
