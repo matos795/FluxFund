@@ -3,8 +3,11 @@ package com.fluxfund.api.domain.organizationuser;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.user.AppUser;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -36,5 +39,7 @@ public class OrganizationUser {
     @JoinColumn(name = "user_id")
     private AppUser user;
 
-    private String role;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private OrganizationRole role;
 }
