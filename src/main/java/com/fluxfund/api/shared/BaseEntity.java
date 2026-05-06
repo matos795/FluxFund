@@ -1,4 +1,4 @@
-package com.fluxfund.api.domain.shared;
+package com.fluxfund.api.shared;
 
 import java.time.LocalDateTime;
 import java.util.UUID;

@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fluxfund.api.domain.organization.dto.CreateOrganizationRequest;
 import com.fluxfund.api.domain.organization.dto.OrganizationResponse;
 import com.fluxfund.api.domain.organization.mapper.OrganizationMapper;
+import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -39,7 +40,7 @@ public class OrganizationService {
     public OrganizationResponse findById(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         Organization organization = organizationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Organization not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
         return OrganizationMapper.toResponse(organization);
     }
@@ -47,7 +48,7 @@ public class OrganizationService {
     public OrganizationResponse update(UUID id, CreateOrganizationRequest request) {
         Objects.requireNonNull(id, "id must not be null");
         Organization organization = organizationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Organization not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
         organization.setName(request.name());
 
@@ -59,7 +60,7 @@ public class OrganizationService {
     public void delete(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         if (!organizationRepository.existsById(id)) {
-            throw new RuntimeException("Organization not found");
+            throw new ResourceNotFoundException("Organization not found");
         }
 
         organizationRepository.deleteById(id);

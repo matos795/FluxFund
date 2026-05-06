@@ -7,7 +7,7 @@ import com.fluxfund.api.domain.account.Account;
 import com.fluxfund.api.domain.banktransaction.BankTransaction;
 import com.fluxfund.api.domain.category.Category;
 import com.fluxfund.api.domain.organization.Organization;
-import com.fluxfund.api.domain.shared.BaseEntity;
+import com.fluxfund.api.shared.BaseEntity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
