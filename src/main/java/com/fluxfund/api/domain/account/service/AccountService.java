@@ -46,7 +46,7 @@ public class AccountService {
             Pageable pageable) {
 
         return accountRepository
-                .findAllByOrganizationId(organizationId, pageable)
+                .findAllByOrganizationIdAndActiveTrue(organizationId, pageable)
                 .map(mapper::toResponse);
     }
 

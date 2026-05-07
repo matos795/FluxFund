@@ -1,4 +1,4 @@
-package com.fluxfund.api.domain.account.controller;
+package com.fluxfund.api.domain.category.controller;
 
 import java.util.UUID;
 
@@ -16,31 +16,31 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.fluxfund.api.domain.account.dto.AccountResponse;
-import com.fluxfund.api.domain.account.dto.CreateAccountRequest;
-import com.fluxfund.api.domain.account.dto.UpdateAccountRequest;
-import com.fluxfund.api.domain.account.service.AccountService;
+import com.fluxfund.api.domain.category.dto.CategoryResponse;
+import com.fluxfund.api.domain.category.dto.CreateCategoryRequest;
+import com.fluxfund.api.domain.category.dto.UpdateCategoryRequest;
+import com.fluxfund.api.domain.category.service.CategoryService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/v1/accounts")
+@RequestMapping("/api/v1/categories")
 @RequiredArgsConstructor
-public class AccountController {
+public class CategoryController {
 
-    private final AccountService service;
+    private final CategoryService service;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public AccountResponse create(
-            @Valid @RequestBody CreateAccountRequest request
+    public CategoryResponse create(
+            @Valid @RequestBody CreateCategoryRequest request
     ) {
         return service.create(request);
     }
 
     @GetMapping
-    public Page<AccountResponse> findAll(
+    public Page<CategoryResponse> findAll(
             @RequestParam UUID organizationId,
             Pageable pageable
     ) {
@@ -48,16 +48,16 @@ public class AccountController {
     }
 
     @GetMapping("/{id}")
-    public AccountResponse findById(
+    public CategoryResponse findById(
             @PathVariable UUID id
     ) {
         return service.findById(id);
     }
 
     @PutMapping("/{id}")
-    public AccountResponse update(
+    public CategoryResponse update(
             @PathVariable UUID id,
-            @Valid @RequestBody UpdateAccountRequest request
+            @Valid @RequestBody UpdateCategoryRequest request
     ) {
         return service.update(id, request);
     }

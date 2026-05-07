@@ -57,5 +57,5 @@ public class Account extends BaseEntity {
     private LocalDate initialBalanceDate;
 
     @Column(nullable = false)
-    private boolean active;
+    private boolean active = true;
 }
