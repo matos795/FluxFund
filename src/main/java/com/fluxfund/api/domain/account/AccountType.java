@@ -3,5 +3,7 @@ package com.fluxfund.api.domain.account;
 public enum AccountType {
 
     BANK,
-    CASH
+    CASH,
+    DIGITAL_WALLET,
+    CREDIT_CARD
 }
