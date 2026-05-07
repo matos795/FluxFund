@@ -18,4 +18,7 @@ public class Organization extends BaseEntity {
 
     @Column(nullable = false)
     private String name;
+
+    @Column(nullable = false)
+    private boolean active = true;
 }

@@ -12,6 +12,7 @@ public class OrganizationMapper {
         return new OrganizationResponse(
                 organization.getId(),
                 organization.getName(),
+                organization.isActive(),
                 organization.getCreatedAt()
         );
     }
