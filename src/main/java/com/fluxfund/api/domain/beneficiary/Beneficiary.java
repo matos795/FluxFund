@@ -11,15 +11,30 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "beneficiary")
+@Table(
+    name = "beneficiary",
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "uk_beneficiary_organization_name",
+            columnNames = {"organization_id", "name"}
+        ),
+        @UniqueConstraint(
+            name = "uk_beneficiary_organization_document",
+            columnNames = {"organization_id", "document"}
+        )
+    }
+)
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
 public class Beneficiary extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)

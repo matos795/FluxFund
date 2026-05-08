@@ -17,6 +17,7 @@ import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.OrganizationRepository;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
+import com.fluxfund.api.shared.util.StringNormalizer;
 
 import lombok.RequiredArgsConstructor;
 
@@ -100,9 +101,9 @@ public class FundService {
             String name,
             UUID currentFundId) {
 
-        String normalizedName = name.trim();
+        String normalizedName = StringNormalizer.normalize(name);
 
-        if (normalizedName.isBlank()) {
+        if (normalizedName == null) {
             throw new BusinessException("Fund name cannot be blank");
         }
 

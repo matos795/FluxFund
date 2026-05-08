@@ -7,14 +7,15 @@ import com.fluxfund.api.domain.fund.dto.CreateFundRequest;
 import com.fluxfund.api.domain.fund.dto.FundResponse;
 import com.fluxfund.api.domain.fund.dto.UpdateFundRequest;
 import com.fluxfund.api.domain.organization.Organization;
+import com.fluxfund.api.shared.util.StringNormalizer;
 
 public class FundMapper {
 
     public static Fund createEntity(CreateFundRequest request, Organization organization) {
         return new Fund(
             organization,
-            request.name().trim(),
-            request.description() != null ? request.description().trim() : null,
+            StringNormalizer.normalize(request.name()),
+            StringNormalizer.normalize(request.description()),
             request.initialBalance() != null ? request.initialBalance() : BigDecimal.ZERO,
             request.initialBalanceDate(),
             true
@@ -38,10 +39,10 @@ public class FundMapper {
 
     public static void updateEntity(Fund fund, UpdateFundRequest request) {
         if (request.name() != null) {
-            fund.setName(request.name().trim());
+            fund.setName(StringNormalizer.normalize(request.name()));
         }
         if (request.description() != null) {
-            fund.setDescription(request.description().trim());
+            fund.setDescription(StringNormalizer.normalize(request.description()));
         }
         if (request.initialBalance() != null) {
             fund.setInitialBalance(request.initialBalance());
