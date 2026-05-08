@@ -2,6 +2,7 @@ package com.fluxfund.api.domain.banktransaction;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import com.fluxfund.api.domain.account.Account;
 import com.fluxfund.api.domain.organization.Organization;
@@ -34,7 +35,7 @@ public class BankTransaction extends BaseEntity {
     @JoinColumn(name = "account_id", nullable = false)
     private Account account;
 
-    @Column(name = "external_id", nullable = false)
+    @Column(name = "external_id")
     private String externalId;
 
     @Column(name = "transaction_date", nullable = false)
@@ -45,6 +46,12 @@ public class BankTransaction extends BaseEntity {
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String description;
+
+    @Column(name = "reconciled_at")
+    private LocalDateTime reconciledAt;
+
+    @Column(name = "raw_description", columnDefinition = "TEXT")
+    private String rawDescription;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
