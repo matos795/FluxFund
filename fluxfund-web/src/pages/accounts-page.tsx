@@ -2,12 +2,8 @@ import { Plus } from "lucide-react"
 
 import { PageHeader } from "@/components/layout/page-header"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { AccountsTable } from "@/features/accounts/components/accounts-table"
+import { accountsMock } from "@/features/accounts/accounts-mock"
 
 export function AccountsPage() {
   return (
@@ -22,19 +18,7 @@ export function AccountsPage() {
         </Button>
       </PageHeader>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Contas cadastradas</CardTitle>
-        </CardHeader>
-
-        <CardContent>
-          <div className="flex h-48 items-center justify-center rounded-lg border border-dashed">
-            <p className="text-sm text-muted-foreground">
-              Nenhuma conta cadastrada ainda.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <AccountsTable accounts={accountsMock} />
     </div>
   )
 }
