@@ -1,5 +1,6 @@
 package com.fluxfund.api.domain.category.repository;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -14,4 +15,6 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
             UUID organizationId,
             Pageable pageable
     );
+
+    Optional<Category> findByIdAndOrganizationIdAndActiveTrue(UUID categoryId, UUID organizationId);
 }

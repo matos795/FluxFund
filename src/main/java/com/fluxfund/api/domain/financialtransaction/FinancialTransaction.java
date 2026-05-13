@@ -2,9 +2,9 @@ package com.fluxfund.api.domain.financialtransaction;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import com.fluxfund.api.domain.account.Account;
-import com.fluxfund.api.domain.banktransaction.BankTransaction;
 import com.fluxfund.api.domain.category.Category;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.shared.BaseEntity;
@@ -17,6 +17,8 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -26,6 +28,8 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class FinancialTransaction extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -33,12 +37,19 @@ public class FinancialTransaction extends BaseEntity {
     private Organization organization;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "bank_transaction_id")
-    private BankTransaction bankTransaction;
-
-    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_id", nullable = false)
     private Account account;
+
+    @Column(name = "external_id")
+    private String externalId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source", nullable = false)
+    private FinancialTransactionSource source;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private FinancialTransactionStatus status;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
@@ -47,9 +58,6 @@ public class FinancialTransaction extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private FinancialTransactionType type;
-
-    @Column(name = "issue_date")
-    private LocalDate issueDate;
 
     @Column(name = "due_date")
     private LocalDate dueDate;
@@ -64,18 +72,23 @@ public class FinancialTransaction extends BaseEntity {
     private BigDecimal settledAmount;
 
     @Column(name = "interest_amount", nullable = false, precision = 15, scale = 2)
-    private BigDecimal interestAmount = BigDecimal.ZERO;
+    private BigDecimal interestAmount;
 
     @Column(name = "discount_amount", nullable = false, precision = 15, scale = 2)
-    private BigDecimal discountAmount = BigDecimal.ZERO;
+    private BigDecimal discountAmount;
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String description;
 
+    @Column(name = "raw_description", columnDefinition = "TEXT")
+    private String rawDescription;
+
     @Column(name = "document_number")
     private String documentNumber;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private FinancialTransactionStatus status = FinancialTransactionStatus.PENDING;
+    @Column(name = "imported_at")
+    private LocalDateTime importedAt;
+
+    @Column(name = "classified_at")
+    private LocalDateTime classifiedAt;
 }
