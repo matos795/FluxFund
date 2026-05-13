@@ -188,7 +188,7 @@ export function AccountForm({
 
       <div className="flex justify-end gap-2 pt-2">
         <Button type="submit" disabled={isSubmitting}>
-          Salvar conta
+          {isSubmitting ? "Salvando..." : "Salvar conta"}
         </Button>
       </div>
     </form>

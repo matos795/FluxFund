@@ -14,7 +14,7 @@ export function AccountsPage() {
         title="Contas"
         description="Gerencie contas bancárias, caixas físicos, carteiras e contas digitais."
       >
-        <CreateAccountDialog onCreate={(data) => console.log(data)} />
+        <CreateAccountDialog />
       </PageHeader>
 
       {isLoading && (

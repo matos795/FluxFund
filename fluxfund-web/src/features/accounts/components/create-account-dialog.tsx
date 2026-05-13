@@ -12,17 +12,32 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { useCreateAccount } from "../hooks/use-create-account"
 
-type CreateAccountDialogProps = {
-  onCreate: (data: AccountFormData) => void
-}
-
-export function CreateAccountDialog({ onCreate }: CreateAccountDialogProps) {
+export function CreateAccountDialog() {
+  
   const [open, setOpen] = useState(false)
 
+  const createAccountMutation = useCreateAccount()
+
   function handleCreateAccount(data: AccountFormData) {
-    onCreate(data)
-    setOpen(false)
+    createAccountMutation.mutate(
+      {
+        name: data.name,
+        type: data.type,
+        bankCode: data.bankCode || undefined,
+        bankName: data.bankName || undefined,
+        agency: data.agency || undefined,
+        accountNumber: data.accountNumber || undefined,
+        initialBalance: data.initialBalance,
+        initialBalanceDate: data.initialBalanceDate,
+      },
+      {
+        onSuccess: () => {
+          setOpen(false)
+        },
+      },
+    )
   }
 
   return (
@@ -41,7 +56,7 @@ export function CreateAccountDialog({ onCreate }: CreateAccountDialogProps) {
             </DialogDescription>
           </DialogHeader>
 
-          <AccountForm onSubmit={handleCreateAccount} />
+          <AccountForm onSubmit={handleCreateAccount} isSubmitting={createAccountMutation.isPending} />
         </DialogContent>
       </Dialog>
     </>

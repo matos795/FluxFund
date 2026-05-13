@@ -2,7 +2,7 @@ import { httpClient } from "@/api/http-client"
 import type { PageResponse } from "@/types/page-response"
 import type { Account, CreateAccountRequest } from "@/features/accounts/types"
 
-const TEMP_ORGANIZATION_ID = "053453dd-0a51-4650-b8aa-8f17776127eb"
+const TEMP_ORGANIZATION_ID = "7b9ed617-92be-456d-81d6-dcde5841e7a0"
 
 type GetAccountsParams = {
   page?: number
