@@ -3,12 +3,16 @@ package com.fluxfund.api.domain.financialtransaction;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.fluxfund.api.domain.account.Account;
 import com.fluxfund.api.domain.category.Category;
 import com.fluxfund.api.domain.organization.Organization;
+import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
 import com.fluxfund.api.shared.BaseEntity;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -16,6 +20,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -91,4 +96,18 @@ public class FinancialTransaction extends BaseEntity {
 
     @Column(name = "classified_at")
     private LocalDateTime classifiedAt;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "financialTransaction", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TransactionAllocation> allocations = new ArrayList<>();
+
+    public void addAllocation(TransactionAllocation allocation) {
+        allocations.add(allocation);
+        allocation.setFinancialTransaction(this);
+    }
+
+    public void removeAllocation(TransactionAllocation allocation) {
+        allocations.remove(allocation);
+        allocation.setFinancialTransaction(null);
+    }
 }

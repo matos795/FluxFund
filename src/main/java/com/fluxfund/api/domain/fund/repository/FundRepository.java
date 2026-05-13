@@ -1,5 +1,6 @@
 package com.fluxfund.api.domain.fund.repository;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -22,4 +23,6 @@ public interface FundRepository extends JpaRepository<Fund, UUID> {
             UUID organizationId,
             String name,
             UUID id);
+
+    Optional<Fund> findByIdAndOrganizationIdAndActiveTrue(UUID fundId, UUID organizationId);
 }

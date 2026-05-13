@@ -16,10 +16,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fluxfund.api.domain.financialtransaction.dto.ClassifyFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.CreateFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.UpdateFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.service.FinancialTransactionService;
+import com.fluxfund.api.domain.transactionallocation.dto.CreateTransactionAllocationRequest;
+import com.fluxfund.api.domain.transactionallocation.dto.TransactionAllocationResponse;
+import com.fluxfund.api.domain.transactionallocation.dto.UpdateTransactionAllocationRequest;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -76,5 +80,46 @@ public class FinancialTransactionController {
         service.delete(organizationId, id);
 
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/allocations")
+    public ResponseEntity<TransactionAllocationResponse> addAllocation(
+            @RequestParam UUID organizationId,
+            @PathVariable UUID id,
+            @RequestBody @Valid CreateTransactionAllocationRequest request) {
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(service.addAllocation(organizationId, id, request));
+    }
+
+    @PutMapping("/{id}/allocations/{allocationId}")
+    public ResponseEntity<TransactionAllocationResponse> updateAllocation(
+            @RequestParam UUID organizationId,
+            @PathVariable UUID id,
+            @PathVariable UUID allocationId,
+            @RequestBody @Valid UpdateTransactionAllocationRequest request) {
+
+        return ResponseEntity.ok(
+                service.updateAllocation(organizationId, id, allocationId, request));
+    }
+
+    @DeleteMapping("/{id}/allocations/{allocationId}")
+    public ResponseEntity<Void> removeAllocation(
+            @RequestParam UUID organizationId,
+            @PathVariable UUID id,
+            @PathVariable UUID allocationId) {
+
+        service.removeAllocation(organizationId, id, allocationId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/classify")
+    public ResponseEntity<FinancialTransactionResponse> classify(
+            @RequestParam UUID organizationId,
+            @PathVariable UUID id,
+            @RequestBody @Valid ClassifyFinancialTransactionRequest request) {
+
+        return ResponseEntity.ok(
+                service.classify(organizationId, id, request));
     }
 }

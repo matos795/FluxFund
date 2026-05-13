@@ -2,6 +2,7 @@ package com.fluxfund.api.domain.financialtransaction.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -12,17 +13,29 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fluxfund.api.domain.account.Account;
 import com.fluxfund.api.domain.account.repository.AccountRepository;
+import com.fluxfund.api.domain.beneficiary.Beneficiary;
+import com.fluxfund.api.domain.beneficiary.repository.BeneficiaryRepository;
 import com.fluxfund.api.domain.category.Category;
 import com.fluxfund.api.domain.category.repository.CategoryRepository;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
+import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
+import com.fluxfund.api.domain.financialtransaction.dto.ClassifyFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.CreateFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.UpdateFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.mapper.FinancialTransactionMapper;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
+import com.fluxfund.api.domain.fund.Fund;
+import com.fluxfund.api.domain.fund.repository.FundRepository;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.OrganizationRepository;
+import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
+import com.fluxfund.api.domain.transactionallocation.dto.CreateTransactionAllocationRequest;
+import com.fluxfund.api.domain.transactionallocation.dto.TransactionAllocationResponse;
+import com.fluxfund.api.domain.transactionallocation.dto.UpdateTransactionAllocationRequest;
+import com.fluxfund.api.domain.transactionallocation.mapper.TransactionAllocationMapper;
+import com.fluxfund.api.domain.transactionallocation.repository.TransactionAllocationRepository;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 
@@ -34,9 +47,12 @@ import lombok.RequiredArgsConstructor;
 public class FinancialTransactionService {
 
     private final FinancialTransactionRepository repository;
+    private final TransactionAllocationRepository allocationRepository;
     private final OrganizationRepository organizationRepository;
     private final AccountRepository accountRepository;
     private final CategoryRepository categoryRepository;
+    private final FundRepository fundRepository;
+    private final BeneficiaryRepository beneficiaryRepository;
 
     public FinancialTransactionResponse create(UUID organizationId, CreateFinancialTransactionRequest request) {
 
@@ -56,7 +72,9 @@ public class FinancialTransactionService {
         FinancialTransaction financialTransaction = FinancialTransactionMapper.createEntity(request, organization,
                 account, category);
 
-        applyFinancialRules(financialTransaction);
+        validateAllocationRules(financialTransaction);
+
+        addInitialAllocations(organizationId, financialTransaction, request.allocations());
 
         repository.save(financialTransaction);
 
@@ -96,7 +114,7 @@ public class FinancialTransactionService {
         }
         FinancialTransactionMapper.updateEntity(financialTransaction, request, category);
 
-        applyFinancialRules(financialTransaction);
+        validateAllocationRules(financialTransaction);
 
         repository.save(financialTransaction);
 
@@ -122,7 +140,7 @@ public class FinancialTransactionService {
                 .orElseThrow(() -> new ResourceNotFoundException("FinancialTransaction not found"));
     }
 
-    private void applyFinancialRules(FinancialTransaction transaction) {
+    private void validateAllocationRules(FinancialTransaction transaction) {
 
         if (transaction.getCategory() != null && transaction.getClassifiedAt() == null) {
             transaction.setClassifiedAt(LocalDateTime.now());
@@ -154,6 +172,207 @@ public class FinancialTransactionService {
         } else {
             transaction.setInterestAmount(BigDecimal.ZERO);
             transaction.setDiscountAmount(BigDecimal.ZERO);
+        }
+    }
+
+    public FinancialTransactionResponse classify(
+            UUID organizationId,
+            UUID id,
+            ClassifyFinancialTransactionRequest request) {
+
+        FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
+
+        if (financialTransaction.getStatus() == FinancialTransactionStatus.CANCELED) {
+            throw new BusinessException("Canceled transactions cannot be classified");
+        }
+
+        Category category = categoryRepository
+                .findByIdAndOrganizationIdAndActiveTrue(request.categoryId(), organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+
+        financialTransaction.setCategory(category);
+        financialTransaction.setDueDate(request.dueDate());
+        financialTransaction.setSettlementDate(request.settlementDate());
+        financialTransaction.setExpectedAmount(request.expectedAmount());
+        financialTransaction.setSettledAmount(Objects.requireNonNullElse(request.settledAmount(), request.expectedAmount()));
+        financialTransaction.setDescription(request.description());
+        financialTransaction.setDocumentNumber(request.documentNumber());
+
+        validateAllocationRules(financialTransaction);
+
+        financialTransaction.getAllocations().clear();
+
+        addInitialAllocations(organizationId, financialTransaction, request.allocations());
+
+        validateTotalAllocatedAmount(financialTransaction);
+
+        repository.save(financialTransaction);
+
+        return FinancialTransactionMapper.toResponse(financialTransaction);
+    }
+
+    public TransactionAllocationResponse addAllocation(UUID organizationId, UUID id,
+            CreateTransactionAllocationRequest request) {
+
+        FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
+
+        TransactionAllocation allocation = buildAllocation(organizationId, financialTransaction, request);
+
+        validateAllocationRules(allocation);
+
+        financialTransaction.addAllocation(allocation);
+
+        repository.save(financialTransaction);
+
+        return TransactionAllocationMapper.toResponse(allocation);
+    }
+
+    public TransactionAllocationResponse updateAllocation(UUID organizationId, UUID id, UUID allocationId,
+            UpdateTransactionAllocationRequest request) {
+
+        FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
+
+        TransactionAllocation allocation = financialTransaction.getAllocations().stream()
+                .filter(a -> a.getId().equals(allocationId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("TransactionAllocation not found"));
+
+        Fund fund = null;
+        if (request.fundId() != null) {
+            fund = fundRepository.findByIdAndOrganizationIdAndActiveTrue(request.fundId(), organizationId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Fund not found"));
+        }
+
+        Beneficiary beneficiary = null;
+        if (request.beneficiaryId() != null) {
+            beneficiary = beneficiaryRepository
+                    .findByIdAndOrganizationIdAndActiveTrue(request.beneficiaryId(), organizationId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Beneficiary not found"));
+        }
+
+        TransactionAllocationMapper.updateEntity(allocation, request, fund, beneficiary);
+
+        validateAllocationRules(allocation);
+
+        repository.save(financialTransaction);
+
+        return TransactionAllocationMapper.toResponse(allocation);
+    }
+
+    public void removeAllocation(UUID organizationId, UUID id, UUID allocationId) {
+
+        FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
+
+        TransactionAllocation allocation = financialTransaction.getAllocations().stream()
+                .filter(a -> a.getId().equals(allocationId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("TransactionAllocation not found"));
+
+        financialTransaction.removeAllocation(allocation);
+
+        repository.save(financialTransaction);
+    }
+
+    private TransactionAllocation buildAllocation(
+            UUID organizationId,
+            FinancialTransaction financialTransaction,
+            CreateTransactionAllocationRequest request) {
+
+        Fund fund = fundRepository
+                .findByIdAndOrganizationIdAndActiveTrue(request.fundId(), organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Fund not found"));
+
+        Beneficiary beneficiary = null;
+
+        if (request.beneficiaryId() != null) {
+            beneficiary = beneficiaryRepository
+                    .findByIdAndOrganizationIdAndActiveTrue(request.beneficiaryId(), organizationId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Beneficiary not found"));
+        }
+
+        return TransactionAllocationMapper.createEntity(request, financialTransaction, fund, beneficiary);
+    }
+
+    private void addInitialAllocations(
+            UUID organizationId,
+            FinancialTransaction financialTransaction,
+            List<CreateTransactionAllocationRequest> allocations) {
+
+        if (allocations == null || allocations.isEmpty()) {
+            return;
+        }
+
+        for (CreateTransactionAllocationRequest allocationRequest : allocations) {
+            TransactionAllocation allocation = buildAllocation(
+                    organizationId,
+                    financialTransaction,
+                    allocationRequest);
+
+            validateBasicAllocationRules(allocation);
+
+            financialTransaction.addAllocation(allocation);
+        }
+    }
+
+    private void validateAllocationRules(TransactionAllocation transaction) {
+
+        if (transaction.getFinancialTransaction().getType() == FinancialTransactionType.TRANSFER) {
+            throw new BusinessException(
+                    "Transfer transactions cannot have allocations");
+        }
+
+        if (transaction.getAmount().abs().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Amount must be greater than zero");
+        }
+
+        BigDecimal allocatedAmount = allocationRepository.sumAmountByFinancialTransactionId(
+                transaction.getFinancialTransaction().getId());
+
+        BigDecimal newTotal = allocatedAmount.add(transaction.getAmount().abs());
+
+        if (newTotal.compareTo(
+                transaction.getFinancialTransaction().getSettledAmount().abs()) > 0) {
+
+            throw new BusinessException(
+                    "Allocated amount exceeds transaction amount");
+        }
+
+        if (transaction.getFinancialTransaction().getStatus() != FinancialTransactionStatus.SETTLED) {
+            throw new BusinessException(
+                    "Only settled transactions can receive allocations");
+        }
+    }
+
+    private void validateBasicAllocationRules(TransactionAllocation allocation) {
+
+        if (allocation.getFinancialTransaction().getType() == FinancialTransactionType.TRANSFER) {
+            throw new BusinessException("Transfer transactions cannot have allocations");
+        }
+
+        if (allocation.getAmount().abs().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Amount must be greater than zero");
+        }
+
+        if (allocation.getFinancialTransaction().getStatus() != FinancialTransactionStatus.SETTLED) {
+            throw new BusinessException("Only settled transactions can receive allocations");
+        }
+    }
+
+    private void validateTotalAllocatedAmount(FinancialTransaction transaction) {
+
+        if (transaction.getAllocations() == null || transaction.getAllocations().isEmpty()) {
+            return;
+        }
+
+        BigDecimal totalAllocated = transaction.getAllocations().stream()
+                .map(TransactionAllocation::getAmount)
+                .map(BigDecimal::abs)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal transactionAmount = transaction.getSettledAmount().abs();
+
+        if (totalAllocated.compareTo(transactionAmount) > 0) {
+            throw new BusinessException("Allocated amount exceeds transaction amount");
         }
     }
 }

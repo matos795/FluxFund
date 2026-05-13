@@ -1,5 +1,6 @@
 package com.fluxfund.api.domain.beneficiary.repository;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -31,4 +32,6 @@ public interface BeneficiaryRepository extends JpaRepository<Beneficiary, UUID> 
             UUID organizationId,
             String document,
             UUID id);
+
+    Optional<Beneficiary> findByIdAndOrganizationIdAndActiveTrue(UUID beneficiaryId, UUID organizationId);
 }

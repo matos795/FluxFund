@@ -8,6 +8,7 @@ import com.fluxfund.api.domain.financialtransaction.dto.CreateFinancialTransacti
 import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.UpdateFinancialTransactionRequest;
 import com.fluxfund.api.domain.organization.Organization;
+import com.fluxfund.api.domain.transactionallocation.mapper.TransactionAllocationMapper;
 
 public class FinancialTransactionMapper {
 
@@ -49,6 +50,8 @@ public class FinancialTransactionMapper {
                 financialTransaction.getDescription(),
                 financialTransaction.getRawDescription(),
                 financialTransaction.getDocumentNumber(),
+                financialTransaction.getAllocations().stream()
+                                    .map(TransactionAllocationMapper::toResponse).toList(),
                 financialTransaction.getImportedAt(),
                 financialTransaction.getClassifiedAt(),
                 financialTransaction.getCreatedAt(),

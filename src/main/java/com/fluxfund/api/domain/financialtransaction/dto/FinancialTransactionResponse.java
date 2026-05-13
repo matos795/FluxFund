@@ -4,11 +4,13 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
+import com.fluxfund.api.domain.transactionallocation.dto.TransactionAllocationResponse;
 
 public record FinancialTransactionResponse(
     UUID id,
@@ -35,6 +37,8 @@ public record FinancialTransactionResponse(
     String description,
     String rawDescription,
     String documentNumber,
+
+    List<TransactionAllocationResponse> allocations,
 
     LocalDateTime importedAt,
     LocalDateTime classifiedAt,
