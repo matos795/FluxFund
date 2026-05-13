@@ -6,16 +6,26 @@ export type AccountType =
 
 export type Account = {
   id: string
-  organizationId: string
   name: string
   type: AccountType
-  bankName: string | null
   bankCode: string | null
+  bankName: string | null
   agency: string | null
   accountNumber: string | null
   initialBalance: number
-  initialBalanceDate: string
+  initialBalanceDate?: string | null
   active: boolean
   createdAt: string
   updatedAt: string
+}
+
+export type CreateAccountRequest = {
+  name: string
+  type: AccountType
+  bankCode?: string
+  bankName?: string
+  agency?: string
+  accountNumber?: string
+  initialBalance: number
+  initialBalanceDate?: string
 }

@@ -3,7 +3,6 @@ import type { Account } from "@/features/accounts/types"
 export const accountsMock: Account[] = [
   {
     id: "1",
-    organizationId: "org-1",
     name: "Banco do Brasil - Conta Corrente",
     type: "BANK",
     bankName: "Banco do Brasil",
@@ -18,7 +17,6 @@ export const accountsMock: Account[] = [
   },
   {
     id: "2",
-    organizationId: "org-1",
     name: "Caixa físico - Secretaria",
     type: "CASH",
     bankName: null,
@@ -33,7 +31,6 @@ export const accountsMock: Account[] = [
   },
   {
     id: "3",
-    organizationId: "org-1",
     name: "Carteira Digital",
     type: "DIGITAL_WALLET",
     bankName: "Mercado Pago",
