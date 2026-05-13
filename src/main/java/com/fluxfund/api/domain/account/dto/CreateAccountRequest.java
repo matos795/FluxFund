@@ -2,7 +2,6 @@ package com.fluxfund.api.domain.account.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.UUID;
 
 import com.fluxfund.api.domain.account.AccountType;
 
@@ -28,9 +27,6 @@ public record CreateAccountRequest(
         @NotNull
         BigDecimal initialBalance,
 
-        LocalDate initialBalanceDate,
-
-        @NotNull
-        UUID organizationId
+        LocalDate initialBalanceDate
 ) {
 }

@@ -29,11 +29,9 @@ public class FundService {
     private final FundRepository repository;
     private final OrganizationRepository organizationRepository;
 
-    public FundResponse create(CreateFundRequest request) {
+    public FundResponse create(CreateFundRequest request, UUID organizationId) {
 
-        UUID organizationId = request.organizationId();
-
-        Organization organization = organizationRepository.findById(organizationId)
+        Organization organization = organizationRepository.findByIdAndActiveTrue(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
         validateFundName(organizationId, request.name(), null);
@@ -47,6 +45,7 @@ public class FundService {
 
     @Transactional(readOnly = true)
     public Page<FundResponse> findAll(
+
             UUID organizationId,
             Pageable pageable) {
 
@@ -56,18 +55,19 @@ public class FundService {
     }
 
     @Transactional(readOnly = true)
-    public FundResponse findById(UUID id) {
+    public FundResponse findById(UUID id, UUID organizationId) {
 
-        Fund fund = findFundById(id);
+        Fund fund = findFundById(id, organizationId);
 
         return FundMapper.toResponse(fund);
     }
 
     public FundResponse update(
             UUID id,
+            UUID organizationId,
             UpdateFundRequest request) {
 
-        Fund fund = findFundById(id);
+        Fund fund = findFundById(id, organizationId);
 
         if (request.name() != null) {
 
@@ -83,16 +83,16 @@ public class FundService {
         return FundMapper.toResponse(fund);
     }
 
-    public void delete(UUID id) {
+    public void delete(UUID id, UUID organizationId) {
 
-        Fund fund = findFundById(id);
+        Fund fund = findFundById(id, organizationId);
 
         fund.setActive(false);
         repository.save(fund);
     }
 
-    private Fund findFundById(UUID id) {
-        return repository.findById(id)
+    private Fund findFundById(UUID id, UUID organizationId) {
+        return repository.findByIdAndOrganizationIdAndActiveTrue(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Fund not found"));
     }
 

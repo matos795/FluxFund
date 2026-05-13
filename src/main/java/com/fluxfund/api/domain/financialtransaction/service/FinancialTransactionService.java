@@ -76,6 +76,8 @@ public class FinancialTransactionService {
 
         addInitialAllocations(organizationId, financialTransaction, request.allocations());
 
+        validateTotalAllocatedAmount(financialTransaction);
+
         repository.save(financialTransaction);
 
         return FinancialTransactionMapper.toResponse(financialTransaction);
@@ -193,9 +195,18 @@ public class FinancialTransactionService {
         financialTransaction.setCategory(category);
         financialTransaction.setDueDate(request.dueDate());
         financialTransaction.setSettlementDate(request.settlementDate());
-        financialTransaction.setExpectedAmount(request.expectedAmount());
-        financialTransaction.setSettledAmount(Objects.requireNonNullElse(request.settledAmount(), request.expectedAmount()));
-        financialTransaction.setDescription(request.description());
+
+        if (request.expectedAmount() != null) {
+            financialTransaction.setExpectedAmount(request.expectedAmount());
+        }
+
+        financialTransaction
+                .setSettledAmount(Objects.requireNonNullElse(request.settledAmount(), request.expectedAmount()));
+
+        if (request.description() != null) {
+            financialTransaction.setDescription(request.description());
+        }
+
         financialTransaction.setDocumentNumber(request.documentNumber());
 
         validateAllocationRules(financialTransaction);
@@ -252,7 +263,8 @@ public class FinancialTransactionService {
 
         TransactionAllocationMapper.updateEntity(allocation, request, fund, beneficiary);
 
-        validateAllocationRules(allocation);
+        validateBasicAllocationRules(allocation);
+        validateTotalAllocatedAmount(financialTransaction);
 
         repository.save(financialTransaction);
 
@@ -330,16 +342,16 @@ public class FinancialTransactionService {
 
         BigDecimal newTotal = allocatedAmount.add(transaction.getAmount().abs());
 
+        if (transaction.getFinancialTransaction().getStatus() != FinancialTransactionStatus.SETTLED) {
+            throw new BusinessException(
+                    "Only settled transactions can receive allocations");
+        }
+
         if (newTotal.compareTo(
                 transaction.getFinancialTransaction().getSettledAmount().abs()) > 0) {
 
             throw new BusinessException(
                     "Allocated amount exceeds transaction amount");
-        }
-
-        if (transaction.getFinancialTransaction().getStatus() != FinancialTransactionStatus.SETTLED) {
-            throw new BusinessException(
-                    "Only settled transactions can receive allocations");
         }
     }
 

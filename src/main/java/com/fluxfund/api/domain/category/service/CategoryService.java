@@ -1,6 +1,5 @@
 package com.fluxfund.api.domain.category.service;
 
-import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -30,17 +29,15 @@ public class CategoryService {
     private final CategoryRepository categoryRepository;
     private final OrganizationRepository organizationRepository;
 
-    public CategoryResponse create(CreateCategoryRequest request) {
+    public CategoryResponse create(CreateCategoryRequest request, UUID organizationId) {
 
-        UUID organizationId = Objects.requireNonNull(request.organizationId(), "Organization id is required");
-
-        Organization organization = organizationRepository.findById(organizationId)
+        Organization organization = organizationRepository.findByIdAndActiveTrue(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
         Category parent = null;
 
         if (request.parentId() != null) {
-            parent = categoryRepository.findById(request.parentId())
+            parent = categoryRepository.findByIdAndOrganizationIdAndActiveTrue(request.parentId(), organizationId)
                     .orElseThrow(() -> new ResourceNotFoundException("Parent category not found"));
         }
 
@@ -74,25 +71,26 @@ public class CategoryService {
     }
 
     @Transactional(readOnly = true)
-    public CategoryResponse findById(UUID id) {
+    public CategoryResponse findById(UUID id, UUID organizationId) {
 
-        Category category = categoryRepository.findById(Objects.requireNonNull(id))
+        Category category = categoryRepository.findByIdAndOrganizationIdAndActiveTrue(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
         return CategoryMapper.toResponse(category);
     }
 
     public CategoryResponse update(
+            UUID organizationId,
             UUID id,
             UpdateCategoryRequest request) {
 
-        Category category = categoryRepository.findById(Objects.requireNonNull(id))
+        Category category = categoryRepository.findByIdAndOrganizationIdAndActiveTrue(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
         Category parent = null;
 
         if (request.parentId() != null) {
-            parent = categoryRepository.findById(request.parentId())
+            parent = categoryRepository.findByIdAndOrganizationIdAndActiveTrue(request.parentId(), organizationId)
                     .orElseThrow(() -> new ResourceNotFoundException("Parent category not found"));
         }
 
@@ -123,9 +121,9 @@ public class CategoryService {
         return CategoryMapper.toResponse(category);
     }
 
-    public void delete(UUID id) {
+    public void delete(UUID id, UUID organizationId) {
 
-        Category category = categoryRepository.findById(Objects.requireNonNull(id))
+        Category category = categoryRepository.findByIdAndOrganizationIdAndActiveTrue(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
         category.setActive(false);

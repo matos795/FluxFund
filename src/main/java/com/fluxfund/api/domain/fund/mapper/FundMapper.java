@@ -25,7 +25,6 @@ public class FundMapper {
     public static FundResponse toResponse(Fund fund) {
         return new FundResponse(
             fund.getId(),
-            fund.getOrganization().getId(),
             fund.getName(),
             fund.getDescription(),
             fund.getInitialBalance(),

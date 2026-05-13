@@ -7,7 +7,6 @@ import java.util.UUID;
 
 public record FundResponse(
     UUID id,
-    UUID organizationId,
     String name,
     String description,
     BigDecimal initialBalance,

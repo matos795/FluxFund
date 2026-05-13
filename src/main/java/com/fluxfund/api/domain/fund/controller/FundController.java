@@ -33,9 +33,10 @@ public class FundController {
 
     @PostMapping
     public ResponseEntity<FundResponse> create(
+            @RequestParam UUID organizationId,
             @RequestBody @Valid CreateFundRequest request) {
 
-        FundResponse response = service.create(request);
+        FundResponse response = service.create(request, organizationId);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(response);
@@ -52,25 +53,28 @@ public class FundController {
 
     @GetMapping("/{id}")
     public ResponseEntity<FundResponse> findById(
+            @RequestParam UUID organizationId,
             @PathVariable UUID id) {
 
-        return ResponseEntity.ok(service.findById(id));
+        return ResponseEntity.ok(service.findById(id, organizationId));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<FundResponse> update(
+            @RequestParam UUID organizationId,
             @PathVariable UUID id,
             @RequestBody @Valid UpdateFundRequest request) {
 
         return ResponseEntity.ok(
-                service.update(id, request));
+                service.update(id, organizationId, request));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(
+            @RequestParam UUID organizationId,
             @PathVariable UUID id) {
 
-        service.delete(id);
+        service.delete(id, organizationId);
 
         return ResponseEntity.noContent().build();
     }

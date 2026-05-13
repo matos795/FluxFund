@@ -1,6 +1,5 @@
 package com.fluxfund.api.domain.account.service;
 
-import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -27,11 +26,9 @@ public class AccountService {
     private final OrganizationRepository organizationRepository;
     private final AccountMapper mapper;
 
-    public AccountResponse create(CreateAccountRequest request) {
+    public AccountResponse create(CreateAccountRequest request, UUID organizationId) {
 
-        UUID organizationId = Objects.requireNonNull(request.organizationId(), "Organization id is required");
-
-        Organization organization = organizationRepository.findById(organizationId)
+        Organization organization = organizationRepository.findByIdAndActiveTrue(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
         Account account = mapper.createEntity(request, organization);
@@ -50,9 +47,9 @@ public class AccountService {
                 .map(mapper::toResponse);
     }
 
-    public AccountResponse findById(UUID id) {
+    public AccountResponse findById(UUID id, UUID organizationId) {
 
-        Account account = accountRepository.findById(Objects.requireNonNull(id))
+        Account account = accountRepository.findByIdAndOrganizationIdAndActiveTrue(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
 
         return mapper.toResponse(account);
@@ -60,9 +57,10 @@ public class AccountService {
 
     public AccountResponse update(
             UUID id,
+            UUID organizationId,
             UpdateAccountRequest request) {
 
-        Account account = accountRepository.findById(Objects.requireNonNull(id))
+        Account account = accountRepository.findByIdAndOrganizationIdAndActiveTrue(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
 
         mapper.updateEntity(account, request);
@@ -71,9 +69,9 @@ public class AccountService {
         return mapper.toResponse(account);
     }
 
-    public void delete(UUID id) {
+    public void delete(UUID id, UUID organizationId) {
 
-        Account account = accountRepository.findById(Objects.requireNonNull(id))
+        Account account = accountRepository.findByIdAndOrganizationIdAndActiveTrue(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
 
         account.setActive(false);

@@ -33,9 +33,10 @@ public class BeneficiaryController {
 
     @PostMapping
     public ResponseEntity<BeneficiaryResponse> create(
+            @RequestParam UUID organizationId,
             @RequestBody @Valid CreateBeneficiaryRequest request) {
 
-        BeneficiaryResponse response = service.create(request);
+        BeneficiaryResponse response = service.create(request, organizationId);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(response);
@@ -52,25 +53,28 @@ public class BeneficiaryController {
 
     @GetMapping("/{id}")
     public ResponseEntity<BeneficiaryResponse> findById(
+            @RequestParam UUID organizationId,
             @PathVariable UUID id) {
 
-        return ResponseEntity.ok(service.findById(id));
+        return ResponseEntity.ok(service.findById(id, organizationId));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<BeneficiaryResponse> update(
+            @RequestParam UUID organizationId,
             @PathVariable UUID id,
             @RequestBody @Valid UpdateBeneficiaryRequest request) {
 
         return ResponseEntity.ok(
-                service.update(id, request));
+                service.update(organizationId, id, request));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(
+            @RequestParam UUID organizationId,
             @PathVariable UUID id) {
 
-        service.delete(id);
+        service.delete(id, organizationId);
 
         return ResponseEntity.noContent().build();
     }

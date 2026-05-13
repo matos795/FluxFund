@@ -27,7 +27,6 @@ public class BeneficiaryMapper {
     public static BeneficiaryResponse toResponse(Beneficiary beneficiary) {
         return new BeneficiaryResponse(
             beneficiary.getId(),
-            beneficiary.getOrganization().getId(),
             beneficiary.getName(),
             beneficiary.getType(),
             beneficiary.getDocument(),

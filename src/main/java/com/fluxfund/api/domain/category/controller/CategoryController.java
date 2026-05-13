@@ -34,9 +34,10 @@ public class CategoryController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public CategoryResponse create(
+            @RequestParam UUID organizationId,
             @Valid @RequestBody CreateCategoryRequest request
     ) {
-        return service.create(request);
+        return service.create(request, organizationId);
     }
 
     @GetMapping
@@ -49,24 +50,27 @@ public class CategoryController {
 
     @GetMapping("/{id}")
     public CategoryResponse findById(
+            @RequestParam UUID organizationId,
             @PathVariable UUID id
     ) {
-        return service.findById(id);
+        return service.findById(id, organizationId);
     }
 
     @PutMapping("/{id}")
     public CategoryResponse update(
             @PathVariable UUID id,
+            @RequestParam UUID organizationId,
             @Valid @RequestBody UpdateCategoryRequest request
     ) {
-        return service.update(id, request);
+        return service.update(id, organizationId, request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(
-            @PathVariable UUID id
+            @PathVariable UUID id,
+            @RequestParam UUID organizationId
     ) {
-        service.delete(id);
+        service.delete(id, organizationId);
     }
 }

@@ -34,9 +34,10 @@ public class AccountController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public AccountResponse create(
+            @RequestParam UUID organizationId,
             @Valid @RequestBody CreateAccountRequest request
     ) {
-        return service.create(request);
+        return service.create(request, organizationId);
     }
 
     @GetMapping
@@ -49,24 +50,27 @@ public class AccountController {
 
     @GetMapping("/{id}")
     public AccountResponse findById(
+            @RequestParam UUID organizationId,
             @PathVariable UUID id
     ) {
-        return service.findById(id);
+        return service.findById(id, organizationId);
     }
 
     @PutMapping("/{id}")
     public AccountResponse update(
             @PathVariable UUID id,
+            @RequestParam UUID organizationId,
             @Valid @RequestBody UpdateAccountRequest request
     ) {
-        return service.update(id, request);
+        return service.update(id, organizationId, request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(
-            @PathVariable UUID id
+            @PathVariable UUID id,
+            @RequestParam UUID organizationId
     ) {
-        service.delete(id);
+        service.delete(id, organizationId);
     }
 }

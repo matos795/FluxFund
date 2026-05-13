@@ -30,11 +30,9 @@ public class BeneficiaryService {
     private final BeneficiaryRepository repository;
     private final OrganizationRepository organizationRepository;
 
-    public BeneficiaryResponse create(CreateBeneficiaryRequest request) {
+    public BeneficiaryResponse create(CreateBeneficiaryRequest request,  UUID organizationId) {
 
-        UUID organizationId = request.organizationId();
-
-        Organization organization = organizationRepository.findById(organizationId)
+        Organization organization = organizationRepository.findByIdAndActiveTrue(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
         validateBeneficiaryName(organizationId, request.name(), null);
@@ -58,18 +56,19 @@ public class BeneficiaryService {
     }
 
     @Transactional(readOnly = true)
-    public BeneficiaryResponse findById(UUID id) {
+    public BeneficiaryResponse findById(UUID id, UUID organizationId) {
 
-        Beneficiary beneficiary = findBeneficiaryById(id);
+        Beneficiary beneficiary = findBeneficiaryById(id, organizationId);
 
         return BeneficiaryMapper.toResponse(beneficiary);
     }
 
     public BeneficiaryResponse update(
+            UUID organizationId,
             UUID id,
             UpdateBeneficiaryRequest request) {
 
-        Beneficiary beneficiary = findBeneficiaryById(id);
+        Beneficiary beneficiary = findBeneficiaryById(id, organizationId);
 
         if (request.name() != null) {
 
@@ -93,16 +92,16 @@ public class BeneficiaryService {
         return BeneficiaryMapper.toResponse(beneficiary);
     }
 
-    public void delete(UUID id) {
+    public void delete(UUID id, UUID organizationId) {
 
-        Beneficiary beneficiary = findBeneficiaryById(id);
+        Beneficiary beneficiary = findBeneficiaryById(id, organizationId);
 
         beneficiary.setActive(false);
         repository.save(beneficiary);
     }
 
-    private Beneficiary findBeneficiaryById(UUID id) {
-        return repository.findById(id)
+    private Beneficiary findBeneficiaryById(UUID id, UUID organizationId) {
+        return repository.findByIdAndOrganizationIdAndActiveTrue(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Beneficiary not found"));
     }
 

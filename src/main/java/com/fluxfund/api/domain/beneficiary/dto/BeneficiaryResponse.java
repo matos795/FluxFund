@@ -7,7 +7,6 @@ import com.fluxfund.api.domain.beneficiary.BeneficiaryType;
 
 public record BeneficiaryResponse(
     UUID id,
-    UUID organizationId,
     String name,
     BeneficiaryType type,
     String document,

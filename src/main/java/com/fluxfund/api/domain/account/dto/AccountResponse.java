@@ -17,7 +17,6 @@ public record AccountResponse(
         String accountNumber,
         BigDecimal initialBalance,
         boolean active,
-        UUID organizationId,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {

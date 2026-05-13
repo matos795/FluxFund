@@ -1,7 +1,5 @@
 package com.fluxfund.api.domain.beneficiary.dto;
 
-import java.util.UUID;
-
 import com.fluxfund.api.domain.beneficiary.BeneficiaryType;
 
 import jakarta.validation.constraints.Email;
@@ -10,8 +8,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record CreateBeneficiaryRequest(
-    @NotNull
-    UUID organizationId,
     @NotBlank
     @Size(max = 100)
     String name,
