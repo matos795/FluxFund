@@ -1,7 +1,4 @@
-import { Plus } from "lucide-react"
-
 import { PageHeader } from "@/components/layout/page-header"
-import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -9,28 +6,23 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
-export function AccountsPage() {
+export function ReportsPage() {
   return (
     <div>
       <PageHeader
-        title="Contas"
-        description="Gerencie contas bancárias, caixas físicos, carteiras e contas digitais."
-      >
-        <Button>
-          <Plus className="mr-2 size-4" />
-          Nova conta
-        </Button>
-      </PageHeader>
+        title="Relatórios"
+        description="Acompanhe saldos, destinações, repasses e prestação de contas."
+      />
 
       <Card>
         <CardHeader>
-          <CardTitle>Contas cadastradas</CardTitle>
+          <CardTitle>Relatórios disponíveis</CardTitle>
         </CardHeader>
 
         <CardContent>
           <div className="flex h-48 items-center justify-center rounded-lg border border-dashed">
             <p className="text-sm text-muted-foreground">
-              Nenhuma conta cadastrada ainda.
+              Os relatórios serão criados após a integração com os dados financeiros.
             </p>
           </div>
         </CardContent>

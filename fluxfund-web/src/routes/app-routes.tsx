@@ -7,17 +7,22 @@ import { FundsPage } from "@/pages/funds-page"
 import { BeneficiariesPage } from "@/pages/beneficiaries-page"
 import { TransactionsPage } from "@/pages/transactions-page"
 import { NotFoundPage } from "@/pages/not-found-page"
+import { AppLayout } from "@/components/layout/app-layout"
+import { ReportsPage } from "@/pages/reports-page"
 
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<DashboardPage />} />
-      <Route path="/accounts" element={<AccountsPage />} />
-      <Route path="/categories" element={<CategoriesPage />} />
-      <Route path="/funds" element={<FundsPage />} />
-      <Route path="/beneficiaries" element={<BeneficiariesPage />} />
-      <Route path="/transactions" element={<TransactionsPage />} />
-      <Route path="*" element={<NotFoundPage />} />
+      <Route element={<AppLayout />}>
+        <Route path="/" element={<DashboardPage />} />
+        <Route path="/accounts" element={<AccountsPage />} />
+        <Route path="/categories" element={<CategoriesPage />} />
+        <Route path="/funds" element={<FundsPage />} />
+        <Route path="/beneficiaries" element={<BeneficiariesPage />} />
+        <Route path="/transactions" element={<TransactionsPage />} />
+        <Route path="/reports" element={<ReportsPage />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
     </Routes>
   )
 }
