@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/layout/page-header"
 import { PagePagination } from "@/components/pagination/page-pagination"
 import { AccountsTable } from "@/features/accounts/components/accounts-table"
+import { AccountsTableSkeleton } from "@/features/accounts/components/accounts-table-skeleton"
 import { CreateAccountDialog } from "@/features/accounts/components/create-account-dialog"
 import { useAccounts } from "@/features/accounts/hooks/use-accounts"
 import { useState } from "react"
@@ -27,11 +28,7 @@ export function AccountsPage() {
         <CreateAccountDialog />
       </PageHeader>
 
-      {isLoading && (
-        <p className="text-sm text-muted-foreground">
-          Carregando contas...
-        </p>
-      )}
+      {isLoading && <AccountsTableSkeleton />}
 
       {isFetching && !isLoading && (
         <p className="mb-3 text-xs text-muted-foreground">
