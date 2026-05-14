@@ -29,3 +29,16 @@ export type CreateAccountRequest = {
   initialBalance: number
   initialBalanceDate?: string
 }
+
+export type UpdateAccountRequest = {
+  id: string
+  name: string
+  type: AccountType
+  bankCode?: string
+  bankName?: string
+  agency?: string
+  accountNumber?: string
+  initialBalance: number
+  initialBalanceDate?: string
+  active: boolean
+}

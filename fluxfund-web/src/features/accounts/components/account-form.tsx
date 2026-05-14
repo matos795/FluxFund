@@ -22,11 +22,15 @@ import {
 type AccountFormProps = {
   onSubmit: (data: AccountFormData) => void
   isSubmitting?: boolean
+  defaultValues?: Partial<AccountFormInput>
+  submitLabel?: string
 }
 
 export function AccountForm({
   onSubmit,
   isSubmitting = false,
+  defaultValues,
+  submitLabel = "Salvar conta",
 }: AccountFormProps) {
   const {
     register,
@@ -37,15 +41,17 @@ export function AccountForm({
   } = useForm<AccountFormInput, unknown, AccountFormData>({
     resolver: zodResolver(accountFormSchema),
     defaultValues: {
-      name: "",
-      type: "BANK",
-      bankName: "",
-      bankCode: "",
-      agency: "",
-      accountNumber: "",
-      initialBalance: 0,
-      initialBalanceDate: new Date().toISOString().slice(0, 10),
-      active: true,
+      name: defaultValues?.name ?? "",
+      type: defaultValues?.type ?? "BANK",
+      bankName: defaultValues?.bankName ?? "",
+      bankCode: defaultValues?.bankCode ?? "",
+      agency: defaultValues?.agency ?? "",
+      accountNumber: defaultValues?.accountNumber ?? "",
+      initialBalance: defaultValues?.initialBalance ?? 0,
+      initialBalanceDate:
+        defaultValues?.initialBalanceDate ??
+        new Date().toISOString().slice(0, 10),
+      active: defaultValues?.active ?? true,
     },
   })
 
@@ -188,7 +194,7 @@ export function AccountForm({
 
       <div className="flex justify-end gap-2 pt-2">
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Salvando..." : "Salvar conta"}
+          {isSubmitting ? "Salvando..." : submitLabel}
         </Button>
       </div>
     </form>
