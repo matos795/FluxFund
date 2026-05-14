@@ -1,10 +1,20 @@
 import { PageHeader } from "@/components/layout/page-header"
+import { PagePagination } from "@/components/pagination/page-pagination"
 import { AccountsTable } from "@/features/accounts/components/accounts-table"
 import { CreateAccountDialog } from "@/features/accounts/components/create-account-dialog"
 import { useAccounts } from "@/features/accounts/hooks/use-accounts"
+import { useState } from "react"
+
+const PAGE_SIZE = 10
 
 export function AccountsPage() {
-  const { data, isLoading, isError } = useAccounts()
+
+  const [page, setPage] = useState(0)
+
+  const { data, isLoading, isError, isFetching } = useAccounts({
+    page,
+    size: PAGE_SIZE,
+  })
 
   const accounts = data?.content ?? []
 
@@ -23,13 +33,35 @@ export function AccountsPage() {
         </p>
       )}
 
+      {isFetching && !isLoading && (
+        <p className="mb-3 text-xs text-muted-foreground">
+          Atualizando dados...
+        </p>
+      )}
+
       {isError && (
         <p className="text-sm text-destructive">
           Não foi possível carregar as contas.
         </p>
       )}
 
-      {!isLoading && !isError && <AccountsTable accounts={accounts} />}
+      {!isLoading && !isError && (
+        <div className="space-y-4">
+          <AccountsTable accounts={accounts} />
+
+          {data && (
+            <PagePagination
+              page={data.number}
+              totalPages={data.totalPages}
+              totalElements={data.totalElements}
+              size={data.size}
+              isFirst={data.first}
+              isLast={data.last}
+              onPageChange={setPage}
+            />
+          )}
+        </div>
+      )}
     </div>
   )
 }

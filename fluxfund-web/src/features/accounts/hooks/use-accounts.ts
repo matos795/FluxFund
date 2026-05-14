@@ -2,13 +2,18 @@ import { useQuery } from "@tanstack/react-query"
 
 import { getAccounts } from "@/features/accounts/accounts-api"
 
-export function useAccounts() {
+type UseAccountsParams = {
+  page: number
+  size: number
+}
+
+export function useAccounts({ page, size }: UseAccountsParams) {
   return useQuery({
-    queryKey: ["accounts"],
+    queryKey: ["accounts", { page, size }],
     queryFn: () =>
       getAccounts({
-        page: 0,
-        size: 10,
+        page,
+        size,
       }),
   })
 }
