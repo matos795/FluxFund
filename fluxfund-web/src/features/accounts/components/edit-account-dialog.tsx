@@ -16,6 +16,7 @@ import {
 import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu"
+import { toast } from "sonner"
 
 type EditAccountDialogProps = {
   account: Account
@@ -42,8 +43,12 @@ export function EditAccountDialog({ account }: EditAccountDialogProps) {
       },
       {
         onSuccess: () => {
+          toast.success("Conta atualizada com sucesso!")
           setOpen(false)
         },
+        onError: () => {
+          toast.error("Erro ao atualizar conta. Verifique os dados e tente novamente.")
+        }
       },
     )
   }

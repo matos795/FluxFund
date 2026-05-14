@@ -22,6 +22,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { EditAccountDialog } from "./edit-account-dialog"
+import { toast } from "sonner"
 
 type AccountActionsProps = {
     account: Account
@@ -35,8 +36,12 @@ export function AccountActions({ account }: AccountActionsProps) {
     function handleDeleteAccount() {
         deleteAccountMutation.mutate(account.id, {
             onSuccess: () => {
+                toast.success("Conta desativada com sucesso!")
                 setDeleteDialogOpen(false)
             },
+            onError: () => {
+                toast.error("Não foi possível desativar a conta. Verifique se ela não possui transações vinculadas.")
+            }
         })
     }
 
@@ -61,22 +66,19 @@ export function AccountActions({ account }: AccountActionsProps) {
                 </DropdownMenuContent>
             </DropdownMenu>
 
-            <AlertDialog
-                open={deleteDialogOpen}
-                onOpenChange={setDeleteDialogOpen}
-            >
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Excluir conta?</AlertDialogTitle>
+                        <AlertDialogTitle>Desativar conta?</AlertDialogTitle>
                         <AlertDialogDescription>
                             Essa ação não poderá ser desfeita. A conta{" "}
-                            <strong>{account.name}</strong> será removida do sistema.
+                            <strong>{account.name}</strong> será desativada.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
 
                     {deleteAccountMutation.isError && (
                         <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-                            Não foi possível excluir a conta. Verifique se ela não possui
+                            Não foi possível desativar a conta. Verifique se ela não possui
                             transações vinculadas.
                         </div>
                     )}
@@ -91,7 +93,7 @@ export function AccountActions({ account }: AccountActionsProps) {
                             disabled={deleteAccountMutation.isPending}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                            {deleteAccountMutation.isPending ? "Excluindo..." : "Excluir"}
+                            {deleteAccountMutation.isPending ? "Desativando..." : "Desativar"}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

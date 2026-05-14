@@ -5,17 +5,12 @@ import type { AccountFormData } from "@/features/accounts/account-schema"
 import { AccountForm } from "@/features/accounts/components/account-form"
 
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, } from "@/components/ui/dialog"
 import { useCreateAccount } from "../hooks/use-create-account"
+import { toast } from "sonner"
 
 export function CreateAccountDialog() {
-  
+
   const [open, setOpen] = useState(false)
 
   const createAccountMutation = useCreateAccount()
@@ -34,8 +29,12 @@ export function CreateAccountDialog() {
       },
       {
         onSuccess: () => {
+          toast.success("Conta criada com sucesso!")
           setOpen(false)
         },
+        onError: () => {
+          toast.error("Erro ao criar conta. Tente novamente.")
+        }
       },
     )
   }
