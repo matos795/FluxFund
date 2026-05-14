@@ -10,8 +10,7 @@ public record CategoryResponse(
         UUID organizationId,
         String name,
         CategoryType type,
-        UUID parentId,
-        String parentName,
+        CategorySummaryResponse parent,
         Boolean active,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt

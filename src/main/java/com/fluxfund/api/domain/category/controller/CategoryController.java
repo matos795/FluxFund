@@ -34,43 +34,38 @@ public class CategoryController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public CategoryResponse create(
-            @RequestParam UUID organizationId,
-            @Valid @RequestBody CreateCategoryRequest request
-    ) {
+            @Valid @RequestBody CreateCategoryRequest request,
+            @RequestParam UUID organizationId) {
         return service.create(request, organizationId);
     }
 
     @GetMapping
     public Page<CategoryResponse> findAll(
             @RequestParam UUID organizationId,
-            Pageable pageable
-    ) {
+            Pageable pageable) {
         return service.findAll(organizationId, pageable);
     }
 
     @GetMapping("/{id}")
     public CategoryResponse findById(
-            @RequestParam UUID organizationId,
-            @PathVariable UUID id
-    ) {
+            @PathVariable UUID id,
+            @RequestParam UUID organizationId) {
         return service.findById(id, organizationId);
     }
 
     @PutMapping("/{id}")
     public CategoryResponse update(
-            @PathVariable UUID id,
             @RequestParam UUID organizationId,
-            @Valid @RequestBody UpdateCategoryRequest request
-    ) {
-        return service.update(id, organizationId, request);
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateCategoryRequest request) {
+        return service.update(organizationId, id, request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(
             @PathVariable UUID id,
-            @RequestParam UUID organizationId
-    ) {
+            @RequestParam UUID organizationId) {
         service.delete(id, organizationId);
     }
 }

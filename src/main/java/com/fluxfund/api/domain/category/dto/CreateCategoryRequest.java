@@ -8,8 +8,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public record CreateCategoryRequest(
-        @NotNull
-        UUID organizationId,
         @NotBlank
         String name,
         @NotNull
