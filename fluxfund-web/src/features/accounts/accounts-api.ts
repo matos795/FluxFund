@@ -36,3 +36,11 @@ export async function createAccount(data: CreateAccountRequest) {
 
   return response.data
 }
+
+export async function deleteAccount(id: string) {
+  await httpClient.delete(`/api/v1/accounts/${id}`, {
+    params: {
+      organizationId: TEMP_ORGANIZATION_ID,
+    },
+  })
+}

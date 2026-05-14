@@ -1,11 +1,10 @@
-import { MoreHorizontal } from "lucide-react"
 
 import { accountTypeLabels } from "@/features/accounts/account-labels"
 import type { Account } from "@/features/accounts/types"
 import { formatCurrency } from "@/utils/format-currency"
+import { AccountActions } from "@/features/accounts/components/account-actions"
 
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -91,9 +90,7 @@ export function AccountsTable({ accounts }: AccountsTableProps) {
                     </TableCell>
 
                     <TableCell>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="size-4" />
-                      </Button>
+                      <AccountActions account={account} />
                     </TableCell>
                   </TableRow>
                 ))}
