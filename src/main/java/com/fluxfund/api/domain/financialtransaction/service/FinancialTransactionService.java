@@ -123,6 +123,8 @@ public class FinancialTransactionService {
 
         validateCategoryMatchesTransactionType(type, category);
 
+        validateSettlementRemovalAllowed(financialTransaction, request);
+
         FinancialTransactionMapper.updateEntity(financialTransaction, request, type, category);
 
         normalizeTransactionStatusAndAmounts(financialTransaction);
@@ -437,6 +439,24 @@ public class FinancialTransactionService {
 
         if (transaction.getAllocations() != null && !transaction.getAllocations().isEmpty()) {
             throw new BusinessException("Transaction type cannot be changed when allocations exist");
+        }
+    }
+
+    private void validateSettlementRemovalAllowed(
+            FinancialTransaction transaction,
+            UpdateFinancialTransactionRequest request) {
+
+        boolean isSettled = transaction.getStatus() == FinancialTransactionStatus.SETTLED;
+
+        boolean isRemovingSettlement = request.settlementDate() == null
+                && request.settledAmount() == null;
+
+        boolean hasAllocations = transaction.getAllocations() != null
+                && !transaction.getAllocations().isEmpty();
+
+        if (isSettled && isRemovingSettlement && hasAllocations) {
+            throw new BusinessException(
+                    "Cannot remove settlement from a transaction that has allocations");
         }
     }
 }

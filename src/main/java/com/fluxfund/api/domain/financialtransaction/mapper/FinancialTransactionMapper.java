@@ -39,7 +39,9 @@ public class FinancialTransactionMapper {
         return new FinancialTransactionResponse(
                 financialTransaction.getId(),
                 AccountMapper.toSummaryResponse(financialTransaction.getAccount()),
-                financialTransaction.getCategory() != null ? CategoryMapper.toSummary(financialTransaction.getCategory()) : null,
+                financialTransaction.getCategory() != null
+                        ? CategoryMapper.toSummary(financialTransaction.getCategory())
+                        : null,
                 financialTransaction.getType(),
                 financialTransaction.getSource(),
                 financialTransaction.getStatus(),
@@ -54,7 +56,7 @@ public class FinancialTransactionMapper {
                 financialTransaction.getRawDescription(),
                 financialTransaction.getDocumentNumber(),
                 financialTransaction.getAllocations().stream()
-                                    .map(TransactionAllocationMapper::toResponse).toList(),
+                        .map(TransactionAllocationMapper::toResponse).toList(),
                 financialTransaction.getImportedAt(),
                 financialTransaction.getClassifiedAt(),
                 financialTransaction.getCreatedAt(),
@@ -66,37 +68,23 @@ public class FinancialTransactionMapper {
             UpdateFinancialTransactionRequest request,
             FinancialTransactionType type,
             Category category) {
-        
+
         financialTransaction.setType(type);
         financialTransaction.setCategory(category);
 
-        if (request.dueDate() != null) {
-            financialTransaction.setDueDate(request.dueDate());
-        }
-
-        if (request.settlementDate() != null) {
-            financialTransaction.setSettlementDate(
-                    request.settlementDate());
-        }
+        financialTransaction.setDueDate(request.dueDate());
+        financialTransaction.setSettlementDate(request.settlementDate());
 
         if (request.expectedAmount() != null) {
-            financialTransaction.setExpectedAmount(
-                    request.expectedAmount());
+            financialTransaction.setExpectedAmount(request.expectedAmount());
         }
 
-        if (request.settledAmount() != null) {
-            financialTransaction.setSettledAmount(
-                    request.settledAmount());
-        }
+        financialTransaction.setSettledAmount(request.settledAmount());
 
         if (request.description() != null) {
-            financialTransaction.setDescription(
-                    request.description());
+            financialTransaction.setDescription(request.description());
         }
 
-        if (request.documentNumber() != null) {
-            financialTransaction.setDocumentNumber(
-                    request.documentNumber());
-        }
+        financialTransaction.setDocumentNumber(request.documentNumber());
     }
 }
