@@ -42,3 +42,9 @@ export type UpdateAccountRequest = {
   initialBalanceDate?: string
   active: boolean
 }
+
+export type AccountSummary = {
+  id: string
+  name: string
+  type: AccountType
+}

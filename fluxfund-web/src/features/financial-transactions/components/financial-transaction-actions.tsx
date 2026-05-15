@@ -1,0 +1,59 @@
+import { MoreHorizontal } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import type { FinancialTransaction } from "../financial-transaction-types"
+
+type FinancialTransactionActionsProps = {
+  transaction: FinancialTransaction
+}
+
+export function FinancialTransactionActions({ transaction, }: FinancialTransactionActionsProps) {
+
+  const canEdit = transaction.status !== "CANCELED"
+  const canManageAllocations = transaction.status === "SETTLED"
+  const canClassify = transaction.status === "IMPORTED" || transaction.source === "OFX"
+  const canCancel = transaction.status !== "CANCELED"
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon">
+          <MoreHorizontal className="size-4" />
+          <span className="sr-only">Abrir ações</span>
+        </Button>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent align="end">
+        {canEdit && (
+          <DropdownMenuItem>
+            Editar
+          </DropdownMenuItem>
+        )}
+
+        {canManageAllocations && (
+          <DropdownMenuItem>
+            Alocações
+          </DropdownMenuItem>
+        )}
+
+        {canClassify && (
+          <DropdownMenuItem>
+            Classificar
+          </DropdownMenuItem>
+        )}
+
+        {canCancel && (
+          <DropdownMenuItem className="text-destructive">
+            Cancelar
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}

@@ -24,3 +24,8 @@ export type UpdateFundRequest = {
     initialBalance?: number
     initialBalanceDate?: string
 }
+
+export type FundSummary = {
+    id: string
+    name: string
+}

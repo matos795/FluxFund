@@ -33,3 +33,9 @@ export type UpdateBeneficiaryRequest = {
     email?: string 
     phone?: string
 }
+
+export type BeneficiarySummary = {
+    id: string
+    name: string
+    type: BeneficiaryType
+}
