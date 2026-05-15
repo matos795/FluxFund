@@ -77,3 +77,17 @@ export type CreateFinancialTransactionRequest = {
 
   allocations?: []
 }
+
+export type UpdateFinancialTransactionRequest = {
+  type: FinancialTransactionType
+  categoryId?: string | null
+
+  dueDate?: string | null
+  settlementDate?: string | null
+
+  expectedAmount: number
+  settledAmount?: number | null
+
+  description: string
+  documentNumber?: string | null
+}

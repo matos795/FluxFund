@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import type { FinancialTransaction } from "../financial-transaction-types"
+import { EditFinancialTransactionDialog } from "./edit-financial-transaction-dialog"
 
 type FinancialTransactionActionsProps = {
   transaction: FinancialTransaction
@@ -31,9 +32,7 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
 
       <DropdownMenuContent align="end">
         {canEdit && (
-          <DropdownMenuItem>
-            Editar
-          </DropdownMenuItem>
+          <EditFinancialTransactionDialog transaction={transaction} />
         )}
 
         {canManageAllocations && (

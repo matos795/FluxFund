@@ -23,12 +23,14 @@ import { financialTransactionTypeLabels } from "@/features/financial-transaction
 import { useAccounts } from "@/features/accounts/hooks/use-accounts"
 import { useCategories } from "@/features/categories/hooks/use-categories"
 import type { CategorySummary } from "@/features/categories/category-types"
+import { useEffect } from "react"
 
 type FinancialTransactionFormProps = {
   onSubmit: (data: FinancialTransactionFormData) => void
   isSubmitting?: boolean
   defaultValues?: Partial<FinancialTransactionFormInput>
   submitLabel?: string
+  disableAccountField?: boolean
 }
 
 export function FinancialTransactionForm({
@@ -36,11 +38,13 @@ export function FinancialTransactionForm({
   isSubmitting = false,
   defaultValues,
   submitLabel = "Salvar transação",
+  disableAccountField,
 }: FinancialTransactionFormProps) {
   const {
     register,
     handleSubmit,
     setValue,
+    reset,
     control,
     formState: { errors },
   } = useForm<
@@ -62,6 +66,24 @@ export function FinancialTransactionForm({
       documentNumber: defaultValues?.documentNumber ?? "",
     },
   })
+
+  useEffect(() => {
+    if (!defaultValues) {
+      return
+    }
+
+    reset({
+      accountId: defaultValues.accountId ?? "",
+      type: defaultValues.type ?? "EXPENSE",
+      categoryId: defaultValues.categoryId ?? "",
+      dueDate: defaultValues.dueDate ?? "",
+      settlementDate: defaultValues.settlementDate ?? "",
+      expectedAmount: defaultValues.expectedAmount ?? 0,
+      settledAmount: defaultValues.settledAmount ?? undefined,
+      description: defaultValues.description ?? "",
+      documentNumber: defaultValues.documentNumber ?? "",
+    })
+  }, [defaultValues, reset])
 
   const selectedType = useWatch({ control, name: "type" })
   const selectedAccountId = useWatch({ control, name: "accountId" })
@@ -106,6 +128,7 @@ export function FinancialTransactionForm({
           <Label>Conta</Label>
           <Select
             value={selectedAccountId}
+            disabled={disableAccountField}
             onValueChange={(value) =>
               setValue("accountId", value, {
                 shouldValidate: true,
