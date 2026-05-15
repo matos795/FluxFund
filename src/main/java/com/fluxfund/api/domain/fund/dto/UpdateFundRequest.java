@@ -13,8 +13,7 @@ public record UpdateFundRequest(
         String description,
         @Digits(integer = 15, fraction = 2) 
         BigDecimal initialBalance,
-        LocalDate initialBalanceDate,
-        Boolean active
+        LocalDate initialBalanceDate
     ) {
 
 }

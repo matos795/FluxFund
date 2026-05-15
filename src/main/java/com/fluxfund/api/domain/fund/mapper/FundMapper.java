@@ -49,8 +49,5 @@ public class FundMapper {
         if (request.initialBalanceDate() != null) {
             fund.setInitialBalanceDate(request.initialBalanceDate());
         }
-        if (request.active() != null) {
-            fund.setActive(request.active());
-        }
     }
 }
