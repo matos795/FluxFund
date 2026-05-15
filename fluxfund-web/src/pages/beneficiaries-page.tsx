@@ -1,40 +1,64 @@
-import { Plus } from "lucide-react"
-
 import { PageHeader } from "@/components/layout/page-header"
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { PagePagination } from "@/components/pagination/page-pagination"
+import { BeneficiariesTable } from "@/features/beneficiaries/components/beneficiaries-table"
+import { BeneficiariesTableSkeleton } from "@/features/beneficiaries/components/beneficiaries-table-skeleton"
+import { CreateBeneficiaryDialog } from "@/features/beneficiaries/components/create-beneficiary-dialog"
+import { useBeneficiaries } from "@/features/beneficiaries/hooks/use-beneficiaries"
+import { useState } from "react"
+
+const PAGE_SIZE = 10
 
 export function BeneficiariesPage() {
+
+  const [page, setPage] = useState(0)
+
+  const { data, isLoading, isError, isFetching } = useBeneficiaries({
+    page,
+    size: PAGE_SIZE,
+  })
+
+  const beneficiaries = data?.content ?? []
+
   return (
     <div>
       <PageHeader
         title="Favorecidos"
-        description="Cadastre missionários, fornecedores, funcionários e responsáveis por projetos."
+        description="Gerencie favorecidos, destinatários e responsáveis financeiros."
       >
-        <Button>
-          <Plus className="mr-2 size-4" />
-          Novo favorecido
-        </Button>
+        <CreateBeneficiaryDialog />
       </PageHeader>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Favorecidos cadastrados</CardTitle>
-        </CardHeader>
+      {isLoading && <BeneficiariesTableSkeleton />}
 
-        <CardContent>
-          <div className="flex h-48 items-center justify-center rounded-lg border border-dashed">
-            <p className="text-sm text-muted-foreground">
-              Nenhum favorecido cadastrado ainda.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      {isFetching && !isLoading && (
+        <p className="mb-3 text-xs text-muted-foreground">
+          Atualizando dados...
+        </p>
+      )}
+
+      {isError && (
+        <p className="text-sm text-destructive">
+          Não foi possível carregar os favorecidos.
+        </p>
+      )}
+
+      {!isLoading && !isError && (
+        <div className="space-y-4">
+          <BeneficiariesTable beneficiaries={beneficiaries} />
+
+          {data && (
+            <PagePagination
+              page={data.number}
+              totalPages={data.totalPages}
+              totalElements={data.totalElements}
+              size={data.size}
+              isFirst={data.first}
+              isLast={data.last}
+              onPageChange={setPage}
+            />
+          )}
+        </div>
+      )}
     </div>
   )
 }

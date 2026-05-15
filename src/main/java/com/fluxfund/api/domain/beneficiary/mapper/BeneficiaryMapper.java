@@ -54,8 +54,5 @@ public class BeneficiaryMapper {
         if (request.type() != null) {
             beneficiary.setType(request.type());
         }
-        if (request.active() != null) {
-            beneficiary.setActive(request.active());
-        }
     }
 }
