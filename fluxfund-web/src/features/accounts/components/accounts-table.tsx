@@ -1,7 +1,7 @@
 
 import { accountTypeLabels } from "@/features/accounts/account-labels"
 import type { Account } from "@/features/accounts/types"
-import { formatCurrency } from "@/utils/format-currency"
+import { formatCurrency } from "@/utils/formatters"
 import { AccountActions } from "@/features/accounts/components/account-actions"
 
 import { Badge } from "@/components/ui/badge"

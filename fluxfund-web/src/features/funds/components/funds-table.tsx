@@ -1,4 +1,4 @@
-import { formatCurrency } from "@/utils/format-currency"
+import { formatCurrency, formatDate } from "@/utils/formatters"
 
 import { Badge } from "@/components/ui/badge"
 import {
@@ -71,7 +71,7 @@ export function FundsTable({ funds }: FundsTableProps) {
                     </TableCell>
 
                     <TableCell>
-                      {fund.initialBalanceDate ?? "-"}
+                      {formatDate(fund.initialBalanceDate)}
                     </TableCell>
 
                     <TableCell>
