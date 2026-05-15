@@ -25,7 +25,7 @@ import type {
   TransactionAllocation,
 } from "@/features/financial-transactions/financial-transaction-types"
 import type { TransactionAllocationFormData } from "@/features/financial-transactions/transaction-allocation-schema"
-import { TransactionAllocationForm } from "@/features/financial-transactions/components/transaction-allocation-form"
+import { TransactionAllocationForm } from "@/features/financial-transactions/transaction-allocation-form"
 import { useAddTransactionAllocation } from "@/features/financial-transactions/hooks/use-add-transaction-allocation"
 import { useUpdateTransactionAllocation } from "@/features/financial-transactions/hooks/use-update-transaction-allocation"
 import { useDeleteTransactionAllocation } from "@/features/financial-transactions/hooks/use-delete-transaction-allocation"

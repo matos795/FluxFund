@@ -60,6 +60,14 @@ export async function updateFinancialTransaction(
   return response.data
 }
 
+export async function cancelFinancialTransaction(id: string) {
+  await httpClient.delete(`/api/v1/financial-transactions/${id}`, {
+    params: {
+      organizationId: TEMP_ORGANIZATION_ID,
+    },
+  })
+}
+
 export async function addTransactionAllocation(
   transactionId: string,
   data: CreateTransactionAllocationRequest,
