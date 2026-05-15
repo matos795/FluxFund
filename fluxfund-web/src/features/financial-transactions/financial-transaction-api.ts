@@ -1,6 +1,6 @@
 import { httpClient } from "@/api/http-client"
 import type { PageResponse } from "@/types/page-response"
-import type { CreateFinancialTransactionRequest, FinancialTransaction, UpdateFinancialTransactionRequest } from "./financial-transaction-types"
+import type { CreateFinancialTransactionRequest, CreateTransactionAllocationRequest, FinancialTransaction, TransactionAllocation, UpdateFinancialTransactionRequest, UpdateTransactionAllocationRequest } from "./financial-transaction-types"
 
 const TEMP_ORGANIZATION_ID = "7b9ed617-92be-456d-81d6-dcde5841e7a0"
 
@@ -58,4 +58,53 @@ export async function updateFinancialTransaction(
   )
 
   return response.data
+}
+
+export async function addTransactionAllocation(
+  transactionId: string,
+  data: CreateTransactionAllocationRequest,
+) {
+  const response = await httpClient.post<TransactionAllocation>(
+    `/api/v1/financial-transactions/${transactionId}/allocations`,
+    data,
+    {
+      params: {
+        organizationId: TEMP_ORGANIZATION_ID,
+      },
+    },
+  )
+
+  return response.data
+}
+
+export async function updateTransactionAllocation(
+  transactionId: string,
+  allocationId: string,
+  data: UpdateTransactionAllocationRequest,
+) {
+  const response = await httpClient.put<TransactionAllocation>(
+    `/api/v1/financial-transactions/${transactionId}/allocations/${allocationId}`,
+    data,
+    {
+      params: {
+        organizationId: TEMP_ORGANIZATION_ID,
+      },
+    },
+  )
+
+  return response.data
+}
+
+export async function deleteTransactionAllocation(
+  transactionId: string,
+  allocationId: string,
+) {
+  await httpClient.delete(
+    `/api/v1/financial-transactions/${transactionId}/allocations/${allocationId}`,
+    {
+      params: {
+        organizationId: TEMP_ORGANIZATION_ID,
+      },
+    },
+  )
 }

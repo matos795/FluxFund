@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import type { FinancialTransaction } from "../financial-transaction-types"
 import { EditFinancialTransactionDialog } from "./edit-financial-transaction-dialog"
+import { ManageTransactionAllocationsDialog } from "./manage-transaction-allocations-dialog"
 
 type FinancialTransactionActionsProps = {
   transaction: FinancialTransaction
@@ -36,9 +37,7 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
         )}
 
         {canManageAllocations && (
-          <DropdownMenuItem>
-            Alocações
-          </DropdownMenuItem>
+          <ManageTransactionAllocationsDialog transaction={transaction} />
         )}
 
         {canClassify && (

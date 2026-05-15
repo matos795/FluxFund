@@ -19,7 +19,7 @@ export type FinancialTransactionStatus =
   | "IMPORTED"
 
 export type TransactionAllocation = {
-  id: string
+  id: string 
   financialTransactionId: string
   fund: FundSummary
   beneficiary: BeneficiarySummary | null
@@ -90,4 +90,16 @@ export type UpdateFinancialTransactionRequest = {
 
   description: string
   documentNumber?: string | null
+}
+
+export type CreateTransactionAllocationRequest = {
+  fundId: string
+  beneficiaryId?: string | null
+  amount: number
+}
+
+export type UpdateTransactionAllocationRequest = {
+  fundId?: string | null
+  beneficiaryId?: string | null
+  amount?: number | null
 }
