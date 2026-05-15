@@ -47,4 +47,5 @@ export type AccountSummary = {
   id: string
   name: string
   type: AccountType
+  bankName: string | null
 }

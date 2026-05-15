@@ -1,6 +1,6 @@
 import { httpClient } from "@/api/http-client"
 import type { PageResponse } from "@/types/page-response"
-import type { FinancialTransaction } from "./financial-transaction-types"
+import type { CreateFinancialTransactionRequest, FinancialTransaction } from "./financial-transaction-types"
 
 const TEMP_ORGANIZATION_ID = "7b9ed617-92be-456d-81d6-dcde5841e7a0"
 
@@ -20,6 +20,22 @@ export async function getFinancialTransactions({
         organizationId: TEMP_ORGANIZATION_ID,
         page,
         size,
+      },
+    },
+  )
+
+  return response.data
+}
+
+export async function createFinancialTransaction(
+  data: CreateFinancialTransactionRequest,
+) {
+  const response = await httpClient.post<FinancialTransaction>(
+    "/api/v1/financial-transactions",
+    data,
+    {
+      params: {
+        organizationId: TEMP_ORGANIZATION_ID,
       },
     },
   )

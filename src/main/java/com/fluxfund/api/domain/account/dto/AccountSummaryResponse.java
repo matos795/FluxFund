@@ -7,6 +7,7 @@ import com.fluxfund.api.domain.account.AccountType;
 public record AccountSummaryResponse(
     UUID id,
     String name,
-    AccountType type
+    AccountType type,
+    String bankName
 ) {
 }

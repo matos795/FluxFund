@@ -49,7 +49,8 @@ public class AccountMapper {
         return new AccountSummaryResponse(
             account.getId(),
             account.getName(),
-            account.getType()
+            account.getType(),
+            account.getBankName()
         );
     }
 

@@ -60,3 +60,20 @@ export type FinancialTransaction = {
   createdAt: string
   updatedAt: string
 }
+
+export type CreateFinancialTransactionRequest = {
+  accountId: string
+  categoryId?: string | null
+  type: FinancialTransactionType
+
+  dueDate?: string | null
+  settlementDate?: string | null
+
+  expectedAmount: number
+  settledAmount?: number | null
+
+  description: string
+  documentNumber?: string | null
+
+  allocations?: []
+}

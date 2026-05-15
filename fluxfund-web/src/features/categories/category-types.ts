@@ -4,6 +4,7 @@ export type CategorySummary = {
   id: string
   name: string
   type: CategoryType
+  parentName: string | null
 }
 
 export type Category = {

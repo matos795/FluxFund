@@ -35,7 +35,8 @@ public class CategoryMapper {
         return new CategorySummaryResponse(
             category.getId(), 
             category.getName(), 
-            category.getType()
+            category.getType(),
+            category.getParent() != null ? category.getParent().getName() : null
         );
     }
 

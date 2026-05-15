@@ -1,11 +1,12 @@
 import { useState } from "react"
-import { Plus, Upload } from "lucide-react"
+import { Upload } from "lucide-react"
 
 import { PageHeader } from "@/components/layout/page-header"
 import { PagePagination } from "@/components/pagination/page-pagination"
 import { Button } from "@/components/ui/button"
 import { FinancialTransactionsTable } from "@/features/financial-transactions/components/financial-transactions-table"
 import { useFinancialTransactions } from "@/features/financial-transactions/hooks/use-financial-transactions"
+import { CreateFinancialTransactionDialog } from "@/features/financial-transactions/components/create-financial-transaction-dialog"
 
 const PAGE_SIZE = 10
 
@@ -30,10 +31,7 @@ export function TransactionsPage() {
             Importar OFX
           </Button>
 
-          <Button>
-            <Plus className="mr-2 size-4" />
-            Nova transação
-          </Button>
+          <CreateFinancialTransactionDialog />
         </div>
       </PageHeader>
 
@@ -58,14 +56,14 @@ export function TransactionsPage() {
           <FinancialTransactionsTable financialTransactions={data.content} />
 
           <PagePagination
-              page={data.number}
-              totalPages={data.totalPages}
-              totalElements={data.totalElements}
-              size={data.size}
-              isFirst={data.first}
-              isLast={data.last}
-              onPageChange={setPage}
-            />
+            page={data.number}
+            totalPages={data.totalPages}
+            totalElements={data.totalElements}
+            size={data.size}
+            isFirst={data.first}
+            isLast={data.last}
+            onPageChange={setPage}
+          />
         </>
       )}
     </div>

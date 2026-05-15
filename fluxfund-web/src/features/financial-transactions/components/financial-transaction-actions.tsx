@@ -15,9 +15,9 @@ type FinancialTransactionActionsProps = {
 
 export function FinancialTransactionActions({ transaction, }: FinancialTransactionActionsProps) {
 
-  const canEdit = transaction.status !== "CANCELED"
+  const canEdit = transaction.status !== "CANCELED" && transaction.status !== "IMPORTED"
   const canManageAllocations = transaction.status === "SETTLED"
-  const canClassify = transaction.status === "IMPORTED" || transaction.source === "OFX"
+  const canClassify = transaction.status === "IMPORTED"
   const canCancel = transaction.status !== "CANCELED"
 
   return (
