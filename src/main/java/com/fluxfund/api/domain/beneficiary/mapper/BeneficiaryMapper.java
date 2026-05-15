@@ -2,6 +2,7 @@ package com.fluxfund.api.domain.beneficiary.mapper;
 
 import com.fluxfund.api.domain.beneficiary.Beneficiary;
 import com.fluxfund.api.domain.beneficiary.dto.BeneficiaryResponse;
+import com.fluxfund.api.domain.beneficiary.dto.BeneficiarySummaryResponse;
 import com.fluxfund.api.domain.beneficiary.dto.CreateBeneficiaryRequest;
 import com.fluxfund.api.domain.beneficiary.dto.UpdateBeneficiaryRequest;
 import com.fluxfund.api.domain.organization.Organization;
@@ -35,6 +36,14 @@ public class BeneficiaryMapper {
             beneficiary.isActive(),
             beneficiary.getCreatedAt(),
             beneficiary.getUpdatedAt()
+        );
+    }
+
+    public static BeneficiarySummaryResponse toSummaryResponse(Beneficiary beneficiary) {
+        return new BeneficiarySummaryResponse(
+            beneficiary.getId(),
+            beneficiary.getName(),
+            beneficiary.getType()
         );
     }
 

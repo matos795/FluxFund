@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import com.fluxfund.api.domain.fund.Fund;
 import com.fluxfund.api.domain.fund.dto.CreateFundRequest;
 import com.fluxfund.api.domain.fund.dto.FundResponse;
+import com.fluxfund.api.domain.fund.dto.FundSummaryResponse;
 import com.fluxfund.api.domain.fund.dto.UpdateFundRequest;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.shared.util.StringNormalizer;
@@ -33,6 +34,13 @@ public class FundMapper {
             fund.isActive(),
             fund.getCreatedAt(),
             fund.getUpdatedAt()
+        );
+    }
+
+    public static FundSummaryResponse toSummaryResponse(Fund fund) {
+        return new FundSummaryResponse(
+            fund.getId(),
+            fund.getName()
         );
     }
 

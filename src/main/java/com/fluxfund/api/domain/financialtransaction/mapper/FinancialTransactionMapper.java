@@ -1,9 +1,12 @@
 package com.fluxfund.api.domain.financialtransaction.mapper;
 
 import com.fluxfund.api.domain.account.Account;
+import com.fluxfund.api.domain.account.mapper.AccountMapper;
 import com.fluxfund.api.domain.category.Category;
+import com.fluxfund.api.domain.category.mapper.CategoryMapper;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
+import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.dto.CreateFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.UpdateFinancialTransactionRequest;
@@ -35,8 +38,8 @@ public class FinancialTransactionMapper {
     public static FinancialTransactionResponse toResponse(FinancialTransaction financialTransaction) {
         return new FinancialTransactionResponse(
                 financialTransaction.getId(),
-                financialTransaction.getAccount().getId(),
-                financialTransaction.getCategory() != null ? financialTransaction.getCategory().getId() : null,
+                AccountMapper.toSummaryResponse(financialTransaction.getAccount()),
+                financialTransaction.getCategory() != null ? CategoryMapper.toSummary(financialTransaction.getCategory()) : null,
                 financialTransaction.getType(),
                 financialTransaction.getSource(),
                 financialTransaction.getStatus(),
@@ -61,11 +64,11 @@ public class FinancialTransactionMapper {
     public static void updateEntity(
             FinancialTransaction financialTransaction,
             UpdateFinancialTransactionRequest request,
+            FinancialTransactionType type,
             Category category) {
-
-        if (request.categoryId() != null) {
-            financialTransaction.setCategory(category);
-        }
+        
+        financialTransaction.setType(type);
+        financialTransaction.setCategory(category);
 
         if (request.dueDate() != null) {
             financialTransaction.setDueDate(request.dueDate());

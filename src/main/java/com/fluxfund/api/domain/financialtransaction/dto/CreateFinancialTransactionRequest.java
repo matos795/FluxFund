@@ -8,6 +8,7 @@ import java.util.UUID;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.transactionallocation.dto.CreateTransactionAllocationRequest;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -32,6 +33,7 @@ public record CreateFinancialTransactionRequest(
     String description,
     @Size(max = 255)
     String documentNumber,
+    @Valid
     List<CreateTransactionAllocationRequest> allocations
 ) {
 }

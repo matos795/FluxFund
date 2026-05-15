@@ -69,10 +69,12 @@ public class FinancialTransactionService {
                     .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
         }
 
+        validateCategoryMatchesTransactionType(request.type(), category);
+
         FinancialTransaction financialTransaction = FinancialTransactionMapper.createEntity(request, organization,
                 account, category);
 
-        validateAllocationRules(financialTransaction);
+        normalizeTransactionStatusAndAmounts(financialTransaction);
 
         addInitialAllocations(organizationId, financialTransaction, request.allocations());
 
@@ -108,15 +110,23 @@ public class FinancialTransactionService {
 
         FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
-        Category category = null;
+        FinancialTransactionType type = Objects.requireNonNullElse(request.type(), financialTransaction.getType());
+        Category category = financialTransaction.getCategory();
 
         if (request.categoryId() != null) {
-            category = categoryRepository.findByIdAndOrganizationIdAndActiveTrue(request.categoryId(), organizationId)
+            category = categoryRepository
+                    .findByIdAndOrganizationIdAndActiveTrue(request.categoryId(), organizationId)
                     .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
         }
-        FinancialTransactionMapper.updateEntity(financialTransaction, request, category);
 
-        validateAllocationRules(financialTransaction);
+        validateTypeChangeAllowed(financialTransaction, type);
+
+        validateCategoryMatchesTransactionType(type, category);
+
+        FinancialTransactionMapper.updateEntity(financialTransaction, request, type, category);
+
+        normalizeTransactionStatusAndAmounts(financialTransaction);
+        validateTotalAllocatedAmount(financialTransaction);
 
         repository.save(financialTransaction);
 
@@ -142,41 +152,6 @@ public class FinancialTransactionService {
                 .orElseThrow(() -> new ResourceNotFoundException("FinancialTransaction not found"));
     }
 
-    private void validateAllocationRules(FinancialTransaction transaction) {
-
-        if (transaction.getCategory() != null && transaction.getClassifiedAt() == null) {
-            transaction.setClassifiedAt(LocalDateTime.now());
-        }
-
-        if (transaction.getSettlementDate() != null) {
-            transaction.setStatus(FinancialTransactionStatus.SETTLED);
-        } else {
-            transaction.setStatus(FinancialTransactionStatus.PENDING);
-            transaction.setSettledAmount(null);
-            transaction.setInterestAmount(BigDecimal.ZERO);
-            transaction.setDiscountAmount(BigDecimal.ZERO);
-
-            return;
-        }
-
-        BigDecimal settled = Objects.requireNonNullElse(
-                transaction.getSettledAmount(),
-                transaction.getExpectedAmount());
-
-        BigDecimal difference = settled.subtract(transaction.getExpectedAmount());
-
-        if (difference.compareTo(BigDecimal.ZERO) > 0) {
-            transaction.setInterestAmount(difference);
-            transaction.setDiscountAmount(BigDecimal.ZERO);
-        } else if (difference.compareTo(BigDecimal.ZERO) < 0) {
-            transaction.setDiscountAmount(difference.abs());
-            transaction.setInterestAmount(BigDecimal.ZERO);
-        } else {
-            transaction.setInterestAmount(BigDecimal.ZERO);
-            transaction.setDiscountAmount(BigDecimal.ZERO);
-        }
-    }
-
     public FinancialTransactionResponse classify(
             UUID organizationId,
             UUID id,
@@ -192,16 +167,21 @@ public class FinancialTransactionService {
                 .findByIdAndOrganizationIdAndActiveTrue(request.categoryId(), organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
+        validateCategoryMatchesTransactionType(request.type(), category);
+
+        financialTransaction.setType(request.type());
         financialTransaction.setCategory(category);
         financialTransaction.setDueDate(request.dueDate());
         financialTransaction.setSettlementDate(request.settlementDate());
 
-        if (request.expectedAmount() != null) {
-            financialTransaction.setExpectedAmount(request.expectedAmount());
-        }
+        BigDecimal expectedAmount = Objects.requireNonNullElse(
+                request.expectedAmount(),
+                financialTransaction.getExpectedAmount());
 
-        financialTransaction
-                .setSettledAmount(Objects.requireNonNullElse(request.settledAmount(), request.expectedAmount()));
+        financialTransaction.setExpectedAmount(expectedAmount);
+
+        financialTransaction.setSettledAmount(
+                Objects.requireNonNullElse(request.settledAmount(), expectedAmount));
 
         if (request.description() != null) {
             financialTransaction.setDescription(request.description());
@@ -209,7 +189,7 @@ public class FinancialTransactionService {
 
         financialTransaction.setDocumentNumber(request.documentNumber());
 
-        validateAllocationRules(financialTransaction);
+        normalizeTransactionStatusAndAmounts(financialTransaction);
 
         financialTransaction.getAllocations().clear();
 
@@ -326,29 +306,65 @@ public class FinancialTransactionService {
         }
     }
 
-    private void validateAllocationRules(TransactionAllocation transaction) {
+    private void normalizeTransactionStatusAndAmounts(FinancialTransaction transaction) {
 
-        if (transaction.getFinancialTransaction().getType() == FinancialTransactionType.TRANSFER) {
+        if (transaction.getCategory() != null && transaction.getClassifiedAt() == null) {
+            transaction.setClassifiedAt(LocalDateTime.now());
+        }
+
+        if (transaction.getSettlementDate() == null) {
+            transaction.setStatus(FinancialTransactionStatus.PENDING);
+            transaction.setSettledAmount(null);
+            transaction.setInterestAmount(BigDecimal.ZERO);
+            transaction.setDiscountAmount(BigDecimal.ZERO);
+            return;
+        }
+
+        transaction.setStatus(FinancialTransactionStatus.SETTLED);
+
+        BigDecimal settled = Objects.requireNonNullElse(
+                transaction.getSettledAmount(),
+                transaction.getExpectedAmount());
+
+        transaction.setSettledAmount(settled);
+
+        BigDecimal difference = settled.subtract(transaction.getExpectedAmount());
+
+        if (difference.compareTo(BigDecimal.ZERO) > 0) {
+            transaction.setInterestAmount(difference);
+            transaction.setDiscountAmount(BigDecimal.ZERO);
+        } else if (difference.compareTo(BigDecimal.ZERO) < 0) {
+            transaction.setDiscountAmount(difference.abs());
+            transaction.setInterestAmount(BigDecimal.ZERO);
+        } else {
+            transaction.setInterestAmount(BigDecimal.ZERO);
+            transaction.setDiscountAmount(BigDecimal.ZERO);
+        }
+    }
+
+    private void validateAllocationRules(TransactionAllocation allocation) {
+
+        if (allocation.getFinancialTransaction().getType() == FinancialTransactionType.TRANSFER) {
             throw new BusinessException(
                     "Transfer transactions cannot have allocations");
         }
 
-        if (transaction.getAmount().abs().compareTo(BigDecimal.ZERO) <= 0) {
+        if (allocation.getAmount().abs().compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessException("Amount must be greater than zero");
         }
 
         BigDecimal allocatedAmount = allocationRepository.sumAmountByFinancialTransactionId(
-                transaction.getFinancialTransaction().getId());
+                allocation.getFinancialTransaction().getId());
 
-        BigDecimal newTotal = allocatedAmount.add(transaction.getAmount().abs());
+        BigDecimal newTotal = allocatedAmount.add(allocation.getAmount().abs());
 
-        if (transaction.getFinancialTransaction().getStatus() != FinancialTransactionStatus.SETTLED) {
+        if (allocation.getFinancialTransaction().getStatus() != FinancialTransactionStatus.SETTLED) {
             throw new BusinessException(
                     "Only settled transactions can receive allocations");
         }
 
         if (newTotal.compareTo(
-                transaction.getFinancialTransaction().getSettledAmount().abs()) > 0) {
+                allocation.getFinancialTransaction().getSettledAmount().abs()) > 0) {
 
             throw new BusinessException(
                     "Allocated amount exceeds transaction amount");
@@ -376,6 +392,10 @@ public class FinancialTransactionService {
             return;
         }
 
+        if (transaction.getStatus() != FinancialTransactionStatus.SETTLED) {
+            throw new BusinessException("Only settled transactions can have allocations");
+        }
+
         BigDecimal totalAllocated = transaction.getAllocations().stream()
                 .map(TransactionAllocation::getAmount)
                 .map(BigDecimal::abs)
@@ -385,6 +405,38 @@ public class FinancialTransactionService {
 
         if (totalAllocated.compareTo(transactionAmount) > 0) {
             throw new BusinessException("Allocated amount exceeds transaction amount");
+        }
+    }
+
+    private void validateCategoryMatchesTransactionType(
+            FinancialTransactionType transactionType,
+            Category category) {
+
+        if (category == null) {
+            return;
+        }
+
+        if (transactionType == FinancialTransactionType.TRANSFER) {
+            throw new BusinessException("Transfer transactions cannot have category");
+        }
+
+        if (category.getType().name().equals(transactionType.name())) {
+            return;
+        }
+
+        throw new BusinessException("Category type must match transaction type");
+    }
+
+    private void validateTypeChangeAllowed(
+            FinancialTransaction transaction,
+            FinancialTransactionType newType) {
+
+        if (newType == transaction.getType()) {
+            return;
+        }
+
+        if (transaction.getAllocations() != null && !transaction.getAllocations().isEmpty()) {
+            throw new BusinessException("Transaction type cannot be changed when allocations exist");
         }
     }
 }

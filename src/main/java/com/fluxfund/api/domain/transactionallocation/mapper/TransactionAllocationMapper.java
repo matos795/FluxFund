@@ -1,8 +1,10 @@
 package com.fluxfund.api.domain.transactionallocation.mapper;
 
 import com.fluxfund.api.domain.beneficiary.Beneficiary;
+import com.fluxfund.api.domain.beneficiary.mapper.BeneficiaryMapper;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.fund.Fund;
+import com.fluxfund.api.domain.fund.mapper.FundMapper;
 import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
 import com.fluxfund.api.domain.transactionallocation.dto.CreateTransactionAllocationRequest;
 import com.fluxfund.api.domain.transactionallocation.dto.TransactionAllocationResponse;
@@ -32,8 +34,10 @@ public class TransactionAllocationMapper {
         return new TransactionAllocationResponse(
                 transactionAllocation.getId(),
                 transactionAllocation.getFinancialTransaction().getId(),
-                transactionAllocation.getFund().getId(),
-                transactionAllocation.getBeneficiary() != null ? transactionAllocation.getBeneficiary().getId() : null,
+                FundMapper.toSummaryResponse(transactionAllocation.getFund()),
+                transactionAllocation.getBeneficiary() != null
+                        ? BeneficiaryMapper.toSummaryResponse(transactionAllocation.getBeneficiary())
+                        : null,
                 transactionAllocation.getAmount(),
                 transactionAllocation.getCreatedAt(),
                 transactionAllocation.getUpdatedAt()

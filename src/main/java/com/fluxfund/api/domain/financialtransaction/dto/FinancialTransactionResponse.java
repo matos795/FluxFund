@@ -7,44 +7,44 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import com.fluxfund.api.domain.account.dto.AccountSummaryResponse;
+import com.fluxfund.api.domain.category.dto.CategorySummaryResponse;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.transactionallocation.dto.TransactionAllocationResponse;
 
 public record FinancialTransactionResponse(
-    UUID id,
+        UUID id,
 
-    UUID accountId,
+        AccountSummaryResponse account,
+        CategorySummaryResponse category,
 
-    UUID categoryId,
+        FinancialTransactionType type,
+        FinancialTransactionSource source,
+        FinancialTransactionStatus status,
 
-    FinancialTransactionType type,
-    FinancialTransactionSource source,
-    FinancialTransactionStatus status,
+        String externalId,
 
-    String externalId,
+        LocalDate dueDate,
+        LocalDate settlementDate,
 
-    LocalDate dueDate,
-    LocalDate settlementDate,
+        BigDecimal expectedAmount,
+        BigDecimal settledAmount,
 
-    BigDecimal expectedAmount,
-    BigDecimal settledAmount,
+        BigDecimal interestAmount,
+        BigDecimal discountAmount,
 
-    BigDecimal interestAmount,
-    BigDecimal discountAmount,
+        String description,
+        String rawDescription,
+        String documentNumber,
 
-    String description,
-    String rawDescription,
-    String documentNumber,
+        List<TransactionAllocationResponse> allocations,
 
-    List<TransactionAllocationResponse> allocations,
+        LocalDateTime importedAt,
+        LocalDateTime classifiedAt,
 
-    LocalDateTime importedAt,
-    LocalDateTime classifiedAt,
-
-    OffsetDateTime createdAt,
-    OffsetDateTime updatedAt
-) {
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt) {
 
 }

@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
+import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.transactionallocation.dto.CreateTransactionAllocationRequest;
 
 import jakarta.validation.Valid;
@@ -13,6 +14,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record ClassifyFinancialTransactionRequest(
+    @NotNull
+    FinancialTransactionType type,
     @NotNull
     UUID categoryId,
     LocalDate dueDate,

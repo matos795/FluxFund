@@ -4,6 +4,7 @@ import org.springframework.stereotype.Component;
 
 import com.fluxfund.api.domain.account.Account;
 import com.fluxfund.api.domain.account.dto.AccountResponse;
+import com.fluxfund.api.domain.account.dto.AccountSummaryResponse;
 import com.fluxfund.api.domain.account.dto.CreateAccountRequest;
 import com.fluxfund.api.domain.account.dto.UpdateAccountRequest;
 import com.fluxfund.api.domain.organization.Organization;
@@ -41,6 +42,14 @@ public class AccountMapper {
                 account.isActive(),
                 account.getCreatedAt(),
                 account.getUpdatedAt()
+        );
+    }
+
+    public static AccountSummaryResponse toSummaryResponse(Account account) {
+        return new AccountSummaryResponse(
+            account.getId(),
+            account.getName(),
+            account.getType()
         );
     }
 

@@ -4,11 +4,13 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
+import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
+
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Size;
 
 public record UpdateFinancialTransactionRequest(
-
+    FinancialTransactionType type,
     UUID categoryId,
     LocalDate dueDate,
     LocalDate settlementDate,
