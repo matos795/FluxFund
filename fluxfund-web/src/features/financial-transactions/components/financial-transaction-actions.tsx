@@ -14,6 +14,7 @@ import { useCancelFinancialTransaction } from "../hooks/use-cancel-financial-tra
 import { toast } from "sonner"
 import { useState } from "react"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { ViewFinancialTransactionDialog } from "./view-financial-transaction-dialog"
 
 type FinancialTransactionActionsProps = {
   transaction: FinancialTransaction
@@ -56,6 +57,9 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
         </DropdownMenuTrigger>
 
         <DropdownMenuContent align="end">
+
+          <ViewFinancialTransactionDialog transaction={transaction} />
+
           {canEdit && (
             <EditFinancialTransactionDialog transaction={transaction} />
           )}
