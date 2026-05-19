@@ -7,17 +7,57 @@ import { Button } from "@/components/ui/button"
 import { FinancialTransactionsTable } from "@/features/financial-transactions/components/financial-transactions-table"
 import { useFinancialTransactions } from "@/features/financial-transactions/hooks/use-financial-transactions"
 import { CreateFinancialTransactionDialog } from "@/features/financial-transactions/components/create-financial-transaction-dialog"
-
-const PAGE_SIZE = 10
+import { FinancialTransactionFilters } from "@/features/financial-transactions/components/financial-transaction-filters"
+import { useAccounts } from "@/features/accounts/hooks/use-accounts"
+import { useCategories } from "@/features/categories/hooks/use-categories"
 
 export function TransactionsPage() {
   const [page, setPage] = useState(0)
-  const size = PAGE_SIZE
+  const [size] = useState(10)
+
+  const [type, setType] = useState("")
+  const [status, setStatus] = useState("")
+  const [accountId, setAccountId] = useState("")
+  const [categoryId, setCategoryId] = useState("")
+  const [description, setDescription] = useState("")
+  const [settlementDateFrom, setSettlementDateFrom] = useState("")
+  const [settlementDateTo, setSettlementDateTo] = useState("")
 
   const { data, isLoading, isError } = useFinancialTransactions({
     page,
     size,
+    type,
+    status,
+    accountId,
+    categoryId,
+    description,
+    settlementDateFrom,
+    settlementDateTo,
   })
+
+  const { data: accountsData } = useAccounts({
+    page: 0,
+    size: 100,
+  })
+
+  const { data: categoriesData } = useCategories({
+    page: 0,
+    size: 100,
+  })
+
+  const accounts = accountsData?.content ?? []
+  const categories = categoriesData?.content ?? []
+
+  function handleClearFilters() {
+    setType("")
+    setStatus("")
+    setAccountId("")
+    setCategoryId("")
+    setDescription("")
+    setSettlementDateFrom("")
+    setSettlementDateTo("")
+    setPage(0)
+  }
 
   return (
     <div>
@@ -34,6 +74,47 @@ export function TransactionsPage() {
           <CreateFinancialTransactionDialog />
         </div>
       </PageHeader>
+
+      <FinancialTransactionFilters
+        type={type}
+        status={status}
+        accountId={accountId}
+        categoryId={categoryId}
+        description={description}
+        settlementDateFrom={settlementDateFrom}
+        settlementDateTo={settlementDateTo}
+        accounts={accounts}
+        categories={categories}
+        onTypeChange={(value) => {
+          setType(value)
+          setPage(0)
+        }}
+        onStatusChange={(value) => {
+          setStatus(value)
+          setPage(0)
+        }}
+        onAccountIdChange={(value) => {
+          setAccountId(value)
+          setPage(0)
+        }}
+        onCategoryIdChange={(value) => {
+          setCategoryId(value)
+          setPage(0)
+        }}
+        onDescriptionChange={(value) => {
+          setDescription(value)
+          setPage(0)
+        }}
+        onSettlementDateFromChange={(value) => {
+          setSettlementDateFrom(value)
+          setPage(0)
+        }}
+        onSettlementDateToChange={(value) => {
+          setSettlementDateTo(value)
+          setPage(0)
+        }}
+        onClear={handleClearFilters}
+      />
 
       {isLoading && (
         <div className="flex h-48 items-center justify-center rounded-lg border border-dashed">

@@ -7,11 +7,25 @@ const TEMP_ORGANIZATION_ID = "7b9ed617-92be-456d-81d6-dcde5841e7a0"
 type GetFinancialTransactionsParams = {
   page?: number
   size?: number
+  type?: string
+  status?: string
+  accountId?: string
+  categoryId?: string
+  description?: string
+  settlementDateFrom?: string
+  settlementDateTo?: string
 }
 
 export async function getFinancialTransactions({
   page = 0,
   size = 10,
+  type,
+  status,
+  accountId,
+  categoryId,
+  description,
+  settlementDateFrom,
+  settlementDateTo,
 }: GetFinancialTransactionsParams = {}) {
   const response = await httpClient.get<PageResponse<FinancialTransaction>>(
     "/api/v1/financial-transactions",
@@ -20,6 +34,13 @@ export async function getFinancialTransactions({
         organizationId: TEMP_ORGANIZATION_ID,
         page,
         size,
+        type: type || undefined,
+        status: status || undefined,
+        accountId: accountId || undefined,
+        categoryId: categoryId || undefined,
+        description: description || undefined,
+        settlementDateFrom: settlementDateFrom || undefined,
+        settlementDateTo: settlementDateTo || undefined,
       },
     },
   )

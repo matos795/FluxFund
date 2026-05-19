@@ -1,6 +1,7 @@
 package com.fluxfund.api.domain.financialtransaction.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -26,6 +27,7 @@ import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionResp
 import com.fluxfund.api.domain.financialtransaction.dto.UpdateFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.mapper.FinancialTransactionMapper;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
+import com.fluxfund.api.domain.financialtransaction.specification.FinancialTransactionSpecification;
 import com.fluxfund.api.domain.fund.Fund;
 import com.fluxfund.api.domain.fund.repository.FundRepository;
 import com.fluxfund.api.domain.organization.Organization;
@@ -88,10 +90,26 @@ public class FinancialTransactionService {
     @Transactional(readOnly = true)
     public Page<FinancialTransactionResponse> findAll(
             UUID organizationId,
+            FinancialTransactionType type,
+            FinancialTransactionStatus status,
+            UUID accountId,
+            UUID categoryId,
+            String description,
+            LocalDate settlementDateFrom,
+            LocalDate settlementDateTo,
             Pageable pageable) {
 
         return repository
-                .findAllByOrganizationId(organizationId, pageable)
+                .findAll(FinancialTransactionSpecification.withFilters(
+                        organizationId,
+                        type,
+                        status,
+                        accountId,
+                        categoryId,
+                        description,
+                        settlementDateFrom,
+                        settlementDateTo), 
+                        pageable)
                 .map(FinancialTransactionMapper::toResponse);
     }
 

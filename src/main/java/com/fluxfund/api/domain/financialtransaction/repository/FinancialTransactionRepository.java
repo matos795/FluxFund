@@ -6,10 +6,14 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 
-public interface FinancialTransactionRepository extends JpaRepository<FinancialTransaction, UUID> {
+public interface FinancialTransactionRepository
+        extends JpaRepository<FinancialTransaction, UUID>,
+                JpaSpecificationExecutor<FinancialTransaction> {
+                        
 
     Page<FinancialTransaction> findAllByOrganizationId(
             UUID organizationId,
