@@ -21,6 +21,10 @@ export function useDeleteTransactionAllocation() {
       queryClient.invalidateQueries({
         queryKey: ["financial-transactions"],
       })
+
+      queryClient.invalidateQueries({
+        queryKey: ["funds"],
+      })
     },
   })
 }

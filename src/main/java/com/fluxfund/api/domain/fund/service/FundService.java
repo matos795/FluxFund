@@ -15,6 +15,7 @@ import com.fluxfund.api.domain.fund.mapper.FundMapper;
 import com.fluxfund.api.domain.fund.repository.FundRepository;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.OrganizationRepository;
+import com.fluxfund.api.domain.transactionallocation.repository.TransactionAllocationRepository;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 import com.fluxfund.api.shared.util.StringNormalizer;
@@ -28,6 +29,7 @@ public class FundService {
 
     private final FundRepository repository;
     private final OrganizationRepository organizationRepository;
+    private final TransactionAllocationRepository allocationRepository;
 
     public FundResponse create(CreateFundRequest request, UUID organizationId) {
 
@@ -40,18 +42,17 @@ public class FundService {
 
         repository.save(fund);
 
-        return FundMapper.toResponse(fund);
+        return FundMapper.toResponse(fund, allocationRepository.sumAmountByFundId(organizationId, fund.getId()));
     }
 
     @Transactional(readOnly = true)
     public Page<FundResponse> findAll(
-
             UUID organizationId,
             Pageable pageable) {
 
         return repository
                 .findAllByOrganizationIdAndActiveTrue(organizationId, pageable)
-                .map(FundMapper::toResponse);
+                .map(x -> FundMapper.toResponse(x, allocationRepository.sumAmountByFundId(organizationId, x.getId())));
     }
 
     @Transactional(readOnly = true)
@@ -59,7 +60,7 @@ public class FundService {
 
         Fund fund = findFundById(id, organizationId);
 
-        return FundMapper.toResponse(fund);
+        return FundMapper.toResponse(fund, allocationRepository.sumAmountByFundId(organizationId, fund.getId()));
     }
 
     public FundResponse update(
@@ -80,7 +81,7 @@ public class FundService {
         FundMapper.updateEntity(fund, request);
         repository.save(fund);
 
-        return FundMapper.toResponse(fund);
+        return FundMapper.toResponse(fund, allocationRepository.sumAmountByFundId(organizationId, fund.getId()));
     }
 
     public void delete(UUID id, UUID organizationId) {

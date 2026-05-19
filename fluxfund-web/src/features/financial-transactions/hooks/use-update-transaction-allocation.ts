@@ -24,6 +24,10 @@ export function useUpdateTransactionAllocation() {
       queryClient.invalidateQueries({
         queryKey: ["financial-transactions"],
       })
+
+      queryClient.invalidateQueries({
+        queryKey: ["funds"],
+      })
     },
   })
 }

@@ -23,14 +23,14 @@ public class FundMapper {
         );
     }
 
-    public static FundResponse toResponse(Fund fund) {
+    public static FundResponse toResponse(Fund fund, BigDecimal sum) {
         return new FundResponse(
             fund.getId(),
             fund.getName(),
             fund.getDescription(),
             fund.getInitialBalance(),
             fund.getInitialBalanceDate(),
-            fund.getInitialBalance(),
+            fund.getInitialBalance().add(sum),
             fund.isActive(),
             fund.getCreatedAt(),
             fund.getUpdatedAt()

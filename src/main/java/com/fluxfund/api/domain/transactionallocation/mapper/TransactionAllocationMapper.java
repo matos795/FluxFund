@@ -48,9 +48,7 @@ public class TransactionAllocationMapper {
         if (fund != null) {
             transactionAllocation.setFund(fund);
         }
-        if (beneficiary != null) {
             transactionAllocation.setBeneficiary(beneficiary);
-        }
         if (request.amount() != null) {
             transactionAllocation.setAmount(AmountNormalizer.normalizeAmount(transactionAllocation.getFinancialTransaction(), request.amount()));
         }
