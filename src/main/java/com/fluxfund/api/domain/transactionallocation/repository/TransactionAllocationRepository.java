@@ -8,7 +8,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
 
 public interface TransactionAllocationRepository extends JpaRepository<TransactionAllocation, UUID> {
@@ -34,4 +36,16 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
                               and a.financialTransaction.status = 'SETTLED'
                         """)
         BigDecimal sumAmountByFundId(UUID organizationId, UUID fundId);
+
+        @Query("""
+        select coalesce(sum(a.amount), 0)
+        from TransactionAllocation a
+        where a.organization.id = :organizationId
+          and a.fund.active = true
+          and a.financialTransaction.status <> :canceledStatus
+        """)
+BigDecimal sumActiveFundAllocationsByOrganizationId(
+        @Param("organizationId") UUID organizationId,
+        @Param("canceledStatus") FinancialTransactionStatus canceledStatus
+);
 }

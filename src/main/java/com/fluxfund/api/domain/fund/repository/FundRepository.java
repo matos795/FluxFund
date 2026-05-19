@@ -1,28 +1,40 @@
 package com.fluxfund.api.domain.fund.repository;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.fluxfund.api.domain.fund.Fund;
 
 public interface FundRepository extends JpaRepository<Fund, UUID> {
 
-    Page<Fund> findAllByOrganizationIdAndActiveTrue(
-            UUID organizationId,
-            Pageable pageable);
+        Page<Fund> findAllByOrganizationIdAndActiveTrue(
+                        UUID organizationId,
+                        Pageable pageable);
 
-    boolean existsByOrganizationIdAndNameIgnoreCase(
-            UUID organizationId,
-            String name);
+        boolean existsByOrganizationIdAndNameIgnoreCase(
+                        UUID organizationId,
+                        String name);
 
-    boolean existsByOrganizationIdAndNameIgnoreCaseAndIdNot(
-            UUID organizationId,
-            String name,
-            UUID id);
+        boolean existsByOrganizationIdAndNameIgnoreCaseAndIdNot(
+                        UUID organizationId,
+                        String name,
+                        UUID id);
 
-    Optional<Fund> findByIdAndOrganizationIdAndActiveTrue(UUID fundId, UUID organizationId);
+        Optional<Fund> findByIdAndOrganizationIdAndActiveTrue(UUID fundId, UUID organizationId);
+
+        @Query("""
+                select coalesce(sum(f.initialBalance), 0)
+                from Fund f
+                where f.organization.id = :organizationId
+                and f.active = true
+        """)
+        BigDecimal sumInitialBalanceByOrganizationId(
+        @Param("organizationId") UUID organizationId);
 }
