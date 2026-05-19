@@ -19,6 +19,7 @@ import com.fluxfund.api.domain.beneficiary.repository.BeneficiaryRepository;
 import com.fluxfund.api.domain.category.Category;
 import com.fluxfund.api.domain.category.repository.CategoryRepository;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
+import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.dto.ClassifyFinancialTransactionRequest;
@@ -92,11 +93,14 @@ public class FinancialTransactionService {
             UUID organizationId,
             FinancialTransactionType type,
             FinancialTransactionStatus status,
+            FinancialTransactionSource source,
             UUID accountId,
             UUID categoryId,
             String description,
             LocalDate settlementDateFrom,
             LocalDate settlementDateTo,
+            Boolean onlyUnclassified,
+            Boolean onlyUnallocated,
             Pageable pageable) {
 
         return repository
@@ -104,11 +108,14 @@ public class FinancialTransactionService {
                         organizationId,
                         type,
                         status,
+                        source,
                         accountId,
                         categoryId,
                         description,
                         settlementDateFrom,
-                        settlementDateTo), 
+                        settlementDateTo,
+                        onlyUnclassified,
+                        onlyUnallocated),
                         pageable)
                 .map(FinancialTransactionMapper::toResponse);
     }

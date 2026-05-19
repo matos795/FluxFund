@@ -11,6 +11,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { EntityCombobox } from "@/components/form/entity-combobox"
+import { Checkbox } from "@/components/ui/checkbox"
 
 type FinancialTransactionFiltersProps = {
     type: string
@@ -28,6 +29,12 @@ type FinancialTransactionFiltersProps = {
         id: string
         name: string
     }[]
+    source: string
+    onlyUnclassified: boolean
+    onlyUnallocated: boolean
+    onSourceChange: (value: string) => void
+    onOnlyUnclassifiedChange: (value: boolean) => void
+    onOnlyUnallocatedChange: (value: boolean) => void
     onAccountIdChange: (value: string) => void
     onCategoryIdChange: (value: string) => void
     onTypeChange: (value: string) => void
@@ -48,6 +55,12 @@ export function FinancialTransactionFilters({
     categoryId,
     accounts,
     categories,
+    source,
+    onlyUnclassified,
+    onlyUnallocated,
+    onOnlyUnclassifiedChange,
+    onOnlyUnallocatedChange,
+    onSourceChange,
     onAccountIdChange,
     onCategoryIdChange,
     onTypeChange,
@@ -177,6 +190,52 @@ export function FinancialTransactionFilters({
                         }))}
                         onChange={onCategoryIdChange}
                     />
+                </div>
+
+                <div className="space-y-2">
+                    <Label>Origem</Label>
+                    <Select
+                        value={source || "ALL"}
+                        onValueChange={(value) =>
+                            onSourceChange(value === "ALL" ? "" : value)
+                        }
+                    >
+                        <SelectTrigger>
+                            <SelectValue placeholder="Todas as origens" />
+                        </SelectTrigger>
+
+                        <SelectContent>
+                            <SelectItem value="ALL">Todas</SelectItem>
+                            <SelectItem value="MANUAL">Manual</SelectItem>
+                            <SelectItem value="OFX">OFX</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <Checkbox
+                        id="onlyUnclassified"
+                        checked={onlyUnclassified}
+                        onCheckedChange={(checked) =>
+                            onOnlyUnclassifiedChange(Boolean(checked))
+                        }
+                    />
+                    <Label htmlFor="onlyUnclassified" className="cursor-pointer">
+                        Somente sem categoria
+                    </Label>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <Checkbox
+                        id="onlyUnallocated"
+                        checked={onlyUnallocated}
+                        onCheckedChange={(checked) =>
+                            onOnlyUnallocatedChange(Boolean(checked))
+                        }
+                    />
+                    <Label htmlFor="onlyUnallocated" className="cursor-pointer">
+                        Somente sem alocação
+                    </Label>
                 </div>
             </div>
         </div>

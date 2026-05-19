@@ -14,6 +14,9 @@ type GetFinancialTransactionsParams = {
   description?: string
   settlementDateFrom?: string
   settlementDateTo?: string
+  source?: string
+  onlyUnclassified?: boolean
+  onlyUnallocated?: boolean
 }
 
 export async function getFinancialTransactions({
@@ -26,6 +29,9 @@ export async function getFinancialTransactions({
   description,
   settlementDateFrom,
   settlementDateTo,
+  source,
+  onlyUnclassified,
+  onlyUnallocated
 }: GetFinancialTransactionsParams = {}) {
   const response = await httpClient.get<PageResponse<FinancialTransaction>>(
     "/api/v1/financial-transactions",
@@ -36,11 +42,14 @@ export async function getFinancialTransactions({
         size,
         type: type || undefined,
         status: status || undefined,
+        source: source || undefined,
         accountId: accountId || undefined,
         categoryId: categoryId || undefined,
         description: description || undefined,
         settlementDateFrom: settlementDateFrom || undefined,
         settlementDateTo: settlementDateTo || undefined,
+        onlyUnclassified: onlyUnclassified || undefined,
+        onlyUnallocated: onlyUnallocated || undefined,
       },
     },
   )

@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.dto.ClassifyFinancialTransactionRequest;
@@ -53,22 +54,28 @@ public class FinancialTransactionController {
                         @RequestParam UUID organizationId,
                         @RequestParam(required = false) FinancialTransactionType type,
                         @RequestParam(required = false) FinancialTransactionStatus status,
+                        @RequestParam(required = false) FinancialTransactionSource source,
                         @RequestParam(required = false) UUID accountId,
                         @RequestParam(required = false) UUID categoryId,
                         @RequestParam(required = false) String description,
                         @RequestParam(required = false) LocalDate settlementDateFrom,
                         @RequestParam(required = false) LocalDate settlementDateTo,
+                        @RequestParam(required = false) Boolean onlyUnclassified,
+                        @RequestParam(required = false) Boolean onlyUnallocated,
                         Pageable pageable) {
 
                 return ResponseEntity.ok(
                                 service.findAll(organizationId,
                                                 type,
                                                 status,
+                                                source,
                                                 accountId,
                                                 categoryId,
                                                 description,
                                                 settlementDateFrom,
                                                 settlementDateTo,
+                                                onlyUnclassified,
+                                                onlyUnallocated,
                                                 pageable));
         }
 

@@ -6,11 +6,14 @@ type UseFinancialTransactionsParams = {
   size: number
   type?: string
   status?: string
+  source?: string
   accountId?: string
   categoryId?: string
   description?: string
   settlementDateFrom?: string
   settlementDateTo?: string
+  onlyUnclassified?: boolean
+  onlyUnallocated?: boolean
 }
 
 export function useFinancialTransactions(params: UseFinancialTransactionsParams) {

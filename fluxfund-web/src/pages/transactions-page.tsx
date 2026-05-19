@@ -22,17 +22,23 @@ export function TransactionsPage() {
   const [description, setDescription] = useState("")
   const [settlementDateFrom, setSettlementDateFrom] = useState("")
   const [settlementDateTo, setSettlementDateTo] = useState("")
+  const [source, setSource] = useState("")
+  const [onlyUnclassified, setOnlyUnclassified] = useState(false)
+  const [onlyUnallocated, setOnlyUnallocated] = useState(false)
 
   const { data, isLoading, isError } = useFinancialTransactions({
     page,
     size,
     type,
     status,
+    source,
     accountId,
     categoryId,
     description,
     settlementDateFrom,
     settlementDateTo,
+    onlyUnclassified,
+    onlyUnallocated,
   })
 
   const { data: accountsData } = useAccounts({
@@ -51,11 +57,14 @@ export function TransactionsPage() {
   function handleClearFilters() {
     setType("")
     setStatus("")
+    setSource("")
     setAccountId("")
     setCategoryId("")
     setDescription("")
     setSettlementDateFrom("")
     setSettlementDateTo("")
+    setOnlyUnclassified(false)
+    setOnlyUnallocated(false)
     setPage(0)
   }
 
@@ -78,11 +87,14 @@ export function TransactionsPage() {
       <FinancialTransactionFilters
         type={type}
         status={status}
+        source={source}
         accountId={accountId}
         categoryId={categoryId}
         description={description}
         settlementDateFrom={settlementDateFrom}
         settlementDateTo={settlementDateTo}
+        onlyUnclassified={onlyUnclassified}
+        onlyUnallocated={onlyUnallocated}
         accounts={accounts}
         categories={categories}
         onTypeChange={(value) => {
@@ -91,6 +103,10 @@ export function TransactionsPage() {
         }}
         onStatusChange={(value) => {
           setStatus(value)
+          setPage(0)
+        }}
+        onSourceChange={(value) => {
+          setSource(value)
           setPage(0)
         }}
         onAccountIdChange={(value) => {
@@ -111,6 +127,14 @@ export function TransactionsPage() {
         }}
         onSettlementDateToChange={(value) => {
           setSettlementDateTo(value)
+          setPage(0)
+        }}
+        onOnlyUnclassifiedChange={(value) => {
+          setOnlyUnclassified(value)
+          setPage(0)
+        }}
+        onOnlyUnallocatedChange={(value) => {
+          setOnlyUnallocated(value)
           setPage(0)
         }}
         onClear={handleClearFilters}
