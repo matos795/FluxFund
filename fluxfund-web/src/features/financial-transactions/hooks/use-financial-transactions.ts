@@ -4,6 +4,7 @@ import { getFinancialTransactions } from "../financial-transaction-api"
 type UseFinancialTransactionsParams = {
   page: number
   size: number
+  sort?: string
   type?: string
   status?: string
   source?: string

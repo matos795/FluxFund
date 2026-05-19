@@ -17,6 +17,7 @@ type GetFinancialTransactionsParams = {
   source?: string
   onlyUnclassified?: boolean
   onlyUnallocated?: boolean
+  sort?: string
 }
 
 export async function getFinancialTransactions({
@@ -31,7 +32,8 @@ export async function getFinancialTransactions({
   settlementDateTo,
   source,
   onlyUnclassified,
-  onlyUnallocated
+  onlyUnallocated,
+  sort
 }: GetFinancialTransactionsParams = {}) {
   const response = await httpClient.get<PageResponse<FinancialTransaction>>(
     "/api/v1/financial-transactions",
@@ -50,6 +52,7 @@ export async function getFinancialTransactions({
         settlementDateTo: settlementDateTo || undefined,
         onlyUnclassified: onlyUnclassified || undefined,
         onlyUnallocated: onlyUnallocated || undefined,
+        sort: sort || undefined,
       },
     },
   )
