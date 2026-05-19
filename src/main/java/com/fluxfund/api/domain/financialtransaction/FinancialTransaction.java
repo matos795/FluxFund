@@ -82,7 +82,7 @@ public class FinancialTransaction extends BaseEntity {
     @Column(name = "discount_amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal discountAmount;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     @Column(name = "raw_description", columnDefinition = "TEXT")

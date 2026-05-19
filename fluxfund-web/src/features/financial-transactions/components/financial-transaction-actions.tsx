@@ -15,6 +15,7 @@ import { toast } from "sonner"
 import { useState } from "react"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { ViewFinancialTransactionDialog } from "./view-financial-transaction-dialog"
+import { ClassifyFinancialTransactionDialog } from "./classify-financial-transaction-dialog"
 
 type FinancialTransactionActionsProps = {
   transaction: FinancialTransaction
@@ -41,9 +42,20 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
     })
   }
 
-  const canEdit = transaction.status !== "CANCELED" && transaction.status !== "IMPORTED"
-  const canManageAllocations = transaction.status === "SETTLED"
-  const canClassify = transaction.status === "IMPORTED"
+  const needsClassification =
+    transaction.source === "OFX" &&
+    transaction.status === "SETTLED" &&
+    !transaction.category
+
+  const canEdit =
+    transaction.status !== "CANCELED" &&
+    transaction.status !== "IMPORTED" &&
+    !needsClassification
+
+  const canManageAllocations =
+    transaction.status === "SETTLED" &&
+    !needsClassification
+
   const canCancel = transaction.status !== "CANCELED"
 
   return (
@@ -68,10 +80,8 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
             <ManageTransactionAllocationsDialog transaction={transaction} />
           )}
 
-          {canClassify && (
-            <DropdownMenuItem>
-              Classificar
-            </DropdownMenuItem>
+          {needsClassification && (
+            <ClassifyFinancialTransactionDialog transaction={transaction} />
           )}
 
           {canCancel && (
@@ -92,7 +102,12 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
             <AlertDialogTitle>Cancelar transação?</AlertDialogTitle>
             <AlertDialogDescription>
               Essa ação não poderá ser desfeita. A transação{" "}
-              <strong>{transaction.description}</strong> será cancelada.
+              <strong>
+                {transaction.description?.trim() ||
+                  transaction.rawDescription?.trim() ||
+                  "esta transação"}
+              </strong>{" "}
+              será cancelada.
             </AlertDialogDescription>
           </AlertDialogHeader>
 

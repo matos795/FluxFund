@@ -60,6 +60,11 @@ export function FinancialTransactionsTable({ financialTransactions }: FinancialT
                                     const isPartiallyAllocated =
                                         transaction.status === "SETTLED" && Math.abs(totalAllocated) > 0 && !isFullyAllocated
 
+                                    const displayDescription =
+                                        transaction.description?.trim() ||
+                                        transaction.rawDescription?.trim() ||
+                                        "-"
+
                                     return (
                                         <TableRow key={transaction.id}>
 
@@ -81,7 +86,15 @@ export function FinancialTransactionsTable({ financialTransactions }: FinancialT
                                             </TableCell>
 
                                             <TableCell className="font-medium">
-                                                {transaction.description}
+                                                <div className="flex flex-col">
+                                                    <span>{displayDescription}</span>
+
+                                                    {!transaction.description?.trim() && transaction.rawDescription && (
+                                                        <span className="text-xs text-muted-foreground">
+                                                            Descrição original do banco
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </TableCell>
 
                                             <TableCell>

@@ -3,6 +3,7 @@ package com.fluxfund.api.domain.financialtransaction.service;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,8 +47,7 @@ public class OfxImportService {
     public ImportOfxResponse importOfx(
             UUID organizationId,
             UUID accountId,
-            MultipartFile file
-    ) {
+            MultipartFile file) {
         validateFile(file);
 
         Organization organization = organizationRepository.findByIdAndActiveTrue(organizationId)
@@ -65,9 +65,11 @@ public class OfxImportService {
             AggregateUnmarshaller<ResponseEnvelope> unmarshaller = new AggregateUnmarshaller<>(ResponseEnvelope.class);
             ResponseEnvelope envelope = unmarshaller.unmarshal(inputStream);
 
-            BankingResponseMessageSet bankResponse = (BankingResponseMessageSet) envelope.getMessageSet(MessageSetType.banking);
+            BankingResponseMessageSet bankResponse = (BankingResponseMessageSet) envelope
+                    .getMessageSet(MessageSetType.banking);
 
-            if (bankResponse == null || bankResponse.getStatementResponses() == null || bankResponse.getStatementResponses().isEmpty()) {
+            if (bankResponse == null || bankResponse.getStatementResponses() == null
+                    || bankResponse.getStatementResponses().isEmpty()) {
                 throw new BusinessException("OFX file não contém resposta de extrato bancário.");
             }
 
@@ -86,12 +88,11 @@ public class OfxImportService {
                         continue;
                     }
 
-                    boolean alreadyExists =
-                            financialTransactionRepository.existsByOrganizationIdAndAccountIdAndExternalId(
+                    boolean alreadyExists = financialTransactionRepository
+                            .existsByOrganizationIdAndAccountIdAndExternalId(
                                     organizationId,
                                     accountId,
-                                    externalId
-                            );
+                                    externalId);
 
                     if (alreadyExists) {
                         ignoredDuplicates++;
@@ -102,8 +103,7 @@ public class OfxImportService {
                             organization,
                             account,
                             ofxTransaction,
-                            externalId
-                    );
+                            externalId);
 
                     financialTransactionRepository.save(financialTransaction);
                     imported++;
@@ -117,8 +117,7 @@ public class OfxImportService {
                     imported,
                     ignoredDuplicates,
                     failed,
-                    errors
-            );
+                    errors);
         } catch (Exception exception) {
             throw new BusinessException("Could not import OFX file: " + exception.getMessage());
         }
@@ -140,8 +139,7 @@ public class OfxImportService {
             Organization organization,
             Account account,
             Transaction ofxTransaction,
-            String externalId
-    ) {
+            String externalId) {
         Double amountDouble = ofxTransaction.getAmount();
 
         if (amountDouble == null) {
@@ -165,7 +163,7 @@ public class OfxImportService {
                 .atZone(ZoneId.systemDefault())
                 .toLocalDate();
 
-        String description = buildDescription(ofxTransaction);
+        String rawDescription = buildDescription(ofxTransaction);
 
         FinancialTransaction financialTransaction = new FinancialTransaction();
 
@@ -181,7 +179,9 @@ public class OfxImportService {
         financialTransaction.setSettledAmount(absoluteAmount);
         financialTransaction.setInterestAmount(BigDecimal.ZERO);
         financialTransaction.setDiscountAmount(BigDecimal.ZERO);
-        financialTransaction.setDescription(description);
+        financialTransaction.setRawDescription(rawDescription);
+        financialTransaction.setDescription("");
+        financialTransaction.setImportedAt(LocalDateTime.now());
         financialTransaction.setDocumentNumber(ofxTransaction.getCheckNumber());
         financialTransaction.setExternalId(externalId);
         financialTransaction.setClassifiedAt(null);

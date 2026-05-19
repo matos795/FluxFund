@@ -287,10 +287,10 @@ export function FinancialTransactionForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="description">Descrição</Label>
+        <Label htmlFor="description">Descrição interna</Label>
         <Textarea
           id="description"
-          placeholder="Ex: Oferta missionária, pagamento de fornecedor, compra de material..."
+          placeholder="Descrição opcional para uso interno..."
           {...register("description")}
         />
         {errors.description && (

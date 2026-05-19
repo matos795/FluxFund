@@ -77,7 +77,14 @@ export function ViewFinancialTransactionDialog({
 
           <div className="space-y-6">
             <section className="grid gap-3 md:grid-cols-4">
-              <SummaryCard label="Descrição" value={transaction.description} />
+              <SummaryCard
+                label="Descrição"
+                value={
+                  transaction.description?.trim() ||
+                  transaction.rawDescription?.trim() ||
+                  "-"
+                }
+              />
               <SummaryCard
                 label="Valor previsto"
                 value={formatCurrency(transaction.expectedAmount)}
@@ -196,13 +203,13 @@ export function ViewFinancialTransactionDialog({
                 />
 
                 <DetailItem
-                  label="Descrição"
-                  value={transaction.description}
+                  label="Descrição interna"
+                  value={transaction.description?.trim() || "-"}
                 />
 
                 <DetailItem
-                  label="Descrição original"
-                  value={transaction.rawDescription ?? "-"}
+                  label="Descrição original do banco"
+                  value={transaction.rawDescription?.trim() || "-"}
                 />
 
                 <DetailItem

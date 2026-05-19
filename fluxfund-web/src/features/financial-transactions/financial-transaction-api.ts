@@ -1,6 +1,6 @@
 import { httpClient } from "@/api/http-client"
 import type { PageResponse } from "@/types/page-response"
-import type { CreateFinancialTransactionRequest, CreateTransactionAllocationRequest, FinancialTransaction, ImportOfxResponse, TransactionAllocation, UpdateFinancialTransactionRequest, UpdateTransactionAllocationRequest } from "./financial-transaction-types"
+import type { ClassifyFinancialTransactionRequest, CreateFinancialTransactionRequest, CreateTransactionAllocationRequest, FinancialTransaction, ImportOfxResponse, TransactionAllocation, UpdateFinancialTransactionRequest, UpdateTransactionAllocationRequest } from "./financial-transaction-types"
 
 const TEMP_ORGANIZATION_ID = "7b9ed617-92be-456d-81d6-dcde5841e7a0"
 
@@ -170,6 +170,26 @@ export async function importOfxFile({
       },
       headers: {
         "Content-Type": "multipart/form-data",
+      },
+    },
+  )
+
+  return response.data
+}
+
+export async function classifyFinancialTransaction({
+  transactionId,
+  data,
+}: {
+  transactionId: string
+  data: ClassifyFinancialTransactionRequest
+}) {
+  const response = await httpClient.put<FinancialTransaction>(
+    `/api/v1/financial-transactions/${transactionId}/classify`,
+    data,
+    {
+      params: {
+        organizationId: TEMP_ORGANIZATION_ID,
       },
     },
   )

@@ -19,7 +19,7 @@ export type FinancialTransactionStatus =
   | "IMPORTED"
 
 export type TransactionAllocation = {
-  id: string 
+  id: string
   financialTransactionId: string
   fund: FundSummary
   beneficiary: BeneficiarySummary | null
@@ -109,4 +109,20 @@ export type ImportOfxResponse = {
   ignoredDuplicates: number
   failed: number
   errors: string[]
+}
+
+export type ClassifyFinancialTransactionRequest = {
+  type: "INCOME" | "EXPENSE" | "TRANSFER"
+  categoryId: string
+  dueDate?: string
+  settlementDate?: string
+  expectedAmount?: number
+  settledAmount?: number
+  description?: string
+  documentNumber?: string
+  allocations?: {
+    fundId: string
+    beneficiaryId?: string | null
+    amount: number
+  }[]
 }
