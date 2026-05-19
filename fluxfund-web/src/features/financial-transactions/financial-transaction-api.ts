@@ -1,6 +1,6 @@
 import { httpClient } from "@/api/http-client"
 import type { PageResponse } from "@/types/page-response"
-import type { CreateFinancialTransactionRequest, CreateTransactionAllocationRequest, FinancialTransaction, TransactionAllocation, UpdateFinancialTransactionRequest, UpdateTransactionAllocationRequest } from "./financial-transaction-types"
+import type { CreateFinancialTransactionRequest, CreateTransactionAllocationRequest, FinancialTransaction, ImportOfxResponse, TransactionAllocation, UpdateFinancialTransactionRequest, UpdateTransactionAllocationRequest } from "./financial-transaction-types"
 
 const TEMP_ORGANIZATION_ID = "7b9ed617-92be-456d-81d6-dcde5841e7a0"
 
@@ -148,4 +148,31 @@ export async function deleteTransactionAllocation(
       },
     },
   )
+}
+
+export async function importOfxFile({
+  accountId,
+  file,
+}: {
+  accountId: string
+  file: File
+}) {
+  const formData = new FormData()
+  formData.append("file", file)
+
+  const response = await httpClient.post<ImportOfxResponse>(
+    "/api/v1/financial-transactions/import/ofx",
+    formData,
+    {
+      params: {
+        organizationId: TEMP_ORGANIZATION_ID,
+        accountId,
+      },
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    },
+  )
+
+  return response.data
 }

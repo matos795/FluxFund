@@ -11,15 +11,19 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 
 public interface FinancialTransactionRepository
-        extends JpaRepository<FinancialTransaction, UUID>,
+                extends JpaRepository<FinancialTransaction, UUID>,
                 JpaSpecificationExecutor<FinancialTransaction> {
-                        
 
-    Page<FinancialTransaction> findAllByOrganizationId(
-            UUID organizationId,
-            Pageable pageable);
+        Page<FinancialTransaction> findAllByOrganizationId(
+                        UUID organizationId,
+                        Pageable pageable);
 
-    Optional<FinancialTransaction> findByIdAndOrganizationId(
-            UUID id,
-            UUID organizationId);
+        Optional<FinancialTransaction> findByIdAndOrganizationId(
+                        UUID id,
+                        UUID organizationId);
+
+        boolean existsByOrganizationIdAndAccountIdAndExternalId(
+                        UUID organizationId,
+                        UUID accountId,
+                        String externalId);
 }

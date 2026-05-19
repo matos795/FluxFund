@@ -1,9 +1,7 @@
 import { useState } from "react"
-import { Upload } from "lucide-react"
 
 import { PageHeader } from "@/components/layout/page-header"
 import { PagePagination } from "@/components/pagination/page-pagination"
-import { Button } from "@/components/ui/button"
 import { FinancialTransactionsTable } from "@/features/financial-transactions/components/financial-transactions-table"
 import { useFinancialTransactions } from "@/features/financial-transactions/hooks/use-financial-transactions"
 import { CreateFinancialTransactionDialog } from "@/features/financial-transactions/components/create-financial-transaction-dialog"
@@ -11,6 +9,7 @@ import { FinancialTransactionFilters } from "@/features/financial-transactions/c
 import { useAccounts } from "@/features/accounts/hooks/use-accounts"
 import { useCategories } from "@/features/categories/hooks/use-categories"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ImportOfxDialog } from "@/features/financial-transactions/components/import-ofx-dialog"
 
 export function TransactionsPage() {
   const [page, setPage] = useState(0)
@@ -78,11 +77,7 @@ export function TransactionsPage() {
         description="Acompanhe lançamentos financeiros, conciliações e movimentações oficiais."
       >
         <div className="flex gap-2">
-          <Button variant="outline">
-            <Upload className="mr-2 size-4" />
-            Importar OFX
-          </Button>
-
+          <ImportOfxDialog />
           <CreateFinancialTransactionDialog />
         </div>
       </PageHeader>

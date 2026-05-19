@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
@@ -23,8 +25,10 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.dto.ClassifyFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.CreateFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionResponse;
+import com.fluxfund.api.domain.financialtransaction.dto.ImportOfxResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.UpdateFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.service.FinancialTransactionService;
+import com.fluxfund.api.domain.financialtransaction.service.OfxImportService;
 import com.fluxfund.api.domain.transactionallocation.dto.CreateTransactionAllocationRequest;
 import com.fluxfund.api.domain.transactionallocation.dto.TransactionAllocationResponse;
 import com.fluxfund.api.domain.transactionallocation.dto.UpdateTransactionAllocationRequest;
@@ -37,6 +41,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class FinancialTransactionController {
         private final FinancialTransactionService service;
+        private final OfxImportService ofxImportService;
 
         @PostMapping
         public ResponseEntity<FinancialTransactionResponse> create(
@@ -146,5 +151,14 @@ public class FinancialTransactionController {
 
                 return ResponseEntity.ok(
                                 service.classify(organizationId, id, request));
+        }
+
+        @PostMapping(value = "/import/ofx", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+        public ResponseEntity<ImportOfxResponse> importOfx(
+                        @RequestParam UUID organizationId,
+                        @RequestParam UUID accountId,
+                        @RequestParam MultipartFile file) {
+                return ResponseEntity.ok(
+                                ofxImportService.importOfx(organizationId, accountId, file));
         }
 }

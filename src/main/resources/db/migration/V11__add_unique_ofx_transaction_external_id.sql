@@ -1,0 +1,3 @@
+ALTER TABLE financial_transaction
+ADD CONSTRAINT uk_financial_transaction_ofx_external_id
+UNIQUE (organization_id, account_id, external_id);

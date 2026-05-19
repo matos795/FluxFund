@@ -103,3 +103,10 @@ export type UpdateTransactionAllocationRequest = {
   beneficiaryId?: string | null
   amount?: number | null
 }
+
+export type ImportOfxResponse = {
+  imported: number
+  ignoredDuplicates: number
+  failed: number
+  errors: string[]
+}
