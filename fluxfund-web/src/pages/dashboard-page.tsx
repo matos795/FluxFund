@@ -100,6 +100,7 @@ export function DashboardPage() {
           value={summary?.unclassifiedCount ?? 0}
           description="Transações que ainda precisam de categoria."
           icon={AlertTriangle}
+          to="/transactions?onlyUnclassified=true"
         />
 
         <DashboardPendingCard
@@ -107,6 +108,7 @@ export function DashboardPage() {
           value={summary?.unallocatedCount ?? 0}
           description="Transações classificadas que ainda não foram totalmente destinadas."
           icon={AlertTriangle}
+          to="/transactions?onlyUnallocated=true"
         />
       </div>
     </div>
