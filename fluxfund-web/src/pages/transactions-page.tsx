@@ -10,22 +10,34 @@ import { useAccounts } from "@/features/accounts/hooks/use-accounts"
 import { useCategories } from "@/features/categories/hooks/use-categories"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ImportOfxDialog } from "@/features/financial-transactions/components/import-ofx-dialog"
+import { useSearchParams } from "react-router-dom"
 
 export function TransactionsPage() {
+
+  const [searchParams, setSearchParams] = useSearchParams()
+
   const [page, setPage] = useState(0)
   const [size, setSize] = useState(10)
   const [sort, setSort] = useState("settlementDate,desc")
 
-  const [type, setType] = useState("")
-  const [status, setStatus] = useState("")
-  const [accountId, setAccountId] = useState("")
-  const [categoryId, setCategoryId] = useState("")
-  const [description, setDescription] = useState("")
-  const [settlementDateFrom, setSettlementDateFrom] = useState("")
-  const [settlementDateTo, setSettlementDateTo] = useState("")
-  const [source, setSource] = useState("")
-  const [onlyUnclassified, setOnlyUnclassified] = useState(false)
-  const [onlyUnallocated, setOnlyUnallocated] = useState(false)
+  const [type, setType] = useState(searchParams.get("type") ?? "")
+  const [status, setStatus] = useState(searchParams.get("status") ?? "")
+  const [accountId, setAccountId] = useState(searchParams.get("accountId") ?? "")
+  const [categoryId, setCategoryId] = useState(searchParams.get("categoryId") ?? "")
+  const [description, setDescription] = useState(searchParams.get("description") ?? "")
+  const [settlementDateFrom, setSettlementDateFrom] = useState(
+    searchParams.get("settlementDateFrom") ?? "",
+  )
+  const [settlementDateTo, setSettlementDateTo] = useState(
+    searchParams.get("settlementDateTo") ?? "",
+  )
+  const [source, setSource] = useState(searchParams.get("source") ?? "")
+  const [onlyUnclassified, setOnlyUnclassified] = useState(
+    searchParams.get("onlyUnclassified") === "true",
+  )
+  const [onlyUnallocated, setOnlyUnallocated] = useState(
+    searchParams.get("onlyUnallocated") === "true",
+  )
 
   const { data, isLoading, isError } = useFinancialTransactions({
     page,
@@ -68,6 +80,7 @@ export function TransactionsPage() {
     setOnlyUnclassified(false)
     setOnlyUnallocated(false)
     setPage(0)
+    setSearchParams({})
   }
 
   return (
@@ -129,11 +142,32 @@ export function TransactionsPage() {
         }}
         onOnlyUnclassifiedChange={(value) => {
           setOnlyUnclassified(value)
+          setOnlyUnallocated(false)
           setPage(0)
+
+          if (value) {
+            setSearchParams({
+              onlyUnclassified: "true",
+            })
+          } else {
+            setSearchParams({})
+          }
         }}
         onOnlyUnallocatedChange={(value) => {
           setOnlyUnallocated(value)
+          setOnlyUnclassified(false)
           setPage(0)
+
+          if (value) {
+            setStatus("SETTLED")
+            setSearchParams({
+              onlyUnallocated: "true",
+              status: "SETTLED",
+            })
+          } else {
+            setStatus("")
+            setSearchParams({})
+          }
         }}
         onClear={handleClearFilters}
       />

@@ -1,5 +1,6 @@
 package com.fluxfund.api.domain.financialtransaction.specification;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -9,6 +10,10 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
+import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
+
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 
 public class FinancialTransactionSpecification {
 
@@ -81,12 +86,44 @@ public class FinancialTransactionSpecification {
                 predicates = cb.and(
                         predicates,
                         cb.isNull(root.get("category")));
+
+                predicates = cb.and(
+                        predicates,
+                        cb.notEqual(root.get("status"), FinancialTransactionStatus.CANCELED));
             }
 
             if (Boolean.TRUE.equals(onlyUnallocated)) {
                 predicates = cb.and(
                         predicates,
-                        cb.isEmpty(root.get("allocations")));
+                        cb.equal(root.get("status"), FinancialTransactionStatus.SETTLED));
+
+                predicates = cb.and(
+                        predicates,
+                        cb.notEqual(root.get("type"), FinancialTransactionType.TRANSFER));
+
+                predicates = cb.and(
+                        predicates,
+                        cb.isNotNull(root.get("category")));
+
+                Subquery<BigDecimal> allocationSum = query.subquery(BigDecimal.class);
+                Root<TransactionAllocation> allocationRoot = allocationSum.from(TransactionAllocation.class);
+
+                allocationSum.select(
+                        cb.coalesce(
+                                cb.sum(
+                                        cb.abs(allocationRoot.get("amount"))),
+                                BigDecimal.ZERO));
+
+                allocationSum.where(
+                        cb.equal(
+                                allocationRoot.get("financialTransaction"),
+                                root));
+
+                predicates = cb.and(
+                        predicates,
+                        cb.greaterThan(
+                                cb.abs(root.get("settledAmount")),
+                                allocationSum));
             }
 
             return predicates;

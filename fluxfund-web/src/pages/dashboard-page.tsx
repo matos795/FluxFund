@@ -108,7 +108,7 @@ export function DashboardPage() {
           value={summary?.unallocatedCount ?? 0}
           description="Transações classificadas que ainda não foram totalmente destinadas."
           icon={AlertTriangle}
-          to="/transactions?onlyUnallocated=true"
+          to="/transactions?onlyUnallocated=true&status=SETTLED"
         />
       </div>
     </div>
