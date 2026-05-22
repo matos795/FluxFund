@@ -21,7 +21,7 @@ export const financialTransactionFormSchema = z
 
     description: z
       .string()
-      .min(3, "A descrição deve ter pelo menos 3 caracteres."),
+      .optional(),
 
     documentNumber: z.string().optional(),
   })

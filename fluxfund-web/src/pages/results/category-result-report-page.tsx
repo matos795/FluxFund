@@ -1,4 +1,4 @@
-import { ArrowLeft, BarChart3 } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import { Link } from "react-router-dom"
 
 import { PageHeader } from "@/components/layout/page-header"
@@ -11,14 +11,8 @@ import {
 } from "@/components/ui/card"
 import { formatCurrency } from "@/utils/formatters"
 import { useCategoryResultReport } from "@/features/reports/hooks/use-category-result-report"
-
-function getTransactionTypeLabel(type: string) {
-    if (type === "INCOME") return "Receita"
-    if (type === "EXPENSE") return "Despesa"
-    if (type === "TRANSFER") return "Transferência"
-
-    return type
-}
+import { groupCategoryResultItems } from "@/features/reports/category-result-utils"
+import { CategoryResultStatement } from "@/features/reports/components/category-result-statement"
 
 export function CategoryResultReportPage() {
 
@@ -41,6 +35,14 @@ export function CategoryResultReportPage() {
         startDate,
         endDate,
     })
+
+    const incomeGroups = groupCategoryResultItems(
+        report?.items.filter((item) => item.type === "INCOME") ?? [],
+    )
+
+    const expenseGroups = groupCategoryResultItems(
+        report?.items.filter((item) => item.type === "EXPENSE") ?? [],
+    )
 
     if (isLoading) {
         return <p>Carregando relatório...</p>
@@ -108,60 +110,19 @@ export function CategoryResultReportPage() {
                 </Card>
             </section>
 
-            <Card>
-                <CardHeader className="flex flex-row items-center gap-3">
-                    <div className="rounded-xl bg-muted p-2">
-                        <BarChart3 className="size-5 text-muted-foreground" />
-                    </div>
+            <div className="grid gap-6 xl:grid-cols-2">
+                <CategoryResultStatement
+                    title="Receitas"
+                    total={report?.incomeTotal ?? 0}
+                    groups={incomeGroups}
+                />
 
-                    <div>
-                        <CardTitle>Resumo por categoria</CardTitle>
-                        <p className="text-sm text-muted-foreground">
-                            Totais agrupados por categoria no período selecionado.
-                        </p>
-                    </div>
-                </CardHeader>
-
-                <CardContent>
-                    {report?.items.length === 0 ? (
-                        <div className="rounded-lg border p-6 text-center text-sm text-muted-foreground">
-                            Nenhum dado encontrado para o período.
-                        </div>
-                    ) : (
-                        <div className="overflow-hidden rounded-lg border">
-                            <table className="w-full text-sm">
-                                <thead className="bg-muted/50">
-                                    <tr>
-                                        <th className="px-4 py-3 text-left font-medium">Categoria</th>
-                                        <th className="px-4 py-3 text-left font-medium">Tipo</th>
-                                        <th className="px-4 py-3 text-right font-medium">Total</th>
-                                        <th className="px-4 py-3 text-right font-medium">
-                                            Transações
-                                        </th>
-                                    </tr>
-                                </thead>
-
-                                <tbody>
-                                    {report?.items.map((item) => (
-                                        <tr key={item.categoryId} className="border-t">
-                                            <td className="px-4 py-3">{item.categoryName}</td>
-                                            <td className="px-4 py-3">
-                                                {getTransactionTypeLabel(item.type)}
-                                            </td>
-                                            <td className="px-4 py-3 text-right font-medium">
-                                                {formatCurrency(item.total)}
-                                            </td>
-                                            <td className="px-4 py-3 text-right">
-                                                {item.transactionCount}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                <CategoryResultStatement
+                    title="Despesas"
+                    total={report?.expenseTotal ?? 0}
+                    groups={expenseGroups}
+                />
+            </div>
         </div>
     )
 }

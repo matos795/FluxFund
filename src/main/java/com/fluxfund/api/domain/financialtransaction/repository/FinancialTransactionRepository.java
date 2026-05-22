@@ -101,18 +101,21 @@ public interface FinancialTransactionRepository
       select new com.fluxfund.api.domain.report.dto.CategoryResultItemResponse(
           c.id,
           c.name,
+          parent.id,
+          parent.name,
           t.type,
           coalesce(sum(abs(t.settledAmount)), 0),
           count(t)
       )
       from FinancialTransaction t
       join t.category c
+      left join c.parent parent
       where t.organization.id = :organizationId
         and t.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
         and t.type <> com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
         and t.settlementDate between :startDate and :endDate
-      group by c.id, c.name, t.type
-      order by t.type asc, c.name asc
+      group by c.id, c.name, parent.id, parent.name, t.type
+      order by t.type asc, parent.name asc, c.name asc
       """)
   List<CategoryResultItemResponse> findCategoryResultReport(
       @Param("organizationId") UUID organizationId,
