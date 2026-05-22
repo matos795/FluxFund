@@ -9,6 +9,7 @@ import { TransactionsPage } from "@/pages/transactions-page"
 import { NotFoundPage } from "@/pages/not-found-page"
 import { AppLayout } from "@/components/layout/app-layout"
 import { ReportsPage } from "@/pages/reports-page"
+import { CategoryResultReportPage } from "@/pages/results/category-result-report-page"
 
 export function AppRoutes() {
   return (
@@ -21,6 +22,8 @@ export function AppRoutes() {
         <Route path="/beneficiaries" element={<BeneficiariesPage />} />
         <Route path="/transactions" element={<TransactionsPage />} />
         <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/reports/category-result" element={<CategoryResultReportPage />} />
+
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
