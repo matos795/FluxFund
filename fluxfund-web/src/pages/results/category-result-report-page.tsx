@@ -9,22 +9,19 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card"
-import { formatCurrency } from "@/utils/formatters"
+import { formatCurrency, formatDate } from "@/utils/formatters"
 import { useCategoryResultReport } from "@/features/reports/hooks/use-category-result-report"
 import { groupCategoryResultItems } from "@/features/reports/category-result-utils"
 import { CategoryResultStatement } from "@/features/reports/components/category-result-statement"
+import { useState } from "react"
+import { getFirstDayOfCurrentMonth, getTodayDate } from "@/utils/date-getters"
 
 export function CategoryResultReportPage() {
 
     const TEMP_ORGANIZATION_ID = "7b9ed617-92be-456d-81d6-dcde5841e7a0"
 
-    const today = new Date()
-
-    const startDate = new Date(today.getFullYear(), today.getMonth(), 1)
-        .toISOString()
-        .slice(0, 10)
-
-    const endDate = today.toISOString().slice(0, 10)
+    const [startDate, setStartDate] = useState(getFirstDayOfCurrentMonth)
+    const [endDate, setEndDate] = useState(getTodayDate)
 
     const {
         data: report,
@@ -65,6 +62,48 @@ export function CategoryResultReportPage() {
                 title="Resultado por Categoria"
                 description={`Analise receitas, despesas e resultado de ${report?.startDate} até ${report?.endDate}.`}
             />
+
+            <section className="rounded-xl border bg-card p-4">
+                <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+                    <div className="space-y-2">
+                        <label
+                            htmlFor="startDate"
+                            className="text-sm font-medium"
+                        >
+                            Data inicial
+                        </label>
+
+                        <input
+                            id="startDate"
+                            type="date"
+                            value={startDate}
+                            onChange={(event) => setStartDate(event.target.value)}
+                            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <label
+                            htmlFor="endDate"
+                            className="text-sm font-medium"
+                        >
+                            Data final
+                        </label>
+
+                        <input
+                            id="endDate"
+                            type="date"
+                            value={endDate}
+                            onChange={(event) => setEndDate(event.target.value)}
+                            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                        />
+                    </div>
+
+                    <div className="text-sm text-muted-foreground">
+                        Dados de { formatDate(report?.startDate) } até { formatDate(report?.endDate) }
+                    </div>
+                </div>
+            </section>
 
             <section className="grid gap-4 md:grid-cols-3">
                 <Card>
