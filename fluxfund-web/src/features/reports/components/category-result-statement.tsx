@@ -1,5 +1,7 @@
+import { useState } from "react"
 import type { CategoryResultGroup } from "../reports-types"
 import { formatCurrency } from "@/utils/formatters"
+import { ChevronDown, ChevronRight } from "lucide-react"
 
 type CategoryResultStatementProps = {
   title: string
@@ -12,6 +14,21 @@ export function CategoryResultStatement({
   total,
   groups,
 }: CategoryResultStatementProps) {
+
+  const [expandedGroups, setExpandedGroups] = useState<string[]>(() =>
+    groups.map((group) => group.groupId),
+  )
+
+  function toggleGroup(groupId: string) {
+    setExpandedGroups((currentGroups) => {
+      if (currentGroups.includes(groupId)) {
+        return currentGroups.filter((currentGroupId) => currentGroupId !== groupId)
+      }
+
+      return [...currentGroups, groupId]
+    })
+  }
+
   return (
     <section className="rounded-xl border bg-card">
       <header className="flex items-center justify-between border-b px-5 py-4">
@@ -27,31 +44,45 @@ export function CategoryResultStatement({
         ) : (
           groups.map((group) => (
             <div key={group.groupId} className="px-5 py-4">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="font-medium">{group.groupName}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {group.transactionCount} transações
-                  </p>
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.groupId)}
+                className="flex w-full items-center justify-between gap-4 text-left"
+              >
+                <div className="flex items-center gap-3">
+                  {expandedGroups.includes(group.groupId) ? (
+                    <ChevronDown className="size-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="size-4 text-muted-foreground" />
+                  )}
+
+                  <div>
+                    <p className="font-medium">{group.groupName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {group.transactionCount} transações
+                    </p>
+                  </div>
                 </div>
 
                 <strong>{formatCurrency(group.total)}</strong>
-              </div>
+              </button>
 
-              <div className="mt-3 space-y-2">
-                {group.children.map((child) => (
-                  <div
-                    key={child.categoryId}
-                    className="flex items-center justify-between gap-4 border-l pl-4 text-sm"
-                  >
-                    <span className="text-muted-foreground">
-                      {child.categoryName}
-                    </span>
+              {expandedGroups.includes(group.groupId) && (
+                <div className="mt-3 space-y-2">
+                  {group.children.map((child) => (
+                    <div
+                      key={child.categoryId}
+                      className="flex items-center justify-between gap-4 border-l pl-7 text-sm"
+                    >
+                      <span className="text-muted-foreground">
+                        {child.categoryName}
+                      </span>
 
-                    <span>{formatCurrency(child.total)}</span>
-                  </div>
-                ))}
-              </div>
+                      <span>{formatCurrency(child.total)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))
         )}

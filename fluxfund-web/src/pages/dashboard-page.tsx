@@ -9,7 +9,7 @@ import {
 
 import { PageHeader } from "@/components/layout/page-header"
 import { useDashboardSummary } from "@/features/dashboard/hooks/use-dashboard-summary"
-import { formatCurrency } from "@/utils/formatters"
+import { formatCurrency, formatDate } from "@/utils/formatters"
 import { DashboardSummaryCard } from "@/features/dashboard/components/dashboard-summary-card"
 import { DashboardPendingCard } from "@/features/dashboard/components/dashboard-pending-card"
 
@@ -46,13 +46,13 @@ export function DashboardPage() {
     {
       title: "Receitas do período",
       value: formatCurrency(summary?.incomeTotal ?? 0),
-      description: `De ${summary?.startDate} até ${summary?.endDate}`,
+      description: `De ${formatDate(summary?.startDate)} até ${formatDate(summary?.endDate)}`,
       icon: TrendingUp,
     },
     {
       title: "Despesas do período",
       value: formatCurrency(summary?.expenseTotal ?? 0),
-      description: `De ${summary?.startDate} até ${summary?.endDate}`,
+      description: `De ${formatDate(summary?.startDate)} até ${summary?.endDate}`,
       icon: TrendingDown,
     },
     {

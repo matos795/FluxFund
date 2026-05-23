@@ -100,7 +100,7 @@ export function CategoryResultReportPage() {
                     </div>
 
                     <div className="text-sm text-muted-foreground">
-                        Dados de { formatDate(report?.startDate) } até { formatDate(report?.endDate) }
+                        Dados de {formatDate(report?.startDate)} até {formatDate(report?.endDate)}
                     </div>
                 </div>
             </section>
