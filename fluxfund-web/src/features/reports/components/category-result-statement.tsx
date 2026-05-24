@@ -1,4 +1,5 @@
-import { useState } from "react"
+/* eslint-disable react-hooks/set-state-in-effect */
+import { useEffect, useState } from "react"
 import type { CategoryResultGroup } from "../reports-types"
 import { formatCurrency } from "@/utils/formatters"
 import { ChevronDown, ChevronRight } from "lucide-react"
@@ -19,6 +20,10 @@ export function CategoryResultStatement({
     groups.map((group) => group.groupId),
   )
 
+  useEffect(() => {
+    setExpandedGroups(groups.map((group) => group.groupId))
+  }, [groups])
+
   function toggleGroup(groupId: string) {
     setExpandedGroups((currentGroups) => {
       if (currentGroups.includes(groupId)) {
@@ -29,11 +34,45 @@ export function CategoryResultStatement({
     })
   }
 
+  function expandAllGroups() {
+    setExpandedGroups(groups.map((group) => group.groupId))
+  }
+
+  function collapseAllGroups() {
+    setExpandedGroups([])
+  }
+
   return (
     <section className="rounded-xl border bg-card">
-      <header className="flex items-center justify-between border-b px-5 py-4">
-        <h2 className="text-base font-semibold">{title}</h2>
-        <strong className="text-base">{formatCurrency(total)}</strong>
+      <header className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-base font-semibold">{title}</h2>
+          <p className="text-xs text-muted-foreground">
+            {groups.length} grupos encontrados
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={expandAllGroups}
+            className="rounded-md border px-3 py-1.5 text-xs font-medium transition hover:bg-muted"
+          >
+            Expandir tudo
+          </button>
+
+          <button
+            type="button"
+            onClick={collapseAllGroups}
+            className="rounded-md border px-3 py-1.5 text-xs font-medium transition hover:bg-muted"
+          >
+            Recolher tudo
+          </button>
+
+          <strong className="ml-0 text-base sm:ml-2">
+            {formatCurrency(total)}
+          </strong>
+        </div>
       </header>
 
       <div className="divide-y">

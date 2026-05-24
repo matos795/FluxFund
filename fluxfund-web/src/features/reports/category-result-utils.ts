@@ -34,3 +34,39 @@ export function groupCategoryResultItems(
 
   return Array.from(groups.values())
 }
+
+export function filterCategoryResultGroups(
+  groups: CategoryResultGroup[],
+  search: string,
+): CategoryResultGroup[] {
+  const normalizedSearch = search.trim().toLowerCase()
+
+  if (!normalizedSearch) {
+    return groups
+  }
+
+  return groups
+    .map((group) => {
+      const groupMatches = group.groupName
+        .toLowerCase()
+        .includes(normalizedSearch)
+
+      const matchingChildren = group.children.filter((child) =>
+        child.categoryName.toLowerCase().includes(normalizedSearch),
+      )
+
+      if (groupMatches) {
+        return group
+      }
+
+      if (matchingChildren.length > 0) {
+        return {
+          ...group,
+          children: matchingChildren,
+        }
+      }
+
+      return null
+    })
+    .filter((group): group is CategoryResultGroup => group !== null)
+}

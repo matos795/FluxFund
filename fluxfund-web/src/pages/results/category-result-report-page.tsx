@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card"
 import { formatCurrency, formatDate } from "@/utils/formatters"
 import { useCategoryResultReport } from "@/features/reports/hooks/use-category-result-report"
-import { groupCategoryResultItems } from "@/features/reports/category-result-utils"
+import { filterCategoryResultGroups, groupCategoryResultItems } from "@/features/reports/category-result-utils"
 import { CategoryResultStatement } from "@/features/reports/components/category-result-statement"
 import { useState } from "react"
 import { getFirstDayOfCurrentMonth, getTodayDate } from "@/utils/date-getters"
@@ -20,6 +20,7 @@ export function CategoryResultReportPage() {
 
     const TEMP_ORGANIZATION_ID = "7b9ed617-92be-456d-81d6-dcde5841e7a0"
 
+    const [search, setSearch] = useState("")
     const [startDate, setStartDate] = useState(getFirstDayOfCurrentMonth)
     const [endDate, setEndDate] = useState(getTodayDate)
 
@@ -40,6 +41,10 @@ export function CategoryResultReportPage() {
     const expenseGroups = groupCategoryResultItems(
         report?.items.filter((item) => item.type === "EXPENSE") ?? [],
     )
+
+    const filteredIncomeGroups = filterCategoryResultGroups(incomeGroups, search)
+
+    const filteredExpenseGroups = filterCategoryResultGroups(expenseGroups, search)
 
     if (isLoading) {
         return <p>Carregando relatório...</p>
@@ -105,6 +110,31 @@ export function CategoryResultReportPage() {
                 </div>
             </section>
 
+            <section className="rounded-xl border bg-card p-4">
+                <div className="space-y-2">
+                    <label htmlFor="categorySearch" className="text-sm font-medium">
+                        Buscar categoria
+                    </label>
+
+                    <div className="flex gap-2">
+                        <input
+                            id="categorySearch"
+                            type="search"
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="Digite o nome da categoria ou grupo..."
+                            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                        />
+                    </div>
+
+                    {search && (
+                        <p className="text-xs text-muted-foreground">
+                            Exibindo categorias que correspondem a “{search}”.
+                        </p>
+                    )}
+                </div>
+            </section>
+
             <section className="grid gap-4 md:grid-cols-3">
                 <Card>
                     <CardHeader>
@@ -153,13 +183,13 @@ export function CategoryResultReportPage() {
                 <CategoryResultStatement
                     title="Receitas"
                     total={report?.incomeTotal ?? 0}
-                    groups={incomeGroups}
+                    groups={filteredIncomeGroups}
                 />
 
                 <CategoryResultStatement
                     title="Despesas"
                     total={report?.expenseTotal ?? 0}
-                    groups={expenseGroups}
+                    groups={filteredExpenseGroups}
                 />
             </div>
         </div>
