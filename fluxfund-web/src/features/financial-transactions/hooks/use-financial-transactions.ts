@@ -10,6 +10,7 @@ type UseFinancialTransactionsParams = {
   source?: string
   accountId?: string
   categoryId?: string
+  fundId?: string
   description?: string
   settlementDateFrom?: string
   settlementDateTo?: string

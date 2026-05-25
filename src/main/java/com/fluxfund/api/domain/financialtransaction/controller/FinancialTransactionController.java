@@ -67,6 +67,7 @@ public class FinancialTransactionController {
                         @RequestParam(required = false) LocalDate settlementDateTo,
                         @RequestParam(required = false) Boolean onlyUnclassified,
                         @RequestParam(required = false) Boolean onlyUnallocated,
+                        @RequestParam(required = false) UUID fundId,
                         Pageable pageable) {
 
                 return ResponseEntity.ok(
@@ -81,6 +82,7 @@ public class FinancialTransactionController {
                                                 settlementDateTo,
                                                 onlyUnclassified,
                                                 onlyUnallocated,
+                                                fundId,
                                                 pageable));
         }
 

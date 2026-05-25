@@ -19,6 +19,7 @@ export function TransactionsPage() {
   const [page, setPage] = useState(0)
   const [size, setSize] = useState(10)
   const [sort, setSort] = useState("settlementDate,desc")
+  const [fundId, setFundId] = useState(searchParams.get("fundId") ?? "")
 
   const [type, setType] = useState(searchParams.get("type") ?? "")
   const [status, setStatus] = useState(searchParams.get("status") ?? "")
@@ -48,6 +49,7 @@ export function TransactionsPage() {
     source,
     accountId,
     categoryId,
+    fundId,
     description,
     settlementDateFrom,
     settlementDateTo,
@@ -74,6 +76,7 @@ export function TransactionsPage() {
     setSource("")
     setAccountId("")
     setCategoryId("")
+    setFundId("")
     setDescription("")
     setSettlementDateFrom("")
     setSettlementDateTo("")

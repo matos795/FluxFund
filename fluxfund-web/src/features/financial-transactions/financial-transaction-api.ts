@@ -11,6 +11,7 @@ type GetFinancialTransactionsParams = {
   status?: string
   accountId?: string
   categoryId?: string
+  fundId?: string
   description?: string
   settlementDateFrom?: string
   settlementDateTo?: string
@@ -27,6 +28,7 @@ export async function getFinancialTransactions({
   status,
   accountId,
   categoryId,
+  fundId,
   description,
   settlementDateFrom,
   settlementDateTo,
@@ -47,6 +49,7 @@ export async function getFinancialTransactions({
         source: source || undefined,
         accountId: accountId || undefined,
         categoryId: categoryId || undefined,
+        fundId: fundId || undefined,
         description: description || undefined,
         settlementDateFrom: settlementDateFrom || undefined,
         settlementDateTo: settlementDateTo || undefined,

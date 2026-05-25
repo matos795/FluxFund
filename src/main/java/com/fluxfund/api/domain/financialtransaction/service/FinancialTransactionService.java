@@ -101,6 +101,7 @@ public class FinancialTransactionService {
             LocalDate settlementDateTo,
             Boolean onlyUnclassified,
             Boolean onlyUnallocated,
+            UUID fundId,
             Pageable pageable) {
 
         return repository
@@ -115,7 +116,8 @@ public class FinancialTransactionService {
                         settlementDateFrom,
                         settlementDateTo,
                         onlyUnclassified,
-                        onlyUnallocated),
+                        onlyUnallocated,
+                        fundId),
                         pageable)
                 .map(FinancialTransactionMapper::toResponse);
     }
