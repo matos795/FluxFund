@@ -1,6 +1,8 @@
 package com.fluxfund.api.domain.transactionallocation.repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -11,41 +13,91 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
+import com.fluxfund.api.domain.report.dto.FundReportProjection;
 import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
 
 public interface TransactionAllocationRepository extends JpaRepository<TransactionAllocation, UUID> {
 
-        Page<TransactionAllocation> findAllByOrganizationId(
-                        UUID organizationId,
-                        Pageable pageable);
+    Page<TransactionAllocation> findAllByOrganizationId(
+            UUID organizationId,
+            Pageable pageable);
 
-        Optional<TransactionAllocation> findByIdAndOrganizationId(UUID id, UUID organizationId);
+    Optional<TransactionAllocation> findByIdAndOrganizationId(UUID id, UUID organizationId);
 
-        @Query("""
-                            select coalesce(sum(abs(t.amount)), 0)
-                            from TransactionAllocation t
-                            where t.financialTransaction.id = :financialTransactionId
-                        """)
-        BigDecimal sumAmountByFinancialTransactionId(UUID financialTransactionId);
+    @Query("""
+                select coalesce(sum(abs(t.amount)), 0)
+                from TransactionAllocation t
+                where t.financialTransaction.id = :financialTransactionId
+            """)
+    BigDecimal sumAmountByFinancialTransactionId(UUID financialTransactionId);
 
-        @Query("""
-                            select coalesce(sum(a.amount), 0)
-                            from TransactionAllocation a
-                            where a.fund.id = :fundId
-                              and a.organization.id = :organizationId
-                              and a.financialTransaction.status = 'SETTLED'
-                        """)
-        BigDecimal sumAmountByFundId(UUID organizationId, UUID fundId);
+    @Query("""
+                select coalesce(sum(a.amount), 0)
+                from TransactionAllocation a
+                where a.fund.id = :fundId
+                  and a.organization.id = :organizationId
+                  and a.financialTransaction.status = 'SETTLED'
+            """)
+    BigDecimal sumAmountByFundId(UUID organizationId, UUID fundId);
 
-        @Query("""
-        select coalesce(sum(a.amount), 0)
-        from TransactionAllocation a
-        where a.organization.id = :organizationId
-          and a.fund.active = true
-          and a.financialTransaction.status <> :canceledStatus
-        """)
-BigDecimal sumActiveFundAllocationsByOrganizationId(
-        @Param("organizationId") UUID organizationId,
-        @Param("canceledStatus") FinancialTransactionStatus canceledStatus
-);
+    @Query("""
+            select coalesce(sum(a.amount), 0)
+            from TransactionAllocation a
+            where a.organization.id = :organizationId
+              and a.fund.active = true
+              and a.financialTransaction.status <> :canceledStatus
+            """)
+    BigDecimal sumActiveFundAllocationsByOrganizationId(
+            @Param("organizationId") UUID organizationId,
+            @Param("canceledStatus") FinancialTransactionStatus canceledStatus);
+
+    @Query("""
+            select new com.fluxfund.api.domain.report.dto.FundReportProjection(
+                f.id,
+                f.name,
+                f.initialBalance,
+
+                coalesce(sum(
+                    case
+                        when a.amount > 0
+                         and ft.settlementDate between :startDate and :endDate
+                        then a.amount
+                        else 0
+                    end
+                ), 0),
+
+                coalesce(sum(
+                    case
+                        when a.amount < 0
+                         and ft.settlementDate between :startDate and :endDate
+                        then abs(a.amount)
+                        else 0
+                    end
+                ), 0),
+
+                coalesce(sum(a.amount), 0),
+
+                coalesce(sum(
+                    case
+                        when ft.settlementDate between :startDate and :endDate
+                        then 1
+                        else 0
+                    end
+                ), 0)
+            )
+            from Fund f
+            left join TransactionAllocation a
+                on a.fund = f
+                and a.organization.id = :organizationId
+                and a.financialTransaction.status <> com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.CANCELED
+            left join a.financialTransaction ft
+            where f.organization.id = :organizationId
+              and f.active = true
+            group by f.id, f.name, f.initialBalance
+            order by f.name asc
+            """)
+    List<FundReportProjection> findFundReport(
+            @Param("organizationId") UUID organizationId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
 }

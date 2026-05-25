@@ -25,3 +25,24 @@ export type CategoryResultGroup = {
   transactionCount: number
   children: CategoryResultItem[]
 }
+
+export type FundReportItem = {
+  fundId: string
+  fundName: string
+  initialBalance: number
+  incomeAllocated: number
+  expenseAllocated: number
+  periodBalance: number
+  currentBalance: number
+  allocationCount: number
+}
+
+export type FundReport = {
+  startDate: string
+  endDate: string
+  fundsTotalBalance: number
+  incomeAllocatedTotal: number
+  expenseAllocatedTotal: number
+  negativeFundsCount: number
+  items: FundReportItem[]
+}
