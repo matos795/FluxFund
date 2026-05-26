@@ -44,13 +44,13 @@ const reports = [
     to: null,
   },
   {
-    title: "Prestação de Contas",
+    title: "Prestação de Contas / Sustento",
     description:
-      "Gere uma visão por fundo, projeto, beneficiário ou responsável.",
+      "Acompanhe valores destinados, repassados e saldos a repassar por favorecido.",
     icon: HandCoins,
-    status: "soon",
-    to: null,
-  },
+    status: "available",
+    to: "/reports/accountability",
+  }
 ]
 
 export function ReportsPage() {

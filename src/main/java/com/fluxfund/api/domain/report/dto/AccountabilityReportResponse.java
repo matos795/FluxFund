@@ -1,0 +1,16 @@
+package com.fluxfund.api.domain.report.dto;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+
+public record AccountabilityReportResponse(
+        LocalDate startDate,
+        LocalDate endDate,
+        BigDecimal allocatedTotal,
+        BigDecimal transferredTotal,
+        BigDecimal pendingTotal,
+        long beneficiariesWithPendingBalance,
+        List<AccountabilityReportItemResponse> items
+) {
+}

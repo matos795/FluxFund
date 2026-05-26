@@ -10,6 +10,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
 import com.fluxfund.api.domain.organization.OrganizationRepository;
+import com.fluxfund.api.domain.report.dto.AccountabilityReportItemResponse;
+import com.fluxfund.api.domain.report.dto.AccountabilityReportResponse;
 import com.fluxfund.api.domain.report.dto.CategoryResultReportResponse;
 import com.fluxfund.api.domain.report.dto.FundReportItemResponse;
 import com.fluxfund.api.domain.report.dto.FundReportResponse;
@@ -140,6 +142,73 @@ public class ReportService {
                                 incomeAllocatedTotal,
                                 expenseAllocatedTotal,
                                 negativeFundsCount,
+                                items);
+        }
+
+        public AccountabilityReportResponse getAccountabilityReport(
+                        UUID organizationId,
+                        LocalDate startDate,
+                        LocalDate endDate) {
+
+                validateOrganizationExists(organizationId);
+
+                LocalDate resolvedStartDate = startDate != null
+                                ? startDate
+                                : LocalDate.now().withDayOfMonth(1);
+
+                LocalDate resolvedEndDate = endDate != null
+                                ? endDate
+                                : LocalDate.now();
+
+                if (resolvedEndDate.isBefore(resolvedStartDate)) {
+                        throw new BusinessException("End date cannot be before start date");
+                }
+
+                var projections = transactionAllocationRepository.findAccountabilityReport(
+                                organizationId,
+                                resolvedStartDate,
+                                resolvedEndDate);
+
+                var items = projections.stream()
+                                .map(projection -> {
+                                        BigDecimal pendingAmount = projection.allocatedAmount()
+                                                        .subtract(projection.transferredAmount());
+
+                                        return new AccountabilityReportItemResponse(
+                                                        projection.beneficiaryId(),
+                                                        projection.beneficiaryName(),
+                                                        projection.fundId(),
+                                                        projection.fundName(),
+                                                        projection.allocatedAmount(),
+                                                        projection.transferredAmount(),
+                                                        pendingAmount,
+                                                        projection.allocationCount());
+                                })
+                                .toList();
+
+                BigDecimal allocatedTotal = items.stream()
+                                .map(AccountabilityReportItemResponse::allocatedAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal transferredTotal = items.stream()
+                                .map(AccountabilityReportItemResponse::transferredAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal pendingTotal = allocatedTotal.subtract(transferredTotal);
+
+                long beneficiariesWithPendingBalance = items.stream()
+                                .filter(item -> item.pendingAmount().compareTo(BigDecimal.ZERO) > 0)
+                                .map(AccountabilityReportItemResponse::beneficiaryId)
+                                .distinct()
+                                .count();
+
+                return new AccountabilityReportResponse(
+                                resolvedStartDate,
+                                resolvedEndDate,
+                                allocatedTotal,
+                                transferredTotal,
+                                pendingTotal,
+                                beneficiariesWithPendingBalance,
                                 items);
         }
 

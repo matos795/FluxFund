@@ -52,7 +52,7 @@ export function DashboardPage() {
     {
       title: "Despesas do período",
       value: formatCurrency(summary?.expenseTotal ?? 0),
-      description: `De ${formatDate(summary?.startDate)} até ${summary?.endDate}`,
+      description: `De ${formatDate(summary?.startDate)} até ${formatDate(summary?.endDate)}`,
       icon: TrendingDown,
     },
     {

@@ -46,3 +46,24 @@ export type FundReport = {
   negativeFundsCount: number
   items: FundReportItem[]
 }
+
+export type AccountabilityReportItem = {
+  beneficiaryId: string
+  beneficiaryName: string
+  fundId: string
+  fundName: string
+  allocatedAmount: number
+  transferredAmount: number
+  pendingAmount: number
+  allocationCount: number
+}
+
+export type AccountabilityReport = {
+  startDate: string
+  endDate: string
+  allocatedTotal: number
+  transferredTotal: number
+  pendingTotal: number
+  beneficiariesWithPendingBalance: number
+  items: AccountabilityReportItem[]
+}

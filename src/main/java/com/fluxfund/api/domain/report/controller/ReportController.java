@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fluxfund.api.domain.report.dto.AccountabilityReportResponse;
 import com.fluxfund.api.domain.report.dto.CategoryResultReportResponse;
 import com.fluxfund.api.domain.report.dto.FundReportResponse;
 import com.fluxfund.api.domain.report.service.ReportService;
@@ -44,5 +45,14 @@ public class ReportController {
                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
                 return ResponseEntity.ok(service.getFundReport(organizationId, startDate, endDate));
+        }
+
+        @GetMapping("/accountability")
+        public ResponseEntity<AccountabilityReportResponse> getAccountabilityReport(
+                        @RequestParam UUID organizationId,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+                return ResponseEntity.ok(
+                                service.getAccountabilityReport(organizationId, startDate, endDate));
         }
 }

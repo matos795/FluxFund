@@ -13,6 +13,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
+import com.fluxfund.api.domain.report.dto.AccountabilityReportProjection;
 import com.fluxfund.api.domain.report.dto.FundReportProjection;
 import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
 
@@ -97,6 +98,46 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             order by f.name asc
             """)
     List<FundReportProjection> findFundReport(
+            @Param("organizationId") UUID organizationId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query("""
+            select new com.fluxfund.api.domain.report.dto.AccountabilityReportProjection(
+                b.id,
+                b.name,
+                f.id,
+                f.name,
+
+                coalesce(sum(
+                    case
+                        when a.amount > 0
+                        then a.amount
+                        else 0
+                    end
+                ), 0),
+
+                coalesce(sum(
+                    case
+                        when a.amount < 0
+                        then abs(a.amount)
+                        else 0
+                    end
+                ), 0),
+
+                count(a)
+            )
+            from TransactionAllocation a
+            join a.financialTransaction ft
+            join a.fund f
+            join a.beneficiary b
+            where a.organization.id = :organizationId
+              and ft.status <> com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.CANCELED
+              and ft.settlementDate between :startDate and :endDate
+            group by b.id, b.name, f.id, f.name
+            order by b.name asc, f.name asc
+            """)
+    List<AccountabilityReportProjection> findAccountabilityReport(
             @Param("organizationId") UUID organizationId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);

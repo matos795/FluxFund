@@ -1,5 +1,5 @@
 import { httpClient } from "@/api/http-client"
-import type { CategoryResultReport, FundReport } from "./reports-types"
+import type { AccountabilityReport, CategoryResultReport, FundReport } from "./reports-types"
 
 type GetCategoryResultReportParams = {
   organizationId: string
@@ -8,6 +8,12 @@ type GetCategoryResultReportParams = {
 }
 
 type GetFundReportParams = {
+  organizationId: string
+  startDate?: string
+  endDate?: string
+}
+
+type GetAccountabilityReportParams = {
   organizationId: string
   startDate?: string
   endDate?: string
@@ -27,13 +33,24 @@ export const reportsApi = {
   },
 
   async getFunds(params: GetFundReportParams) {
-  const response = await httpClient.get<FundReport>(
-    "/api/v1/reports/funds",
-    {
-      params,
-    },
-  )
+    const response = await httpClient.get<FundReport>(
+      "/api/v1/reports/funds",
+      {
+        params,
+      },
+    )
 
-  return response.data
-},
+    return response.data
+  },
+
+  async getAccountability(params: GetAccountabilityReportParams) {
+    const response = await httpClient.get<AccountabilityReport>(
+      "/api/v1/reports/accountability",
+      {
+        params,
+      },
+    )
+
+    return response.data
+  },
 }
