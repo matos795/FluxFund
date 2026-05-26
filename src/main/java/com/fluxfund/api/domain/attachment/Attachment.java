@@ -1,5 +1,7 @@
 package com.fluxfund.api.domain.attachment;
 
+import java.time.OffsetDateTime;
+
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.shared.BaseEntity;
@@ -35,15 +37,18 @@ public class Attachment extends BaseEntity {
     @Column(nullable = false)
     private AttachmentType type;
 
-    @Column(name = "file_name", nullable = false)
-    private String fileName;
+    @Column(name = "original_filename", nullable = false)
+    private String originalFilename;
 
     @Column(name = "content_type")
     private String contentType;
 
-    @Column(name = "file_size")
-    private Long fileSize;
+    @Column(name = "size_bytes")
+    private Long sizeBytes;
 
     @Column(name = "storage_key", nullable = false)
     private String storageKey;
+
+    @Column(name = "uploaded_at", nullable = false)
+    private OffsetDateTime uploadedAt;
 }
