@@ -28,6 +28,7 @@ import { useBeneficiaries } from "@/features/beneficiaries/hooks/use-beneficiari
 import type { FinancialTransaction } from "../financial-transaction-types"
 import { useClassifyFinancialTransaction } from "../hooks/use-classify-financial-transaction"
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
+import { TransactionAttachmentsSection } from "@/features/attachments/components/transaction-attachments-section"
 
 type AllocationFormItem = {
     fundId: string
@@ -434,6 +435,12 @@ export function ClassifyFinancialTransactionDialog({
                         </Button>
                     </div>
                 </form>
+
+                <TransactionAttachmentsSection
+                    transactionId={transaction.id}
+                    enabled={open}
+                    mode="manage"
+                />
             </DialogContent>
         </Dialog>
     )

@@ -26,13 +26,14 @@ import com.fluxfund.api.domain.attachment.service.AttachmentService;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/v1/financial-transactions/{transactionId}/attachments")
 @RequiredArgsConstructor
 public class AttachmentController {
 
     private final AttachmentService service;
 
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(
+        value = "/api/v1/financial-transactions/{transactionId}/attachments",
+        consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public AttachmentResponse upload(
             @RequestParam UUID organizationId,
@@ -42,14 +43,14 @@ public class AttachmentController {
         return service.upload(organizationId, transactionId, type, file);
     }
 
-    @GetMapping
+    @GetMapping("/api/v1/financial-transactions/{transactionId}/attachments")
     public List<AttachmentResponse> findAllByTransaction(
             @RequestParam UUID organizationId,
             @PathVariable UUID transactionId) {
         return service.findAllByTransaction(organizationId, transactionId);
     }
 
-    @GetMapping("/{attachmentId}/download")
+    @GetMapping("/api/v1/attachments/{attachmentId}/download")
     public ResponseEntity<byte[]> download(
             @RequestParam UUID organizationId,
             @PathVariable UUID attachmentId) {
@@ -64,7 +65,7 @@ public class AttachmentController {
                 .body(file.content());
     }
 
-    @DeleteMapping("/{attachmentId}")
+    @DeleteMapping("/api/v1/attachments/{attachmentId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(
             @RequestParam UUID organizationId,

@@ -28,6 +28,7 @@ import {
   getFinancialTransactionTypeBadgeClass,
 } from "@/features/financial-transactions/financial-transaction-badge-styles"
 import { formatCurrency, formatDate } from "@/utils/formatters"
+import { TransactionAttachmentsSection } from "@/features/attachments/components/transaction-attachments-section"
 
 type ViewFinancialTransactionDialogProps = {
   transaction: FinancialTransaction
@@ -279,6 +280,12 @@ export function ViewFinancialTransactionDialog({
                 </div>
               )}
             </section>
+
+            <TransactionAttachmentsSection
+              transactionId={transaction.id}
+              enabled={open}
+              mode="readonly"
+            />
 
             <section className="rounded-lg border p-4">
               <h3 className="mb-3 text-sm font-medium">Controle</h3>

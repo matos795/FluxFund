@@ -44,7 +44,7 @@ export function EditFinancialTransactionDialog({
               ? data.settledAmount
               : null,
 
-          description: data.description,
+          description: data.description ?? "",
           documentNumber: data.documentNumber || null,
         },
       },
@@ -73,7 +73,7 @@ export function EditFinancialTransactionDialog({
       </DropdownMenuItem>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-3xl">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>Editar transação</DialogTitle>
             <DialogDescription>
@@ -101,7 +101,7 @@ export function EditFinancialTransactionDialog({
               expectedAmount: transaction.expectedAmount,
               settledAmount: transaction.settledAmount ?? undefined,
 
-              description: transaction.description,
+              description: transaction.description ?? "",
               documentNumber: transaction.documentNumber ?? "",
             }}
             disableAccountField

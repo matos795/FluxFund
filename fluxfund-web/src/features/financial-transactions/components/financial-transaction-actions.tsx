@@ -16,6 +16,7 @@ import { useState } from "react"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { ViewFinancialTransactionDialog } from "./view-financial-transaction-dialog"
 import { ClassifyFinancialTransactionDialog } from "./classify-financial-transaction-dialog"
+import { FinancialTransactionAttachmentsDialog } from "@/features/attachments/components/financial-transaction-attachments-dialog"
 
 type FinancialTransactionActionsProps = {
   transaction: FinancialTransaction
@@ -56,6 +57,11 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
     transaction.status === "SETTLED" &&
     !needsClassification
 
+  const canManageAttachments =
+    transaction.status !== "CANCELED" &&
+    transaction.status !== "IMPORTED" &&
+    !needsClassification
+
   const canCancel = transaction.status !== "CANCELED"
 
   return (
@@ -82,6 +88,10 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
 
           {needsClassification && (
             <ClassifyFinancialTransactionDialog transaction={transaction} />
+          )}
+
+          {canManageAttachments && (
+            <FinancialTransactionAttachmentsDialog transaction={transaction} />
           )}
 
           {canCancel && (
