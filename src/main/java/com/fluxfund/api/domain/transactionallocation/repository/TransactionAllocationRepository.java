@@ -13,8 +13,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
-import com.fluxfund.api.domain.report.dto.AccountabilityReportProjection;
-import com.fluxfund.api.domain.report.dto.FundReportProjection;
+import com.fluxfund.api.domain.report.dto.accountability.AccountabilityByAccountProjection;
+import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportProjection;
+import com.fluxfund.api.domain.report.dto.fund.FundReportProjection;
 import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
 
 public interface TransactionAllocationRepository extends JpaRepository<TransactionAllocation, UUID> {
@@ -53,7 +54,7 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             @Param("canceledStatus") FinancialTransactionStatus canceledStatus);
 
     @Query("""
-            select new com.fluxfund.api.domain.report.dto.FundReportProjection(
+            select new com.fluxfund.api.domain.report.dto.fund.FundReportProjection(
                 f.id,
                 f.name,
                 f.initialBalance,
@@ -103,7 +104,7 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             @Param("endDate") LocalDate endDate);
 
     @Query("""
-            select new com.fluxfund.api.domain.report.dto.AccountabilityReportProjection(
+            select new com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportProjection(
                 b.id,
                 b.name,
                 f.id,
@@ -138,6 +139,50 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             order by b.name asc, f.name asc
             """)
     List<AccountabilityReportProjection> findAccountabilityReport(
+            @Param("organizationId") UUID organizationId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query("""
+            select new com.fluxfund.api.domain.report.dto.accountability.AccountabilityByAccountProjection(
+                b.id,
+                b.name,
+                f.id,
+                f.name,
+                acc.id,
+                acc.name,
+                acc.bankName,
+
+                coalesce(sum(
+                    case
+                        when a.amount > 0
+                        then a.amount
+                        else 0
+                    end
+                ), 0),
+
+                coalesce(sum(
+                    case
+                        when a.amount < 0
+                        then abs(a.amount)
+                        else 0
+                    end
+                ), 0),
+
+                count(a)
+            )
+            from TransactionAllocation a
+            join a.financialTransaction ft
+            join ft.account acc
+            join a.fund f
+            join a.beneficiary b
+            where a.organization.id = :organizationId
+              and ft.status <> com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.CANCELED
+              and ft.settlementDate between :startDate and :endDate
+            group by b.id, b.name, f.id, f.name, acc.id, acc.name, acc.bankName
+            order by b.name asc, f.name asc, acc.name asc
+            """)
+    List<AccountabilityByAccountProjection> findAccountabilityReportByAccount(
             @Param("organizationId") UUID organizationId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);

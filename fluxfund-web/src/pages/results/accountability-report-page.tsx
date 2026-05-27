@@ -3,6 +3,7 @@ import {
     ArrowDownCircle,
     ArrowLeft,
     ArrowUpCircle,
+    Building2,
     HandCoins,
     Search,
     UserRound,
@@ -19,10 +20,21 @@ import {
     CardTitle,
 } from "@/components/ui/card"
 import { useAccountabilityReport } from "@/features/reports/hooks/use-accountability-report"
-import type { AccountabilityReportItem } from "@/features/reports/reports-types"
+import type { AccountabilityByAccountReportItem, AccountabilityReportItem } from "@/features/reports/reports-types"
 import { formatCurrency } from "@/utils/formatters"
+import { useAccountabilityByAccountReport } from "@/features/reports/hooks/use-accountability-by-account-report"
 
 const TEMP_ORGANIZATION_ID = "7b9ed617-92be-456d-81d6-dcde5841e7a0"
+
+type AccountabilityBeneficiaryGroup = {
+    beneficiaryId: string
+    beneficiaryName: string
+    allocatedAmount: number
+    transferredAmount: number
+    pendingAmount: number
+    allocationCount: number
+    funds: AccountabilityListItem[]
+}
 
 function getTodayDate() {
     return new Date().toISOString().slice(0, 10)
@@ -36,8 +48,12 @@ function getFirstDayOfCurrentMonth() {
         .slice(0, 10)
 }
 
+type AccountabilityListItem =
+    | AccountabilityReportItem
+    | AccountabilityByAccountReportItem
+
 function filterAccountabilityItems(
-    items: AccountabilityReportItem[],
+    items: AccountabilityListItem[],
     search: string,
 ) {
     const normalizedSearch = search.trim().toLowerCase()
@@ -54,7 +70,7 @@ function filterAccountabilityItems(
     })
 }
 
-function sortAccountabilityItems(items: AccountabilityReportItem[]) {
+function sortAccountabilityItems(items: AccountabilityListItem[]) {
     return [...items].sort((a, b) => {
         const bPending = b.pendingAmount
         const aPending = a.pendingAmount
@@ -67,11 +83,62 @@ function sortAccountabilityItems(items: AccountabilityReportItem[]) {
     })
 }
 
+function groupItemsByBeneficiary(
+    items: AccountabilityListItem[],
+): AccountabilityBeneficiaryGroup[] {
+    const groups = new Map<string, AccountabilityBeneficiaryGroup>()
+
+    for (const item of items) {
+        const existingGroup = groups.get(item.beneficiaryId)
+
+        if (!existingGroup) {
+            groups.set(item.beneficiaryId, {
+                beneficiaryId: item.beneficiaryId,
+                beneficiaryName: item.beneficiaryName,
+                allocatedAmount: item.allocatedAmount,
+                transferredAmount: item.transferredAmount,
+                pendingAmount: item.pendingAmount,
+                allocationCount: item.allocationCount,
+                funds: [item],
+            })
+
+            continue
+        }
+
+        existingGroup.allocatedAmount += item.allocatedAmount
+        existingGroup.transferredAmount += item.transferredAmount
+        existingGroup.pendingAmount += item.pendingAmount
+        existingGroup.allocationCount += item.allocationCount
+        existingGroup.funds.push(item)
+    }
+
+    const result = Array.from(groups.values())
+
+    for (const group of result) {
+        group.funds.sort((a, b) => {
+            if (b.pendingAmount !== a.pendingAmount) {
+                return b.pendingAmount - a.pendingAmount
+            }
+
+            return a.fundName.localeCompare(b.fundName)
+        })
+    }
+
+    return result.sort((a, b) => {
+        if (b.pendingAmount !== a.pendingAmount) {
+            return b.pendingAmount - a.pendingAmount
+        }
+
+        return a.beneficiaryName.localeCompare(b.beneficiaryName)
+    })
+}
+
 export function AccountabilityReportPage() {
     const [startDate, setStartDate] = useState(getFirstDayOfCurrentMonth)
     const [endDate, setEndDate] = useState(getTodayDate)
     const [search, setSearch] = useState("")
     const [showOnlyPending, setShowOnlyPending] = useState(false)
+    const [showByAccount, setShowByAccount] = useState(false)
 
     const {
         data: report,
@@ -83,17 +150,36 @@ export function AccountabilityReportPage() {
         endDate,
     })
 
+    const {
+        data: byAccountReport,
+        isLoading: isByAccountLoading,
+        isError: isByAccountError,
+    } = useAccountabilityByAccountReport(
+        {
+            organizationId: TEMP_ORGANIZATION_ID,
+            startDate,
+            endDate,
+        },
+        showByAccount,
+    )
+
+    const currentItems = showByAccount
+        ? byAccountReport?.items ?? []
+        : report?.items ?? []
+
     const filteredItems = sortAccountabilityItems(
-        filterAccountabilityItems(report?.items ?? [], search).filter((item) =>
+        filterAccountabilityItems(currentItems, search).filter((item) =>
             showOnlyPending ? item.pendingAmount > 0 : true,
         ),
     )
 
-    if (isLoading) {
+    const beneficiaryGroups = groupItemsByBeneficiary(filteredItems)
+
+    if (isLoading || (showByAccount && isByAccountLoading)) {
         return <p>Carregando relatório...</p>
     }
 
-    if (isError) {
+    if (isError || (showByAccount && isByAccountError)) {
         return <p>Não foi possível carregar o relatório.</p>
     }
 
@@ -186,7 +272,7 @@ export function AccountabilityReportPage() {
             </section>
 
             <section className="rounded-xl border bg-card p-4">
-                <div className="grid gap-4 lg:grid-cols-[1fr_1fr_2fr_auto] lg:items-end">
+                <div className="grid gap-4 lg:grid-cols-[1fr_1fr_2fr_auto_auto] lg:items-end">
                     <div className="space-y-2">
                         <label htmlFor="startDate" className="text-sm font-medium">
                             Data inicial
@@ -241,20 +327,30 @@ export function AccountabilityReportPage() {
                     >
                         {showOnlyPending ? "Mostrando saldos a repassar" : "Somente saldos a repassar"}
                     </Button>
+
+                    <Button
+                        type="button"
+                        variant={showByAccount ? "default" : "outline"}
+                        onClick={() => setShowByAccount((current) => !current)}
+                    >
+                        <Building2 className="mr-2 size-4" />
+                        {showByAccount ? "Visão por banco ativa" : "Ver por banco"}
+                    </Button>
                 </div>
             </section>
 
             <section className="space-y-4">
                 <div>
                     <h2 className="text-lg font-semibold">
-                        Saldos por favorecido e fundo
+                        Saldos por favorecido
                     </h2>
                     <p className="text-sm text-muted-foreground">
-                        {filteredItems.length} registros encontrados.
+                        {beneficiaryGroups.length} favorecidos encontrados em{" "}
+                        {filteredItems.length} fundos.
                     </p>
                 </div>
 
-                {filteredItems.length === 0 ? (
+                {beneficiaryGroups.length === 0 ? (
                     <Card>
                         <CardContent className="p-8 text-center text-sm text-muted-foreground">
                             Nenhum registro encontrado para os filtros selecionados.
@@ -262,10 +358,11 @@ export function AccountabilityReportPage() {
                     </Card>
                 ) : (
                     <div className="grid gap-4 xl:grid-cols-2">
-                        {filteredItems.map((item) => (
-                            <AccountabilityReportCard
-                                key={`${item.beneficiaryId}-${item.fundId}`}
-                                item={item}
+                        {beneficiaryGroups.map((group) => (
+                            <AccountabilityBeneficiaryCard
+                                key={group.beneficiaryId}
+                                group={group}
+                                showByAccount={showByAccount}
                             />
                         ))}
                     </div>
@@ -275,17 +372,21 @@ export function AccountabilityReportPage() {
     )
 }
 
-type AccountabilityReportCardProps = {
-    item: AccountabilityReportItem
+type AccountabilityBeneficiaryCardProps = {
+    group: AccountabilityBeneficiaryGroup
+    showByAccount?: boolean
 }
 
-function AccountabilityReportCard({ item }: AccountabilityReportCardProps) {
-    const hasPending = item.pendingAmount > 0
-    const hasOverpaid = item.pendingAmount < 0
-    const totalMovement = item.allocatedAmount + item.transferredAmount
+function AccountabilityBeneficiaryCard({
+    group,
+    showByAccount = false,
+}: AccountabilityBeneficiaryCardProps) {
+    const hasPending = group.pendingAmount > 0
+    const hasOverpaid = group.pendingAmount < 0
+    const totalMovement = group.allocatedAmount + group.transferredAmount
     const transferredPercentage =
-        item.allocatedAmount > 0
-            ? Math.min((item.transferredAmount / item.allocatedAmount) * 100, 100)
+        group.allocatedAmount > 0
+            ? Math.min((group.transferredAmount / group.allocatedAmount) * 100, 100)
             : 0
 
     return (
@@ -307,10 +408,10 @@ function AccountabilityReportCard({ item }: AccountabilityReportCardProps) {
 
                         <div>
                             <CardTitle className="text-base">
-                                {item.beneficiaryName}
+                                {group.beneficiaryName}
                             </CardTitle>
                             <p className="text-xs text-muted-foreground">
-                                {item.fundName} • {item.allocationCount} alocações
+                                {group.funds.length} fundos • {group.allocationCount} alocações
                             </p>
                         </div>
                     </div>
@@ -318,14 +419,14 @@ function AccountabilityReportCard({ item }: AccountabilityReportCardProps) {
                     <div className="text-right">
                         <p className="text-xs text-muted-foreground">A repassar</p>
                         <strong className="text-lg">
-                            {formatCurrency(item.pendingAmount)}
+                            {formatCurrency(group.pendingAmount)}
                         </strong>
                     </div>
                 </div>
 
                 {hasPending && (
                     <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs">
-                        Ainda existe valor destinado que não foi totalmente repassado ou utilizado neste fundo.
+                        Ainda existe valor destinado que não foi totalmente repassado ou utilizado para este favorecido.
                     </div>
                 )}
 
@@ -336,19 +437,19 @@ function AccountabilityReportCard({ item }: AccountabilityReportCardProps) {
                 )}
             </CardHeader>
 
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-5">
                 <div className="grid gap-3 sm:grid-cols-3">
                     <div>
                         <p className="text-xs text-muted-foreground">Destinado</p>
                         <p className="font-medium">
-                            {formatCurrency(item.allocatedAmount)}
+                            {formatCurrency(group.allocatedAmount)}
                         </p>
                     </div>
 
                     <div>
                         <p className="text-xs text-muted-foreground">Repassado</p>
                         <p className="font-medium">
-                            {formatCurrency(item.transferredAmount)}
+                            {formatCurrency(group.transferredAmount)}
                         </p>
                     </div>
 
@@ -378,7 +479,157 @@ function AccountabilityReportCard({ item }: AccountabilityReportCardProps) {
                         <span>Repassado</span>
                     </div>
                 </div>
+
+                <div className="space-y-3 border-t pt-4">
+                    <div>
+                        <h4 className="text-sm font-medium">Fundos vinculados</h4>
+                        <p className="text-xs text-muted-foreground">
+                            Valores separados por fundo/projeto deste favorecido.
+                        </p>
+                    </div>
+
+                    <div className="space-y-3">
+                        {group.funds.map((fund) => (
+                            <AccountabilityFundSection
+                                key={`${fund.beneficiaryId}-${fund.fundId}`}
+                                item={fund}
+                                showByAccount={showByAccount}
+                            />
+                        ))}
+                    </div>
+                </div>
             </CardContent>
         </Card>
+    )
+}
+
+type AccountabilityFundSectionProps = {
+    item: AccountabilityListItem
+    showByAccount?: boolean
+}
+
+function AccountabilityFundSection({
+    item,
+    showByAccount = false,
+}: AccountabilityFundSectionProps) {
+    const hasPending = item.pendingAmount > 0
+    const hasOverpaid = item.pendingAmount < 0
+
+    return (
+        <div
+            className={
+                hasPending
+                    ? "rounded-lg border border-amber-500/30 bg-amber-500/5 p-3"
+                    : hasOverpaid
+                        ? "rounded-lg border border-destructive/30 bg-destructive/5 p-3"
+                        : "rounded-lg border bg-muted/20 p-3"
+            }
+        >
+            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                <div>
+                    <p className="text-sm font-medium">{item.fundName}</p>
+                    <p className="text-xs text-muted-foreground">
+                        {item.allocationCount} alocações
+                    </p>
+                </div>
+
+                <div className="text-left md:text-right">
+                    <p className="text-xs text-muted-foreground">A repassar</p>
+                    <p className="text-sm font-semibold">
+                        {formatCurrency(item.pendingAmount)}
+                    </p>
+                </div>
+            </div>
+
+            <div className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+                <div>
+                    <p className="text-xs text-muted-foreground">Destinado</p>
+                    <p className="font-medium">
+                        {formatCurrency(item.allocatedAmount)}
+                    </p>
+                </div>
+
+                <div>
+                    <p className="text-xs text-muted-foreground">Repassado</p>
+                    <p className="font-medium">
+                        {formatCurrency(item.transferredAmount)}
+                    </p>
+                </div>
+
+                <div>
+                    <p className="text-xs text-muted-foreground">A repassar</p>
+                    <p className="font-medium">
+                        {formatCurrency(item.pendingAmount)}
+                    </p>
+                </div>
+            </div>
+
+            {showByAccount && "accounts" in item && item.accounts.length > 0 && (
+                <div className="mt-4 space-y-3 border-t pt-3">
+                    <div>
+                        <h5 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Detalhamento por banco
+                        </h5>
+                        <p className="text-xs text-muted-foreground">
+                            Valores agrupados pela conta/banco da transação original.
+                        </p>
+                    </div>
+
+                    <div className="space-y-2">
+                        {item.accounts.map((account) => (
+                            <div
+                                key={account.accountId}
+                                className="rounded-lg border bg-background p-3"
+                            >
+                                <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium">
+                                            {account.accountName}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {account.bankName ?? "Banco não informado"} •{" "}
+                                            {account.allocationCount} alocações
+                                        </p>
+                                    </div>
+
+                                    <div className="text-sm font-semibold">
+                                        {formatCurrency(account.pendingAmount)}
+                                    </div>
+                                </div>
+
+                                <div className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">
+                                            Destinado
+                                        </p>
+                                        <p className="font-medium">
+                                            {formatCurrency(account.allocatedAmount)}
+                                        </p>
+                                    </div>
+
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">
+                                            Repassado
+                                        </p>
+                                        <p className="font-medium">
+                                            {formatCurrency(account.transferredAmount)}
+                                        </p>
+                                    </div>
+
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">
+                                            A repassar
+                                        </p>
+                                        <p className="font-medium">
+                                            {formatCurrency(account.pendingAmount)}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
     )
 }

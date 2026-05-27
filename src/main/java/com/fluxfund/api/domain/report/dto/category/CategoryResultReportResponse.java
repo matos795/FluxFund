@@ -1,4 +1,4 @@
-package com.fluxfund.api.domain.report.dto;
+package com.fluxfund.api.domain.report.dto.category;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;

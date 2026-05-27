@@ -1,4 +1,4 @@
-package com.fluxfund.api.domain.report.dto;
+package com.fluxfund.api.domain.report.dto.accountability;
 
 import java.math.BigDecimal;
 import java.util.UUID;

@@ -10,9 +10,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.fluxfund.api.domain.report.dto.AccountabilityReportResponse;
-import com.fluxfund.api.domain.report.dto.CategoryResultReportResponse;
-import com.fluxfund.api.domain.report.dto.FundReportResponse;
+import com.fluxfund.api.domain.report.dto.accountability.AccountabilityByAccountReportResponse;
+import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportResponse;
+import com.fluxfund.api.domain.report.dto.category.CategoryResultReportResponse;
+import com.fluxfund.api.domain.report.dto.fund.FundReportResponse;
 import com.fluxfund.api.domain.report.service.ReportService;
 
 import lombok.RequiredArgsConstructor;
@@ -54,5 +55,14 @@ public class ReportController {
                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
                 return ResponseEntity.ok(
                                 service.getAccountabilityReport(organizationId, startDate, endDate));
+        }
+
+        @GetMapping("/accountability/by-account")
+        public ResponseEntity<AccountabilityByAccountReportResponse> getAccountabilityReportByAccount(
+                        @RequestParam UUID organizationId,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+                return ResponseEntity.ok(
+                                service.getAccountabilityReportByAccount(organizationId, startDate, endDate));
         }
 }

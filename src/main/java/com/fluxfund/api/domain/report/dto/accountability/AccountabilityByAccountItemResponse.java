@@ -1,9 +1,10 @@
-package com.fluxfund.api.domain.report.dto;
+package com.fluxfund.api.domain.report.dto.accountability;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
-public record AccountabilityReportItemResponse(
+public record AccountabilityByAccountItemResponse(
         UUID beneficiaryId,
         String beneficiaryName,
         UUID fundId,
@@ -11,6 +12,7 @@ public record AccountabilityReportItemResponse(
         BigDecimal allocatedAmount,
         BigDecimal transferredAmount,
         BigDecimal pendingAmount,
-        long allocationCount
+        long allocationCount,
+        List<AccountabilityAccountBreakdownResponse> accounts
 ) {
 }

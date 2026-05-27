@@ -16,7 +16,7 @@ import org.springframework.data.repository.query.Param;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
-import com.fluxfund.api.domain.report.dto.CategoryResultItemResponse;
+import com.fluxfund.api.domain.report.dto.category.CategoryResultItemResponse;
 
 public interface FinancialTransactionRepository
     extends JpaRepository<FinancialTransaction, UUID>,
@@ -98,7 +98,7 @@ public interface FinancialTransactionRepository
       @Param("transferType") FinancialTransactionType transferType);
 
   @Query("""
-      select new com.fluxfund.api.domain.report.dto.CategoryResultItemResponse(
+      select new com.fluxfund.api.domain.report.dto.category.CategoryResultItemResponse(
           c.id,
           c.name,
           parent.id,

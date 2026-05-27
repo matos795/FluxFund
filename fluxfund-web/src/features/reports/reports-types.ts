@@ -67,3 +67,35 @@ export type AccountabilityReport = {
   beneficiariesWithPendingBalance: number
   items: AccountabilityReportItem[]
 }
+
+export type AccountabilityAccountBreakdown = {
+  accountId: string
+  accountName: string
+  bankName: string | null
+  allocatedAmount: number
+  transferredAmount: number
+  pendingAmount: number
+  allocationCount: number
+}
+
+export type AccountabilityByAccountReportItem = {
+  beneficiaryId: string
+  beneficiaryName: string
+  fundId: string
+  fundName: string
+  allocatedAmount: number
+  transferredAmount: number
+  pendingAmount: number
+  allocationCount: number
+  accounts: AccountabilityAccountBreakdown[]
+}
+
+export type AccountabilityByAccountReport = {
+  startDate: string
+  endDate: string
+  allocatedTotal: number
+  transferredTotal: number
+  pendingTotal: number
+  beneficiariesWithPendingBalance: number
+  items: AccountabilityByAccountReportItem[]
+}
