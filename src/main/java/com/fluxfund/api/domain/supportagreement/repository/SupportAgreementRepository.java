@@ -1,6 +1,7 @@
 package com.fluxfund.api.domain.supportagreement.repository;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -8,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.fluxfund.api.domain.supportagreement.SupportAgreement;
 
@@ -47,4 +49,19 @@ public interface SupportAgreementRepository extends JpaRepository<SupportAgreeme
                         LocalDate startDate,
                         LocalDate endDate,
                         Pageable pageable);
+
+        @Query("""
+                        select sa
+                        from SupportAgreement sa
+                        join fetch sa.beneficiary
+                        join fetch sa.fund
+                        where sa.organization.id = :organizationId
+                          and sa.active = true
+                          and sa.startDate <= :endDate
+                          and (sa.endDate is null or sa.endDate >= :startDate)
+                        """)
+        List<SupportAgreement> findActiveInPeriodForReport(
+                        @Param("organizationId") UUID organizationId,
+                        @Param("startDate") LocalDate startDate,
+                        @Param("endDate") LocalDate endDate);
 }

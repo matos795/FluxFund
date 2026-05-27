@@ -133,6 +133,30 @@ public class SupportAgreementService {
         repository.save(agreement);
     }
 
+    public SupportAgreementResponse activate(UUID organizationId, UUID id) {
+        SupportAgreement agreement = findEntityById(organizationId, id);
+
+        if (agreement.getActive()) {
+            return SupportAgreementMapper.toResponse(agreement);
+        }
+
+        boolean alreadyExists = repository.existsByOrganizationIdAndBeneficiaryIdAndFundIdAndActiveTrue(
+                organizationId,
+                agreement.getBeneficiary().getId(),
+                agreement.getFund().getId());
+
+        if (alreadyExists) {
+            throw new BusinessException(
+                    "There is already an active support agreement for this beneficiary and fund");
+        }
+
+        agreement.setActive(true);
+
+        repository.save(agreement);
+
+        return SupportAgreementMapper.toResponse(agreement);
+    }
+
     private SupportAgreement findEntityById(UUID organizationId, UUID id) {
         return repository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Support agreement not found"));

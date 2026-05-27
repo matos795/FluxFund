@@ -5,14 +5,15 @@ import java.util.List;
 import java.util.UUID;
 
 public record AccountabilityByAccountItemResponse(
-        UUID beneficiaryId,
-        String beneficiaryName,
-        UUID fundId,
-        String fundName,
-        BigDecimal allocatedAmount,
-        BigDecimal transferredAmount,
-        BigDecimal pendingAmount,
-        long allocationCount,
-        List<AccountabilityAccountBreakdownResponse> accounts
-) {
+                UUID beneficiaryId,
+                String beneficiaryName,
+                UUID fundId,
+                String fundName,
+                BigDecimal allocatedAmount,
+                BigDecimal transferredAmount,
+                BigDecimal commitmentAmount,
+                BigDecimal payableAmount,
+                BigDecimal pendingAmount,
+                long allocationCount,
+                List<AccountabilityAccountBreakdownResponse> accounts) {
 }

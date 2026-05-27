@@ -28,6 +28,7 @@ type EntityComboboxProps = {
   searchPlaceholder?: string
   emptyMessage?: string
   onChange: (value: string) => void
+  disabled?: boolean
 }
 
 export function EntityCombobox({
@@ -37,6 +38,7 @@ export function EntityCombobox({
   searchPlaceholder = "Buscar...",
   emptyMessage = "Nenhum resultado encontrado.",
   onChange,
+  disabled = false,
 }: EntityComboboxProps) {
   const selectedOption = options.find((option) => option.value === value)
 
@@ -47,6 +49,7 @@ export function EntityCombobox({
           type="button"
           variant="outline"
           role="combobox"
+          disabled={disabled}
           className="w-full justify-between"
         >
           <span className="truncate">

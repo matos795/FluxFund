@@ -2,11 +2,15 @@ package com.fluxfund.api.domain.report.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +27,8 @@ import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportRes
 import com.fluxfund.api.domain.report.dto.category.CategoryResultReportResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundReportItemResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundReportResponse;
+import com.fluxfund.api.domain.supportagreement.SupportAgreement;
+import com.fluxfund.api.domain.supportagreement.repository.SupportAgreementRepository;
 import com.fluxfund.api.domain.transactionallocation.repository.TransactionAllocationRepository;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
@@ -37,6 +43,7 @@ public class ReportService {
         private final OrganizationRepository organizationRepository;
         private final FinancialTransactionRepository financialTransactionRepository;
         private final TransactionAllocationRepository transactionAllocationRepository;
+        private final SupportAgreementRepository supportAgreementRepository;
 
         public CategoryResultReportResponse getCategoryResultReport(
                         UUID organizationId,
@@ -172,27 +179,95 @@ public class ReportService {
                         throw new BusinessException("End date cannot be before start date");
                 }
 
+                List<SupportAgreement> supportAgreements = findSupportAgreementsForReport(
+                                organizationId,
+                                resolvedStartDate,
+                                resolvedEndDate);
+
+                Map<String, BigDecimal> commitmentByBeneficiaryAndFund = buildCommitmentAmountMap(
+                                organizationId,
+                                resolvedStartDate,
+                                resolvedEndDate);
+
                 var projections = transactionAllocationRepository.findAccountabilityReport(
                                 organizationId,
                                 resolvedStartDate,
                                 resolvedEndDate);
 
-                var items = projections.stream()
-                                .map(projection -> {
-                                        BigDecimal pendingAmount = projection.allocatedAmount()
-                                                        .subtract(projection.transferredAmount());
+                List<AccountabilityReportItemResponse> items = new ArrayList<>(
+                                projections.stream()
+                                                .map(projection -> {
+                                                        String key = buildBeneficiaryFundKey(
+                                                                        projection.beneficiaryId(),
+                                                                        projection.fundId());
 
-                                        return new AccountabilityReportItemResponse(
-                                                        projection.beneficiaryId(),
-                                                        projection.beneficiaryName(),
-                                                        projection.fundId(),
-                                                        projection.fundName(),
-                                                        projection.allocatedAmount(),
-                                                        projection.transferredAmount(),
-                                                        pendingAmount,
-                                                        projection.allocationCount());
-                                })
-                                .toList();
+                                                        BigDecimal allocatedAmount = projection.allocatedAmount();
+                                                        BigDecimal transferredAmount = projection.transferredAmount();
+
+                                                        BigDecimal commitmentAmount = commitmentByBeneficiaryAndFund
+                                                                        .getOrDefault(key, BigDecimal.ZERO);
+
+                                                        BigDecimal payableAmount = commitmentAmount
+                                                                        .add(allocatedAmount);
+
+                                                        BigDecimal pendingAmount = payableAmount
+                                                                        .subtract(transferredAmount);
+
+                                                        return new AccountabilityReportItemResponse(
+                                                                        projection.beneficiaryId(),
+                                                                        projection.beneficiaryName(),
+                                                                        projection.fundId(),
+                                                                        projection.fundName(),
+                                                                        allocatedAmount,
+                                                                        transferredAmount,
+                                                                        commitmentAmount,
+                                                                        payableAmount,
+                                                                        pendingAmount,
+                                                                        projection.allocationCount());
+                                                })
+                                                .toList());
+
+                Set<String> existingKeys = items.stream()
+                                .map(item -> buildBeneficiaryFundKey(
+                                                item.beneficiaryId(),
+                                                item.fundId()))
+                                .collect(Collectors.toSet());
+
+                for (SupportAgreement agreement : supportAgreements) {
+                        String key = buildBeneficiaryFundKey(
+                                        agreement.getBeneficiary().getId(),
+                                        agreement.getFund().getId());
+
+                        if (existingKeys.contains(key)) {
+                                continue;
+                        }
+
+                        BigDecimal commitmentAmount = calculateCommitmentAmountForPeriod(
+                                        agreement,
+                                        resolvedStartDate,
+                                        resolvedEndDate);
+
+                        if (commitmentAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                                continue;
+                        }
+
+                        BigDecimal allocatedAmount = BigDecimal.ZERO;
+                        BigDecimal transferredAmount = BigDecimal.ZERO;
+                        BigDecimal payableAmount = commitmentAmount;
+                        BigDecimal pendingAmount = payableAmount;
+
+                        items.add(new AccountabilityReportItemResponse(
+                                        agreement.getBeneficiary().getId(),
+                                        agreement.getBeneficiary().getName(),
+                                        agreement.getFund().getId(),
+                                        agreement.getFund().getName(),
+                                        allocatedAmount,
+                                        transferredAmount,
+                                        commitmentAmount,
+                                        payableAmount,
+                                        pendingAmount,
+                                        0));
+                }
 
                 BigDecimal allocatedTotal = items.stream()
                                 .map(AccountabilityReportItemResponse::allocatedAmount)
@@ -202,7 +277,17 @@ public class ReportService {
                                 .map(AccountabilityReportItemResponse::transferredAmount)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                BigDecimal pendingTotal = allocatedTotal.subtract(transferredTotal);
+                BigDecimal commitmentTotal = items.stream()
+                                .map(AccountabilityReportItemResponse::commitmentAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal payableTotal = items.stream()
+                                .map(AccountabilityReportItemResponse::payableAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal pendingTotal = items.stream()
+                                .map(AccountabilityReportItemResponse::pendingAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                 long beneficiariesWithPendingBalance = items.stream()
                                 .filter(item -> item.pendingAmount().compareTo(BigDecimal.ZERO) > 0)
@@ -215,6 +300,8 @@ public class ReportService {
                                 resolvedEndDate,
                                 allocatedTotal,
                                 transferredTotal,
+                                commitmentTotal,
+                                payableTotal,
                                 pendingTotal,
                                 beneficiariesWithPendingBalance,
                                 items);
@@ -239,6 +326,16 @@ public class ReportService {
                         throw new BusinessException("End date cannot be before start date");
                 }
 
+                List<SupportAgreement> supportAgreements = findSupportAgreementsForReport(
+                                organizationId,
+                                resolvedStartDate,
+                                resolvedEndDate);
+
+                Map<String, BigDecimal> commitmentByBeneficiaryAndFund = buildCommitmentAmountMap(
+                                organizationId,
+                                resolvedStartDate,
+                                resolvedEndDate);
+
                 var projections = transactionAllocationRepository.findAccountabilityReportByAccount(
                                 organizationId,
                                 resolvedStartDate,
@@ -247,61 +344,127 @@ public class ReportService {
                 Map<String, List<AccountabilityByAccountProjection>> grouped = new LinkedHashMap<>();
 
                 for (AccountabilityByAccountProjection projection : projections) {
-                        String key = projection.beneficiaryId() + ":" + projection.fundId();
+                        String key = buildBeneficiaryFundKey(
+                                        projection.beneficiaryId(),
+                                        projection.fundId());
 
                         grouped.computeIfAbsent(key, ignored -> new ArrayList<>())
                                         .add(projection);
                 }
 
-                List<AccountabilityByAccountItemResponse> items = grouped.values()
-                                .stream()
-                                .map(group -> {
-                                        AccountabilityByAccountProjection first = group.get(0);
+                List<AccountabilityByAccountItemResponse> items = new ArrayList<>(
+                                grouped.values()
+                                                .stream()
+                                                .map(group -> {
+                                                        AccountabilityByAccountProjection first = group.get(0);
 
-                                        List<AccountabilityAccountBreakdownResponse> accounts = group.stream()
-                                                        .map(accountProjection -> {
-                                                                BigDecimal accountPendingAmount = accountProjection
-                                                                                .allocatedAmount()
-                                                                                .subtract(accountProjection
-                                                                                                .transferredAmount());
+                                                        List<AccountabilityAccountBreakdownResponse> accounts = group
+                                                                        .stream()
+                                                                        .map(accountProjection -> {
+                                                                                BigDecimal accountPendingAmount = accountProjection
+                                                                                                .allocatedAmount()
+                                                                                                .subtract(accountProjection
+                                                                                                                .transferredAmount());
 
-                                                                return new AccountabilityAccountBreakdownResponse(
-                                                                                accountProjection.accountId(),
-                                                                                accountProjection.accountName(),
-                                                                                accountProjection.bankName(),
-                                                                                accountProjection.allocatedAmount(),
-                                                                                accountProjection.transferredAmount(),
-                                                                                accountPendingAmount,
-                                                                                accountProjection.allocationCount());
-                                                        })
-                                                        .toList();
+                                                                                return new AccountabilityAccountBreakdownResponse(
+                                                                                                accountProjection
+                                                                                                                .accountId(),
+                                                                                                accountProjection
+                                                                                                                .accountName(),
+                                                                                                accountProjection
+                                                                                                                .bankName(),
+                                                                                                accountProjection
+                                                                                                                .allocatedAmount(),
+                                                                                                accountProjection
+                                                                                                                .transferredAmount(),
+                                                                                                accountPendingAmount,
+                                                                                                accountProjection
+                                                                                                                .allocationCount());
+                                                                        })
+                                                                        .toList();
 
-                                        BigDecimal allocatedAmount = accounts.stream()
-                                                        .map(AccountabilityAccountBreakdownResponse::allocatedAmount)
-                                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                                                        BigDecimal allocatedAmount = accounts.stream()
+                                                                        .map(AccountabilityAccountBreakdownResponse::allocatedAmount)
+                                                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                                        BigDecimal transferredAmount = accounts.stream()
-                                                        .map(AccountabilityAccountBreakdownResponse::transferredAmount)
-                                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                                                        BigDecimal transferredAmount = accounts.stream()
+                                                                        .map(AccountabilityAccountBreakdownResponse::transferredAmount)
+                                                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                                        BigDecimal pendingAmount = allocatedAmount.subtract(transferredAmount);
+                                                        String key = buildBeneficiaryFundKey(
+                                                                        first.beneficiaryId(),
+                                                                        first.fundId());
 
-                                        long allocationCount = accounts.stream()
-                                                        .mapToLong(AccountabilityAccountBreakdownResponse::allocationCount)
-                                                        .sum();
+                                                        BigDecimal commitmentAmount = commitmentByBeneficiaryAndFund
+                                                                        .getOrDefault(key, BigDecimal.ZERO);
 
-                                        return new AccountabilityByAccountItemResponse(
-                                                        first.beneficiaryId(),
-                                                        first.beneficiaryName(),
-                                                        first.fundId(),
-                                                        first.fundName(),
-                                                        allocatedAmount,
-                                                        transferredAmount,
-                                                        pendingAmount,
-                                                        allocationCount,
-                                                        accounts);
-                                })
-                                .toList();
+                                                        BigDecimal payableAmount = commitmentAmount
+                                                                        .add(allocatedAmount);
+
+                                                        BigDecimal pendingAmount = payableAmount
+                                                                        .subtract(transferredAmount);
+
+                                                        long allocationCount = accounts.stream()
+                                                                        .mapToLong(AccountabilityAccountBreakdownResponse::allocationCount)
+                                                                        .sum();
+
+                                                        return new AccountabilityByAccountItemResponse(
+                                                                        first.beneficiaryId(),
+                                                                        first.beneficiaryName(),
+                                                                        first.fundId(),
+                                                                        first.fundName(),
+                                                                        allocatedAmount,
+                                                                        transferredAmount,
+                                                                        commitmentAmount,
+                                                                        payableAmount,
+                                                                        pendingAmount,
+                                                                        allocationCount,
+                                                                        accounts);
+                                                })
+                                                .toList());
+
+                Set<String> existingKeys = items.stream()
+                                .map(item -> buildBeneficiaryFundKey(
+                                                item.beneficiaryId(),
+                                                item.fundId()))
+                                .collect(Collectors.toSet());
+
+                for (SupportAgreement agreement : supportAgreements) {
+                        String key = buildBeneficiaryFundKey(
+                                        agreement.getBeneficiary().getId(),
+                                        agreement.getFund().getId());
+
+                        if (existingKeys.contains(key)) {
+                                continue;
+                        }
+
+                        BigDecimal commitmentAmount = calculateCommitmentAmountForPeriod(
+                                        agreement,
+                                        resolvedStartDate,
+                                        resolvedEndDate);
+
+                        if (commitmentAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                                continue;
+                        }
+
+                        BigDecimal allocatedAmount = BigDecimal.ZERO;
+                        BigDecimal transferredAmount = BigDecimal.ZERO;
+                        BigDecimal payableAmount = commitmentAmount;
+                        BigDecimal pendingAmount = payableAmount;
+
+                        items.add(new AccountabilityByAccountItemResponse(
+                                        agreement.getBeneficiary().getId(),
+                                        agreement.getBeneficiary().getName(),
+                                        agreement.getFund().getId(),
+                                        agreement.getFund().getName(),
+                                        allocatedAmount,
+                                        transferredAmount,
+                                        commitmentAmount,
+                                        payableAmount,
+                                        pendingAmount,
+                                        0,
+                                        List.of()));
+                }
 
                 BigDecimal allocatedTotal = items.stream()
                                 .map(AccountabilityByAccountItemResponse::allocatedAmount)
@@ -311,7 +474,17 @@ public class ReportService {
                                 .map(AccountabilityByAccountItemResponse::transferredAmount)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                BigDecimal pendingTotal = allocatedTotal.subtract(transferredTotal);
+                BigDecimal commitmentTotal = items.stream()
+                                .map(AccountabilityByAccountItemResponse::commitmentAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal payableTotal = items.stream()
+                                .map(AccountabilityByAccountItemResponse::payableAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal pendingTotal = items.stream()
+                                .map(AccountabilityByAccountItemResponse::pendingAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                 long beneficiariesWithPendingBalance = items.stream()
                                 .filter(item -> item.pendingAmount().compareTo(BigDecimal.ZERO) > 0)
@@ -324,6 +497,8 @@ public class ReportService {
                                 resolvedEndDate,
                                 allocatedTotal,
                                 transferredTotal,
+                                commitmentTotal,
+                                payableTotal,
                                 pendingTotal,
                                 beneficiariesWithPendingBalance,
                                 items);
@@ -333,5 +508,73 @@ public class ReportService {
                 if (!organizationRepository.existsById(organizationId)) {
                         throw new ResourceNotFoundException("Organization not found");
                 }
+        }
+
+        private BigDecimal calculateCommitmentAmountForPeriod(
+                        SupportAgreement agreement,
+                        LocalDate startDate,
+                        LocalDate endDate) {
+                LocalDate effectiveStartDate = agreement.getStartDate().isAfter(startDate)
+                                ? agreement.getStartDate()
+                                : startDate;
+
+                LocalDate effectiveEndDate = agreement.getEndDate() != null
+                                && agreement.getEndDate().isBefore(endDate)
+                                                ? agreement.getEndDate()
+                                                : endDate;
+
+                if (effectiveEndDate.isBefore(effectiveStartDate)) {
+                        return BigDecimal.ZERO;
+                }
+
+                long months = ChronoUnit.MONTHS.between(
+                                effectiveStartDate.withDayOfMonth(1),
+                                effectiveEndDate.withDayOfMonth(1)) + 1;
+
+                return agreement.getAmount().multiply(BigDecimal.valueOf(months));
+        }
+
+        private Map<String, BigDecimal> buildCommitmentAmountMap(
+                        UUID organizationId,
+                        LocalDate startDate,
+                        LocalDate endDate) {
+                List<SupportAgreement> agreements = supportAgreementRepository.findActiveInPeriodForReport(
+                                organizationId,
+                                startDate,
+                                endDate);
+
+                Map<String, BigDecimal> commitmentByBeneficiaryAndFund = new HashMap<>();
+
+                for (SupportAgreement agreement : agreements) {
+                        String key = buildBeneficiaryFundKey(
+                                        agreement.getBeneficiary().getId(),
+                                        agreement.getFund().getId());
+
+                        BigDecimal commitmentAmount = calculateCommitmentAmountForPeriod(
+                                        agreement,
+                                        startDate,
+                                        endDate);
+
+                        commitmentByBeneficiaryAndFund.merge(
+                                        key,
+                                        commitmentAmount,
+                                        BigDecimal::add);
+                }
+
+                return commitmentByBeneficiaryAndFund;
+        }
+
+        private String buildBeneficiaryFundKey(UUID beneficiaryId, UUID fundId) {
+                return beneficiaryId + ":" + fundId;
+        }
+
+        private List<SupportAgreement> findSupportAgreementsForReport(
+                        UUID organizationId,
+                        LocalDate startDate,
+                        LocalDate endDate) {
+                return supportAgreementRepository.findActiveInPeriodForReport(
+                                organizationId,
+                                startDate,
+                                endDate);
         }
 }

@@ -3,6 +3,7 @@ import {
   ChartNoAxesCombined,
   FolderTree,
   HandCoins,
+  HandHeart,
   LayoutDashboard,
   ReceiptText,
   Settings,
@@ -39,6 +40,11 @@ const navigationItems = [
     label: "Favorecidos",
     href: "/beneficiaries",
     icon: Users,
+  },
+  {
+    label: "Compromissos",
+    href: "/support-agreements",
+    icon: HandHeart,
   },
   {
     label: "Transações",

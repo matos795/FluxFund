@@ -54,6 +54,8 @@ export type AccountabilityReportItem = {
   fundName: string
   allocatedAmount: number
   transferredAmount: number
+  commitmentAmount: number
+  payableAmount: number
   pendingAmount: number
   allocationCount: number
 }
@@ -63,6 +65,8 @@ export type AccountabilityReport = {
   endDate: string
   allocatedTotal: number
   transferredTotal: number
+  commitmentTotal: number
+  payableTotal: number
   pendingTotal: number
   beneficiariesWithPendingBalance: number
   items: AccountabilityReportItem[]
@@ -85,6 +89,8 @@ export type AccountabilityByAccountReportItem = {
   fundName: string
   allocatedAmount: number
   transferredAmount: number
+  commitmentAmount: number
+  payableAmount: number
   pendingAmount: number
   allocationCount: number
   accounts: AccountabilityAccountBreakdown[]
@@ -95,6 +101,8 @@ export type AccountabilityByAccountReport = {
   endDate: string
   allocatedTotal: number
   transferredTotal: number
+  commitmentTotal: number
+  payableTotal: number
   pendingTotal: number
   beneficiariesWithPendingBalance: number
   items: AccountabilityByAccountReportItem[]

@@ -4,13 +4,14 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 public record AccountabilityReportItemResponse(
-        UUID beneficiaryId,
-        String beneficiaryName,
-        UUID fundId,
-        String fundName,
-        BigDecimal allocatedAmount,
-        BigDecimal transferredAmount,
-        BigDecimal pendingAmount,
-        long allocationCount
-) {
+                UUID beneficiaryId,
+                String beneficiaryName,
+                UUID fundId,
+                String fundName,
+                BigDecimal allocatedAmount,
+                BigDecimal transferredAmount,
+                BigDecimal commitmentAmount,
+                BigDecimal payableAmount,
+                BigDecimal pendingAmount,
+                long allocationCount) {
 }

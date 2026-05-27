@@ -22,6 +22,7 @@ import { toast } from "sonner"
 import type { Beneficiary } from "../beneficiary-types"
 import { useDeleteBeneficiary } from "../hooks/use-delete-beneficiary"
 import { EditBeneficiaryDialog } from "./edit-beneficiary-dialog"
+import { CreateSupportAgreementDialog } from "@/features/support-agreements/components/create-support-agreement-dialog"
 
 type BeneficiaryActionsProps = {
     beneficiary: Beneficiary
@@ -55,6 +56,10 @@ export function BeneficiaryActions({ beneficiary }: BeneficiaryActionsProps) {
 
                 <DropdownMenuContent align="end">
                     <EditBeneficiaryDialog beneficiary={beneficiary} />
+                    <CreateSupportAgreementDialog
+                        beneficiaryId={beneficiary.id}
+                        beneficiaryName={beneficiary.name}
+                    />
                     <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
                         onClick={() => setDeleteDialogOpen(true)}

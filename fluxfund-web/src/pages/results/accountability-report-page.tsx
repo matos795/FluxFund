@@ -4,6 +4,10 @@ import {
     ArrowLeft,
     ArrowUpCircle,
     Building2,
+    ChevronDown,
+    ChevronRight,
+    ChevronsDown,
+    ChevronsUp,
     HandCoins,
     Search,
     UserRound,
@@ -21,7 +25,7 @@ import {
 } from "@/components/ui/card"
 import { useAccountabilityReport } from "@/features/reports/hooks/use-accountability-report"
 import type { AccountabilityByAccountReportItem, AccountabilityReportItem } from "@/features/reports/reports-types"
-import { formatCurrency } from "@/utils/formatters"
+import { formatCurrency, formatDate } from "@/utils/formatters"
 import { useAccountabilityByAccountReport } from "@/features/reports/hooks/use-accountability-by-account-report"
 
 const TEMP_ORGANIZATION_ID = "7b9ed617-92be-456d-81d6-dcde5841e7a0"
@@ -31,6 +35,8 @@ type AccountabilityBeneficiaryGroup = {
     beneficiaryName: string
     allocatedAmount: number
     transferredAmount: number
+    commitmentAmount: number
+    payableAmount: number
     pendingAmount: number
     allocationCount: number
     funds: AccountabilityListItem[]
@@ -83,6 +89,10 @@ function sortAccountabilityItems(items: AccountabilityListItem[]) {
     })
 }
 
+function buildBeneficiaryFundKey(beneficiaryId: string, fundId: string) {
+    return `${beneficiaryId}:${fundId}`
+}
+
 function groupItemsByBeneficiary(
     items: AccountabilityListItem[],
 ): AccountabilityBeneficiaryGroup[] {
@@ -97,6 +107,8 @@ function groupItemsByBeneficiary(
                 beneficiaryName: item.beneficiaryName,
                 allocatedAmount: item.allocatedAmount,
                 transferredAmount: item.transferredAmount,
+                commitmentAmount: item.commitmentAmount,
+                payableAmount: item.payableAmount,
                 pendingAmount: item.pendingAmount,
                 allocationCount: item.allocationCount,
                 funds: [item],
@@ -107,6 +119,8 @@ function groupItemsByBeneficiary(
 
         existingGroup.allocatedAmount += item.allocatedAmount
         existingGroup.transferredAmount += item.transferredAmount
+        existingGroup.commitmentAmount += item.commitmentAmount
+        existingGroup.payableAmount += item.payableAmount
         existingGroup.pendingAmount += item.pendingAmount
         existingGroup.allocationCount += item.allocationCount
         existingGroup.funds.push(item)
@@ -138,7 +152,16 @@ export function AccountabilityReportPage() {
     const [endDate, setEndDate] = useState(getTodayDate)
     const [search, setSearch] = useState("")
     const [showOnlyPending, setShowOnlyPending] = useState(false)
-    const [showByAccount, setShowByAccount] = useState(false)
+
+    const [expandedBeneficiaryIds, setExpandedBeneficiaryIds] = useState<Set<string>>(
+        () => new Set(),
+    )
+
+    const [expandedBankFundKeys, setExpandedBankFundKeys] = useState<Set<string>>(
+        () => new Set(),
+    )
+
+    const [shouldLoadBankDetails, setShouldLoadBankDetails] = useState(false)
 
     const {
         data: report,
@@ -160,12 +183,10 @@ export function AccountabilityReportPage() {
             startDate,
             endDate,
         },
-        showByAccount,
+        shouldLoadBankDetails,
     )
 
-    const currentItems = showByAccount
-        ? byAccountReport?.items ?? []
-        : report?.items ?? []
+    const currentItems = report?.items ?? []
 
     const filteredItems = sortAccountabilityItems(
         filterAccountabilityItems(currentItems, search).filter((item) =>
@@ -175,11 +196,74 @@ export function AccountabilityReportPage() {
 
     const beneficiaryGroups = groupItemsByBeneficiary(filteredItems)
 
-    if (isLoading || (showByAccount && isByAccountLoading)) {
+    const byAccountItemsByFundKey = new Map<string, AccountabilityByAccountReportItem>()
+
+    for (const item of byAccountReport?.items ?? []) {
+        byAccountItemsByFundKey.set(
+            buildBeneficiaryFundKey(item.beneficiaryId, item.fundId),
+            item,
+        )
+    }
+
+    function toggleBeneficiaryFunds(beneficiaryId: string) {
+        setExpandedBeneficiaryIds((current) => {
+            const next = new Set(current)
+
+            if (next.has(beneficiaryId)) {
+                next.delete(beneficiaryId)
+            } else {
+                next.add(beneficiaryId)
+            }
+
+            return next
+        })
+    }
+
+    function toggleFundBanks(beneficiaryId: string, fundId: string) {
+        setShouldLoadBankDetails(true)
+
+        const key = buildBeneficiaryFundKey(beneficiaryId, fundId)
+
+        setExpandedBankFundKeys((current) => {
+            const next = new Set(current)
+
+            if (next.has(key)) {
+                next.delete(key)
+            } else {
+                next.add(key)
+            }
+
+            return next
+        })
+    }
+
+    function expandAllBeneficiaries() {
+        setShouldLoadBankDetails(true)
+
+        setExpandedBeneficiaryIds(
+            new Set(beneficiaryGroups.map((group) => group.beneficiaryId)),
+        )
+    }
+
+    function collapseAllBeneficiaries() {
+        setExpandedBeneficiaryIds(new Set())
+        setExpandedBankFundKeys(new Set())
+    }
+
+    const hasBeneficiaryGroups = beneficiaryGroups.length > 0
+    const allBeneficiariesExpanded =
+        hasBeneficiaryGroups &&
+        beneficiaryGroups.every((group) =>
+            expandedBeneficiaryIds.has(group.beneficiaryId),
+        )
+
+    const hasAnyExpandedBeneficiary = expandedBeneficiaryIds.size > 0
+
+    if (isLoading) {
         return <p>Carregando relatório...</p>
     }
 
-    if (isError || (showByAccount && isByAccountError)) {
+    if (isError) {
         return <p>Não foi possível carregar o relatório.</p>
     }
 
@@ -194,14 +278,32 @@ export function AccountabilityReportPage() {
 
             <PageHeader
                 title="Prestação de Contas / Sustento"
-                description={`Acompanhe valores destinados a favorecidos e o quanto já foi repassado ou utilizado de ${report?.startDate} até ${report?.endDate}.`}
+                description={`Acompanhe compromissos fixos, ofertas destinadas e repasses de ${formatDate(report?.startDate)} até ${formatDate(report?.endDate)}.`}
             />
 
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">
-                            Total destinado
+                            Compromissos fixos
+                        </CardTitle>
+                        <HandCoins className="size-4 text-muted-foreground" />
+                    </CardHeader>
+
+                    <CardContent>
+                        <div className="text-2xl font-bold">
+                            {formatCurrency(report?.commitmentTotal ?? 0)}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Sustentos fixos previstos no período.
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">
+                            Ofertas destinadas
                         </CardTitle>
                         <ArrowUpCircle className="size-4 text-muted-foreground" />
                     </CardHeader>
@@ -219,7 +321,25 @@ export function AccountabilityReportPage() {
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">
-                            Total repassado/utilizado
+                            Total devido
+                        </CardTitle>
+                        <WalletCards className="size-4 text-muted-foreground" />
+                    </CardHeader>
+
+                    <CardContent>
+                        <div className="text-2xl font-bold">
+                            {formatCurrency(report?.payableTotal ?? 0)}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Compromissos fixos mais ofertas destinadas.
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">
+                            Repassado/utilizado
                         </CardTitle>
                         <ArrowDownCircle className="size-4 text-muted-foreground" />
                     </CardHeader>
@@ -237,9 +357,9 @@ export function AccountabilityReportPage() {
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">
-                            Saldo a repassar
+                            A repassar
                         </CardTitle>
-                        <WalletCards className="size-4 text-muted-foreground" />
+                        <UserRound className="size-4 text-muted-foreground" />
                     </CardHeader>
 
                     <CardContent>
@@ -247,32 +367,14 @@ export function AccountabilityReportPage() {
                             {formatCurrency(report?.pendingTotal ?? 0)}
                         </div>
                         <p className="text-xs text-muted-foreground">
-                            Valores destinados que ainda não foram totalmente repassados ou utilizados.
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
-                            Com saldo a repassar
-                        </CardTitle>
-                        <UserRound className="size-4 text-muted-foreground" />
-                    </CardHeader>
-
-                    <CardContent>
-                        <div className="text-2xl font-bold">
-                            {report?.beneficiariesWithPendingBalance ?? 0}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                            Favorecidos com valor destinado ainda em aberto.
+                            Total devido menos o que já foi repassado.
                         </p>
                     </CardContent>
                 </Card>
             </section>
 
             <section className="rounded-xl border bg-card p-4">
-                <div className="grid gap-4 lg:grid-cols-[1fr_1fr_2fr_auto_auto] lg:items-end">
+                <div className="grid gap-4 lg:grid-cols-[1fr_1fr_2fr_auto] lg:items-end">
                     <div className="space-y-2">
                         <label htmlFor="startDate" className="text-sm font-medium">
                             Data inicial
@@ -327,27 +429,44 @@ export function AccountabilityReportPage() {
                     >
                         {showOnlyPending ? "Mostrando saldos a repassar" : "Somente saldos a repassar"}
                     </Button>
-
-                    <Button
-                        type="button"
-                        variant={showByAccount ? "default" : "outline"}
-                        onClick={() => setShowByAccount((current) => !current)}
-                    >
-                        <Building2 className="mr-2 size-4" />
-                        {showByAccount ? "Visão por banco ativa" : "Ver por banco"}
-                    </Button>
                 </div>
             </section>
 
             <section className="space-y-4">
-                <div>
-                    <h2 className="text-lg font-semibold">
-                        Saldos por favorecido
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                        {beneficiaryGroups.length} favorecidos encontrados em{" "}
-                        {filteredItems.length} fundos.
-                    </p>
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <h2 className="text-lg font-semibold">
+                            Prestação por favorecido
+                        </h2>
+                        <p className="text-sm text-muted-foreground">
+                            {beneficiaryGroups.length} favorecidos encontrados em{" "}
+                            {filteredItems.length} fundos.
+                        </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={expandAllBeneficiaries}
+                            disabled={!hasBeneficiaryGroups || allBeneficiariesExpanded}
+                        >
+                            <ChevronsDown className="mr-2 size-4" />
+                            Expandir tudo
+                        </Button>
+
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={collapseAllBeneficiaries}
+                            disabled={!hasAnyExpandedBeneficiary}
+                        >
+                            <ChevronsUp className="mr-2 size-4" />
+                            Recolher tudo
+                        </Button>
+                    </div>
                 </div>
 
                 {beneficiaryGroups.length === 0 ? (
@@ -357,12 +476,18 @@ export function AccountabilityReportPage() {
                         </CardContent>
                     </Card>
                 ) : (
-                    <div className="grid gap-4 xl:grid-cols-2">
+                    <div className="columns-1 gap-4 xl:columns-2">
                         {beneficiaryGroups.map((group) => (
                             <AccountabilityBeneficiaryCard
                                 key={group.beneficiaryId}
                                 group={group}
-                                showByAccount={showByAccount}
+                                isExpanded={expandedBeneficiaryIds.has(group.beneficiaryId)}
+                                expandedBankFundKeys={expandedBankFundKeys}
+                                byAccountItemsByFundKey={byAccountItemsByFundKey}
+                                isByAccountLoading={isByAccountLoading}
+                                isByAccountError={isByAccountError}
+                                onToggleFunds={() => toggleBeneficiaryFunds(group.beneficiaryId)}
+                                onToggleFundBanks={toggleFundBanks}
                             />
                         ))}
                     </div>
@@ -374,19 +499,31 @@ export function AccountabilityReportPage() {
 
 type AccountabilityBeneficiaryCardProps = {
     group: AccountabilityBeneficiaryGroup
-    showByAccount?: boolean
+    isExpanded: boolean
+    expandedBankFundKeys: Set<string>
+    byAccountItemsByFundKey: Map<string, AccountabilityByAccountReportItem>
+    isByAccountLoading: boolean
+    isByAccountError: boolean
+    onToggleFunds: () => void
+    onToggleFundBanks: (beneficiaryId: string, fundId: string) => void
 }
 
 function AccountabilityBeneficiaryCard({
     group,
-    showByAccount = false,
+    isExpanded,
+    expandedBankFundKeys,
+    byAccountItemsByFundKey,
+    isByAccountLoading,
+    isByAccountError,
+    onToggleFunds,
+    onToggleFundBanks,
 }: AccountabilityBeneficiaryCardProps) {
     const hasPending = group.pendingAmount > 0
     const hasOverpaid = group.pendingAmount < 0
-    const totalMovement = group.allocatedAmount + group.transferredAmount
+
     const transferredPercentage =
-        group.allocatedAmount > 0
-            ? Math.min((group.transferredAmount / group.allocatedAmount) * 100, 100)
+        group.payableAmount > 0
+            ? Math.min((group.transferredAmount / group.payableAmount) * 100, 100)
             : 0
 
     return (
@@ -426,23 +563,37 @@ function AccountabilityBeneficiaryCard({
 
                 {hasPending && (
                     <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs">
-                        Ainda existe valor destinado que não foi totalmente repassado ou utilizado para este favorecido.
+                        Ainda existe valor a repassar para este favorecido considerando compromissos fixos e ofertas destinadas.
                     </div>
                 )}
 
                 {hasOverpaid && (
                     <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                        Os repasses ou utilizações ultrapassaram o valor destinado no período.
+                        Os repasses ultrapassaram o total devido no período.
                     </div>
                 )}
             </CardHeader>
 
             <CardContent className="space-y-5">
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-5">
                     <div>
-                        <p className="text-xs text-muted-foreground">Destinado</p>
+                        <p className="text-xs text-muted-foreground">Compromisso</p>
+                        <p className="font-medium">
+                            {formatCurrency(group.commitmentAmount)}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p className="text-xs text-muted-foreground">Ofertas</p>
                         <p className="font-medium">
                             {formatCurrency(group.allocatedAmount)}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p className="text-xs text-muted-foreground">Total devido</p>
+                        <p className="font-medium">
+                            {formatCurrency(group.payableAmount)}
                         </p>
                     </div>
 
@@ -454,9 +605,9 @@ function AccountabilityBeneficiaryCard({
                     </div>
 
                     <div>
-                        <p className="text-xs text-muted-foreground">Movimento</p>
+                        <p className="text-xs text-muted-foreground">A repassar</p>
                         <p className="font-medium">
-                            {formatCurrency(totalMovement)}
+                            {formatCurrency(group.pendingAmount)}
                         </p>
                     </div>
                 </div>
@@ -475,28 +626,56 @@ function AccountabilityBeneficiaryCard({
                     </div>
 
                     <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Destinado</span>
+                        <span>Total devido</span>
                         <span>Repassado</span>
                     </div>
                 </div>
 
                 <div className="space-y-3 border-t pt-4">
-                    <div>
-                        <h4 className="text-sm font-medium">Fundos vinculados</h4>
-                        <p className="text-xs text-muted-foreground">
-                            Valores separados por fundo/projeto deste favorecido.
-                        </p>
-                    </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full justify-between"
+                        onClick={onToggleFunds}
+                    >
+                        <span>
+                            {isExpanded ? "Ocultar fundos" : "Ver fundos"} ({group.funds.length})
+                        </span>
 
-                    <div className="space-y-3">
-                        {group.funds.map((fund) => (
-                            <AccountabilityFundSection
-                                key={`${fund.beneficiaryId}-${fund.fundId}`}
-                                item={fund}
-                                showByAccount={showByAccount}
-                            />
-                        ))}
-                    </div>
+                        {isExpanded ? (
+                            <ChevronDown className="size-4" />
+                        ) : (
+                            <ChevronRight className="size-4" />
+                        )}
+                    </Button>
+
+                    {isExpanded && (
+                        <div className="space-y-3">
+                            {group.funds.map((fund) => {
+                                const fundKey = buildBeneficiaryFundKey(
+                                    fund.beneficiaryId,
+                                    fund.fundId,
+                                )
+
+                                const byAccountItem = byAccountItemsByFundKey.get(fundKey)
+                                const isBankExpanded = expandedBankFundKeys.has(fundKey)
+
+                                return (
+                                    <AccountabilityFundSection
+                                        key={fundKey}
+                                        item={fund}
+                                        byAccountItem={byAccountItem}
+                                        isBankExpanded={isBankExpanded}
+                                        isByAccountLoading={isByAccountLoading}
+                                        isByAccountError={isByAccountError}
+                                        onToggleBanks={() =>
+                                            onToggleFundBanks(fund.beneficiaryId, fund.fundId)
+                                        }
+                                    />
+                                )
+                            })}
+                        </div>
+                    )}
                 </div>
             </CardContent>
         </Card>
@@ -505,15 +684,24 @@ function AccountabilityBeneficiaryCard({
 
 type AccountabilityFundSectionProps = {
     item: AccountabilityListItem
-    showByAccount?: boolean
+    byAccountItem?: AccountabilityByAccountReportItem
+    isBankExpanded: boolean
+    isByAccountLoading: boolean
+    isByAccountError: boolean
+    onToggleBanks: () => void
 }
 
 function AccountabilityFundSection({
     item,
-    showByAccount = false,
+    byAccountItem,
+    isBankExpanded,
+    isByAccountLoading,
+    isByAccountError,
+    onToggleBanks,
 }: AccountabilityFundSectionProps) {
     const hasPending = item.pendingAmount > 0
     const hasOverpaid = item.pendingAmount < 0
+    const bankCount = byAccountItem?.accounts.length
 
     return (
         <div
@@ -541,11 +729,25 @@ function AccountabilityFundSection({
                 </div>
             </div>
 
-            <div className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+            <div className="mt-3 grid gap-3 text-sm sm:grid-cols-5">
                 <div>
-                    <p className="text-xs text-muted-foreground">Destinado</p>
+                    <p className="text-xs text-muted-foreground">Compromisso</p>
+                    <p className="font-medium">
+                        {formatCurrency(item.commitmentAmount)}
+                    </p>
+                </div>
+
+                <div>
+                    <p className="text-xs text-muted-foreground">Ofertas</p>
                     <p className="font-medium">
                         {formatCurrency(item.allocatedAmount)}
+                    </p>
+                </div>
+
+                <div>
+                    <p className="text-xs text-muted-foreground">Total devido</p>
+                    <p className="font-medium">
+                        {formatCurrency(item.payableAmount)}
                     </p>
                 </div>
 
@@ -564,72 +766,114 @@ function AccountabilityFundSection({
                 </div>
             </div>
 
-            {showByAccount && "accounts" in item && item.accounts.length > 0 && (
-                <div className="mt-4 space-y-3 border-t pt-3">
-                    <div>
-                        <h5 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            Detalhamento por banco
-                        </h5>
-                        <p className="text-xs text-muted-foreground">
-                            Valores agrupados pela conta/banco da transação original.
-                        </p>
-                    </div>
+            <div className="mt-4 border-t pt-3">
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-between px-0"
+                    onClick={onToggleBanks}
+                >
+                    <span className="flex items-center">
+                        <Building2 className="mr-2 size-4" />
+                        {isByAccountLoading && bankCount === undefined
+                            ? "Carregando bancos..."
+                            : isBankExpanded
+                                ? `Ocultar bancos (${bankCount ?? 0})`
+                                : `Ver bancos (${bankCount ?? 0})`}
+                    </span>
 
-                    <div className="space-y-2">
-                        {item.accounts.map((account) => (
-                            <div
-                                key={account.accountId}
-                                className="rounded-lg border bg-background p-3"
-                            >
-                                <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium">
-                                            {account.accountName}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {account.bankName ?? "Banco não informado"} •{" "}
-                                            {account.allocationCount} alocações
-                                        </p>
-                                    </div>
+                    {isBankExpanded ? (
+                        <ChevronDown className="size-4" />
+                    ) : (
+                        <ChevronRight className="size-4" />
+                    )}
+                </Button>
 
-                                    <div className="text-sm font-semibold">
-                                        {formatCurrency(account.pendingAmount)}
-                                    </div>
-                                </div>
-
-                                <div className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">
-                                            Destinado
-                                        </p>
-                                        <p className="font-medium">
-                                            {formatCurrency(account.allocatedAmount)}
-                                        </p>
-                                    </div>
-
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">
-                                            Repassado
-                                        </p>
-                                        <p className="font-medium">
-                                            {formatCurrency(account.transferredAmount)}
-                                        </p>
-                                    </div>
-
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">
-                                            A repassar
-                                        </p>
-                                        <p className="font-medium">
-                                            {formatCurrency(account.pendingAmount)}
-                                        </p>
-                                    </div>
-                                </div>
+                {isBankExpanded && (
+                    <div className="mt-3 space-y-3">
+                        {isByAccountLoading ? (
+                            <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+                                Carregando detalhamento por banco...
                             </div>
-                        ))}
+                        ) : isByAccountError ? (
+                            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                                Não foi possível carregar o detalhamento por banco.
+                            </div>
+                        ) : !byAccountItem || byAccountItem.accounts.length === 0 ? (
+                            <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+                                Nenhuma movimentação bancária encontrada para este fundo no período.
+                            </div>
+                        ) : (
+                            <>
+                                <div>
+                                    <h5 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                        Detalhamento por banco
+                                    </h5>
+                                    <p className="text-xs text-muted-foreground">
+                                        Bancos mostram movimentação real de ofertas e repasses.
+                                        O compromisso fixo não pertence a um banco específico.
+                                    </p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    {byAccountItem.accounts.map((account) => (
+                                        <div
+                                            key={account.accountId}
+                                            className="rounded-lg border bg-background p-3"
+                                        >
+                                            <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                                                <div>
+                                                    <p className="text-sm font-medium">
+                                                        {account.accountName}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {account.bankName ?? "Banco não informado"} •{" "}
+                                                        {account.allocationCount} alocações
+                                                    </p>
+                                                </div>
+
+                                                <div className="text-sm font-semibold">
+                                                    {formatCurrency(account.pendingAmount)}
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Ofertas
+                                                    </p>
+                                                    <p className="font-medium">
+                                                        {formatCurrency(account.allocatedAmount)}
+                                                    </p>
+                                                </div>
+
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Repassado
+                                                    </p>
+                                                    <p className="font-medium">
+                                                        {formatCurrency(account.transferredAmount)}
+                                                    </p>
+                                                </div>
+
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Saldo no banco
+                                                    </p>
+                                                    <p className="font-medium">
+                                                        {formatCurrency(account.pendingAmount)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )}
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     )
 }

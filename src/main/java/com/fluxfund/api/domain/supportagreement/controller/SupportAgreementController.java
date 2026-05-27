@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -32,8 +33,7 @@ public class SupportAgreementController {
     @PostMapping("/api/v1/support-agreements")
     @ResponseStatus(HttpStatus.CREATED)
     public SupportAgreementResponse create(
-            @Valid @RequestBody CreateSupportAgreementRequest request
-    ) {
+            @Valid @RequestBody CreateSupportAgreementRequest request) {
         return service.create(request);
     }
 
@@ -41,16 +41,14 @@ public class SupportAgreementController {
     public Page<SupportAgreementResponse> findAll(
             @RequestParam UUID organizationId,
             @RequestParam(required = false) Boolean active,
-            Pageable pageable
-    ) {
+            Pageable pageable) {
         return service.findAll(organizationId, active, pageable);
     }
 
     @GetMapping("/api/v1/support-agreements/{id}")
     public SupportAgreementResponse findById(
             @RequestParam UUID organizationId,
-            @PathVariable UUID id
-    ) {
+            @PathVariable UUID id) {
         return service.findById(organizationId, id);
     }
 
@@ -58,8 +56,7 @@ public class SupportAgreementController {
     public SupportAgreementResponse update(
             @RequestParam UUID organizationId,
             @PathVariable UUID id,
-            @Valid @RequestBody UpdateSupportAgreementRequest request
-    ) {
+            @Valid @RequestBody UpdateSupportAgreementRequest request) {
         return service.update(organizationId, id, request);
     }
 
@@ -67,8 +64,14 @@ public class SupportAgreementController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deactivate(
             @RequestParam UUID organizationId,
-            @PathVariable UUID id
-    ) {
+            @PathVariable UUID id) {
         service.deactivate(organizationId, id);
+    }
+
+    @PatchMapping("/api/v1/support-agreements/{id}/activate")
+    public SupportAgreementResponse activate(
+            @RequestParam UUID organizationId,
+            @PathVariable UUID id) {
+        return service.activate(organizationId, id);
     }
 }

@@ -13,6 +13,7 @@ import { CategoryResultReportPage } from "@/pages/results/category-result-report
 import { FundReportPage } from "@/pages/results/fund-report-page"
 import { AccountabilityReportPage } from "@/pages/results/accountability-report-page"
 import { SettingsPage } from "@/pages/settings-page"
+import { SupportAgreementsPage } from "@/pages/support-agreements-page"
 
 export function AppRoutes() {
   return (
@@ -23,6 +24,7 @@ export function AppRoutes() {
         <Route path="/categories" element={<CategoriesPage />} />
         <Route path="/funds" element={<FundsPage />} />
         <Route path="/beneficiaries" element={<BeneficiariesPage />} />
+        <Route path="/support-agreements" element={<SupportAgreementsPage />} />
         <Route path="/transactions" element={<TransactionsPage />} />
         <Route path="/reports" element={<ReportsPage />} />
           <Route path="/reports/category-result" element={<CategoryResultReportPage />} />
