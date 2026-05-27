@@ -300,6 +300,20 @@ public class FinancialTransactionService {
         repository.save(financialTransaction);
     }
 
+    @Transactional(readOnly = true)
+    public List<TransactionAllocationResponse> findAllByTransaction(
+            UUID organizationId,
+            UUID transactionId) {
+        FinancialTransaction transaction = repository
+                .findByIdAndOrganizationId(transactionId, organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Financial transaction not found"));
+
+        return transaction.getAllocations()
+                .stream()
+                .map(TransactionAllocationMapper::toResponse)
+                .toList();
+    }
+
     private TransactionAllocation buildAllocation(
             UUID organizationId,
             FinancialTransaction financialTransaction,
@@ -496,7 +510,6 @@ public class FinancialTransactionService {
     private void addDefaultFundAllocationIfNeeded(
             UUID organizationId,
             FinancialTransaction financialTransaction) {
-
         if (financialTransaction.getType() == FinancialTransactionType.TRANSFER) {
             return;
         }
@@ -509,27 +522,35 @@ public class FinancialTransactionService {
             return;
         }
 
+        if (financialTransaction.getSettledAmount() == null) {
+            return;
+        }
+
         if (financialTransaction.getAllocations() != null
                 && !financialTransaction.getAllocations().isEmpty()) {
             return;
         }
 
-        organizationSettingsRepository.findByOrganizationId(organizationId)
+        Fund defaultFund = organizationSettingsRepository.findByOrganizationId(organizationId)
                 .map(settings -> settings.getDefaultFund())
-                .ifPresent(defaultFund -> {
-                    CreateTransactionAllocationRequest allocationRequest = new CreateTransactionAllocationRequest(
-                            defaultFund.getId(),
-                            null,
-                            financialTransaction.getSettledAmount().abs());
+                .orElse(null);
 
-                    TransactionAllocation allocation = buildAllocation(
-                            organizationId,
-                            financialTransaction,
-                            allocationRequest);
+        if (defaultFund == null) {
+            return;
+        }
 
-                    validateBasicAllocationRules(allocation);
+        CreateTransactionAllocationRequest allocationRequest = new CreateTransactionAllocationRequest(
+                defaultFund.getId(),
+                null,
+                financialTransaction.getSettledAmount().abs());
 
-                    financialTransaction.addAllocation(allocation);
-                });
+        TransactionAllocation allocation = buildAllocation(
+                organizationId,
+                financialTransaction,
+                allocationRequest);
+
+        validateBasicAllocationRules(allocation);
+
+        financialTransaction.addAllocation(allocation);
     }
 }

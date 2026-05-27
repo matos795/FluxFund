@@ -1,4 +1,4 @@
-import { WalletCards, Pencil, Trash2 } from "lucide-react"
+import { WalletCards, Pencil, Trash2, Wand2 } from "lucide-react"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 
@@ -30,6 +30,7 @@ import { useAddTransactionAllocation } from "@/features/financial-transactions/h
 import { useUpdateTransactionAllocation } from "@/features/financial-transactions/hooks/use-update-transaction-allocation"
 import { useDeleteTransactionAllocation } from "@/features/financial-transactions/hooks/use-delete-transaction-allocation"
 import { formatCurrency } from "@/utils/formatters"
+import { useOrganizationSettings } from "@/features/organization-settings/hooks/use-organization-settings"
 
 type ManageTransactionAllocationsDialogProps = {
   transaction: FinancialTransaction
@@ -41,6 +42,9 @@ export function ManageTransactionAllocationsDialog({
   const [open, setOpen] = useState(false)
   const [editingAllocation, setEditingAllocation] =
     useState<TransactionAllocation | null>(null)
+
+  const { data: organizationSettings } = useOrganizationSettings()
+  const defaultFund = organizationSettings?.defaultFund ?? null
 
   const addAllocationMutation = useAddTransactionAllocation()
   const updateAllocationMutation = useUpdateTransactionAllocation()
@@ -102,6 +106,37 @@ export function ManageTransactionAllocationsDialog({
     )
   }
 
+  function handleAllocateRemainingToDefaultFund() {
+    if (!defaultFund) {
+      toast.error("Configure um fundo padrão antes de usar esta ação.")
+      return
+    }
+
+    if (remainingAmount <= 0) {
+      toast.error("Não há valor restante para alocar.")
+      return
+    }
+
+    addAllocationMutation.mutate(
+      {
+        transactionId: transaction.id,
+        data: {
+          fundId: defaultFund.id,
+          beneficiaryId: null,
+          amount: Math.abs(remainingAmount),
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success("Restante alocado no fundo padrão.")
+        },
+        onError: () => {
+          toast.error("Não foi possível alocar no fundo padrão.")
+        },
+      },
+    )
+  }
+
   function handleDeleteAllocation(allocation: TransactionAllocation) {
     const confirmed = window.confirm(
       "Tem certeza que deseja remover esta alocação?",
@@ -129,6 +164,13 @@ export function ManageTransactionAllocationsDialog({
 
   const isSubmitting =
     addAllocationMutation.isPending || updateAllocationMutation.isPending
+
+  const canAllocateRemainingToDefaultFund =
+    Boolean(defaultFund) &&
+    transaction.status === "SETTLED" &&
+    transaction.category !== null &&
+    transaction.type !== "TRANSFER" &&
+    remainingAmount > 0
 
   return (
     <>
@@ -191,6 +233,33 @@ export function ManageTransactionAllocationsDialog({
             </div>
           </div>
 
+          {canAllocateRemainingToDefaultFund && (
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h3 className="text-sm font-medium">
+                    Alocação rápida no fundo padrão
+                  </h3>
+
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Envie o valor restante para {defaultFund?.name}. Essa ação usa a
+                    configuração financeira da organização.
+                  </p>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleAllocateRemainingToDefaultFund}
+                  disabled={addAllocationMutation.isPending}
+                >
+                  <Wand2 className="mr-2 size-4" />
+                  Alocar restante no fundo padrão
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="rounded-lg border p-4">
             <h3 className="mb-4 text-sm font-medium">
               {editingAllocation ? "Editar alocação" : "Adicionar alocação"}
@@ -201,14 +270,14 @@ export function ManageTransactionAllocationsDialog({
               defaultValues={
                 editingAllocation
                   ? {
-                      fundId: editingAllocation.fund.id,
-                      beneficiaryId:
-                        editingAllocation.beneficiary?.id ?? "",
-                      amount: Math.abs(editingAllocation.amount),
-                    }
+                    fundId: editingAllocation.fund.id,
+                    beneficiaryId:
+                      editingAllocation.beneficiary?.id ?? "",
+                    amount: Math.abs(editingAllocation.amount),
+                  }
                   : {
-                      amount: remainingAmount,
-                    }
+                    amount: remainingAmount,
+                  }
               }
               submitLabel={
                 editingAllocation ? "Salvar alocação" : "Adicionar alocação"

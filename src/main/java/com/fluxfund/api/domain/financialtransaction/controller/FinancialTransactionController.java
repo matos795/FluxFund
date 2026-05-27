@@ -1,6 +1,7 @@
 package com.fluxfund.api.domain.financialtransaction.controller;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -162,5 +163,12 @@ public class FinancialTransactionController {
                         @RequestParam MultipartFile file) {
                 return ResponseEntity.ok(
                                 ofxImportService.importOfx(organizationId, accountId, file));
+        }
+
+        @GetMapping("/api/v1/financial-transactions/{transactionId}/allocations")
+        public List<TransactionAllocationResponse> findAllByTransaction(
+                        @RequestParam UUID organizationId,
+                        @PathVariable UUID transactionId) {
+                return service.findAllByTransaction(organizationId, transactionId);
         }
 }

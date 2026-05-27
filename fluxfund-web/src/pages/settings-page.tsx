@@ -1,0 +1,49 @@
+import { PageHeader } from "@/components/layout/page-header"
+import { Card, CardContent } from "@/components/ui/card"
+import { FinancialSettingsCard } from "@/features/organization-settings/components/financial-settings-card"
+
+export function SettingsPage() {
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Configurações"
+        description="Gerencie preferências da organização atual e regras padrão do sistema."
+      />
+
+      <div className="grid gap-6 xl:grid-cols-[260px_1fr]">
+        <Card className="h-fit">
+          <CardContent className="p-3">
+            <nav className="space-y-1">
+              <a
+                href="#financial"
+                className="block rounded-lg bg-muted px-3 py-2 text-sm font-medium"
+              >
+                Financeiro
+              </a>
+
+              <span className="block rounded-lg px-3 py-2 text-sm text-muted-foreground">
+                Organização em breve
+              </span>
+
+              <span className="block rounded-lg px-3 py-2 text-sm text-muted-foreground">
+                Usuários e permissões em breve
+              </span>
+
+              <span className="block rounded-lg px-3 py-2 text-sm text-muted-foreground">
+                Segurança em breve
+              </span>
+
+              <span className="block rounded-lg px-3 py-2 text-sm text-muted-foreground">
+                Anexos e armazenamento em breve
+              </span>
+            </nav>
+          </CardContent>
+        </Card>
+
+        <div id="financial">
+          <FinancialSettingsCard />
+        </div>
+      </div>
+    </div>
+  )
+}

@@ -5,6 +5,7 @@ import {
   HandCoins,
   LayoutDashboard,
   ReceiptText,
+  Settings,
   Tags,
   Users,
 } from "lucide-react"
@@ -48,6 +49,11 @@ const navigationItems = [
     label: "Relatórios",
     href: "/reports",
     icon: ChartNoAxesCombined,
+  },
+  {
+    label: "Configurações",
+    href: "/settings",
+    icon: Settings,
   },
 ]
 

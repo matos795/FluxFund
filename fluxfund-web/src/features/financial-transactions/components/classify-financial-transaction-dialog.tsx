@@ -55,13 +55,7 @@ export function ClassifyFinancialTransactionDialog({
         String(Math.abs(transaction.settledAmount ?? transaction.expectedAmount ?? 0)),
     )
 
-    const [allocations, setAllocations] = useState<AllocationFormItem[]>([
-        {
-            fundId: "",
-            beneficiaryId: "",
-            amount: String(Math.abs(transaction.settledAmount ?? transaction.expectedAmount ?? 0)),
-        },
-    ])
+    const [allocations, setAllocations] = useState<AllocationFormItem[]>([])
 
     const classifyTransaction = useClassifyFinancialTransaction()
 
@@ -187,9 +181,9 @@ export function ClassifyFinancialTransactionDialog({
             return
         }
 
-        if (allocatedAbsTotal < amountNumber) {
+        if (allocatedAbsTotal > 0 && allocatedAbsTotal < amountNumber) {
             const confirmed = window.confirm(
-                "O valor não foi totalmente alocado. Deseja salvar mesmo assim?",
+                "O valor foi parcialmente alocado. O restante continuará pendente e poderá ser alocado depois pelo botão de alocar restante. Deseja salvar mesmo assim?",
             )
 
             if (!confirmed) {
@@ -322,7 +316,8 @@ export function ClassifyFinancialTransactionDialog({
                             <div>
                                 <h3 className="text-sm font-medium">Alocações</h3>
                                 <p className="text-xs text-muted-foreground">
-                                    Distribua o valor entre fundos e favorecidos.
+                                    Se nenhuma alocação for informada, o sistema usará o fundo padrão.
+                                    Se houver alocação parcial, o restante continuará pendente para alocação.
                                 </p>
                             </div>
 
@@ -337,72 +332,80 @@ export function ClassifyFinancialTransactionDialog({
                             </Button>
                         </div>
 
-                        <div className="space-y-4">
-                            {allocations.map((allocation, index) => (
-                                <div
-                                    key={index}
-                                    className="grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-[1fr_1fr_140px_auto]"
-                                >
-                                    <div className="space-y-2">
-                                        <Label>Fundo</Label>
-                                        <EntityCombobox
-                                            value={allocation.fundId}
-                                            placeholder="Selecione o fundo"
-                                            searchPlaceholder="Buscar fundo..."
-                                            emptyMessage="Nenhum fundo encontrado."
-                                            options={funds.map((fund) => ({
-                                                value: fund.id,
-                                                label: fund.name,
-                                            }))}
-                                            onChange={(value) =>
-                                                handleChangeAllocation(index, "fundId", value)
-                                            }
-                                        />
-                                    </div>
+                        {allocations.length === 0 ? (
+                            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                                Se nenhuma alocação manual for informada, o sistema usará o fundo padrão da
+                                organização. Se você informar uma alocação parcial, o restante continuará
+                                pendente e poderá ser alocado depois.
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {allocations.map((allocation, index) => (
+                                    <div
+                                        key={index}
+                                        className="grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-[1fr_1fr_140px_auto]"
+                                    >
+                                        <div className="space-y-2">
+                                            <Label>Fundo</Label>
+                                            <EntityCombobox
+                                                value={allocation.fundId}
+                                                placeholder="Selecione o fundo"
+                                                searchPlaceholder="Buscar fundo..."
+                                                emptyMessage="Nenhum fundo encontrado."
+                                                options={funds.map((fund) => ({
+                                                    value: fund.id,
+                                                    label: fund.name,
+                                                }))}
+                                                onChange={(value) =>
+                                                    handleChangeAllocation(index, "fundId", value)
+                                                }
+                                            />
+                                        </div>
 
-                                    <div className="space-y-2">
-                                        <Label>Favorecido</Label>
-                                        <EntityCombobox
-                                            value={allocation.beneficiaryId}
-                                            placeholder="Sem favorecido"
-                                            searchPlaceholder="Buscar favorecido..."
-                                            emptyMessage="Nenhum favorecido encontrado."
-                                            options={beneficiaries.map((beneficiary) => ({
-                                                value: beneficiary.id,
-                                                label: beneficiary.name,
-                                            }))}
-                                            onChange={(value) =>
-                                                handleChangeAllocation(index, "beneficiaryId", value)
-                                            }
-                                        />
-                                    </div>
+                                        <div className="space-y-2">
+                                            <Label>Favorecido</Label>
+                                            <EntityCombobox
+                                                value={allocation.beneficiaryId}
+                                                placeholder="Sem favorecido"
+                                                searchPlaceholder="Buscar favorecido..."
+                                                emptyMessage="Nenhum favorecido encontrado."
+                                                options={beneficiaries.map((beneficiary) => ({
+                                                    value: beneficiary.id,
+                                                    label: beneficiary.name,
+                                                }))}
+                                                onChange={(value) =>
+                                                    handleChangeAllocation(index, "beneficiaryId", value)
+                                                }
+                                            />
+                                        </div>
 
-                                    <div className="space-y-2">
-                                        <Label>Valor</Label>
-                                        <Input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={allocation.amount}
-                                            onChange={(event) =>
-                                                handleChangeAllocation(index, "amount", event.target.value)
-                                            }
-                                        />
-                                    </div>
+                                        <div className="space-y-2">
+                                            <Label>Valor</Label>
+                                            <Input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={allocation.amount}
+                                                onChange={(event) =>
+                                                    handleChangeAllocation(index, "amount", event.target.value)
+                                                }
+                                            />
+                                        </div>
 
-                                    <div className="flex items-end">
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => handleRemoveAllocation(index)}
-                                        >
-                                            <Trash2 className="size-4 text-destructive" />
-                                        </Button>
+                                        <div className="flex items-end">
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => handleRemoveAllocation(index)}
+                                            >
+                                                <Trash2 className="size-4 text-destructive" />
+                                            </Button>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        )}
 
                         <div className="flex flex-col gap-1 border-t pt-3 text-sm sm:flex-row sm:items-center sm:justify-between">
                             <span className="text-muted-foreground">
