@@ -33,6 +33,7 @@ import com.fluxfund.api.domain.fund.Fund;
 import com.fluxfund.api.domain.fund.repository.FundRepository;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.OrganizationRepository;
+import com.fluxfund.api.domain.organizationsettings.repository.OrganizationSettingsRepository;
 import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
 import com.fluxfund.api.domain.transactionallocation.dto.CreateTransactionAllocationRequest;
 import com.fluxfund.api.domain.transactionallocation.dto.TransactionAllocationResponse;
@@ -56,6 +57,7 @@ public class FinancialTransactionService {
     private final CategoryRepository categoryRepository;
     private final FundRepository fundRepository;
     private final BeneficiaryRepository beneficiaryRepository;
+    private final OrganizationSettingsRepository organizationSettingsRepository;
 
     public FinancialTransactionResponse create(UUID organizationId, CreateFinancialTransactionRequest request) {
 
@@ -80,6 +82,8 @@ public class FinancialTransactionService {
         normalizeTransactionStatusAndAmounts(financialTransaction);
 
         addInitialAllocations(organizationId, financialTransaction, request.allocations());
+
+        addDefaultFundAllocationIfNeeded(organizationId, financialTransaction);
 
         validateTotalAllocatedAmount(financialTransaction);
 
@@ -223,6 +227,8 @@ public class FinancialTransactionService {
         financialTransaction.getAllocations().clear();
 
         addInitialAllocations(organizationId, financialTransaction, request.allocations());
+
+        addDefaultFundAllocationIfNeeded(organizationId, financialTransaction);
 
         validateTotalAllocatedAmount(financialTransaction);
 
@@ -485,5 +491,45 @@ public class FinancialTransactionService {
             throw new BusinessException(
                     "Cannot remove settlement from a transaction that has allocations");
         }
+    }
+
+    private void addDefaultFundAllocationIfNeeded(
+            UUID organizationId,
+            FinancialTransaction financialTransaction) {
+
+        if (financialTransaction.getType() == FinancialTransactionType.TRANSFER) {
+            return;
+        }
+
+        if (financialTransaction.getStatus() != FinancialTransactionStatus.SETTLED) {
+            return;
+        }
+
+        if (financialTransaction.getCategory() == null) {
+            return;
+        }
+
+        if (financialTransaction.getAllocations() != null
+                && !financialTransaction.getAllocations().isEmpty()) {
+            return;
+        }
+
+        organizationSettingsRepository.findByOrganizationId(organizationId)
+                .map(settings -> settings.getDefaultFund())
+                .ifPresent(defaultFund -> {
+                    CreateTransactionAllocationRequest allocationRequest = new CreateTransactionAllocationRequest(
+                            defaultFund.getId(),
+                            null,
+                            financialTransaction.getSettledAmount().abs());
+
+                    TransactionAllocation allocation = buildAllocation(
+                            organizationId,
+                            financialTransaction,
+                            allocationRequest);
+
+                    validateBasicAllocationRules(allocation);
+
+                    financialTransaction.addAllocation(allocation);
+                });
     }
 }
