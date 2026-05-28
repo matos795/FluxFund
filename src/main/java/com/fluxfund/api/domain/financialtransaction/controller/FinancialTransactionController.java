@@ -6,6 +6,9 @@ import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +31,7 @@ import com.fluxfund.api.domain.financialtransaction.dto.CreateFinancialTransacti
 import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.ImportOfxResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.UpdateFinancialTransactionRequest;
+import com.fluxfund.api.domain.financialtransaction.export.FinancialTransactionExcelExportService;
 import com.fluxfund.api.domain.financialtransaction.service.FinancialTransactionService;
 import com.fluxfund.api.domain.financialtransaction.service.OfxImportService;
 import com.fluxfund.api.domain.transactionallocation.dto.CreateTransactionAllocationRequest;
@@ -43,6 +47,7 @@ import lombok.RequiredArgsConstructor;
 public class FinancialTransactionController {
         private final FinancialTransactionService service;
         private final OfxImportService ofxImportService;
+        private final FinancialTransactionExcelExportService excelExportService;
 
         @PostMapping
         public ResponseEntity<FinancialTransactionResponse> create(
@@ -170,5 +175,29 @@ public class FinancialTransactionController {
                         @RequestParam UUID organizationId,
                         @PathVariable UUID transactionId) {
                 return service.findAllByTransaction(organizationId, transactionId);
+        }
+
+        @GetMapping("/export/settled.xlsx")
+        public ResponseEntity<byte[]> exportSettledTransactionsExcel(
+                        @RequestParam UUID organizationId,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+                byte[] file = excelExportService.exportSettledTransactions(
+                                organizationId,
+                                startDate,
+                                endDate);
+
+                String filename = "movimento-financeiro.xlsx";
+
+                return ResponseEntity.ok()
+                                .contentType(MediaType.parseMediaType(
+                                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                                .header(
+                                                HttpHeaders.CONTENT_DISPOSITION,
+                                                ContentDisposition.attachment()
+                                                                .filename(filename)
+                                                                .build()
+                                                                .toString())
+                                .body(file);
         }
 }

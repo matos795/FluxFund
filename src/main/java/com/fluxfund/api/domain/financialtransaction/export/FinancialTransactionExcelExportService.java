@@ -1,0 +1,615 @@
+package com.fluxfund.api.domain.financialtransaction.export;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import org.apache.poi.ss.usermodel.BorderStyle;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.DataFormat;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.fluxfund.api.domain.attachment.Attachment;
+import com.fluxfund.api.domain.attachment.AttachmentType;
+import com.fluxfund.api.domain.attachment.repository.AttachmentRepository;
+import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
+import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
+import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
+import com.fluxfund.api.domain.organization.OrganizationRepository;
+import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
+import com.fluxfund.api.shared.exception.BusinessException;
+import com.fluxfund.api.shared.exception.ResourceNotFoundException;
+
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class FinancialTransactionExcelExportService {
+
+    private final FinancialTransactionRepository financialTransactionRepository;
+    private final AttachmentRepository attachmentRepository;
+    private final OrganizationRepository organizationRepository;
+
+    public byte[] exportSettledTransactions(
+            UUID organizationId,
+            LocalDate startDate,
+            LocalDate endDate) {
+        validateOrganizationExists(organizationId);
+
+        LocalDate resolvedStartDate = startDate != null
+                ? startDate
+                : LocalDate.now().withDayOfMonth(1);
+
+        LocalDate resolvedEndDate = endDate != null
+                ? endDate
+                : LocalDate.now();
+
+        if (resolvedEndDate.isBefore(resolvedStartDate)) {
+            throw new BusinessException("End date cannot be before start date");
+        }
+
+        List<FinancialTransaction> transactions = financialTransactionRepository.findSettledIncomeAndExpenseForExport(
+                organizationId,
+                resolvedStartDate,
+                resolvedEndDate);
+
+        Map<UUID, List<Attachment>> attachmentsByTransactionId = loadAttachmentsByTransactionId(organizationId,
+                transactions);
+
+        List<FinancialTransaction> receivedTransactions = transactions.stream()
+                .filter(transaction -> transaction.getType() == FinancialTransactionType.INCOME)
+                .sorted(transactionComparator())
+                .toList();
+
+        List<FinancialTransaction> paidTransactions = transactions.stream()
+                .filter(transaction -> transaction.getType() == FinancialTransactionType.EXPENSE)
+                .sorted(transactionComparator())
+                .toList();
+
+        try (Workbook workbook = new XSSFWorkbook();
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+
+            ExcelStyles styles = createStyles(workbook);
+
+            createSummarySheet(
+                    workbook,
+                    receivedTransactions,
+                    paidTransactions,
+                    resolvedStartDate,
+                    resolvedEndDate,
+                    styles);
+
+            createTransactionsSheet(
+                    workbook,
+                    "Contas Recebidas",
+                    receivedTransactions,
+                    true,
+                    attachmentsByTransactionId,
+                    styles);
+
+            createTransactionsSheet(
+                    workbook,
+                    "Contas Pagas",
+                    paidTransactions,
+                    false,
+                    attachmentsByTransactionId,
+                    styles);
+
+            createAllTransactionsSheet(
+                    workbook,
+                    transactions.stream().sorted(transactionComparator()).toList(),
+                    attachmentsByTransactionId,
+                    styles);
+
+            workbook.write(outputStream);
+
+            return outputStream.toByteArray();
+        } catch (IOException exception) {
+            throw new BusinessException("Could not generate settled transactions Excel export");
+        }
+    }
+
+    private Map<UUID, List<Attachment>> loadAttachmentsByTransactionId(
+            UUID organizationId,
+            List<FinancialTransaction> transactions) {
+        List<UUID> transactionIds = transactions.stream()
+                .map(FinancialTransaction::getId)
+                .toList();
+
+        if (transactionIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return attachmentRepository
+                .findAllByTransactionIdsForExport(organizationId, transactionIds)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        attachment -> attachment.getFinancialTransaction().getId()));
+    }
+
+    private void createSummarySheet(
+            Workbook workbook,
+            List<FinancialTransaction> receivedTransactions,
+            List<FinancialTransaction> paidTransactions,
+            LocalDate startDate,
+            LocalDate endDate,
+            ExcelStyles styles) {
+        Sheet sheet = workbook.createSheet("Resumo");
+
+        BigDecimal receivedTotal = receivedTransactions.stream()
+                .map(this::getAbsoluteSettledAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal paidTotal = paidTransactions.stream()
+                .map(this::getAbsoluteSettledAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal netTotal = receivedTotal.subtract(paidTotal);
+
+        int rowIndex = 0;
+
+        Row titleRow = sheet.createRow(rowIndex++);
+        Cell titleCell = titleRow.createCell(0);
+        titleCell.setCellValue("Movimento Financeiro - Contas Recebidas e Pagas");
+        titleCell.setCellStyle(styles.titleStyle());
+
+        Row periodRow = sheet.createRow(rowIndex++);
+        Cell periodCell = periodRow.createCell(0);
+        periodCell.setCellValue("Período: " + startDate + " até " + endDate);
+        periodCell.setCellStyle(styles.subtitleStyle());
+
+        rowIndex++;
+
+        Row headerRow = sheet.createRow(rowIndex++);
+        createHeaderCell(headerRow, 0, "Indicador", styles);
+        createHeaderCell(headerRow, 1, "Valor", styles);
+        createHeaderCell(headerRow, 2, "Quantidade", styles);
+
+        Row receivedRow = sheet.createRow(rowIndex++);
+        createTextCell(receivedRow, 0, "Contas Recebidas", styles);
+        createMoneyCell(receivedRow, 1, receivedTotal, styles);
+        createNumberCell(receivedRow, 2, receivedTransactions.size(), styles);
+
+        Row paidRow = sheet.createRow(rowIndex++);
+        createTextCell(paidRow, 0, "Contas Pagas", styles);
+        createMoneyCell(paidRow, 1, paidTotal, styles);
+        createNumberCell(paidRow, 2, paidTransactions.size(), styles);
+
+        Row netRow = sheet.createRow(rowIndex++);
+        createTextCell(netRow, 0, "Resultado", styles);
+        createMoneyCell(netRow, 1, netTotal, styles);
+        createNumberCell(netRow, 2, receivedTransactions.size() + paidTransactions.size(), styles);
+
+        applySheetDefaults(sheet, 3, 3);
+    }
+
+    private void createTransactionsSheet(
+            Workbook workbook,
+            String sheetName,
+            List<FinancialTransaction> transactions,
+            boolean incomeSheet,
+            Map<UUID, List<Attachment>> attachmentsByTransactionId,
+            ExcelStyles styles) {
+        Sheet sheet = workbook.createSheet(sheetName);
+
+        int rowIndex = 0;
+
+        Row titleRow = sheet.createRow(rowIndex++);
+        Cell titleCell = titleRow.createCell(0);
+        titleCell.setCellValue(sheetName);
+        titleCell.setCellStyle(styles.titleStyle());
+
+        rowIndex++;
+
+        Row headerRow = sheet.createRow(rowIndex++);
+
+        createHeaderCell(headerRow, 0, "Vencimento", styles);
+        createHeaderCell(headerRow, 1, incomeSheet ? "Recebimento" : "Pagamento", styles);
+        createHeaderCell(headerRow, 2, "Mês Referência", styles);
+        createHeaderCell(headerRow, 3, "Ano", styles);
+        createHeaderCell(headerRow, 4, "Descrição", styles);
+        createHeaderCell(headerRow, 5, incomeSheet ? "Pagador" : "Fornecedor/Favorecido", styles);
+        createHeaderCell(headerRow, 6, "Valor", styles);
+        createHeaderCell(headerRow, 7, "Conta Contábil", styles);
+        createHeaderCell(headerRow, 8, "Conta Corrente", styles);
+        createHeaderCell(headerRow, 9, "Status", styles);
+        createHeaderCell(headerRow, 10, "Banco", styles);
+        createHeaderCell(headerRow, 11, "Fundos", styles);
+        createHeaderCell(headerRow, 12, "Comprovante Pgto?", styles);
+        createHeaderCell(headerRow, 13, "Anexo Fiscal?", styles);
+        createHeaderCell(headerRow, 14, "Tipos de Anexo", styles);
+        createHeaderCell(headerRow, 15, "Origem", styles);
+        createHeaderCell(headerRow, 16, "Descrição Original", styles);
+        createHeaderCell(headerRow, 17, "Documento", styles);
+        createHeaderCell(headerRow, 18, "ID", styles);
+
+        for (FinancialTransaction transaction : transactions) {
+            List<Attachment> attachments = attachmentsByTransactionId.getOrDefault(
+                    transaction.getId(),
+                    List.of());
+
+            Row row = sheet.createRow(rowIndex++);
+
+            createDateCell(row, 0, transaction.getDueDate(), styles);
+            createDateCell(row, 1, transaction.getSettlementDate(), styles);
+            createDateCell(row, 2, getReferenceMonth(transaction), styles);
+            createNumberCell(row, 3, getReferenceYear(transaction), styles);
+            createTextCell(row, 4, getDescription(transaction), styles);
+            createTextCell(row, 5, getBeneficiaryNames(transaction), styles);
+            createMoneyCell(row, 6, getAbsoluteSettledAmount(transaction), styles);
+            createTextCell(row, 7, getCategoryName(transaction), styles);
+            createTextCell(row, 8, getAccountName(transaction), styles);
+            createTextCell(row, 9, "Efetivado", styles);
+            createTextCell(row, 10, getBankName(transaction), styles);
+            createTextCell(row, 11, getFundNames(transaction), styles);
+            createTextCell(row, 12, hasPaymentProof(attachments) ? "Sim" : "Não", styles);
+            createTextCell(row, 13, hasFiscalAttachment(attachments) ? "Sim" : "Não", styles);
+            createTextCell(row, 14, getAttachmentTypeNames(attachments), styles);
+            createTextCell(row, 15, transaction.getSource().name(), styles);
+            createTextCell(row, 16, transaction.getRawDescription(), styles);
+            createTextCell(row, 17, transaction.getDocumentNumber(), styles);
+            createTextCell(row, 18, transaction.getId().toString(), styles);
+
+            if (!incomeSheet && !hasFiscalAttachment(attachments)) {
+                row.getCell(13).setCellStyle(styles.warningStyle());
+            }
+        }
+
+        applySheetDefaults(sheet, 19, 2);
+    }
+
+    private void createAllTransactionsSheet(
+            Workbook workbook,
+            List<FinancialTransaction> transactions,
+            Map<UUID, List<Attachment>> attachmentsByTransactionId,
+            ExcelStyles styles) {
+        Sheet sheet = workbook.createSheet("Todas as Transações");
+
+        int rowIndex = 0;
+
+        Row titleRow = sheet.createRow(rowIndex++);
+        Cell titleCell = titleRow.createCell(0);
+        titleCell.setCellValue("Todas as Transações Baixadas");
+        titleCell.setCellStyle(styles.titleStyle());
+
+        rowIndex++;
+
+        Row headerRow = sheet.createRow(rowIndex++);
+
+        createHeaderCell(headerRow, 0, "Tipo", styles);
+        createHeaderCell(headerRow, 1, "Vencimento", styles);
+        createHeaderCell(headerRow, 2, "Pagamento/Recebimento", styles);
+        createHeaderCell(headerRow, 3, "Mês Referência", styles);
+        createHeaderCell(headerRow, 4, "Ano", styles);
+        createHeaderCell(headerRow, 5, "Descrição", styles);
+        createHeaderCell(headerRow, 6, "Favorecido/Pagador", styles);
+        createHeaderCell(headerRow, 7, "Valor", styles);
+        createHeaderCell(headerRow, 8, "Conta Contábil", styles);
+        createHeaderCell(headerRow, 9, "Conta Corrente", styles);
+        createHeaderCell(headerRow, 10, "Status", styles);
+        createHeaderCell(headerRow, 11, "Banco", styles);
+        createHeaderCell(headerRow, 12, "Fundos", styles);
+        createHeaderCell(headerRow, 13, "Comprovante Pgto?", styles);
+        createHeaderCell(headerRow, 14, "Anexo Fiscal?", styles);
+        createHeaderCell(headerRow, 15, "Tipos de Anexo", styles);
+        createHeaderCell(headerRow, 16, "Origem", styles);
+        createHeaderCell(headerRow, 17, "Descrição Original", styles);
+        createHeaderCell(headerRow, 18, "Documento", styles);
+        createHeaderCell(headerRow, 19, "ID", styles);
+
+        for (FinancialTransaction transaction : transactions) {
+            List<Attachment> attachments = attachmentsByTransactionId.getOrDefault(
+                    transaction.getId(),
+                    List.of());
+
+            Row row = sheet.createRow(rowIndex++);
+
+            createTextCell(row, 0, translateType(transaction.getType()), styles);
+            createDateCell(row, 1, transaction.getDueDate(), styles);
+            createDateCell(row, 2, transaction.getSettlementDate(), styles);
+            createDateCell(row, 3, getReferenceMonth(transaction), styles);
+            createNumberCell(row, 4, getReferenceYear(transaction), styles);
+            createTextCell(row, 5, getDescription(transaction), styles);
+            createTextCell(row, 6, getBeneficiaryNames(transaction), styles);
+            createMoneyCell(row, 7, getAbsoluteSettledAmount(transaction), styles);
+            createTextCell(row, 8, getCategoryName(transaction), styles);
+            createTextCell(row, 9, getAccountName(transaction), styles);
+            createTextCell(row, 10, "Efetivado", styles);
+            createTextCell(row, 11, getBankName(transaction), styles);
+            createTextCell(row, 12, getFundNames(transaction), styles);
+            createTextCell(row, 13, hasPaymentProof(attachments) ? "Sim" : "Não", styles);
+            createTextCell(row, 14, hasFiscalAttachment(attachments) ? "Sim" : "Não", styles);
+            createTextCell(row, 15, getAttachmentTypeNames(attachments), styles);
+            createTextCell(row, 16, transaction.getSource().name(), styles);
+            createTextCell(row, 17, transaction.getRawDescription(), styles);
+            createTextCell(row, 18, transaction.getDocumentNumber(), styles);
+            createTextCell(row, 19, transaction.getId().toString(), styles);
+
+            if (transaction.getType() == FinancialTransactionType.EXPENSE
+                    && !hasFiscalAttachment(attachments)) {
+                row.getCell(14).setCellStyle(styles.warningStyle());
+            }
+        }
+
+        applySheetDefaults(sheet, 20, 2);
+    }
+
+    private Comparator<FinancialTransaction> transactionComparator() {
+        return Comparator
+                .comparing(
+                        FinancialTransaction::getSettlementDate,
+                        Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(
+                        FinancialTransaction::getCreatedAt,
+                        Comparator.nullsLast(Comparator.naturalOrder()));
+    }
+
+    private LocalDate getReferenceMonth(FinancialTransaction transaction) {
+        LocalDate baseDate = transaction.getSettlementDate() != null
+                ? transaction.getSettlementDate()
+                : transaction.getDueDate();
+
+        if (baseDate == null) {
+            return null;
+        }
+
+        return baseDate.withDayOfMonth(1);
+    }
+
+    private long getReferenceYear(FinancialTransaction transaction) {
+        LocalDate baseDate = transaction.getSettlementDate() != null
+                ? transaction.getSettlementDate()
+                : transaction.getDueDate();
+
+        return baseDate != null ? baseDate.getYear() : 0;
+    }
+
+    private BigDecimal getAbsoluteSettledAmount(FinancialTransaction transaction) {
+        if (transaction.getSettledAmount() != null) {
+            return transaction.getSettledAmount().abs();
+        }
+
+        return BigDecimal.ZERO;
+    }
+
+    private String getAccountName(FinancialTransaction transaction) {
+        return transaction.getAccount() != null
+                ? transaction.getAccount().getName()
+                : "";
+    }
+
+    private String getBankName(FinancialTransaction transaction) {
+        if (transaction.getAccount() == null) {
+            return "";
+        }
+
+        return transaction.getAccount().getBankName() != null
+                ? transaction.getAccount().getBankName()
+                : "";
+    }
+
+    private String getCategoryName(FinancialTransaction transaction) {
+        return transaction.getCategory() != null
+                ? transaction.getCategory().getName()
+                : "";
+    }
+
+    private String getDescription(FinancialTransaction transaction) {
+        if (transaction.getDescription() != null && !transaction.getDescription().isBlank()) {
+            return transaction.getDescription();
+        }
+
+        return transaction.getRawDescription() != null
+                ? transaction.getRawDescription()
+                : "";
+    }
+
+    private String getFundNames(FinancialTransaction transaction) {
+        return transaction.getAllocations()
+                .stream()
+                .map(TransactionAllocation::getFund)
+                .filter(fund -> fund != null)
+                .map(fund -> fund.getName())
+                .distinct()
+                .collect(Collectors.joining(", "));
+    }
+
+    private String getBeneficiaryNames(FinancialTransaction transaction) {
+        return transaction.getAllocations()
+                .stream()
+                .map(TransactionAllocation::getBeneficiary)
+                .filter(beneficiary -> beneficiary != null)
+                .map(beneficiary -> beneficiary.getName())
+                .distinct()
+                .collect(Collectors.joining(", "));
+    }
+
+    private boolean hasPaymentProof(List<Attachment> attachments) {
+        return attachments.stream()
+                .anyMatch(attachment -> attachment.getType() == AttachmentType.PROOF_OF_PAYMENT);
+    }
+
+    private boolean hasFiscalAttachment(List<Attachment> attachments) {
+        return attachments.stream()
+                .anyMatch(attachment -> attachment.getType() != AttachmentType.PROOF_OF_PAYMENT);
+    }
+
+    private String getAttachmentTypeNames(List<Attachment> attachments) {
+        return attachments.stream()
+                .map(attachment -> attachment.getType().name())
+                .distinct()
+                .collect(Collectors.joining(", "));
+    }
+
+    private String translateType(FinancialTransactionType type) {
+        if (type == FinancialTransactionType.INCOME) {
+            return "Receita";
+        }
+
+        if (type == FinancialTransactionType.EXPENSE) {
+            return "Despesa";
+        }
+
+        return "Transferência";
+    }
+
+    private void validateOrganizationExists(UUID organizationId) {
+        if (!organizationRepository.existsById(organizationId)) {
+            throw new ResourceNotFoundException("Organization not found");
+        }
+    }
+
+    private ExcelStyles createStyles(Workbook workbook) {
+        Font titleFont = workbook.createFont();
+        titleFont.setBold(true);
+        titleFont.setFontHeightInPoints((short) 16);
+
+        CellStyle titleStyle = workbook.createCellStyle();
+        titleStyle.setFont(titleFont);
+
+        Font subtitleFont = workbook.createFont();
+        subtitleFont.setFontHeightInPoints((short) 11);
+        subtitleFont.setColor(IndexedColors.GREY_50_PERCENT.getIndex());
+
+        CellStyle subtitleStyle = workbook.createCellStyle();
+        subtitleStyle.setFont(subtitleFont);
+
+        Font headerFont = workbook.createFont();
+        headerFont.setBold(true);
+        headerFont.setColor(IndexedColors.WHITE.getIndex());
+
+        CellStyle headerStyle = workbook.createCellStyle();
+        headerStyle.setFont(headerFont);
+        headerStyle.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
+        headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        headerStyle.setAlignment(HorizontalAlignment.CENTER);
+        setThinBorders(headerStyle);
+
+        CellStyle textStyle = workbook.createCellStyle();
+        textStyle.setWrapText(true);
+        setThinBorders(textStyle);
+
+        DataFormat dataFormat = workbook.createDataFormat();
+
+        CellStyle moneyStyle = workbook.createCellStyle();
+        moneyStyle.setDataFormat(dataFormat.getFormat("R$ #,##0.00"));
+        setThinBorders(moneyStyle);
+
+        CellStyle dateStyle = workbook.createCellStyle();
+        dateStyle.setDataFormat(dataFormat.getFormat("dd/mm/yyyy"));
+        setThinBorders(dateStyle);
+
+        CellStyle numberStyle = workbook.createCellStyle();
+        numberStyle.setDataFormat(dataFormat.getFormat("#,##0"));
+        setThinBorders(numberStyle);
+
+        Font warningFont = workbook.createFont();
+        warningFont.setBold(true);
+        warningFont.setColor(IndexedColors.DARK_RED.getIndex());
+
+        CellStyle warningStyle = workbook.createCellStyle();
+        warningStyle.cloneStyleFrom(textStyle);
+        warningStyle.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex());
+        warningStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        warningStyle.setFont(warningFont);
+
+        return new ExcelStyles(
+                titleStyle,
+                subtitleStyle,
+                headerStyle,
+                textStyle,
+                moneyStyle,
+                dateStyle,
+                numberStyle,
+                warningStyle);
+    }
+
+    private void createHeaderCell(Row row, int columnIndex, String value, ExcelStyles styles) {
+        Cell cell = row.createCell(columnIndex);
+        cell.setCellValue(value);
+        cell.setCellStyle(styles.headerStyle());
+    }
+
+    private void createTextCell(Row row, int columnIndex, String value, ExcelStyles styles) {
+        Cell cell = row.createCell(columnIndex);
+        cell.setCellValue(value != null ? value : "");
+        cell.setCellStyle(styles.textStyle());
+    }
+
+    private void createMoneyCell(Row row, int columnIndex, BigDecimal value, ExcelStyles styles) {
+        Cell cell = row.createCell(columnIndex);
+        cell.setCellValue(value != null ? value.doubleValue() : 0);
+        cell.setCellStyle(styles.moneyStyle());
+    }
+
+    private void createDateCell(Row row, int columnIndex, LocalDate value, ExcelStyles styles) {
+        Cell cell = row.createCell(columnIndex);
+
+        if (value != null) {
+            cell.setCellValue(value);
+        } else {
+            cell.setBlank();
+        }
+
+        cell.setCellStyle(styles.dateStyle());
+    }
+
+    private void createNumberCell(Row row, int columnIndex, long value, ExcelStyles styles) {
+        Cell cell = row.createCell(columnIndex);
+        cell.setCellValue(value);
+        cell.setCellStyle(styles.numberStyle());
+    }
+
+    private void applySheetDefaults(Sheet sheet, int numberOfColumns, int headerRowIndex) {
+        sheet.createFreezePane(0, headerRowIndex + 1);
+
+        sheet.setAutoFilter(new CellRangeAddress(
+                headerRowIndex,
+                headerRowIndex,
+                0,
+                numberOfColumns - 1));
+
+        for (int columnIndex = 0; columnIndex < numberOfColumns; columnIndex++) {
+            sheet.autoSizeColumn(columnIndex);
+            sheet.setColumnWidth(
+                    columnIndex,
+                    Math.min(sheet.getColumnWidth(columnIndex) + 1000, 18000));
+        }
+    }
+
+    private void setThinBorders(CellStyle style) {
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+    }
+
+    private record ExcelStyles(
+            CellStyle titleStyle,
+            CellStyle subtitleStyle,
+            CellStyle headerStyle,
+            CellStyle textStyle,
+            CellStyle moneyStyle,
+            CellStyle dateStyle,
+            CellStyle numberStyle,
+            CellStyle warningStyle) {
+    }
+}
