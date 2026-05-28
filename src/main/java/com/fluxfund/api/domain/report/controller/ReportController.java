@@ -4,6 +4,9 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,6 +17,7 @@ import com.fluxfund.api.domain.report.dto.accountability.AccountabilityByAccount
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportResponse;
 import com.fluxfund.api.domain.report.dto.category.CategoryResultReportResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundReportResponse;
+import com.fluxfund.api.domain.report.export.AccountabilityExcelExportService;
 import com.fluxfund.api.domain.report.service.ReportService;
 
 import lombok.RequiredArgsConstructor;
@@ -24,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 public class ReportController {
 
         private final ReportService service;
+        private final AccountabilityExcelExportService accountabilityExcelExportService;
 
         @GetMapping("/category-result")
         public ResponseEntity<CategoryResultReportResponse> getCategoryResultReport(
@@ -64,5 +69,29 @@ public class ReportController {
                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
                 return ResponseEntity.ok(
                                 service.getAccountabilityReportByAccount(organizationId, startDate, endDate));
+        }
+
+        @GetMapping("/accountability/export.xlsx")
+        public ResponseEntity<byte[]> exportAccountabilityReportExcel(
+                        @RequestParam UUID organizationId,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+                byte[] file = accountabilityExcelExportService.exportAccountabilityReport(
+                                organizationId,
+                                startDate,
+                                endDate);
+
+                String filename = "prestacao-contas.xlsx";
+
+                return ResponseEntity.ok()
+                                .contentType(MediaType.parseMediaType(
+                                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                                .header(
+                                                HttpHeaders.CONTENT_DISPOSITION,
+                                                ContentDisposition.attachment()
+                                                                .filename(filename)
+                                                                .build()
+                                                                .toString())
+                                .body(file);
         }
 }
