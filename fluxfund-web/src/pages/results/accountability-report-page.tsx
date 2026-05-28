@@ -8,6 +8,7 @@ import {
     ChevronRight,
     ChevronsDown,
     ChevronsUp,
+    FileSpreadsheet,
     HandCoins,
     Search,
     UserRound,
@@ -27,6 +28,9 @@ import { useAccountabilityReport } from "@/features/reports/hooks/use-accountabi
 import type { AccountabilityByAccountReportItem, AccountabilityReportItem } from "@/features/reports/reports-types"
 import { formatCurrency, formatDate } from "@/utils/formatters"
 import { useAccountabilityByAccountReport } from "@/features/reports/hooks/use-accountability-by-account-report"
+import { useExportAccountabilityExcel } from "@/features/reports/hooks/use-export-accountability-excel"
+import { downloadFile } from "@/utils/download-file"
+import { toast } from "sonner"
 
 const TEMP_ORGANIZATION_ID = "7b9ed617-92be-456d-81d6-dcde5841e7a0"
 
@@ -186,6 +190,8 @@ export function AccountabilityReportPage() {
         shouldLoadBankDetails,
     )
 
+    const exportAccountabilityExcelMutation = useExportAccountabilityExcel()
+
     const currentItems = report?.items ?? []
 
     const filteredItems = sortAccountabilityItems(
@@ -248,6 +254,31 @@ export function AccountabilityReportPage() {
     function collapseAllBeneficiaries() {
         setExpandedBeneficiaryIds(new Set())
         setExpandedBankFundKeys(new Set())
+    }
+
+    function handleExportExcel() {
+        exportAccountabilityExcelMutation.mutate(
+            {
+                organizationId: TEMP_ORGANIZATION_ID,
+                startDate,
+                endDate,
+            },
+            {
+                onSuccess: (blob) => {
+                    const filenameStartDate = startDate || "inicio"
+                    const filenameEndDate = endDate || "fim"
+
+                    const filename = `prestacao-contas-${filenameStartDate}-${filenameEndDate}.xlsx`
+
+                    downloadFile(blob, filename)
+
+                    toast.success("Relatório exportado com sucesso.")
+                },
+                onError: () => {
+                    toast.error("Não foi possível exportar o relatório.")
+                },
+            },
+        )
     }
 
     const hasBeneficiaryGroups = beneficiaryGroups.length > 0
@@ -374,7 +405,7 @@ export function AccountabilityReportPage() {
             </section>
 
             <section className="rounded-xl border bg-card p-4">
-                <div className="grid gap-4 lg:grid-cols-[1fr_1fr_2fr_auto] lg:items-end">
+                <div className="grid gap-4 lg:grid-cols-[1fr_1fr_2fr_auto_auto] lg:items-end">
                     <div className="space-y-2">
                         <label htmlFor="startDate" className="text-sm font-medium">
                             Data inicial
@@ -428,6 +459,18 @@ export function AccountabilityReportPage() {
                         onClick={() => setShowOnlyPending((current) => !current)}
                     >
                         {showOnlyPending ? "Mostrando saldos a repassar" : "Somente saldos a repassar"}
+                    </Button>
+
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleExportExcel}
+                        disabled={exportAccountabilityExcelMutation.isPending}
+                    >
+                        <FileSpreadsheet className="mr-2 size-4" />
+                        {exportAccountabilityExcelMutation.isPending
+                            ? "Exportando..."
+                            : "Exportar Excel"}
                     </Button>
                 </div>
             </section>

@@ -64,4 +64,16 @@ export const reportsApi = {
 
     return response.data
   },
+
+  async exportAccountabilityExcel(params: GetAccountabilityReportParams) {
+    const response = await httpClient.get<Blob>(
+      "/api/v1/reports/accountability/export.xlsx",
+      {
+        params,
+        responseType: "blob",
+      },
+    )
+
+    return response.data
+  },
 }
