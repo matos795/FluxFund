@@ -1,63 +1,91 @@
 # FluxFund Web
 
-Frontend do **FluxFund**, uma aplicação SaaS de gestão financeira desenvolvida com **React**, **TypeScript**, **Vite**, **Tailwind CSS**, **shadcn/ui**, **Axios** e **TanStack React Query**.
+Frontend do **FluxFund**, aplicação SaaS de gestão financeira desenvolvida com **React**, **TypeScript**, **Vite**, **Tailwind CSS**, **shadcn/ui**, **Axios** e **TanStack React Query**.
 
-Este frontend consome uma API REST desenvolvida em **Java 21 + Spring Boot** e tem como objetivo fornecer uma interface administrativa para gestão financeira de organizações, contas, categorias, fundos, favorecidos, transações, conciliações e relatórios.
-
----
-
-## Objetivo do frontend
-
-O `fluxfund-web` é responsável por entregar a interface visual e interativa do sistema FluxFund.
-
-Nesta fase inicial, o foco é construir uma base sólida para os CRUDs principais, validando o fluxo completo entre frontend e backend antes de evoluir para autenticação, multi-tenant real, dashboards avançados e relatórios.
-
-A primeira feature implementada foi o CRUD de **Contas**, servindo como padrão para os próximos módulos.
+> Documento atualizado em **28/05/2026** para refletir as features já implementadas, as decisões de UX da operação financeira e o roadmap até autenticação e comercialização.
 
 ---
 
-## Stack utilizada
+# Objetivo do Frontend
 
-### Core
+O frontend do FluxFund deve transformar uma operação baseada em planilhas em uma experiência clara, auditável e rápida para usuários financeiros.
 
-- **React**
-- **TypeScript**
-- **Vite**
+A interface atual prioriza:
 
-### Estilização e UI
-
-- **Tailwind CSS v4**
-- **shadcn/ui**
-- **Radix UI**
-- **Lucide React**
-- **Sonner** para toasts
-
-### Dados e API
-
-- **Axios** para chamadas HTTP
-- **TanStack React Query** para cache, loading, mutations e sincronização com a API
-
-### Formulários e validação
-
-- **React Hook Form**
-- **Zod**
-- **@hookform/resolvers**
+- cadastro das entidades financeiras básicas;
+- importação OFX e classificação de lançamentos;
+- gestão de alocações, anexos e compromissos fixos;
+- dashboard de pendências;
+- relatórios visualmente próprios para cada finalidade;
+- exportação Excel para conferência externa;
+- preparação para login, organização ativa e permissões.
 
 ---
 
-## Variáveis de ambiente
+# Stack
 
-Na raiz do projeto frontend, crie um arquivo `.env`:
+## Core
+
+- React
+- TypeScript
+- Vite
+
+## UI
+
+- Tailwind CSS v4
+- shadcn/ui
+- Radix UI
+- Lucide React
+- Sonner
+
+## Dados
+
+- Axios
+- TanStack React Query
+
+## Forms
+
+- React Hook Form
+- Zod
+- `@hookform/resolvers`
+
+---
+
+# Estado Atual das Features
+
+| Feature / página | Estado | Observação |
+|---|---|---|
+| Layout, sidebar e rotas | Implementado | Navegação administrativa base. |
+| Accounts | Implementado | CRUD integrado ao backend. |
+| Categories | Implementado | CRUD e uso nos fluxos financeiros. |
+| Funds | Implementado | CRUD e relatório de fundos. |
+| Beneficiaries | Implementado | CRUD e uso em alocações/prestação. |
+| Financial Transactions | Implementado | Fluxo principal da operação. |
+| Importação OFX | Implementado | Importação e posterior classificação. |
+| Classificação e alocações | Implementado | Inclui Fundo Padrão e alocação restante explícita. |
+| Attachments | Implementado | Upload/listagem/download/delete em transações. |
+| Settings | Implementado | Configuração de Fundo Padrão/Caixa Base. |
+| Support Agreements | Implementado | Tela de compromissos e ações de ativação/desativação. |
+| Dashboard | Implementado | Métricas e atalhos para pendências. |
+| Relatórios | Implementado | Categoria, fundos e prestação/sustento. |
+| Prestação por banco | Implementado | Expansão por favorecido > fundo > banco. |
+| Excel Prestação | Implementado | Download estilizado do relatório de sustento. |
+| Excel Movimento Financeiro | Implementado | Recebidas, pagas e transações baixadas. |
+| Login/organização ativa | Próximo bloco | Ainda existe `TEMP_ORGANIZATION_ID`. |
+
+---
+
+# Variáveis de Ambiente
+
+Arquivo `.env` na raiz do frontend:
 
 ```env
 VITE_API_BASE_URL=http://localhost:8080
 ```
 
-O prefixo `VITE_` é obrigatório para que o Vite exponha a variável ao frontend.
-
 ---
 
-## Scripts principais
+# Scripts
 
 ```bash
 npm install
@@ -66,19 +94,19 @@ npm run build
 npm run preview
 ```
 
-O ambiente de desenvolvimento roda em:
+Desenvolvimento local:
 
-```txt
+```text
 http://localhost:5173
 ```
 
 ---
 
-## Estrutura de pastas
+# Organização por Feature
 
-Estrutura base adotada:
+Estrutura esperada:
 
-```txt
+```text
 src/
 ├── api/
 │   └── http-client.ts
@@ -86,704 +114,518 @@ src/
 │   └── query-client.ts
 ├── components/
 │   ├── layout/
-│   │   ├── app-header.tsx
-│   │   ├── app-layout.tsx
-│   │   ├── app-sidebar.tsx
-│   │   └── page-header.tsx
 │   ├── pagination/
-│   │   └── page-pagination.tsx
+│   ├── form/
 │   └── ui/
-│       └── componentes gerados pelo shadcn
 ├── features/
-│   └── accounts/
-│       ├── account-labels.ts
-│       ├── account-schema.ts
-│       ├── accounts-api.ts
-│       ├── accounts-mock.ts
-│       ├── types.ts
-│       ├── components/
-│       │   ├── account-actions.tsx
-│       │   ├── account-form.tsx
-│       │   ├── accounts-table.tsx
-│       │   ├── accounts-table-skeleton.tsx
-│       │   ├── create-account-dialog.tsx
-│       │   └── edit-account-dialog.tsx
-│       └── hooks/
-│           ├── use-accounts.ts
-│           ├── use-create-account.ts
-│           ├── use-delete-account.ts
-│           └── use-update-account.ts
+│   ├── accounts/
+│   ├── categories/
+│   ├── funds/
+│   ├── beneficiaries/
+│   ├── financial-transactions/
+│   ├── attachments/
+│   ├── organization-settings/
+│   ├── support-agreements/
+│   ├── dashboard/
+│   └── reports/
 ├── pages/
 ├── routes/
 ├── types/
 └── utils/
 ```
 
----
+Padrão por feature:
 
-## Organização por feature
-
-O projeto usa uma abordagem orientada por feature.
-
-Exemplo:
-
-```txt
-features/accounts/
+```text
+features/nome-da-feature/
+├── nome-api.ts
+├── nome-types.ts
+├── nome-labels.ts
+├── nome-schema.ts
+├── hooks/
+└── components/
 ```
 
-Tudo que pertence ao domínio de contas fica dentro dessa pasta:
-
-- tipos TypeScript;
-- labels de enum;
-- schemas de formulário;
-- chamadas de API;
-- hooks com React Query;
-- tabela;
-- formulário;
-- modais;
-- ações da tabela;
-- skeleton de carregamento.
-
-Essa abordagem evita que o projeto fique espalhado e facilita replicar o padrão nos próximos CRUDs, como:
-
-```txt
-features/categories/
-features/funds/
-features/beneficiaries/
-```
+As features usam `httpClient`, não `axios` diretamente.
 
 ---
 
-## Alias de importação
+# Integração com API e React Query
 
-O projeto usa o alias `@` apontando para `src`.
+Cliente HTTP:
 
-Exemplo:
-
-```ts
-import { Button } from "@/components/ui/button"
-import { AccountsTable } from "@/features/accounts/components/accounts-table"
+```text
+src/api/http-client.ts
 ```
 
-Isso evita imports longos como:
+Até a implementação de login, as chamadas utilizam a API sem header de autenticação real e algumas features ainda enviam `TEMP_ORGANIZATION_ID`.
 
-```ts
-import { Button } from "../../../components/ui/button"
+## Query keys importantes
+
+As mutations devem invalidar as consultas afetadas.
+
+Exemplos:
+
+```text
+["financial-transactions"]
+["transaction-attachments", transactionId]
+["support-agreements"]
+["accountability-report"]
+["accountability-by-account-report"]
 ```
 
-Configuração esperada no `vite.config.ts`:
+Regra para anexos na tabela de transações:
 
-```ts
-resolve: {
-  alias: {
-    "@": path.resolve(__dirname, "./src"),
-  },
-}
-```
-
-E no TypeScript:
-
-```json
-"paths": {
-  "@/*": ["./src/*"]
-}
+```text
+Upload/delete de attachment deve invalidar tanto a lista de anexos
+quanto a consulta de financial-transactions,
+pois a coluna Docs depende dos contadores de anexos retornados pela transação.
 ```
 
 ---
 
-## Layout principal
+# Layout Principal e Rotas
 
-O frontend possui um layout administrativo fixo:
+Layout:
 
-```txt
+```text
 AppLayout
 ├── AppSidebar
 ├── AppHeader
 └── Outlet
 ```
 
-O `AppLayout` envolve as páginas principais do sistema. O React Router renderiza a página atual dentro do `Outlet`.
+Rotas implementadas/esperadas:
 
-Exemplo:
-
-```tsx
-<Route element={<AppLayout />}>
-  <Route path="/" element={<DashboardPage />} />
-  <Route path="/accounts" element={<AccountsPage />} />
-  <Route path="/categories" element={<CategoriesPage />} />
-  <Route path="/funds" element={<FundsPage />} />
-  <Route path="/beneficiaries" element={<BeneficiariesPage />} />
-  <Route path="/transactions" element={<TransactionsPage />} />
-  <Route path="/reports" element={<ReportsPage />} />
-</Route>
-```
-
----
-
-## Páginas atuais
-
-As páginas iniciais criadas são:
-
-```txt
+```text
 /
 /accounts
 /categories
 /funds
 /beneficiaries
 /transactions
+/settings
+/support-agreements
 /reports
+/reports/category-result
+/reports/funds
+/reports/accountability
 ```
 
-A tela de `Accounts` já possui integração completa com o backend.
+Próximas rotas de autenticação:
 
-As demais páginas ainda estão como estrutura visual inicial e serão evoluídas gradualmente.
+```text
+/login
+/users ou /settings/users
+```
 
 ---
 
-## Integração com API
+# Regras de Negócio refletidas na UI
 
-A integração HTTP é centralizada em:
+## Account x Fund
 
-```txt
-src/api/http-client.ts
+```text
+Account = dinheiro real / banco / caixa.
+Fund = destinação interna / projeto / orçamento.
 ```
+
+A UI não deve tratar fundo como conta bancária.
+
+## FinancialTransaction
+
+- `description` é a descrição editável/amigável;
+- `rawDescription` preserva o texto original do OFX/banco;
+- a listagem prioriza `description`, mostrando origem bancária como detalhe quando relevante;
+- canceladas não aparecem por padrão.
+
+## A classificar
+
+```text
+category == null && status != CANCELED
+```
+
+Comportamento operacional desejado na tabela:
+
+```text
+Clique na linha a classificar -> abre modal Classificar.
+Clique na linha já classificada -> abre modal Detalhes.
+Clique no menu de ações -> não dispara clique da linha.
+```
+
+## A alocar
+
+```text
+status = SETTLED
+category != null
+type != TRANSFER
+transação ainda não totalmente alocada
+```
+
+A tela diferencia visualmente:
+
+- alocada;
+- parcial;
+- a alocar.
+
+## Fundo Padrão / Caixa Base
+
+Na classificação:
+
+```text
+Sem alocação manual -> backend pode alocar 100% no fundo padrão configurado.
+Alocação parcial -> restante continua pendente.
+```
+
+Existe ação explícita para alocar o restante no fundo padrão.
+
+## Compromissos Fixos
+
+Na tela de compromissos, o usuário gerencia compromissos mensais vinculados a favorecido e fundo.
+
+Operações:
+
+- cadastrar;
+- editar;
+- desativar;
+- reativar;
+- filtrar ativos, inativos ou todos.
+
+Atenção de implementação:
+
+```text
+Ao selecionar “Todos”, a API não deve enviar active=true por padrão.
+O parâmetro active só deve ser enviado quando o filtro for Ativos ou Inativos.
+```
+
+---
+
+# TransactionsPage — Tela Operacional Principal
+
+A tela de transações é o principal ambiente de trabalho financeiro e deve priorizar rapidez e escaneabilidade.
+
+## Layout decidido
+
+```text
+PageHeader
+  -> Importar OFX
+  -> Nova transação
+  -> Exportar Excel (abre dialog de período)
+
+Barra compacta de filtros
+  -> busca
+  -> tipo
+  -> status
+  -> sem categoria
+  -> sem alocação
+  -> filtros avançados recolhíveis
+
+Card da tabela
+  -> quantidade encontrada
+  -> page size
+  -> ordenação
+  -> tabela
+```
+
+Não manter um card grande permanente para exportação, pois isso empurra a tabela para baixo.
+
+## Colunas recomendadas da tabela
+
+```text
+Situação | Data | Tipo | Descrição | Conta | Categoria | Valor | Alocação | Docs | Ações
+```
+
+Regras visuais:
+
+- descrição truncada para não dominar a tabela;
+- data deve aparecer no início do fluxo de leitura;
+- badges de status/tipo/alocação dão cor e prioridade visual;
+- ações permanecem acessíveis pelo menu;
+- coluna `Docs` informa documentação disponível.
+
+## Indicador de anexos/documentos
+
+A tabela deve sinalizar:
+
+```text
+Sem anexo                       -> neutro
+Somente comprovante pagamento   -> indicador de comprovante
+Possui anexo fiscal/documental  -> destaque positivo
+Despesa baixada sem fiscal      -> alerta visual
+```
+
+Isso ajuda a localizar gastos que ainda precisam de nota, recibo ou documentação fiscal.
+
+## Anexo pendente no Classificar
+
+Regra de UX:
+
+```text
+Sem arquivo selecionado -> pode salvar.
+Arquivo enviado -> pode salvar.
+Arquivo selecionado mas não enviado -> mostrar aviso e impedir salvar.
+```
+
+O upload é opcional; apenas não deve existir seleção esquecida aguardando envio.
+
+---
+
+# Attachments
+
+A feature de anexos está integrada ao fluxo de transações.
+
+Tipos suportados:
+
+```text
+RECEIPT
+INVOICE
+PROOF_OF_PAYMENT
+CONTRACT
+OTHER
+```
+
+Locais de uso:
+
+- modal de detalhes: leitura/download;
+- modal de classificação: upload durante conferência;
+- ação “Anexos”: gestão específica após classificação/liquidação.
+
+Comportamento React Query:
+
+```text
+upload/delete -> invalidar attachments da transação
+             -> invalidar financial-transactions para atualizar coluna Docs
+```
+
+---
+
+# Support Agreements / Compromissos
+
+Rota:
+
+```text
+/support-agreements
+```
+
+Objetivo:
+
+```text
+Gerenciar compromissos fixos de sustento por favorecido e fundo.
+```
+
+A feature possui:
+
+- tabela com filtros por ativo/inativo/todos;
+- criação e edição em dialog;
+- desativação lógica;
+- ação de reativação;
+- integração com o relatório de prestação.
+
+Atalho futuro opcional:
+
+```text
+Ação dentro de Favorecidos para abrir/cadastrar compromissos daquele beneficiário.
+```
+
+---
+
+# Relatórios
+
+## ReportsPage
+
+Central de relatórios, não dashboard. Deve apresentar cards de navegação e disponibilidade.
+
+## Resultado por Categoria
+
+Rota:
+
+```text
+/reports/category-result
+```
+
+Visual:
+
+- demonstrativo hierárquico;
+- receitas e despesas separadas;
+- categorias pai/filhas;
+- expandir/recolher grupos.
+
+## Fundos e Projetos
+
+Rota:
+
+```text
+/reports/funds
+```
+
+Visual:
+
+- painel de projetos;
+- cards por fundo;
+- destaque para saldos negativos;
+- navegação para transações filtradas pelo fundo.
+
+## Prestação de Contas / Sustento
+
+Rota:
+
+```text
+/reports/accountability
+```
+
+Regra de negócio atual:
+
+```text
+commitmentAmount  = compromissos fixos válidos no período
+allocatedAmount   = ofertas destinadas
+payableAmount     = compromisso + ofertas
+transferredAmount = repasses/utilizações
+pendingAmount     = total devido - repassado
+```
+
+Estrutura visual decidida:
+
+```text
+Card do favorecido: resumo sempre visível
+  -> Fundos vinculados recolhíveis
+      -> Bancos recolhíveis dentro de cada fundo
+```
+
+Controles:
+
+- expandir/recolher todos os favorecidos;
+- contagem de fundos no botão;
+- contagem de bancos quando os detalhes estiverem carregados;
+- carregamento por banco não deve mostrar `0` antes da consulta terminar.
+
+O detalhamento bancário mostra movimentações reais. O compromisso fixo não deve ser artificialmente atribuído a um banco.
+
+---
+
+# Exportações Excel
+
+## Prestação / Sustento
+
+Botão na tela do relatório chama download `.xlsx` estilizado com abas:
+
+- Resumo por favorecido;
+- Fundos por favorecido;
+- Detalhamento por banco.
+
+## Movimento Financeiro
+
+Na `TransactionsPage`, a exportação abre dialog de período e baixa `.xlsx` com:
+
+- Resumo;
+- Contas Recebidas;
+- Contas Pagas;
+- Todas as Transações.
+
+A aba de contas pagas deve ajudar a conferir documentos fiscais/anexos.
+
+## Exportações futuras
+
+Depois de login e segurança:
+
+- Excel do relatório de Fundos;
+- Excel do Resultado por Categoria;
+- PDF formal da Prestação;
+- CSV somente se surgir necessidade real de integração externa.
+
+---
+
+# Multi-Tenant Temporário e Próximo Passo
+
+Atualmente, algumas APIs ainda usam:
 
 ```ts
-import axios from "axios"
-
-export const httpClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080",
-})
+const TEMP_ORGANIZATION_ID = "..."
 ```
 
-As features não usam `axios` diretamente. Elas usam o `httpClient`.
+Isso é temporário e não é aceitável em produção ou venda.
 
-Exemplo:
+Próximo fluxo:
 
-```ts
-const response = await httpClient.get("/api/v1/accounts")
-```
-
----
-
-## React Query
-
-O React Query é usado para controlar dados vindos da API.
-
-Ele gerencia:
-
-- loading;
-- erro;
-- cache;
-- refetch;
-- mutations;
-- sincronização automática após alterações.
-
-A configuração global fica em:
-
-```txt
-src/app/query-client.ts
-```
-
-```ts
-import { QueryClient } from "@tanstack/react-query"
-
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-      staleTime: 1000 * 30,
-    },
-  },
-})
-```
-
-E é registrada no `main.tsx`:
-
-```tsx
-<QueryClientProvider client={queryClient}>
-  <BrowserRouter>
-    <App />
-  </BrowserRouter>
-</QueryClientProvider>
+```text
+Login JWT
+-> sessão autenticada
+-> seleção de organização ativa
+-> Axios inclui token e contexto da organização
+-> backend valida membership/role
+-> remoção do TEMP_ORGANIZATION_ID
 ```
 
 ---
 
-## Diferença entre `useQuery` e `useMutation`
+# Login, Permissões e Auditoria — Roadmap Imediato
 
-### `useQuery`
+## Fase 1 — Autenticação
 
-Usado para buscar dados.
+Frontend:
 
-Exemplo:
+- página `/login`;
+- formulários com validação;
+- armazenamento seguro da sessão definido no projeto;
+- interceptor do Axios com bearer token;
+- `ProtectedRoute`;
+- logout;
+- tratamento de sessão expirada.
 
-```ts
-GET /api/v1/accounts
+## Fase 2 — Organização ativa
+
+- buscar organizações disponíveis para o usuário;
+- seletor no header;
+- contexto/store de organização ativa;
+- invalidar queries ao trocar organização;
+- remover constantes temporárias.
+
+## Fase 3 — Roles
+
+Esconder/desabilitar ações conforme role, sem depender apenas do frontend; o backend deve ser a fonte final de autorização.
+
+Papéis:
+
+```text
+OWNER
+ADMIN
+FINANCE
+VIEWER
 ```
 
-Hook:
+## Fase 4 — Usuários e administração
 
-```ts
-useAccounts()
-```
-
-### `useMutation`
-
-Usado para alterar dados.
-
-Exemplos:
-
-```txt
-POST /api/v1/accounts
-PUT /api/v1/accounts/{id}
-DELETE /api/v1/accounts/{id}
-```
-
-Hooks:
-
-```txt
-useCreateAccount
-useUpdateAccount
-useDeleteAccount
-```
-
-Após uma mutation bem-sucedida, a listagem é atualizada usando:
-
-```ts
-queryClient.invalidateQueries({
-  queryKey: ["accounts"],
-})
-```
-
-Isso marca os dados de contas como desatualizados e força o React Query a buscar novamente a lista.
+- tela para usuários da organização;
+- convite/criação;
+- alteração de role;
+- remoção/desativação de acesso.
 
 ---
 
-## Paginação
+# Roadmap para Produto Vendável
 
-O backend usa paginação no padrão Spring Data.
+Após piloto interno seguro:
 
-A primeira página é `0`.
-
-O frontend possui um tipo genérico para respostas paginadas:
-
-```txt
-src/types/page-response.ts
-```
-
-A listagem de contas utiliza:
-
-```ts
-queryKey: ["accounts", { page, size }]
-```
-
-Isso permite que o React Query mantenha cache separado por página.
-
-Exemplo:
-
-```txt
-["accounts", { page: 0, size: 10 }]
-["accounts", { page: 1, size: 10 }]
-```
-
-Componente reutilizável atual:
-
-```txt
-src/components/pagination/page-pagination.tsx
-```
-
-Ele exibe:
-
-- página atual;
-- total de páginas;
-- total de registros;
-- botão anterior;
-- botão próxima.
-
-Recursos como `pageSize`, `sortBy`, `sortDirection`, seleção em massa e filtros avançados foram deixados para uma etapa posterior.
+- recuperação/troca de senha;
+- onboarding de organizações;
+- storage em nuvem para documentos;
+- logs e monitoramento;
+- backup/restauração;
+- testes automatizados dos fluxos financeiros críticos;
+- configuração de logo/nome nos relatórios;
+- regras configuráveis de documentos obrigatórios;
+- política de privacidade/retenção;
+- exportação completa dos dados de cada organização;
+- planos e cobrança apenas quando a base estiver madura.
 
 ---
 
-## Formulários
+# Próximo Passo Recomendado
 
-Os formulários usam:
+Após confirmar os últimos testes da `TransactionsPage` e fazer commit:
 
-- React Hook Form;
-- Zod;
-- TypeScript;
-- componentes do shadcn/ui.
-
-O schema da conta fica em:
-
-```txt
-src/features/accounts/account-schema.ts
+```text
+Implementar login JWT no backend e depois integrar /login no frontend.
 ```
 
-O formulário de conta fica em:
+Evitar iniciar novos gráficos ou telas cosméticas antes de autenticação, organização ativa e permissões.
 
-```txt
-src/features/accounts/components/account-form.tsx
-```
-
-Esse formulário é reutilizado tanto para criação quanto para edição.
-
-### Criação
-
-```tsx
-<AccountForm onSubmit={handleCreateAccount} />
-```
-
-### Edição
-
-```tsx
-<AccountForm
-  defaultValues={...}
-  submitLabel="Salvar alterações"
-  onSubmit={handleUpdateAccount}
-/>
-```
-
-Isso evita duplicação de código.
-
----
-
-## Toasts
-
-O projeto usa **Sonner** para feedback visual.
-
-Configuração global:
-
-```tsx
-<Toaster richColors position="top-right" />
-```
-
-Exemplos de uso:
-
-```ts
-toast.success("Conta criada com sucesso.")
-toast.error("Não foi possível criar a conta.")
-```
-
-Atualmente há feedback para:
-
-- criação de conta;
-- edição de conta;
-- exclusão/desativação de conta;
-- erros de operação.
-
----
-
-## Skeleton loading
-
-A tela de contas possui skeleton específico:
-
-```txt
-src/features/accounts/components/accounts-table-skeleton.tsx
-```
-
-Ele representa visualmente a tabela enquanto os dados estão sendo carregados.
-
-Por enquanto o skeleton é específico da feature `accounts`, pois reflete a estrutura da tabela de contas.
-
-No futuro, se outras tabelas repetirem o mesmo padrão, pode ser criado um componente global:
-
-```txt
-DataTableSkeleton
-```
-
-Regra prática adotada:
-
-```txt
-Se repetir 2 ou 3 vezes, abstrair para componente global.
-Se for usado uma vez, manter específico da feature.
-```
-
----
-
-## Regras de negócio refletidas no frontend
-
-O frontend respeita os principais conceitos do domínio FluxFund.
-
-### Account
-
-`Account` representa dinheiro real.
-
-Exemplos:
-
-- conta bancária;
-- caixa físico;
-- carteira;
-- conta digital.
-
-A tela de contas deve ser tratada como cadastro de locais reais onde existe saldo financeiro.
-
-### Fund
-
-`Fund` não representa conta bancária.
-
-Ele representa uma destinação interna, projeto, centro de responsabilidade ou orçamento.
-
-Fundos serão tratados em tela própria, sem serem misturados com contas.
-
-### Category
-
-`Category` representa a classificação financeira da movimentação.
-
-Categorias podem ser:
-
-- receita;
-- despesa.
-
-Também podem ter hierarquia.
-
-A regra de que uma categoria filha deve possuir o mesmo tipo da categoria pai deve ser respeitada principalmente pelo backend, mas o frontend também deve ajudar o usuário a evitar escolhas inválidas.
-
-### Beneficiary
-
-`Beneficiary` representa o favorecido, destinatário ou responsável.
-
-Exemplos:
-
-- missionário;
-- fornecedor;
-- funcionário;
-- responsável por projeto.
-
-Ele não deve ser confundido com categoria ou fundo.
-
----
-
-## Delete de Account
-
-No frontend, a ação aparece como **Excluir**.
-
-No domínio financeiro, porém, a recomendação é tratar exclusão como **desativação lógica** quando houver histórico relacionado.
-
-Isso evita quebrar:
-
-- transações antigas;
-- relatórios;
-- auditoria;
-- conciliações;
-- saldos históricos.
-
-Fluxo atual:
-
-```txt
-Usuário clica em Excluir
-→ confirma ação
-→ frontend chama DELETE
-→ backend decide se remove ou desativa
-→ tabela é atualizada
-```
-
-No futuro, o sistema pode evoluir para:
-
-```txt
-GET /api/v1/accounts?active=true
-GET /api/v1/accounts?active=false
-PATCH /api/v1/accounts/{id}/activate
-PATCH /api/v1/accounts/{id}/deactivate
-```
-
-Mas isso não é prioridade nesta fase inicial.
-
----
-
-## Multi-tenant temporário
-
-Como a autenticação real e o multi-tenant baseado no usuário logado ainda não foram implementados, o frontend utiliza temporariamente um `organizationId` fixo na integração da feature `accounts`.
-
-Exemplo:
-
-```ts
-const TEMP_ORGANIZATION_ID = "053453dd-0a51-4650-b8aa-8f17776127eb"
-```
-
-Esse valor deve ser removido no futuro, quando houver:
-
-- login real;
-- usuário autenticado;
-- organização selecionada;
-- tenant resolvido pelo backend.
-
----
-
-## DTOs e payloads
-
-Atualmente o frontend consome um `AccountResponse` completo do backend.
-
-Mesmo que a tabela não exiba todos os campos, isso é aceitável nesta fase porque:
-
-- o objeto ainda é pequeno;
-- não há dados sensíveis relevantes;
-- evita overengineering;
-- acelera a construção dos CRUDs principais.
-
-DTOs mais específicos, como:
-
-```txt
-AccountTableResponse
-AccountDetailsResponse
-AccountFormResponse
-```
-
-podem ser considerados no futuro, se houver necessidade de:
-
-- reduzir payload;
-- esconder campos;
-- melhorar performance;
-- separar visualização de edição;
-- lidar com entidades muito grandes.
-
-Para entidades mais complexas, como `FinancialTransaction`, DTOs específicos provavelmente farão mais sentido.
-
----
-
-## O que já foi implementado
-
-### Estrutura inicial
-
-- Setup com Vite + React + TypeScript
-- Tailwind CSS v4
-- shadcn/ui com Radix
-- Alias `@`
-- Layout principal
-- Sidebar
-- Header
-- Rotas principais
-- Páginas iniciais
-
-### Feature Accounts
-
-- Listagem real via backend
-- Criação via API
-- Edição via API
-- Exclusão/desativação via API
-- Toasts de sucesso e erro
-- Paginação simples
-- Loading skeleton
-- Formulário reutilizável
-- Validação com Zod
-- Integração com React Query
-- Integração com Axios
-
----
-
-## Padrão para novos CRUDs
-
-Os próximos CRUDs devem seguir o padrão da feature `accounts`.
-
-Para cada nova feature:
-
-```txt
-features/nome-da-feature/
-├── nome-api.ts
-├── nome-labels.ts
-├── nome-schema.ts
-├── types.ts
-├── components/
-│   ├── nome-table.tsx
-│   ├── nome-table-skeleton.tsx
-│   ├── nome-form.tsx
-│   ├── create-nome-dialog.tsx
-│   ├── edit-nome-dialog.tsx
-│   └── nome-actions.tsx
-└── hooks/
-    ├── use-nomes.ts
-    ├── use-create-nome.ts
-    ├── use-update-nome.ts
-    └── use-delete-nome.ts
-```
-
----
-
-## Próximos passos recomendados
-
-Ordem recomendada:
-
-```txt
-1. CRUD de Category
-2. CRUD de Fund
-3. CRUD de Beneficiary
-4. Melhorar filtros simples
-5. Adicionar sort e pageSize
-6. Melhorar seleção e ações em massa, se necessário
-7. Iniciar FinancialTransaction
-8. Iniciar TransactionAllocation
-9. Iniciar BankTransaction/OFX
-10. Autenticação real com JWT
-11. Multi-tenant baseado no usuário logado
-12. Dashboard e relatórios reais
-```
-
----
-
-## O que deixar para depois
-
-Nesta fase, não é prioridade implementar:
-
-- filtros avançados;
-- ordenação complexa;
-- seleção em massa;
-- DTOs excessivamente específicos;
-- permissões por role;
-- login real;
-- reativação de contas inativas;
-- upload de anexos;
-- dashboards com métricas reais;
-- relatórios avançados.
-
-Essas funcionalidades devem ser adicionadas depois que os CRUDs base estiverem funcionando bem.
-
----
-
-## Convenções atuais
-
-### Commits
-
-Exemplos usados:
-
-```txt
-chore: setup initial frontend routing structure
-feat: add initial app layout and pages
-feat: add accounts table with mock data
-feat: integrate accounts page with backend API
-feat: create accounts through backend API
-feat: delete accounts through backend API
-feat: edit accounts through backend API
-feat: add toast feedback to account actions
-feat: add accounts pagination
-feat: add loading skeleton to accounts table
-```
-
-### Componentes
-
-- Componentes globais ficam em `components/`.
-- Componentes específicos ficam dentro da feature.
-- Componentes de UI gerados pelo shadcn ficam em `components/ui/`.
-
-### Dados
-
-- Chamadas HTTP ficam em `*-api.ts`.
-- Busca de dados usa `useQuery`.
-- Alteração de dados usa `useMutation`.
-- Após mutations, invalidar a query principal da feature.
-
-### Formulários
-
-- Schemas ficam em `*-schema.ts`.
-- Validação deve ser feita com Zod.
-- Formulários devem ser reutilizáveis entre criação e edição sempre que possível.
-
----
-
-## Observação final
-
-O frontend do FluxFund deve evoluir de forma incremental.
-
-A prioridade atual é criar um sistema funcional, consistente e fácil de manter, sem antecipar complexidades que ainda não são necessárias.
-
-A feature `Account` serve como base de aprendizado e padrão arquitetural para os próximos módulos do sistema.
