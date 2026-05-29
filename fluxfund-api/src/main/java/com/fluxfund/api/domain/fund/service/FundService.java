@@ -16,6 +16,7 @@ import com.fluxfund.api.domain.fund.repository.FundRepository;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.OrganizationRepository;
 import com.fluxfund.api.domain.transactionallocation.repository.TransactionAllocationRepository;
+import com.fluxfund.api.security.OrganizationAccessService;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 import com.fluxfund.api.shared.util.StringNormalizer;
@@ -30,8 +31,10 @@ public class FundService {
     private final FundRepository repository;
     private final OrganizationRepository organizationRepository;
     private final TransactionAllocationRepository allocationRepository;
+    private final OrganizationAccessService organizationAccessService;
 
     public FundResponse create(CreateFundRequest request, UUID organizationId) {
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         Organization organization = organizationRepository.findByIdAndActiveTrue(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
@@ -49,6 +52,7 @@ public class FundService {
     public Page<FundResponse> findAll(
             UUID organizationId,
             Pageable pageable) {
+                organizationAccessService.requireReadAccess(organizationId);
 
         return repository
                 .findAllByOrganizationIdAndActiveTrue(organizationId, pageable)
@@ -57,6 +61,7 @@ public class FundService {
 
     @Transactional(readOnly = true)
     public FundResponse findById(UUID id, UUID organizationId) {
+        organizationAccessService.requireReadAccess(organizationId);
 
         Fund fund = findFundById(id, organizationId);
 
@@ -67,6 +72,7 @@ public class FundService {
             UUID id,
             UUID organizationId,
             UpdateFundRequest request) {
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         Fund fund = findFundById(id, organizationId);
 
@@ -85,6 +91,7 @@ public class FundService {
     }
 
     public void delete(UUID id, UUID organizationId) {
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         Fund fund = findFundById(id, organizationId);
 

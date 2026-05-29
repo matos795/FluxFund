@@ -16,6 +16,7 @@ import com.fluxfund.api.domain.category.mapper.CategoryMapper;
 import com.fluxfund.api.domain.category.repository.CategoryRepository;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.OrganizationRepository;
+import com.fluxfund.api.security.OrganizationAccessService;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 
@@ -28,8 +29,10 @@ public class CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final OrganizationRepository organizationRepository;
+    private final OrganizationAccessService organizationAccessService;
 
     public CategoryResponse create(CreateCategoryRequest request, UUID organizationId) {
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         Organization organization = organizationRepository.findByIdAndActiveTrue(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
@@ -64,6 +67,7 @@ public class CategoryService {
     public Page<CategoryResponse> findAll(
             UUID organizationId,
             Pageable pageable) {
+        organizationAccessService.requireReadAccess(organizationId);
 
         return categoryRepository
                 .findAllByOrganizationIdAndActiveTrue(organizationId, pageable)
@@ -72,6 +76,7 @@ public class CategoryService {
 
     @Transactional(readOnly = true)
     public CategoryResponse findById(UUID id, UUID organizationId) {
+        organizationAccessService.requireReadAccess(organizationId);
 
         Category category = categoryRepository.findByIdAndOrganizationIdAndActiveTrue(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
@@ -83,6 +88,7 @@ public class CategoryService {
             UUID organizationId,
             UUID id,
             UpdateCategoryRequest request) {
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         Category category = categoryRepository.findByIdAndOrganizationIdAndActiveTrue(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
@@ -122,6 +128,7 @@ public class CategoryService {
     }
 
     public void delete(UUID id, UUID organizationId) {
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         Category category = categoryRepository.findByIdAndOrganizationIdAndActiveTrue(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
