@@ -8,9 +8,9 @@ import { CreateFinancialTransactionDialog } from "@/features/financial-transacti
 import { FinancialTransactionFilters } from "@/features/financial-transactions/components/financial-transaction-filters"
 import { useAccounts } from "@/features/accounts/hooks/use-accounts"
 import { useCategories } from "@/features/categories/hooks/use-categories"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ImportOfxDialog } from "@/features/financial-transactions/components/import-ofx-dialog"
 import { useSearchParams } from "react-router-dom"
+import { ExportSettledFinancialTransactionsDialog } from "@/features/financial-transactions/components/export-settled-financial-transactions-dialog"
 
 export function TransactionsPage() {
 
@@ -87,14 +87,15 @@ export function TransactionsPage() {
   }
 
   return (
-    <div>
+    <div className="space-y-4">
       <PageHeader
         title="Transações"
         description="Acompanhe lançamentos financeiros, conciliações e movimentações oficiais."
       >
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <ImportOfxDialog />
           <CreateFinancialTransactionDialog />
+          <ExportSettledFinancialTransactionsDialog />
         </div>
       </PageHeader>
 
@@ -175,67 +176,6 @@ export function TransactionsPage() {
         onClear={handleClearFilters}
       />
 
-      <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm text-muted-foreground">
-          {data?.totalElements ?? 0} transações encontradas
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <div className="w-full sm:w-40">
-            <Select
-              value={String(size)}
-              onValueChange={(value) => {
-                setSize(Number(value))
-                setPage(0)
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Itens por página" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10 por página</SelectItem>
-                <SelectItem value="20">20 por página</SelectItem>
-                <SelectItem value="50">50 por página</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="w-full sm:w-52">
-            <Select
-              value={sort}
-              onValueChange={(value) => {
-                setSort(value)
-                setPage(0)
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Ordenar por" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="settlementDate,desc">
-                  Data mais recente
-                </SelectItem>
-                <SelectItem value="settlementDate,asc">
-                  Data mais antiga
-                </SelectItem>
-                <SelectItem value="settledAmount,desc">
-                  Maior valor baixado
-                </SelectItem>
-                <SelectItem value="settledAmount,asc">
-                  Menor valor baixado
-                </SelectItem>
-                <SelectItem value="createdAt,desc">
-                  Criação mais recente
-                </SelectItem>
-                <SelectItem value="createdAt,asc">
-                  Criação mais antiga
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
       {isLoading && (
         <div className="flex h-48 items-center justify-center rounded-lg border border-dashed">
           <p className="text-sm text-muted-foreground">
@@ -254,7 +194,20 @@ export function TransactionsPage() {
 
       {data && (
         <>
-          <FinancialTransactionsTable financialTransactions={data.content} />
+          <FinancialTransactionsTable
+            financialTransactions={data.content}
+            totalElements={data.totalElements}
+            size={size}
+            sort={sort}
+            onSizeChange={(value) => {
+              setSize(value)
+              setPage(0)
+            }}
+            onSortChange={(value) => {
+              setSort(value)
+              setPage(0)
+            }}
+          />
 
           <PagePagination
             page={data.number}

@@ -36,6 +36,14 @@ public class FinancialTransactionMapper {
     }
 
     public static FinancialTransactionResponse toResponse(FinancialTransaction financialTransaction) {
+        return toResponse(financialTransaction, 0, 0, 0);
+    }
+
+    public static FinancialTransactionResponse toResponse(
+            FinancialTransaction financialTransaction,
+            long attachmentCount,
+            long paymentProofAttachmentCount,
+            long fiscalAttachmentCount) {
         return new FinancialTransactionResponse(
                 financialTransaction.getId(),
                 AccountMapper.toSummaryResponse(financialTransaction.getAccount()),
@@ -60,7 +68,10 @@ public class FinancialTransactionMapper {
                 financialTransaction.getImportedAt(),
                 financialTransaction.getClassifiedAt(),
                 financialTransaction.getCreatedAt(),
-                financialTransaction.getUpdatedAt());
+                financialTransaction.getUpdatedAt(),
+                attachmentCount,
+                paymentProofAttachmentCount,
+                fiscalAttachmentCount);
     }
 
     public static void updateEntity(

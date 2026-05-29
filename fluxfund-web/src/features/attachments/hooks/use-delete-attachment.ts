@@ -10,6 +10,10 @@ export function useDeleteAttachment(transactionId: string) {
       queryClient.invalidateQueries({
         queryKey: ["transaction-attachments", transactionId],
       })
+
+      queryClient.invalidateQueries({
+        queryKey: ["financial-transactions"],
+      })
     },
   })
 }

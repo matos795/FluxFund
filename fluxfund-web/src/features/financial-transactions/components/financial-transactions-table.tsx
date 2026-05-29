@@ -1,157 +1,422 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useState } from "react"
+import { AlertCircle, CalendarDays, CheckCircle2, CircleDollarSign, FileCheck2, FileWarning, Paperclip } from "lucide-react"
+
 import { Badge } from "@/components/ui/badge"
-import type { FinancialTransaction } from "../financial-transaction-types"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { formatCurrency, formatDate } from "@/utils/formatters"
-import { financialTransactionStatusLabels, financialTransactionTypeLabels } from "../financial-transaction-labels"
+import type { FinancialTransaction } from "../financial-transaction-types"
+import {
+  financialTransactionStatusLabels,
+  financialTransactionTypeLabels,
+} from "../financial-transaction-labels"
+import {
+  getFinancialTransactionStatusBadgeClass,
+  getFinancialTransactionTypeBadgeClass,
+} from "../financial-transaction-badge-styles"
 import { FinancialTransactionActions } from "./financial-transaction-actions"
-import { getFinancialTransactionStatusBadgeClass, getFinancialTransactionTypeBadgeClass } from "../financial-transaction-badge-styles"
+import { ViewFinancialTransactionDialog } from "./view-financial-transaction-dialog"
+import { ClassifyFinancialTransactionDialog } from "./classify-financial-transaction-dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 type FinancialTransactionsTableProps = {
-    financialTransactions: FinancialTransaction[]
+  financialTransactions: FinancialTransaction[]
+  totalElements: number
+  size: number
+  sort: string
+  onSizeChange: (size: number) => void
+  onSortChange: (sort: string) => void
 }
 
-export function FinancialTransactionsTable({ financialTransactions }: FinancialTransactionsTableProps) {
+export function FinancialTransactionsTable({
+  financialTransactions,
+  totalElements,
+  size,
+  sort,
+  onSizeChange,
+  onSortChange,
+}: FinancialTransactionsTableProps) {
+  const [transactionToView, setTransactionToView] =
+    useState<FinancialTransaction | null>(null)
+
+  const [transactionToClassify, setTransactionToClassify] =
+    useState<FinancialTransaction | null>(null)
+
+  function handleRowClick(transaction: FinancialTransaction) {
+    if (needsClassification(transaction)) {
+      setTransactionToClassify(transaction)
+      return
+    }
+
+    setTransactionToView(transaction)
+  }
+
+  return (
+    <>
+      <Card>
+        <CardHeader className="flex flex-col gap-3 py-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <CardTitle className="text-base">Lançamentos financeiros</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              {totalElements} transações encontradas
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="w-full sm:w-36">
+              <Select
+                value={String(size)}
+                onValueChange={(value) => onSizeChange(Number(value))}
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Itens por página" />
+                </SelectTrigger>
+
+                <SelectContent>
+                  <SelectItem value="10">10 / página</SelectItem>
+                  <SelectItem value="20">20 / página</SelectItem>
+                  <SelectItem value="50">50 / página</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="w-full sm:w-44">
+              <Select value={sort} onValueChange={onSortChange}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Ordenar por" />
+                </SelectTrigger>
+
+                <SelectContent>
+                  <SelectItem value="settlementDate,desc">Mais recentes</SelectItem>
+                  <SelectItem value="settlementDate,asc">Mais antigas</SelectItem>
+                  <SelectItem value="settledAmount,desc">Maior valor</SelectItem>
+                  <SelectItem value="settledAmount,asc">Menor valor</SelectItem>
+                  <SelectItem value="createdAt,desc">Criação recente</SelectItem>
+                  <SelectItem value="createdAt,asc">Criação antiga</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-0">
+          {financialTransactions.length === 0 ? (
+            <div className="m-4 flex h-48 items-center justify-center rounded-lg border border-dashed">
+              <p className="text-sm text-muted-foreground">
+                Nenhuma transação cadastrada ainda.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[140px]">Situação</TableHead>
+                    <TableHead className="w-[110px]">Data</TableHead>
+                    <TableHead className="w-[110px]">Tipo</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead className="w-[170px]">Conta</TableHead>
+                    <TableHead className="w-[170px]">Categoria</TableHead>
+                    <TableHead className="w-[130px] text-right">Valor</TableHead>
+                    <TableHead className="w-[130px]">Alocação</TableHead>
+                    <TableHead className="w-[90px]">Docs</TableHead>
+                    <TableHead className="w-[50px]" />
+                  </TableRow>
+                </TableHeader>
+
+                <TableBody>
+                  {financialTransactions.map((transaction) => {
+                    const allocationStatus = getAllocationStatus(transaction)
+                    const displayDescription =
+                      transaction.description?.trim() ||
+                      transaction.rawDescription?.trim() ||
+                      "-"
+
+                    return (
+                      <TableRow
+                        key={transaction.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => handleRowClick(transaction)}
+                      >
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
+                            {needsClassification(transaction) ? (
+                              <Badge className="w-fit bg-orange-100 text-orange-700 hover:bg-orange-100">
+                                <AlertCircle className="mr-1 size-3" />
+                                Classificar
+                              </Badge>
+                            ) : (
+                              <Badge
+                                className={getFinancialTransactionStatusBadgeClass(
+                                  transaction.status,
+                                )}
+                              >
+                                {financialTransactionStatusLabels[transaction.status]}
+                              </Badge>
+                            )}
+
+                            {transaction.source === "OFX" && (
+                              <span className="text-xs text-muted-foreground">
+                                OFX
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-medium">
+                              {formatDate(transaction.settlementDate) ?? "-"}
+                            </span>
+                            {transaction.dueDate && (
+                              <span className="flex items-center text-xs text-muted-foreground">
+                                <CalendarDays className="mr-1 size-3" />
+                                venc. {formatDate(transaction.dueDate)}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <Badge
+                            className={getFinancialTransactionTypeBadgeClass(
+                              transaction.type,
+                            )}
+                          >
+                            {financialTransactionTypeLabels[transaction.type]}
+                          </Badge>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="max-w-[320px]">
+                            <p className="truncate font-medium">
+                              {displayDescription}
+                            </p>
+
+                            {transaction.description?.trim() &&
+                              transaction.rawDescription?.trim() &&
+                              transaction.rawDescription !== transaction.description && (
+                                <p className="truncate text-xs text-muted-foreground">
+                                  Banco: {transaction.rawDescription}
+                                </p>
+                              )}
+
+                            {!transaction.description?.trim() &&
+                              transaction.rawDescription && (
+                                <p className="truncate text-xs text-muted-foreground">
+                                  Descrição original do banco
+                                </p>
+                              )}
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="truncate font-medium">
+                              {transaction.account.name}
+                            </span>
+                            {transaction.account.bankName && (
+                              <span className="truncate text-xs text-muted-foreground">
+                                {transaction.account.bankName}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="flex max-w-[170px] flex-col">
+                            <span className="truncate">
+                              {transaction.category?.name ?? "-"}
+                            </span>
+                            {transaction.category?.parentName && (
+                              <span className="truncate text-xs text-muted-foreground">
+                                {transaction.category.parentName}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="text-right font-semibold">
+                          {transaction.settledAmount !== null
+                            ? formatCurrency(Math.abs(transaction.settledAmount))
+                            : formatCurrency(Math.abs(transaction.expectedAmount))}
+                        </TableCell>
+
+                        <TableCell>
+                          <AllocationBadge status={allocationStatus} />
+                        </TableCell>
+
+                        <TableCell>
+                          <AttachmentBadge transaction={transaction} />
+                        </TableCell>
+
+                        <TableCell onClick={(event) => event.stopPropagation()}>
+                          <FinancialTransactionActions transaction={transaction} />
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {transactionToView && (
+        <ViewFinancialTransactionDialog
+          transaction={transactionToView}
+          open={Boolean(transactionToView)}
+          onOpenChange={(open) => {
+            if (!open) setTransactionToView(null)
+          }}
+          trigger={null}
+        />
+      )}
+
+      {transactionToClassify && (
+        <ClassifyFinancialTransactionDialog
+          transaction={transactionToClassify}
+          open={Boolean(transactionToClassify)}
+          onOpenChange={(open) => {
+            if (!open) setTransactionToClassify(null)
+          }}
+          trigger={null}
+        />
+      )}
+    </>
+  )
+}
+
+function needsClassification(transaction: FinancialTransaction) {
+  return (
+    transaction.source === "OFX" &&
+    transaction.status === "SETTLED" &&
+    !transaction.category
+  )
+}
+
+type AllocationStatus = "NOT_APPLICABLE" | "FULL" | "PARTIAL" | "NONE"
+
+function getAllocationStatus(transaction: FinancialTransaction): AllocationStatus {
+  if (transaction.status !== "SETTLED") {
+    return "NOT_APPLICABLE"
+  }
+
+  const totalAllocated = transaction.allocations.reduce(
+    (total, allocation) => total + Math.abs(allocation.amount),
+    0,
+  )
+
+  const settledAmount = Math.abs(transaction.settledAmount ?? 0)
+
+  if (settledAmount <= 0) {
+    return "NOT_APPLICABLE"
+  }
+
+  const difference = Math.abs(totalAllocated - settledAmount)
+
+  if (difference < 0.01) {
+    return "FULL"
+  }
+
+  if (totalAllocated > 0) {
+    return "PARTIAL"
+  }
+
+  return "NONE"
+}
+
+function AllocationBadge({ status }: { status: AllocationStatus }) {
+  if (status === "NOT_APPLICABLE") {
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Lançamentos financeiros</CardTitle>
-            </CardHeader>
-
-            <CardContent>
-                {financialTransactions.length === 0 ? (
-                    <div className="flex h-48 items-center justify-center rounded-lg border border-dashed">
-                        <p className="text-sm text-muted-foreground">
-                            Nenhuma transação cadastrada ainda.
-                        </p>
-                    </div>
-                ) : (
-                    <div className="rounded-md border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Conta</TableHead>
-                                    <TableHead>Tipo</TableHead>
-                                    <TableHead>Descrição</TableHead>
-                                    <TableHead>Categoria</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Baixado</TableHead>
-                                    <TableHead>Baixa</TableHead>
-                                    <TableHead>Alocado?</TableHead>
-                                    <TableHead className="w-[50px]" />
-                                </TableRow>
-                            </TableHeader>
-
-                            <TableBody>
-                                {financialTransactions.map((transaction) => {
-                                    const totalAllocated = transaction.allocations.reduce(
-                                        (total, allocation) => total + allocation.amount,
-                                        0,
-                                    )
-
-                                    const settledAmount = transaction.settledAmount ?? 0
-
-                                    const allocationDifference =
-                                        Math.abs(Math.abs(totalAllocated) - Math.abs(settledAmount))
-
-                                    const isFullyAllocated =
-                                        transaction.status === "SETTLED" && allocationDifference < 0.01
-
-                                    const isPartiallyAllocated =
-                                        transaction.status === "SETTLED" && Math.abs(totalAllocated) > 0 && !isFullyAllocated
-
-                                    const displayDescription =
-                                        transaction.description?.trim() ||
-                                        transaction.rawDescription?.trim() ||
-                                        "-"
-
-                                    return (
-                                        <TableRow key={transaction.id}>
-
-                                            <TableCell>
-                                                <div className="flex flex-col">
-                                                    <span>{transaction.account.name}</span>
-                                                    {transaction.account.bankName && (
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {transaction.account.bankName}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </TableCell>
-
-                                            <TableCell>
-                                                <Badge className={getFinancialTransactionTypeBadgeClass(transaction.type)}>
-                                                    {financialTransactionTypeLabels[transaction.type]}
-                                                </Badge>
-                                            </TableCell>
-
-                                            <TableCell className="font-medium">
-                                                <div className="flex flex-col">
-                                                    <span>{displayDescription}</span>
-
-                                                    {!transaction.description?.trim() && transaction.rawDescription && (
-                                                        <span className="text-xs text-muted-foreground">
-                                                            Descrição original do banco
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </TableCell>
-
-                                            <TableCell>
-                                                <div className="flex flex-col">
-                                                    <span>{transaction.category?.name ?? "-"}</span>
-                                                    {transaction.category?.parentName && (
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {transaction.category.parentName}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </TableCell>
-
-                                            <TableCell>
-                                                <Badge className={getFinancialTransactionStatusBadgeClass(transaction.status)}>
-                                                    {financialTransactionStatusLabels[transaction.status]}
-                                                </Badge>
-                                            </TableCell>
-
-                                            <TableCell className="font-medium">
-                                                {transaction.settledAmount !== null
-                                                    ? formatCurrency(transaction.settledAmount)
-                                                    : "-"}
-                                            </TableCell>
-
-                                            <TableCell>{formatDate(transaction.settlementDate) ?? "-"}</TableCell>
-
-                                            <TableCell>
-                                                {transaction.status !== "SETTLED" ? (
-                                                    <Badge variant="outline">Não aplicável</Badge>
-                                                ) : isFullyAllocated ? (
-                                                    <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                                                        Sim
-                                                    </Badge>
-                                                ) : isPartiallyAllocated ? (
-                                                    <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
-                                                        Parcial
-                                                    </Badge>
-                                                ) : (
-                                                    <Badge variant="outline">Não</Badge>
-                                                )}
-                                            </TableCell>
-
-                                            <TableCell>
-                                                <FinancialTransactionActions
-                                                    transaction={transaction}
-                                                />
-                                            </TableCell>
-                                        </TableRow>
-                                    )
-                                })}
-                            </TableBody>
-                        </Table>
-                    </div>
-                )
-                }
-            </CardContent>
-        </Card>
+      <Badge variant="outline" className="text-muted-foreground">
+        -
+      </Badge>
     )
+  }
+
+  if (status === "FULL") {
+    return (
+      <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+        <CheckCircle2 className="mr-1 size-3" />
+        Alocada
+      </Badge>
+    )
+  }
+
+  if (status === "PARTIAL") {
+    return (
+      <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
+        <CircleDollarSign className="mr-1 size-3" />
+        Parcial
+      </Badge>
+    )
+  }
+
+  return (
+    <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100">
+      <AlertCircle className="mr-1 size-3" />
+      A alocar
+    </Badge>
+  )
+}
+
+function AttachmentBadge({
+  transaction,
+}: {
+  transaction: FinancialTransaction
+}) {
+  const attachmentCount = transaction.attachmentCount ?? 0
+  const fiscalCount = transaction.fiscalAttachmentCount ?? 0
+  const paymentProofCount = transaction.paymentProofAttachmentCount ?? 0
+
+  if (attachmentCount === 0) {
+    if (transaction.type === "EXPENSE" && transaction.status === "SETTLED") {
+      return (
+        <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
+          <FileWarning className="mr-1 size-3" />
+          Fiscal
+        </Badge>
+      )
+    }
+
+    return (
+      <Badge variant="outline" className="text-muted-foreground">
+        -
+      </Badge>
+    )
+  }
+
+  if (transaction.type === "EXPENSE" && fiscalCount === 0) {
+    return (
+      <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
+        <FileWarning className="mr-1 size-3" />
+        {attachmentCount}
+      </Badge>
+    )
+  }
+
+  if (fiscalCount > 0) {
+    return (
+      <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+        <FileCheck2 className="mr-1 size-3" />
+        {attachmentCount}
+      </Badge>
+    )
+  }
+
+  return (
+    <Badge variant="secondary">
+      <Paperclip className="mr-1 size-3" />
+      {paymentProofCount || attachmentCount}
+    </Badge>
+  )
 }

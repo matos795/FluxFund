@@ -4,8 +4,11 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fluxfund.api.domain.account.Account;
 import com.fluxfund.api.domain.account.repository.AccountRepository;
+import com.fluxfund.api.domain.attachment.dto.AttachmentCountByTransactionProjection;
+import com.fluxfund.api.domain.attachment.repository.AttachmentRepository;
 import com.fluxfund.api.domain.beneficiary.Beneficiary;
 import com.fluxfund.api.domain.beneficiary.repository.BeneficiaryRepository;
 import com.fluxfund.api.domain.category.Category;
@@ -58,6 +63,7 @@ public class FinancialTransactionService {
     private final FundRepository fundRepository;
     private final BeneficiaryRepository beneficiaryRepository;
     private final OrganizationSettingsRepository organizationSettingsRepository;
+    private final AttachmentRepository attachmentRepository;
 
     public FinancialTransactionResponse create(UUID organizationId, CreateFinancialTransactionRequest request) {
 
@@ -108,7 +114,7 @@ public class FinancialTransactionService {
             UUID fundId,
             Pageable pageable) {
 
-        return repository
+        Page<FinancialTransaction> transactions = repository
                 .findAll(FinancialTransactionSpecification.withFilters(
                         organizationId,
                         type,
@@ -122,8 +128,30 @@ public class FinancialTransactionService {
                         onlyUnclassified,
                         onlyUnallocated,
                         fundId),
-                        pageable)
-                .map(FinancialTransactionMapper::toResponse);
+                        pageable);
+
+        List<UUID> transactionIds = transactions.getContent()
+                .stream()
+                .map(FinancialTransaction::getId)
+                .toList();
+
+        Map<UUID, AttachmentCountByTransactionProjection> attachmentCounts = transactionIds.isEmpty()
+                ? Map.of()
+                : attachmentRepository.countByTransactionIds(organizationId, transactionIds)
+                        .stream()
+                        .collect(Collectors.toMap(
+                                AttachmentCountByTransactionProjection::financialTransactionId,
+                                Function.identity()));
+
+        return transactions.map(transaction -> {
+            AttachmentCountByTransactionProjection count = attachmentCounts.get(transaction.getId());
+
+            return FinancialTransactionMapper.toResponse(
+                    transaction,
+                    count != null ? count.totalCount() : 0,
+                    count != null ? count.paymentProofCount() : 0,
+                    count != null ? count.fiscalCount() : 0);
+        });
     }
 
     @Transactional(readOnly = true)

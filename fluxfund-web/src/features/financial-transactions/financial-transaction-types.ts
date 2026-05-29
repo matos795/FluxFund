@@ -59,6 +59,10 @@ export type FinancialTransaction = {
 
   createdAt: string
   updatedAt: string
+
+  attachmentCount: number
+  paymentProofAttachmentCount: number
+  fiscalAttachmentCount: number
 }
 
 export type CreateFinancialTransactionRequest = {

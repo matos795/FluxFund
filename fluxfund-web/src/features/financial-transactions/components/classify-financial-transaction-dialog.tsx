@@ -38,12 +38,21 @@ type AllocationFormItem = {
 
 type ClassifyFinancialTransactionDialogProps = {
     transaction: FinancialTransaction
+    open?: boolean
+    onOpenChange?: (open: boolean) => void
+    trigger?: React.ReactNode | null
 }
 
 export function ClassifyFinancialTransactionDialog({
     transaction,
+    open,
+    onOpenChange,
+    trigger,
 }: ClassifyFinancialTransactionDialogProps) {
-    const [open, setOpen] = useState(false)
+    const [internalOpen, setInternalOpen] = useState(false)
+
+    const dialogOpen = open ?? internalOpen
+    const setDialogOpen = onOpenChange ?? setInternalOpen
 
     const [type, setType] = useState(transaction.type)
     const [categoryId, setCategoryId] = useState(transaction.category?.id ?? "")
@@ -56,6 +65,8 @@ export function ClassifyFinancialTransactionDialog({
     )
 
     const [allocations, setAllocations] = useState<AllocationFormItem[]>([])
+
+    const [hasPendingAttachmentUpload, setHasPendingAttachmentUpload] = useState(false)
 
     const classifyTransaction = useClassifyFinancialTransaction()
 
@@ -125,6 +136,13 @@ export function ClassifyFinancialTransactionDialog({
 
     function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault()
+
+        if (hasPendingAttachmentUpload) {
+            toast.error(
+                'Você selecionou um arquivo, mas ainda não o enviou. Clique em "Enviar" no anexo ou remova a seleção antes de salvar a classificação.',
+            )
+            return
+        }
 
         if (!type) {
             toast.error("Selecione o tipo da transação.")
@@ -209,7 +227,7 @@ export function ClassifyFinancialTransactionDialog({
             {
                 onSuccess: () => {
                     toast.success("Transação classificada com sucesso.")
-                    setOpen(false)
+                    setDialogOpen(false)
                 },
                 onError: () => {
                     toast.error("Não foi possível classificar a transação.")
@@ -219,16 +237,20 @@ export function ClassifyFinancialTransactionDialog({
     }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DropdownMenuItem
-                onSelect={(event) => {
-                    event.preventDefault()
-                    setOpen(true)
-                }}
-            >
-                <Check className="mr-2 size-4" />
-                Classificar
-            </DropdownMenuItem>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            {trigger === undefined ? (
+                <DropdownMenuItem
+                    onSelect={(event) => {
+                        event.preventDefault()
+                        setDialogOpen(true)
+                    }}
+                >
+                    <Check className="mr-2 size-4" />
+                    Classificar
+                </DropdownMenuItem>
+            ) : (
+                trigger
+            )}
 
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
                 <DialogHeader>
@@ -428,7 +450,7 @@ export function ClassifyFinancialTransactionDialog({
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={() => setOpen(false)}
+                            onClick={() => setDialogOpen(false)}
                         >
                             Cancelar
                         </Button>
@@ -441,8 +463,9 @@ export function ClassifyFinancialTransactionDialog({
 
                 <TransactionAttachmentsSection
                     transactionId={transaction.id}
-                    enabled={open}
+                    enabled={dialogOpen}
                     mode="manage"
+                    onPendingUploadChange={setHasPendingAttachmentUpload}
                 />
             </DialogContent>
         </Dialog>

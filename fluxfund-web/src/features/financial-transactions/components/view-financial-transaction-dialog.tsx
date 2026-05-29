@@ -32,12 +32,21 @@ import { TransactionAttachmentsSection } from "@/features/attachments/components
 
 type ViewFinancialTransactionDialogProps = {
   transaction: FinancialTransaction
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  trigger?: React.ReactNode | null
 }
 
 export function ViewFinancialTransactionDialog({
   transaction,
+  open,
+  onOpenChange,
+  trigger,
 }: ViewFinancialTransactionDialogProps) {
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+
+  const dialogOpen = open ?? internalOpen
+  const setDialogOpen = onOpenChange ?? setInternalOpen
 
   const totalAllocated = useMemo(() => {
     return transaction.allocations.reduce(
@@ -57,17 +66,21 @@ export function ViewFinancialTransactionDialog({
 
   return (
     <>
-      <DropdownMenuItem
-        onSelect={(event) => {
-          event.preventDefault()
-          setOpen(true)
-        }}
-      >
-        <Eye className="mr-2 size-4" />
-        Detalhes
-      </DropdownMenuItem>
+      {trigger === undefined ? (
+        <DropdownMenuItem
+          onSelect={(event) => {
+            event.preventDefault()
+            setDialogOpen(true)
+          }}
+        >
+          <Eye className="mr-2 size-4" />
+          Detalhes
+        </DropdownMenuItem>
+      ) : (
+        trigger
+      )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>Detalhes da transação</DialogTitle>

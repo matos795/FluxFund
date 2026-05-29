@@ -199,3 +199,29 @@ export async function classifyFinancialTransaction({
 
   return response.data
 }
+
+export type ExportSettledFinancialTransactionsParams = {
+  organizationId: string
+  startDate?: string
+  endDate?: string
+}
+
+export async function exportSettledFinancialTransactionsExcel({
+  organizationId,
+  startDate,
+  endDate,
+}: ExportSettledFinancialTransactionsParams) {
+  const response = await httpClient.get<Blob>(
+    "/api/v1/financial-transactions/export/settled.xlsx",
+    {
+      params: {
+        organizationId,
+        startDate,
+        endDate,
+      },
+      responseType: "blob",
+    },
+  )
+
+  return response.data
+}

@@ -10,6 +10,10 @@ export function useUploadAttachment(transactionId: string) {
       queryClient.invalidateQueries({
         queryKey: ["transaction-attachments", transactionId],
       })
+
+      queryClient.invalidateQueries({
+        queryKey: ["financial-transactions"],
+      })
     },
   })
 }

@@ -1,5 +1,5 @@
 import { Download, FileText, Paperclip, Trash2, Upload } from "lucide-react"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import {
@@ -43,12 +43,14 @@ type TransactionAttachmentsSectionProps = {
     transactionId: string
     enabled?: boolean
     mode?: "readonly" | "manage"
+    onPendingUploadChange?: (hasPendingUpload: boolean) => void
 }
 
 export function TransactionAttachmentsSection({
     transactionId,
     enabled = true,
     mode = "manage",
+    onPendingUploadChange,
 }: TransactionAttachmentsSectionProps) {
 
     const canManage = mode === "manage"
@@ -57,6 +59,11 @@ export function TransactionAttachmentsSection({
 
     const [type, setType] = useState<AttachmentType>("PROOF_OF_PAYMENT")
     const [file, setFile] = useState<File | null>(null)
+
+    useEffect(() => {
+        onPendingUploadChange?.(Boolean(file))
+    }, [file, onPendingUploadChange])
+
     const [attachmentToDelete, setAttachmentToDelete] = useState<Attachment | null>(null)
 
     const attachmentsQuery = useTransactionAttachments(transactionId, enabled)
@@ -162,6 +169,11 @@ export function TransactionAttachmentsSection({
                             type="file"
                             onChange={handleFileChange}
                         />
+                        {file && (
+                            <p className="text-xs text-amber-700">
+                                Arquivo selecionado aguardando envio. Clique em "Enviar" para salvá-lo.
+                            </p>
+                        )}
                     </div>
 
                     <div className="flex items-end">
