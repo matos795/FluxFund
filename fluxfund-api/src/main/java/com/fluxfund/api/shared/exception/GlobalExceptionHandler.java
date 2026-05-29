@@ -108,4 +108,19 @@ public class GlobalExceptionHandler {
 
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
         }
+
+        @ExceptionHandler(ForbiddenException.class)
+        public ResponseEntity<ApiErrorResponse> handleForbidden(
+                        ForbiddenException ex,
+                        HttpServletRequest request) {
+
+                ApiErrorResponse error = new ApiErrorResponse(
+                                LocalDateTime.now(),
+                                HttpStatus.FORBIDDEN.value(),
+                                "Forbidden",
+                                ex.getMessage(),
+                                request.getRequestURI());
+
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+        }
 }

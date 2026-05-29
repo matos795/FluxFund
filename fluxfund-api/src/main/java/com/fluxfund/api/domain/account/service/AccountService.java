@@ -14,6 +14,7 @@ import com.fluxfund.api.domain.account.mapper.AccountMapper;
 import com.fluxfund.api.domain.account.repository.AccountRepository;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.OrganizationRepository;
+import com.fluxfund.api.security.OrganizationAccessService;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 
 import lombok.RequiredArgsConstructor;
@@ -25,8 +26,10 @@ public class AccountService {
     private final AccountRepository accountRepository;
     private final OrganizationRepository organizationRepository;
     private final AccountMapper mapper;
+    private final OrganizationAccessService organizationAccessService;
 
     public AccountResponse create(CreateAccountRequest request, UUID organizationId) {
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         Organization organization = organizationRepository.findByIdAndActiveTrue(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
@@ -41,6 +44,7 @@ public class AccountService {
     public Page<AccountResponse> findAll(
             UUID organizationId,
             Pageable pageable) {
+        organizationAccessService.requireReadAccess(organizationId);
 
         return accountRepository
                 .findAllByOrganizationIdAndActiveTrue(organizationId, pageable)
@@ -48,6 +52,7 @@ public class AccountService {
     }
 
     public AccountResponse findById(UUID id, UUID organizationId) {
+        organizationAccessService.requireReadAccess(organizationId);
 
         Account account = accountRepository.findByIdAndOrganizationIdAndActiveTrue(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
@@ -59,6 +64,7 @@ public class AccountService {
             UUID id,
             UUID organizationId,
             UpdateAccountRequest request) {
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         Account account = accountRepository.findByIdAndOrganizationIdAndActiveTrue(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
@@ -70,6 +76,7 @@ public class AccountService {
     }
 
     public void delete(UUID id, UUID organizationId) {
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         Account account = accountRepository.findByIdAndOrganizationIdAndActiveTrue(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
