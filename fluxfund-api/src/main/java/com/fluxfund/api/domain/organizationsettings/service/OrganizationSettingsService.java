@@ -14,6 +14,7 @@ import com.fluxfund.api.domain.organizationsettings.dto.OrganizationSettingsResp
 import com.fluxfund.api.domain.organizationsettings.dto.UpdateOrganizationSettingsRequest;
 import com.fluxfund.api.domain.organizationsettings.mapper.OrganizationSettingsMapper;
 import com.fluxfund.api.domain.organizationsettings.repository.OrganizationSettingsRepository;
+import com.fluxfund.api.security.OrganizationAccessService;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 
 import lombok.RequiredArgsConstructor;
@@ -26,15 +27,20 @@ public class OrganizationSettingsService {
     private final OrganizationRepository organizationRepository;
     private final OrganizationSettingsRepository repository;
     private final FundRepository fundRepository;
+    private final OrganizationAccessService organizationAccessService;
 
     @Transactional(readOnly = true)
     public OrganizationSettingsResponse findByOrganization(UUID organizationId) {
+        organizationAccessService.requireReadAccess(organizationId);
+
         OrganizationSettings settings = findOrCreateSettings(organizationId);
 
         return OrganizationSettingsMapper.toResponse(settings);
     }
 
     public OrganizationSettingsResponse update(UUID organizationId, UpdateOrganizationSettingsRequest request) {
+        organizationAccessService.requireAdminAccess(organizationId);
+        
         OrganizationSettings settings = findOrCreateSettings(organizationId);
 
         Fund defaultFund = null;

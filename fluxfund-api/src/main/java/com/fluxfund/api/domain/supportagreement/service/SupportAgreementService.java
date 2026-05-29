@@ -19,6 +19,7 @@ import com.fluxfund.api.domain.supportagreement.dto.SupportAgreementResponse;
 import com.fluxfund.api.domain.supportagreement.dto.UpdateSupportAgreementRequest;
 import com.fluxfund.api.domain.supportagreement.mapper.SupportAgreementMapper;
 import com.fluxfund.api.domain.supportagreement.repository.SupportAgreementRepository;
+import com.fluxfund.api.security.OrganizationAccessService;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 
@@ -33,8 +34,11 @@ public class SupportAgreementService {
     private final OrganizationRepository organizationRepository;
     private final BeneficiaryRepository beneficiaryRepository;
     private final FundRepository fundRepository;
+    private final OrganizationAccessService organizationAccessService;
 
     public SupportAgreementResponse create(CreateSupportAgreementRequest request) {
+        organizationAccessService.requireFinanceWriteAccess(request.organizationId());
+        
         validateDates(request.startDate(), request.endDate());
 
         Organization organization = organizationRepository.findById(request.organizationId())
@@ -77,6 +81,7 @@ public class SupportAgreementService {
             UUID organizationId,
             Boolean active,
             Pageable pageable) {
+        organizationAccessService.requireReadAccess(organizationId);
         Page<SupportAgreement> agreements;
 
         if (active == null) {
@@ -92,6 +97,8 @@ public class SupportAgreementService {
 
     @Transactional(readOnly = true)
     public SupportAgreementResponse findById(UUID organizationId, UUID id) {
+        organizationAccessService.requireReadAccess(organizationId);
+
         SupportAgreement agreement = findEntityById(organizationId, id);
 
         return SupportAgreementMapper.toResponse(agreement);
@@ -101,6 +108,8 @@ public class SupportAgreementService {
             UUID organizationId,
             UUID id,
             UpdateSupportAgreementRequest request) {
+            organizationAccessService.requireFinanceWriteAccess(organizationId);
+
         validateDates(request.startDate(), request.endDate());
 
         SupportAgreement agreement = findEntityById(organizationId, id);
@@ -127,6 +136,8 @@ public class SupportAgreementService {
     }
 
     public void deactivate(UUID organizationId, UUID id) {
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
+
         SupportAgreement agreement = findEntityById(organizationId, id);
         agreement.setActive(false);
 
@@ -134,6 +145,8 @@ public class SupportAgreementService {
     }
 
     public SupportAgreementResponse activate(UUID organizationId, UUID id) {
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
+        
         SupportAgreement agreement = findEntityById(organizationId, id);
 
         if (agreement.getActive()) {
