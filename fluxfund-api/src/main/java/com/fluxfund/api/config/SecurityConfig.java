@@ -16,6 +16,9 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
+import com.fluxfund.api.security.RestAccessDeniedHandler;
+import com.fluxfund.api.security.RestAuthenticationEntryPoint;
+
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
@@ -29,6 +32,7 @@ public class SecurityConfig {
         AuthenticationProvider authenticationProvider(
                         UserDetailsService userDetailsService,
                         PasswordEncoder passwordEncoder) {
+
                 DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
 
                 provider.setPasswordEncoder(passwordEncoder);
@@ -39,19 +43,26 @@ public class SecurityConfig {
         @Bean
         AuthenticationManager authenticationManager(
                         AuthenticationConfiguration configuration) throws Exception {
+
                 return configuration.getAuthenticationManager();
         }
 
         @Bean
         SecurityFilterChain securityFilterChain(
                         HttpSecurity http,
-                        AuthenticationProvider authenticationProvider) throws Exception {
+                        AuthenticationProvider authenticationProvider,
+                        RestAuthenticationEntryPoint authenticationEntryPoint,
+                        RestAccessDeniedHandler accessDeniedHandler) throws Exception {
+
                 return http
                                 .csrf(csrf -> csrf.disable())
                                 .cors(Customizer.withDefaults())
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .authenticationProvider(authenticationProvider)
+                                .exceptionHandling(exceptions -> exceptions
+                                                .authenticationEntryPoint(authenticationEntryPoint)
+                                                .accessDeniedHandler(accessDeniedHandler))
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
                                                 .requestMatchers(
@@ -64,7 +75,10 @@ public class SecurityConfig {
                                                                 "/api/organizations/**")
                                                 .denyAll()
                                                 .anyRequest().authenticated())
-                                .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
+                                .oauth2ResourceServer(oauth2 -> oauth2
+                                                .authenticationEntryPoint(authenticationEntryPoint)
+                                                .accessDeniedHandler(accessDeniedHandler)
+                                                .jwt(Customizer.withDefaults()))
                                 .build();
         }
 }
