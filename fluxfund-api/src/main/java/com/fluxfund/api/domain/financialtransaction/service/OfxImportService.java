@@ -23,6 +23,7 @@ import com.fluxfund.api.domain.financialtransaction.dto.ImportOfxResponse;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.OrganizationRepository;
+import com.fluxfund.api.security.OrganizationAccessService;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 import com.webcohesion.ofx4j.domain.data.MessageSetType;
@@ -43,11 +44,13 @@ public class OfxImportService {
     private final FinancialTransactionRepository financialTransactionRepository;
     private final OrganizationRepository organizationRepository;
     private final AccountRepository accountRepository;
+    private final OrganizationAccessService organizationAccessService;
 
     public ImportOfxResponse importOfx(
             UUID organizationId,
             UUID accountId,
             MultipartFile file) {
+            organizationAccessService.requireFinanceWriteAccess(organizationId);
         validateFile(file);
 
         Organization organization = organizationRepository.findByIdAndActiveTrue(organizationId)

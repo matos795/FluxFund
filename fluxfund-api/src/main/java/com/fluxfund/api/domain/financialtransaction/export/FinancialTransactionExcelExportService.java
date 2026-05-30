@@ -34,6 +34,7 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
 import com.fluxfund.api.domain.organization.OrganizationRepository;
 import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
+import com.fluxfund.api.security.OrganizationAccessService;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 
@@ -47,11 +48,14 @@ public class FinancialTransactionExcelExportService {
     private final FinancialTransactionRepository financialTransactionRepository;
     private final AttachmentRepository attachmentRepository;
     private final OrganizationRepository organizationRepository;
+    private final OrganizationAccessService organizationAccessService;
 
     public byte[] exportSettledTransactions(
             UUID organizationId,
             LocalDate startDate,
             LocalDate endDate) {
+            organizationAccessService.requireReadAccess(organizationId);
+
         validateOrganizationExists(organizationId);
 
         LocalDate resolvedStartDate = startDate != null

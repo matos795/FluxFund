@@ -45,6 +45,7 @@ import com.fluxfund.api.domain.transactionallocation.dto.TransactionAllocationRe
 import com.fluxfund.api.domain.transactionallocation.dto.UpdateTransactionAllocationRequest;
 import com.fluxfund.api.domain.transactionallocation.mapper.TransactionAllocationMapper;
 import com.fluxfund.api.domain.transactionallocation.repository.TransactionAllocationRepository;
+import com.fluxfund.api.security.OrganizationAccessService;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 
@@ -64,8 +65,10 @@ public class FinancialTransactionService {
     private final BeneficiaryRepository beneficiaryRepository;
     private final OrganizationSettingsRepository organizationSettingsRepository;
     private final AttachmentRepository attachmentRepository;
+    private final OrganizationAccessService organizationAccessService;
 
     public FinancialTransactionResponse create(UUID organizationId, CreateFinancialTransactionRequest request) {
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         Organization organization = organizationRepository.findById(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
@@ -113,6 +116,7 @@ public class FinancialTransactionService {
             Boolean onlyUnallocated,
             UUID fundId,
             Pageable pageable) {
+                organizationAccessService.requireReadAccess(organizationId);
 
         Page<FinancialTransaction> transactions = repository
                 .findAll(FinancialTransactionSpecification.withFilters(
@@ -156,6 +160,7 @@ public class FinancialTransactionService {
 
     @Transactional(readOnly = true)
     public FinancialTransactionResponse findById(UUID organizationId, UUID id) {
+        organizationAccessService.requireReadAccess(organizationId);
 
         FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
@@ -166,6 +171,7 @@ public class FinancialTransactionService {
             UUID organizationId,
             UUID id,
             UpdateFinancialTransactionRequest request) {
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
@@ -195,6 +201,7 @@ public class FinancialTransactionService {
     }
 
     public void delete(UUID organizationId, UUID id) {
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
@@ -217,6 +224,7 @@ public class FinancialTransactionService {
             UUID organizationId,
             UUID id,
             ClassifyFinancialTransactionRequest request) {
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
@@ -267,6 +275,7 @@ public class FinancialTransactionService {
 
     public TransactionAllocationResponse addAllocation(UUID organizationId, UUID id,
             CreateTransactionAllocationRequest request) {
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
@@ -283,6 +292,7 @@ public class FinancialTransactionService {
 
     public TransactionAllocationResponse updateAllocation(UUID organizationId, UUID id, UUID allocationId,
             UpdateTransactionAllocationRequest request) {
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
@@ -315,6 +325,7 @@ public class FinancialTransactionService {
     }
 
     public void removeAllocation(UUID organizationId, UUID id, UUID allocationId) {
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
@@ -332,6 +343,8 @@ public class FinancialTransactionService {
     public List<TransactionAllocationResponse> findAllByTransaction(
             UUID organizationId,
             UUID transactionId) {
+                organizationAccessService.requireReadAccess(organizationId);
+                
         FinancialTransaction transaction = repository
                 .findByIdAndOrganizationId(transactionId, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Financial transaction not found"));
