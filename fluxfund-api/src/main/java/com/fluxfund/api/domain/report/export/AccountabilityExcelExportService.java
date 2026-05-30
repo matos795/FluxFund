@@ -27,6 +27,7 @@ import com.fluxfund.api.domain.report.dto.accountability.AccountabilityAccountBr
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityByAccountItemResponse;
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityByAccountReportResponse;
 import com.fluxfund.api.domain.report.service.ReportService;
+import com.fluxfund.api.security.OrganizationAccessService;
 import com.fluxfund.api.shared.exception.BusinessException;
 
 import lombok.RequiredArgsConstructor;
@@ -36,11 +37,14 @@ import lombok.RequiredArgsConstructor;
 public class AccountabilityExcelExportService {
 
     private final ReportService reportService;
+    private final OrganizationAccessService organizationAccessService;
 
     public byte[] exportAccountabilityReport(
             UUID organizationId,
             LocalDate startDate,
             LocalDate endDate) {
+            organizationAccessService.requireReadAccess(organizationId);
+
         AccountabilityByAccountReportResponse report = reportService.getAccountabilityReportByAccount(organizationId,
                 startDate, endDate);
 

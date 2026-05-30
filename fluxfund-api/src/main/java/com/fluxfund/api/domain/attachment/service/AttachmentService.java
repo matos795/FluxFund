@@ -19,6 +19,7 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.OrganizationRepository;
+import com.fluxfund.api.security.OrganizationAccessService;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 import com.fluxfund.api.shared.storage.LocalFileStorageService;
@@ -30,100 +31,108 @@ import lombok.RequiredArgsConstructor;
 @Transactional
 public class AttachmentService {
 
-    private final AttachmentRepository attachmentRepository;
-    private final FinancialTransactionRepository financialTransactionRepository;
-    private final OrganizationRepository organizationRepository;
-    private final LocalFileStorageService storageService;
+        private final AttachmentRepository attachmentRepository;
+        private final FinancialTransactionRepository financialTransactionRepository;
+        private final OrganizationRepository organizationRepository;
+        private final LocalFileStorageService storageService;
+        private final OrganizationAccessService organizationAccessService;
 
-    public AttachmentResponse upload(
-            UUID organizationId,
-            UUID transactionId,
-            AttachmentType type,
-            MultipartFile file) {
+        public AttachmentResponse upload(
+                        UUID organizationId,
+                        UUID transactionId,
+                        AttachmentType type,
+                        MultipartFile file) {
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
-        if (file == null || file.isEmpty()) {
-            throw new BusinessException("File is required");
+                if (file == null || file.isEmpty()) {
+                        throw new BusinessException("File is required");
+                }
+
+                Organization organization = organizationRepository.findById(organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+
+                FinancialTransaction transaction = financialTransactionRepository
+                                .findByIdAndOrganizationId(transactionId, organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Financial transaction not found"));
+
+                String originalFileName = file.getOriginalFilename() != null
+                                ? file.getOriginalFilename()
+                                : "file";
+
+                String safeFilename = sanitizeFilename(originalFileName);
+                String storedFilename = UUID.randomUUID() + "-" + safeFilename;
+
+                String storageKey = "organizations/%s/transactions/%s/%s"
+                                .formatted(organizationId, transactionId, storedFilename);
+
+                try {
+                        storageService.save(storageKey, file.getInputStream());
+                } catch (IOException exception) {
+                        throw new BusinessException("Could not process uploaded file");
+                }
+
+                Attachment attachment = new Attachment();
+                attachment.setOrganization(organization);
+                attachment.setFinancialTransaction(transaction);
+                attachment.setType(type);
+                attachment.setOriginalFilename(originalFileName);
+                attachment.setContentType(file.getContentType());
+                attachment.setSizeBytes(file.getSize());
+                attachment.setStorageKey(storageKey);
+                attachment.setUploadedAt(OffsetDateTime.now());
+
+                attachmentRepository.save(attachment);
+
+                return AttachmentMapper.toResponse(attachment);
         }
 
-        Organization organization = organizationRepository.findById(organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+        @Transactional(readOnly = true)
+        public List<AttachmentResponse> findAllByTransaction(
+                        UUID organizationId,
+                        UUID transactionId) {
+                organizationAccessService.requireReadAccess(organizationId);
 
-        FinancialTransaction transaction = financialTransactionRepository
-                .findByIdAndOrganizationId(transactionId, organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Financial transaction not found"));
-
-        String originalFileName = file.getOriginalFilename() != null
-                ? file.getOriginalFilename()
-                : "file";
-
-        String safeFilename = sanitizeFilename(originalFileName);
-        String storedFilename = UUID.randomUUID() + "-" + safeFilename;
-
-        String storageKey = "organizations/%s/transactions/%s/%s"
-                .formatted(organizationId, transactionId, storedFilename);
-
-        try {
-            storageService.save(storageKey, file.getInputStream());
-        } catch (IOException exception) {
-            throw new BusinessException("Could not process uploaded file");
+                return attachmentRepository
+                                .findAllByFinancialTransactionIdAndOrganizationIdOrderByUploadedAtDesc(
+                                                transactionId,
+                                                organizationId)
+                                .stream()
+                                .map(AttachmentMapper::toResponse)
+                                .toList();
         }
 
-        Attachment attachment = new Attachment();
-        attachment.setOrganization(organization);
-        attachment.setFinancialTransaction(transaction);
-        attachment.setType(type);
-        attachment.setOriginalFilename(originalFileName);
-        attachment.setContentType(file.getContentType());
-        attachment.setSizeBytes(file.getSize());
-        attachment.setStorageKey(storageKey);
-        attachment.setUploadedAt(OffsetDateTime.now());
+        @Transactional(readOnly = true)
+        public AttachmentFile download(UUID organizationId, UUID attachmentId) {
+                organizationAccessService.requireReadAccess(organizationId);
 
-        attachmentRepository.save(attachment);
+                Attachment attachment = attachmentRepository
+                                .findByIdAndOrganizationId(attachmentId, organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Attachment not found"));
 
-        return AttachmentMapper.toResponse(attachment);
-    }
+                byte[] content = storageService.read(attachment.getStorageKey());
 
-    @Transactional(readOnly = true)
-    public List<AttachmentResponse> findAllByTransaction(
-            UUID organizationId,
-            UUID transactionId) {
-        return attachmentRepository
-                .findAllByFinancialTransactionIdAndOrganizationIdOrderByUploadedAtDesc(
-                        transactionId,
-                        organizationId)
-                .stream()
-                .map(AttachmentMapper::toResponse)
-                .toList();
-    }
+                return new AttachmentFile(
+                                attachment.getOriginalFilename(),
+                                attachment.getContentType(),
+                                content);
+        }
 
-    @Transactional(readOnly = true)
-    public AttachmentFile download(UUID organizationId, UUID attachmentId) {
-        Attachment attachment = attachmentRepository
-                .findByIdAndOrganizationId(attachmentId, organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Attachment not found"));
+        public void delete(UUID organizationId, UUID attachmentId) {
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
-        byte[] content = storageService.read(attachment.getStorageKey());
+                Attachment attachment = attachmentRepository
+                                .findByIdAndOrganizationId(attachmentId, organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Attachment not found"));
 
-        return new AttachmentFile(
-                attachment.getOriginalFilename(),
-                attachment.getContentType(),
-                content);
-    }
+                storageService.delete(attachment.getStorageKey());
+                attachmentRepository.delete(attachment);
+        }
 
-    public void delete(UUID organizationId, UUID attachmentId) {
-        Attachment attachment = attachmentRepository
-                .findByIdAndOrganizationId(attachmentId, organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Attachment not found"));
-
-        storageService.delete(attachment.getStorageKey());
-        attachmentRepository.delete(attachment);
-    }
-
-    private String sanitizeFilename(String filename) {
-        return filename
-                .replace("\\", "_")
-                .replace("/", "_")
-                .replace("..", "_")
-                .trim();
-    }
+        private String sanitizeFilename(String filename) {
+                return filename
+                                .replace("\\", "_")
+                                .replace("/", "_")
+                                .replace("..", "_")
+                                .trim();
+        }
 }

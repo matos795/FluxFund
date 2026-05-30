@@ -30,6 +30,7 @@ import com.fluxfund.api.domain.report.dto.fund.FundReportResponse;
 import com.fluxfund.api.domain.supportagreement.SupportAgreement;
 import com.fluxfund.api.domain.supportagreement.repository.SupportAgreementRepository;
 import com.fluxfund.api.domain.transactionallocation.repository.TransactionAllocationRepository;
+import com.fluxfund.api.security.OrganizationAccessService;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 
@@ -44,11 +45,13 @@ public class ReportService {
         private final FinancialTransactionRepository financialTransactionRepository;
         private final TransactionAllocationRepository transactionAllocationRepository;
         private final SupportAgreementRepository supportAgreementRepository;
+        private final OrganizationAccessService organizationAccessService;
 
         public CategoryResultReportResponse getCategoryResultReport(
                         UUID organizationId,
                         LocalDate startDate,
                         LocalDate endDate) {
+                organizationAccessService.requireReadAccess(organizationId);
 
                 validateOrganizationExists(organizationId);
 
@@ -94,6 +97,7 @@ public class ReportService {
                         UUID organizationId,
                         LocalDate startDate,
                         LocalDate endDate) {
+                organizationAccessService.requireReadAccess(organizationId);
 
                 validateOrganizationExists(organizationId);
 
@@ -164,6 +168,7 @@ public class ReportService {
                         UUID organizationId,
                         LocalDate startDate,
                         LocalDate endDate) {
+                organizationAccessService.requireReadAccess(organizationId);
 
                 validateOrganizationExists(organizationId);
 
@@ -311,6 +316,7 @@ public class ReportService {
                         UUID organizationId,
                         LocalDate startDate,
                         LocalDate endDate) {
+                organizationAccessService.requireReadAccess(organizationId);
 
                 validateOrganizationExists(organizationId);
 
