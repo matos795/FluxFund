@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,6 +15,8 @@ import com.fluxfund.api.domain.dashboard.dto.DashboardSummaryResponse;
 import com.fluxfund.api.domain.dashboard.service.DashboardService;
 
 import lombok.RequiredArgsConstructor;
+
+import static com.fluxfund.api.security.TenantHeaders.ORGANIZATION_ID;
 
 @RestController
 @RequestMapping("/api/v1/dashboard")
@@ -24,12 +27,10 @@ public class DashboardController {
 
     @GetMapping("/summary")
     public ResponseEntity<DashboardSummaryResponse> getSummary(
-            @RequestParam UUID organizationId,
-
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
             LocalDate startDate,
-
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
             LocalDate endDate) {

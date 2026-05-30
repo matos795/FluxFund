@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -41,6 +42,8 @@ import com.fluxfund.api.domain.transactionallocation.dto.UpdateTransactionAlloca
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+import static com.fluxfund.api.security.TenantHeaders.ORGANIZATION_ID;
+
 @RestController
 @RequestMapping("/api/v1/financial-transactions")
 @RequiredArgsConstructor
@@ -51,7 +54,7 @@ public class FinancialTransactionController {
 
         @PostMapping
         public ResponseEntity<FinancialTransactionResponse> create(
-                        @RequestParam UUID organizationId,
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
                         @RequestBody @Valid CreateFinancialTransactionRequest request) {
 
                 FinancialTransactionResponse response = service.create(organizationId, request);
@@ -62,7 +65,7 @@ public class FinancialTransactionController {
 
         @GetMapping
         public ResponseEntity<Page<FinancialTransactionResponse>> findAll(
-                        @RequestParam UUID organizationId,
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
                         @RequestParam(required = false) FinancialTransactionType type,
                         @RequestParam(required = false) FinancialTransactionStatus status,
                         @RequestParam(required = false) FinancialTransactionSource source,
@@ -94,7 +97,7 @@ public class FinancialTransactionController {
 
         @GetMapping("/{id}")
         public ResponseEntity<FinancialTransactionResponse> findById(
-                        @RequestParam UUID organizationId,
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
                         @PathVariable UUID id) {
 
                 return ResponseEntity.ok(service.findById(organizationId, id));
@@ -102,7 +105,7 @@ public class FinancialTransactionController {
 
         @PutMapping("/{id}")
         public ResponseEntity<FinancialTransactionResponse> update(
-                        @RequestParam UUID organizationId,
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
                         @PathVariable UUID id,
                         @RequestBody @Valid UpdateFinancialTransactionRequest request) {
 
@@ -112,7 +115,7 @@ public class FinancialTransactionController {
 
         @DeleteMapping("/{id}")
         public ResponseEntity<Void> delete(
-                        @RequestParam UUID organizationId,
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
                         @PathVariable UUID id) {
 
                 service.delete(organizationId, id);
@@ -122,7 +125,7 @@ public class FinancialTransactionController {
 
         @PostMapping("/{id}/allocations")
         public ResponseEntity<TransactionAllocationResponse> addAllocation(
-                        @RequestParam UUID organizationId,
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
                         @PathVariable UUID id,
                         @RequestBody @Valid CreateTransactionAllocationRequest request) {
 
@@ -132,7 +135,7 @@ public class FinancialTransactionController {
 
         @PutMapping("/{id}/allocations/{allocationId}")
         public ResponseEntity<TransactionAllocationResponse> updateAllocation(
-                        @RequestParam UUID organizationId,
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
                         @PathVariable UUID id,
                         @PathVariable UUID allocationId,
                         @RequestBody @Valid UpdateTransactionAllocationRequest request) {
@@ -143,7 +146,7 @@ public class FinancialTransactionController {
 
         @DeleteMapping("/{id}/allocations/{allocationId}")
         public ResponseEntity<Void> removeAllocation(
-                        @RequestParam UUID organizationId,
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
                         @PathVariable UUID id,
                         @PathVariable UUID allocationId) {
 
@@ -153,7 +156,7 @@ public class FinancialTransactionController {
 
         @PutMapping("/{id}/classify")
         public ResponseEntity<FinancialTransactionResponse> classify(
-                        @RequestParam UUID organizationId,
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
                         @PathVariable UUID id,
                         @RequestBody @Valid ClassifyFinancialTransactionRequest request) {
 
@@ -163,7 +166,7 @@ public class FinancialTransactionController {
 
         @PostMapping(value = "/import/ofx", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
         public ResponseEntity<ImportOfxResponse> importOfx(
-                        @RequestParam UUID organizationId,
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
                         @RequestParam UUID accountId,
                         @RequestParam MultipartFile file) {
                 return ResponseEntity.ok(
@@ -172,14 +175,14 @@ public class FinancialTransactionController {
 
         @GetMapping("/api/v1/financial-transactions/{transactionId}/allocations")
         public List<TransactionAllocationResponse> findAllByTransaction(
-                        @RequestParam UUID organizationId,
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
                         @PathVariable UUID transactionId) {
                 return service.findAllByTransaction(organizationId, transactionId);
         }
 
         @GetMapping("/export/settled.xlsx")
         public ResponseEntity<byte[]> exportSettledTransactionsExcel(
-                        @RequestParam UUID organizationId,
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
                 byte[] file = excelExportService.exportSettledTransactions(

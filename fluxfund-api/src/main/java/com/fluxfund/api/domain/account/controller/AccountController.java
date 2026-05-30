@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -24,6 +24,8 @@ import com.fluxfund.api.domain.account.service.AccountService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+import static com.fluxfund.api.security.TenantHeaders.ORGANIZATION_ID;
+
 @RestController
 @RequestMapping("/api/v1/accounts")
 @RequiredArgsConstructor
@@ -34,7 +36,7 @@ public class AccountController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public AccountResponse create(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @Valid @RequestBody CreateAccountRequest request
     ) {
         return service.create(request, organizationId);
@@ -42,7 +44,7 @@ public class AccountController {
 
     @GetMapping
     public Page<AccountResponse> findAll(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             Pageable pageable
     ) {
         return service.findAll(organizationId, pageable);
@@ -50,7 +52,7 @@ public class AccountController {
 
     @GetMapping("/{id}")
     public AccountResponse findById(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @PathVariable UUID id
     ) {
         return service.findById(id, organizationId);
@@ -59,7 +61,7 @@ public class AccountController {
     @PutMapping("/{id}")
     public AccountResponse update(
             @PathVariable UUID id,
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @Valid @RequestBody UpdateAccountRequest request
     ) {
         return service.update(id, organizationId, request);
@@ -69,7 +71,7 @@ public class AccountController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(
             @PathVariable UUID id,
-            @RequestParam UUID organizationId
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId
     ) {
         service.delete(id, organizationId);
     }

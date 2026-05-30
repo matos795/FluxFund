@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,6 +25,8 @@ import com.fluxfund.api.domain.attachment.service.AttachmentService;
 
 import lombok.RequiredArgsConstructor;
 
+import static com.fluxfund.api.security.TenantHeaders.ORGANIZATION_ID;
+
 @RestController
 @RequiredArgsConstructor
 public class AttachmentController {
@@ -35,7 +38,7 @@ public class AttachmentController {
         consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public AttachmentResponse upload(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @PathVariable UUID transactionId,
             @RequestParam AttachmentType type,
             @RequestParam MultipartFile file) {
@@ -44,14 +47,14 @@ public class AttachmentController {
 
     @GetMapping("/api/v1/financial-transactions/{transactionId}/attachments")
     public List<AttachmentResponse> findAllByTransaction(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @PathVariable UUID transactionId) {
         return service.findAllByTransaction(organizationId, transactionId);
     }
 
     @GetMapping("/api/v1/attachments/{attachmentId}/download")
     public ResponseEntity<byte[]> download(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @PathVariable UUID attachmentId) {
         AttachmentFile file = service.download(organizationId, attachmentId);
 
@@ -67,7 +70,7 @@ public class AttachmentController {
     @DeleteMapping("/api/v1/attachments/{attachmentId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @PathVariable UUID attachmentId) {
         service.delete(organizationId, attachmentId);
     }

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,6 +25,8 @@ import com.fluxfund.api.domain.supportagreement.service.SupportAgreementService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+import static com.fluxfund.api.security.TenantHeaders.ORGANIZATION_ID;
+
 @RestController
 @RequiredArgsConstructor
 public class SupportAgreementController {
@@ -33,13 +36,14 @@ public class SupportAgreementController {
     @PostMapping("/api/v1/support-agreements")
     @ResponseStatus(HttpStatus.CREATED)
     public SupportAgreementResponse create(
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @Valid @RequestBody CreateSupportAgreementRequest request) {
-        return service.create(request);
+        return service.create(organizationId, request);
     }
 
     @GetMapping("/api/v1/support-agreements")
     public Page<SupportAgreementResponse> findAll(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @RequestParam(required = false) Boolean active,
             Pageable pageable) {
         return service.findAll(organizationId, active, pageable);
@@ -47,14 +51,14 @@ public class SupportAgreementController {
 
     @GetMapping("/api/v1/support-agreements/{id}")
     public SupportAgreementResponse findById(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @PathVariable UUID id) {
         return service.findById(organizationId, id);
     }
 
     @PutMapping("/api/v1/support-agreements/{id}")
     public SupportAgreementResponse update(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @PathVariable UUID id,
             @Valid @RequestBody UpdateSupportAgreementRequest request) {
         return service.update(organizationId, id, request);
@@ -63,14 +67,14 @@ public class SupportAgreementController {
     @DeleteMapping("/api/v1/support-agreements/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deactivate(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @PathVariable UUID id) {
         service.deactivate(organizationId, id);
     }
 
     @PatchMapping("/api/v1/support-agreements/{id}/activate")
     public SupportAgreementResponse activate(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @PathVariable UUID id) {
         return service.activate(organizationId, id);
     }

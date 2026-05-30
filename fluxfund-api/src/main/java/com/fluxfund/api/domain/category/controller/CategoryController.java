@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,6 +23,8 @@ import com.fluxfund.api.domain.category.service.CategoryService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import static com.fluxfund.api.security.TenantHeaders.ORGANIZATION_ID;
 
 @RestController
 @RequestMapping("/api/v1/categories")
@@ -35,13 +37,13 @@ public class CategoryController {
     @ResponseStatus(HttpStatus.CREATED)
     public CategoryResponse create(
             @Valid @RequestBody CreateCategoryRequest request,
-            @RequestParam UUID organizationId) {
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId) {
         return service.create(request, organizationId);
     }
 
     @GetMapping
     public Page<CategoryResponse> findAll(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             Pageable pageable) {
         return service.findAll(organizationId, pageable);
     }
@@ -49,13 +51,13 @@ public class CategoryController {
     @GetMapping("/{id}")
     public CategoryResponse findById(
             @PathVariable UUID id,
-            @RequestParam UUID organizationId) {
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId) {
         return service.findById(id, organizationId);
     }
 
     @PutMapping("/{id}")
     public CategoryResponse update(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @PathVariable UUID id,
             @Valid @RequestBody UpdateCategoryRequest request) {
         return service.update(organizationId, id, request);
@@ -65,7 +67,7 @@ public class CategoryController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(
             @PathVariable UUID id,
-            @RequestParam UUID organizationId) {
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId) {
         service.delete(id, organizationId);
     }
 }

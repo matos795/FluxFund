@@ -36,24 +36,26 @@ public class SupportAgreementService {
     private final FundRepository fundRepository;
     private final OrganizationAccessService organizationAccessService;
 
-    public SupportAgreementResponse create(CreateSupportAgreementRequest request) {
-        organizationAccessService.requireFinanceWriteAccess(request.organizationId());
+    public SupportAgreementResponse create(
+        UUID organizationId,
+        CreateSupportAgreementRequest request) {
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
         
         validateDates(request.startDate(), request.endDate());
 
-        Organization organization = organizationRepository.findById(request.organizationId())
+        Organization organization = organizationRepository.findById(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
         Beneficiary beneficiary = beneficiaryRepository
-                .findByIdAndOrganizationIdAndActiveTrue(request.beneficiaryId(), request.organizationId())
+                .findByIdAndOrganizationIdAndActiveTrue(request.beneficiaryId(), organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Beneficiary not found"));
 
         Fund fund = fundRepository
-                .findByIdAndOrganizationIdAndActiveTrue(request.fundId(), request.organizationId())
+                .findByIdAndOrganizationIdAndActiveTrue(request.fundId(), organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Fund not found"));
 
         boolean alreadyExists = repository.existsByOrganizationIdAndBeneficiaryIdAndFundIdAndActiveTrue(
-                request.organizationId(),
+                organizationId,
                 request.beneficiaryId(),
                 request.fundId());
 
@@ -146,7 +148,7 @@ public class SupportAgreementService {
 
     public SupportAgreementResponse activate(UUID organizationId, UUID id) {
         organizationAccessService.requireFinanceWriteAccess(organizationId);
-        
+
         SupportAgreement agreement = findEntityById(organizationId, id);
 
         if (agreement.getActive()) {

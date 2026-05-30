@@ -12,8 +12,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fluxfund.api.domain.beneficiary.dto.BeneficiaryResponse;
@@ -24,6 +24,8 @@ import com.fluxfund.api.domain.beneficiary.service.BeneficiaryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+import static com.fluxfund.api.security.TenantHeaders.ORGANIZATION_ID;
+
 @RestController
 @RequestMapping("/api/v1/beneficiaries")
 @RequiredArgsConstructor
@@ -33,7 +35,7 @@ public class BeneficiaryController {
 
     @PostMapping
     public ResponseEntity<BeneficiaryResponse> create(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @RequestBody @Valid CreateBeneficiaryRequest request) {
 
         BeneficiaryResponse response = service.create(request, organizationId);
@@ -44,7 +46,7 @@ public class BeneficiaryController {
 
     @GetMapping
     public ResponseEntity<Page<BeneficiaryResponse>> findAll(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             Pageable pageable) {
 
         return ResponseEntity.ok(
@@ -53,7 +55,7 @@ public class BeneficiaryController {
 
     @GetMapping("/{id}")
     public ResponseEntity<BeneficiaryResponse> findById(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @PathVariable UUID id) {
 
         return ResponseEntity.ok(service.findById(id, organizationId));
@@ -61,7 +63,7 @@ public class BeneficiaryController {
 
     @PutMapping("/{id}")
     public ResponseEntity<BeneficiaryResponse> update(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @PathVariable UUID id,
             @RequestBody @Valid UpdateBeneficiaryRequest request) {
 
@@ -71,7 +73,7 @@ public class BeneficiaryController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @PathVariable UUID id) {
 
         service.delete(id, organizationId);

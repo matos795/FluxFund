@@ -5,7 +5,7 @@ import java.util.UUID;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fluxfund.api.domain.organizationsettings.dto.OrganizationSettingsResponse;
@@ -15,6 +15,8 @@ import com.fluxfund.api.domain.organizationsettings.service.OrganizationSettings
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+import static com.fluxfund.api.security.TenantHeaders.ORGANIZATION_ID;
+
 @RestController
 @RequiredArgsConstructor
 public class OrganizationSettingsController {
@@ -23,14 +25,14 @@ public class OrganizationSettingsController {
 
     @GetMapping("/api/v1/organization-settings")
     public OrganizationSettingsResponse findByOrganization(
-            @RequestParam UUID organizationId
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId
     ) {
         return service.findByOrganization(organizationId);
     }
 
     @PutMapping("/api/v1/organization-settings")
     public OrganizationSettingsResponse update(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @Valid @RequestBody UpdateOrganizationSettingsRequest request
     ) {
         return service.update(organizationId, request);

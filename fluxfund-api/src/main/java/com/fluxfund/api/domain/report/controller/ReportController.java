@@ -9,6 +9,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,6 +23,8 @@ import com.fluxfund.api.domain.report.service.ReportService;
 
 import lombok.RequiredArgsConstructor;
 
+import static com.fluxfund.api.security.TenantHeaders.ORGANIZATION_ID;
+
 @RestController
 @RequestMapping("/api/v1/reports")
 @RequiredArgsConstructor
@@ -32,7 +35,7 @@ public class ReportController {
 
         @GetMapping("/category-result")
         public ResponseEntity<CategoryResultReportResponse> getCategoryResultReport(
-                        @RequestParam UUID organizationId,
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
 
                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
 
@@ -47,7 +50,7 @@ public class ReportController {
 
         @GetMapping("/funds")
         public ResponseEntity<FundReportResponse> getFundReport(
-                        @RequestParam UUID organizationId,
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
                 return ResponseEntity.ok(service.getFundReport(organizationId, startDate, endDate));
@@ -55,7 +58,7 @@ public class ReportController {
 
         @GetMapping("/accountability")
         public ResponseEntity<AccountabilityReportResponse> getAccountabilityReport(
-                        @RequestParam UUID organizationId,
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
                 return ResponseEntity.ok(
@@ -64,7 +67,7 @@ public class ReportController {
 
         @GetMapping("/accountability/by-account")
         public ResponseEntity<AccountabilityByAccountReportResponse> getAccountabilityReportByAccount(
-                        @RequestParam UUID organizationId,
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
                 return ResponseEntity.ok(
@@ -73,7 +76,7 @@ public class ReportController {
 
         @GetMapping("/accountability/export.xlsx")
         public ResponseEntity<byte[]> exportAccountabilityReportExcel(
-                        @RequestParam UUID organizationId,
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
                 byte[] file = accountabilityExcelExportService.exportAccountabilityReport(

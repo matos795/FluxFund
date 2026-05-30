@@ -12,8 +12,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fluxfund.api.domain.fund.dto.CreateFundRequest;
@@ -24,6 +24,8 @@ import com.fluxfund.api.domain.fund.service.FundService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+import static com.fluxfund.api.security.TenantHeaders.ORGANIZATION_ID;
+
 @RestController
 @RequestMapping("/api/v1/funds")
 @RequiredArgsConstructor
@@ -33,7 +35,7 @@ public class FundController {
 
     @PostMapping
     public ResponseEntity<FundResponse> create(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @RequestBody @Valid CreateFundRequest request) {
 
         FundResponse response = service.create(request, organizationId);
@@ -44,7 +46,7 @@ public class FundController {
 
     @GetMapping
     public ResponseEntity<Page<FundResponse>> findAll(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             Pageable pageable) {
 
         return ResponseEntity.ok(
@@ -53,7 +55,7 @@ public class FundController {
 
     @GetMapping("/{id}")
     public ResponseEntity<FundResponse> findById(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @PathVariable UUID id) {
 
         return ResponseEntity.ok(service.findById(id, organizationId));
@@ -61,7 +63,7 @@ public class FundController {
 
     @PutMapping("/{id}")
     public ResponseEntity<FundResponse> update(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @PathVariable UUID id,
             @RequestBody @Valid UpdateFundRequest request) {
 
@@ -71,7 +73,7 @@ public class FundController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(
-            @RequestParam UUID organizationId,
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @PathVariable UUID id) {
 
         service.delete(id, organizationId);
