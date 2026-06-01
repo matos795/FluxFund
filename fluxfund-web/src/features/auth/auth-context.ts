@@ -1,10 +1,14 @@
 import { createContext } from "react"
+import type {
+  AuthSession,
+  LoginRequest,
+  UserOrganization,
+} from "./auth-types"
 
-import type { UserOrganization, AuthSession, LoginRequest } from "./auth-types"
-
-export type AuthContextValue = {
+type AuthContextValue = {
   session: AuthSession | null
   isAuthenticated: boolean
+  isLoadingSession: boolean
   activeOrganization: UserOrganization | null
   login: (data: LoginRequest) => Promise<AuthSession>
   logout: () => void
@@ -14,3 +18,5 @@ export type AuthContextValue = {
 export const AuthContext = createContext<AuthContextValue | undefined>(
   undefined,
 )
+
+export type { AuthContextValue }

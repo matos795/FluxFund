@@ -7,12 +7,16 @@ import { Button } from "@/components/ui/button"
 import { MoreHorizontal, Trash2 } from "lucide-react"
 import { EditFundDialog } from "./edit-fund-dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { usePermissions } from "@/features/auth/hooks/use-permissions"
 
 type FundActionsProps = {
     fund: Fund
 }
 
 export function FundActions({ fund }: FundActionsProps) {
+
+    const { canFinanceWrite } = usePermissions()
+    
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
     const deleteFundMutation = useDeleteFund()
@@ -27,6 +31,10 @@ export function FundActions({ fund }: FundActionsProps) {
                 toast.error("Não foi possível desativar o fundo. Verifique se ele não possui transações vinculadas.")
             }
         })
+    }
+
+    if (!canFinanceWrite) {
+        return null
     }
 
     return (

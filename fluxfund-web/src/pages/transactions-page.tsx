@@ -11,8 +11,11 @@ import { useCategories } from "@/features/categories/hooks/use-categories"
 import { ImportOfxDialog } from "@/features/financial-transactions/components/import-ofx-dialog"
 import { useSearchParams } from "react-router-dom"
 import { ExportSettledFinancialTransactionsDialog } from "@/features/financial-transactions/components/export-settled-financial-transactions-dialog"
+import { usePermissions } from "@/features/auth/hooks/use-permissions"
 
 export function TransactionsPage() {
+
+  const { canFinanceWrite } = usePermissions()
 
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -93,8 +96,12 @@ export function TransactionsPage() {
         description="Acompanhe lançamentos financeiros, conciliações e movimentações oficiais."
       >
         <div className="flex flex-wrap gap-2">
-          <ImportOfxDialog />
-          <CreateFinancialTransactionDialog />
+          {canFinanceWrite && (
+            <>
+              <ImportOfxDialog />
+              <CreateFinancialTransactionDialog />
+            </>
+          )}
           <ExportSettledFinancialTransactionsDialog />
         </div>
       </PageHeader>

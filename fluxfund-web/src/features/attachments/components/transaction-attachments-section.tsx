@@ -31,6 +31,7 @@ import { useDeleteAttachment } from "../hooks/use-delete-attachment"
 import { attachmentTypeLabels } from "../attachment-labels"
 import { downloadAttachment } from "../attachment-api"
 import { downloadFile } from "@/utils/download-file"
+import { usePermissions } from "@/features/auth/hooks/use-permissions"
 
 const attachmentTypes: AttachmentType[] = [
     "PROOF_OF_PAYMENT",
@@ -63,6 +64,8 @@ export function TransactionAttachmentsSection({
     mode = "manage",
     onPendingUploadChange,
 }: TransactionAttachmentsSectionProps) {
+
+    const { canFinanceWrite } = usePermissions()
 
     const canManage = mode === "manage"
 
@@ -139,13 +142,13 @@ export function TransactionAttachmentsSection({
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                    {canManage
+                    {canFinanceWrite && canManage
                         ? "Envie comprovantes, recibos, notas fiscais, contratos ou outros arquivos relacionados a esta transação."
                         : "Visualize os arquivos vinculados a esta transação."}
                 </p>
             </div>
 
-            {canManage && (
+            {canFinanceWrite && canManage && (
                 <form
                     onSubmit={handleUpload}
                     className="mb-4 grid gap-3 rounded-lg border border-dashed p-3 md:grid-cols-[180px_1fr_auto]"
@@ -248,7 +251,7 @@ export function TransactionAttachmentsSection({
                                     Baixar
                                 </Button>
 
-                                {canManage && (
+                                {canFinanceWrite && canManage && (
                                     <Button
                                         variant="outline"
                                         size="sm"

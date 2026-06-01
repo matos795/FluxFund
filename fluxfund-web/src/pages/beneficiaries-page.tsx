@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/layout/page-header"
 import { PagePagination } from "@/components/pagination/page-pagination"
+import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { BeneficiariesTable } from "@/features/beneficiaries/components/beneficiaries-table"
 import { BeneficiariesTableSkeleton } from "@/features/beneficiaries/components/beneficiaries-table-skeleton"
 import { CreateBeneficiaryDialog } from "@/features/beneficiaries/components/create-beneficiary-dialog"
@@ -9,6 +10,8 @@ import { useState } from "react"
 const PAGE_SIZE = 10
 
 export function BeneficiariesPage() {
+
+  const { canFinanceWrite } = usePermissions()
 
   const [page, setPage] = useState(0)
 
@@ -25,7 +28,7 @@ export function BeneficiariesPage() {
         title="Favorecidos"
         description="Gerencie favorecidos, destinatários e responsáveis financeiros."
       >
-        <CreateBeneficiaryDialog />
+        {canFinanceWrite && <CreateBeneficiaryDialog />}
       </PageHeader>
 
       {isLoading && <BeneficiariesTableSkeleton />}

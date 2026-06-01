@@ -1,14 +1,24 @@
 import { PageHeader } from "@/components/layout/page-header"
 import { Card, CardContent } from "@/components/ui/card"
+import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { FinancialSettingsCard } from "@/features/organization-settings/components/financial-settings-card"
 
 export function SettingsPage() {
+
+  const { canAdmin } = usePermissions()
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Configurações"
         description="Gerencie preferências da organização atual e regras padrão do sistema."
       />
+
+      {!canAdmin && (
+        <p className="rounded-md border bg-muted p-3 text-sm text-muted-foreground">
+          Você possui acesso somente para visualizar estas configurações.
+        </p>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[260px_1fr]">
         <Card className="h-fit">

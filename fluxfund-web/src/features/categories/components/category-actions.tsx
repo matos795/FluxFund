@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { MoreHorizontal, Trash2 } from "lucide-react"
 import { EditCategoryDialog } from "./edit-category-dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { usePermissions } from "@/features/auth/hooks/use-permissions"
 
 
 type CategoryActionsProps = {
@@ -15,6 +16,8 @@ type CategoryActionsProps = {
 }
 
 export function CategoryActions({ category, categories }: CategoryActionsProps) {
+
+    const { canFinanceWrite } = usePermissions()
 
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
@@ -30,6 +33,10 @@ export function CategoryActions({ category, categories }: CategoryActionsProps) 
                 toast.error("Não foi possível desativar a categoria. Verifique se ela não possui transações vinculadas.")
             },
         })
+    }
+
+    if (!canFinanceWrite) {
+        return null
     }
 
     return (

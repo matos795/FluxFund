@@ -7,8 +7,12 @@ import { Card, CardContent } from "@/components/ui/card"
 import { SupportAgreementsTable } from "@/features/support-agreements/components/support-agreements-table"
 import { useSupportAgreements } from "@/features/support-agreements/hooks/use-support-agreements"
 import { CreateSupportAgreementDialog } from "@/features/support-agreements/components/create-support-agreement-dialog"
+import { usePermissions } from "@/features/auth/hooks/use-permissions"
 
 export function SupportAgreementsPage() {
+
+    const { canFinanceWrite } = usePermissions()
+    
     const [page, setPage] = useState(0)
     const [active, setActive] = useState<boolean | undefined>(true)
 
@@ -26,7 +30,7 @@ export function SupportAgreementsPage() {
                 title="Compromissos"
                 description="Gerencie compromissos fixos de sustento vinculados a favorecidos e fundos."
             >
-            <CreateSupportAgreementDialog />
+            {canFinanceWrite && <CreateSupportAgreementDialog />}
             </PageHeader>
 
             <div className="flex flex-wrap gap-2">

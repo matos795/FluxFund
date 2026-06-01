@@ -4,7 +4,22 @@ import { useAuth } from "@/features/auth/hooks/use-auth"
 
 export function ProtectedRoute() {
   const location = useLocation()
-  const { isAuthenticated, activeOrganization } = useAuth()
+
+  const {
+    isAuthenticated,
+    isLoadingSession,
+    activeOrganization,
+  } = useAuth()
+
+  if (isLoadingSession) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-muted/40">
+        <p className="text-sm text-muted-foreground">
+          Carregando sua sessão...
+        </p>
+      </main>
+    )
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />

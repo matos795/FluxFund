@@ -23,12 +23,16 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { EditAccountDialog } from "./edit-account-dialog"
 import { toast } from "sonner"
+import { usePermissions } from "@/features/auth/hooks/use-permissions"
 
 type AccountActionsProps = {
     account: Account
 }
 
 export function AccountActions({ account }: AccountActionsProps) {
+
+    const { canFinanceWrite } = usePermissions()
+
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
     const deleteAccountMutation = useDeleteAccount()
@@ -43,6 +47,10 @@ export function AccountActions({ account }: AccountActionsProps) {
                 toast.error("Não foi possível desativar a conta. Verifique se ela não possui transações vinculadas.")
             }
         })
+    }
+
+    if (!canFinanceWrite) {
+        return null
     }
 
     return (

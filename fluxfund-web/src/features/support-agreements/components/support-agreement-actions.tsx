@@ -23,6 +23,7 @@ import { useDeleteSupportAgreement } from "../hooks/use-delete-support-agreement
 import type { SupportAgreement } from "../support-agreement-types"
 import { EditSupportAgreementDialog } from "./edit-support-agreement-dialog"
 import { useActivateSupportAgreement } from "../hooks/use-activate-support-agreement"
+import { usePermissions } from "@/features/auth/hooks/use-permissions"
 
 type SupportAgreementActionsProps = {
   agreement: SupportAgreement
@@ -31,6 +32,9 @@ type SupportAgreementActionsProps = {
 export function SupportAgreementActions({
   agreement,
 }: SupportAgreementActionsProps) {
+
+  const { canFinanceWrite } = usePermissions()
+  
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   const deleteSupportAgreementMutation = useDeleteSupportAgreement()
@@ -69,9 +73,9 @@ export function SupportAgreementActions({
         </DropdownMenuTrigger>
 
         <DropdownMenuContent align="end">
-          <EditSupportAgreementDialog agreement={agreement} />
+          {canFinanceWrite && <EditSupportAgreementDialog agreement={agreement} />}
 
-          {agreement.active && (
+          {canFinanceWrite && agreement.active && (
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onClick={() => setDeleteDialogOpen(true)}
@@ -81,7 +85,7 @@ export function SupportAgreementActions({
             </DropdownMenuItem>
           )}
 
-          {!agreement.active && (
+          {canFinanceWrite && !agreement.active && (
             <DropdownMenuItem onClick={handleActivate}>
               <RotateCcw className="mr-2 size-4" />
               Reativar

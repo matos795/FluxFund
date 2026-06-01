@@ -1,4 +1,6 @@
 import {
+  useCallback,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -6,7 +8,10 @@ import {
 
 import { queryClient } from "@/app/query-client"
 
-import { login as loginRequest } from "./auth-api"
+import {
+  getAuthenticatedUser,
+  login as loginRequest,
+} from "./auth-api"
 import {
   getStoredSession,
   removeStoredSession,
@@ -27,12 +32,74 @@ export function AuthProvider({ children }: AuthProviderProps) {
     getStoredSession(),
   )
 
+  const [isLoadingSession, setIsLoadingSession] = useState(() =>
+    Boolean(getStoredSession()?.accessToken),
+  )
+
   const activeOrganization =
     session?.user.organizations.find(
       (organization) => organization.id === session.activeOrganizationId,
     ) ?? null
 
-  async function login(data: LoginRequest) {
+  useEffect(() => {
+    const storedSession = getStoredSession()
+
+    if (!storedSession?.accessToken) {
+      return
+    }
+
+    type StoredSessionType = NonNullable<ReturnType<typeof getStoredSession>>
+
+    let active = true
+
+    async function validateStoredSession(
+      storedSession: StoredSessionType,
+    ) {
+      try {
+        const user = await getAuthenticatedUser()
+
+        if (!active) {
+          return
+        }
+
+        const activeOrganizationStillExists = user.organizations.some(
+          (organization) =>
+            organization.id === storedSession.activeOrganizationId,
+        )
+
+        const nextSession: AuthSession = {
+          accessToken: storedSession.accessToken,
+          user,
+          activeOrganizationId: activeOrganizationStillExists
+            ? storedSession.activeOrganizationId
+            : user.organizations[0]?.id ?? null,
+        }
+
+        storeSession(nextSession)
+        setSession(nextSession)
+      } catch {
+        if (!active) {
+          return
+        }
+
+        removeStoredSession()
+        setSession(null)
+        queryClient.clear()
+      } finally {
+        if (active) {
+          setIsLoadingSession(false)
+        }
+      }
+    }
+
+    validateStoredSession(storedSession)
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const login = useCallback(async (data: LoginRequest) => {
     const response = await loginRequest(data)
 
     const nextSession: AuthSession = {
@@ -46,47 +113,51 @@ export function AuthProvider({ children }: AuthProviderProps) {
     queryClient.clear()
 
     return nextSession
-  }
+  }, [])
 
-  function logout() {
+  const logout = useCallback(() => {
     removeStoredSession()
     setSession(null)
     queryClient.clear()
-  }
+  }, [])
 
-  function setActiveOrganization(organizationId: string) {
-    if (!session) {
-      return
-    }
+  const setActiveOrganization = useCallback(
+    (organizationId: string) => {
+      if (!session) {
+        return
+      }
 
-    const organizationExists = session.user.organizations.some(
-      (organization) => organization.id === organizationId,
-    )
+      const organizationExists = session.user.organizations.some(
+        (organization) => organization.id === organizationId,
+      )
 
-    if (!organizationExists) {
-      return
-    }
+      if (!organizationExists) {
+        return
+      }
 
-    const nextSession: AuthSession = {
-      ...session,
-      activeOrganizationId: organizationId,
-    }
+      const nextSession: AuthSession = {
+        ...session,
+        activeOrganizationId: organizationId,
+      }
 
-    storeSession(nextSession)
-    setSession(nextSession)
-    queryClient.clear()
-  }
+      storeSession(nextSession)
+      setSession(nextSession)
+      queryClient.clear()
+    },
+    [session],
+  )
 
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
       isAuthenticated: Boolean(session?.accessToken),
+      isLoadingSession,
       activeOrganization,
       login,
       logout,
       setActiveOrganization,
     }),
-    [session, activeOrganization],
+    [session, isLoadingSession, activeOrganization, login, logout, setActiveOrganization],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

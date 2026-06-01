@@ -17,12 +17,15 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ViewFinancialTransactionDialog } from "./view-financial-transaction-dialog"
 import { ClassifyFinancialTransactionDialog } from "./classify-financial-transaction-dialog"
 import { FinancialTransactionAttachmentsDialog } from "@/features/attachments/components/financial-transaction-attachments-dialog"
+import { usePermissions } from "@/features/auth/hooks/use-permissions"
 
 type FinancialTransactionActionsProps = {
   transaction: FinancialTransaction
 }
 
 export function FinancialTransactionActions({ transaction, }: FinancialTransactionActionsProps) {
+
+  const { canFinanceWrite } = usePermissions()
 
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const cancelFinancialTransactionMutation = useCancelFinancialTransaction()
@@ -46,7 +49,7 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
   const needsClassification =
     transaction.source === "OFX" &&
     transaction.status === "SETTLED" &&
-    !transaction.category
+    !transaction.category 
 
   const canEdit =
     transaction.status !== "CANCELED" &&
@@ -78,23 +81,23 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
 
           <ViewFinancialTransactionDialog transaction={transaction} />
 
-          {canEdit && (
+          {canFinanceWrite && canEdit && (
             <EditFinancialTransactionDialog transaction={transaction} />
           )}
 
-          {canManageAllocations && (
+          {canFinanceWrite && canManageAllocations && (
             <ManageTransactionAllocationsDialog transaction={transaction} />
           )}
 
-          {needsClassification && (
+          {canFinanceWrite && needsClassification && (
             <ClassifyFinancialTransactionDialog transaction={transaction} />
           )}
 
-          {canManageAttachments && (
+          {canFinanceWrite && canManageAttachments && (
             <FinancialTransactionAttachmentsDialog transaction={transaction} />
           )}
 
-          {canCancel && (
+          {canFinanceWrite && canCancel && (
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onClick={() => setCancelDialogOpen(true)}
@@ -123,7 +126,7 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
 
           {cancelFinancialTransactionMutation.isError && (
             <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-              Não foi possível desativar a transação. Verifique se ela não possui
+              Não foi possível cancelar a transação. Verifique se ela não possui
               alocações vinculadas.
             </div>
           )}

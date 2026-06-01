@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/layout/page-header"
 import { PagePagination } from "@/components/pagination/page-pagination"
+import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { CategoriesTable } from "@/features/categories/components/categories-table"
 import { CategoriesTableSkeleton } from "@/features/categories/components/categories-table-skeleton"
 import { CreateCategoryDialog } from "@/features/categories/components/create-category-dialog"
@@ -9,6 +10,8 @@ import { useState } from "react"
 const PAGE_SIZE = 10
 
 export function CategoriesPage() {
+
+  const { canFinanceWrite } = usePermissions()
 
   const [page, setPage] = useState(0)
 
@@ -25,7 +28,7 @@ export function CategoriesPage() {
         title="Categorias"
         description="Organize receitas e despesas em um plano de contas hierárquico."
       >
-        <CreateCategoryDialog categories={categories} />
+        {canFinanceWrite && <CreateCategoryDialog categories={categories} />}
       </PageHeader>
 
       {isLoading && <CategoriesTableSkeleton />}

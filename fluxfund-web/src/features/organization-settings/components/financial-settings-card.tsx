@@ -18,8 +18,12 @@ import { useFunds } from "@/features/funds/hooks/use-funds"
 
 import { useOrganizationSettings } from "../hooks/use-organization-settings"
 import { useUpdateOrganizationSettings } from "../hooks/use-update-organization-settings"
+import { usePermissions } from "@/features/auth/hooks/use-permissions"
 
 export function FinancialSettingsCard() {
+
+  const { canAdmin } = usePermissions()
+
   const [defaultFundId, setDefaultFundId] = useState<string | null>(null)
 
   const settingsQuery = useOrganizationSettings()
@@ -142,6 +146,7 @@ export function FinancialSettingsCard() {
                     label: fund.name,
                   }))}
                   onChange={setDefaultFundId}
+                  disabled={!canAdmin}
                 />
 
                 {selectedFund && (
@@ -157,16 +162,23 @@ export function FinancialSettingsCard() {
                 Esta configuração vale apenas para a organização atual.
               </p>
 
-              <Button
-                type="button"
-                onClick={handleSave}
-                disabled={!hasChanged || updateSettingsMutation.isPending}
-              >
-                <Save className="mr-2 size-4" />
-                {updateSettingsMutation.isPending
-                  ? "Salvando..."
-                  : "Salvar configurações"}
-              </Button>
+              {!canAdmin && (
+                <Badge variant="outline">
+                  Acesso somente leitura
+                </Badge>
+              )}
+              {canAdmin && (
+                <Button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={!hasChanged || updateSettingsMutation.isPending}
+                >
+                  <Save className="mr-2 size-4" />
+                  {updateSettingsMutation.isPending
+                    ? "Salvando..."
+                    : "Salvar configurações"}
+                </Button>
+              )}
             </div>
           </>
         )}

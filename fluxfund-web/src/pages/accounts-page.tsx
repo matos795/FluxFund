@@ -4,11 +4,14 @@ import { AccountsTable } from "@/features/accounts/components/accounts-table"
 import { AccountsTableSkeleton } from "@/features/accounts/components/accounts-table-skeleton"
 import { CreateAccountDialog } from "@/features/accounts/components/create-account-dialog"
 import { useAccounts } from "@/features/accounts/hooks/use-accounts"
+import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { useState } from "react"
 
 const PAGE_SIZE = 10
 
 export function AccountsPage() {
+
+  const { canFinanceWrite } = usePermissions()
 
   const [page, setPage] = useState(0)
 
@@ -25,7 +28,7 @@ export function AccountsPage() {
         title="Contas"
         description="Gerencie contas bancárias, caixas físicos, carteiras e contas digitais."
       >
-        <CreateAccountDialog />
+        {canFinanceWrite && <CreateAccountDialog />}
       </PageHeader>
 
       {isLoading && <AccountsTableSkeleton />}

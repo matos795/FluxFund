@@ -23,12 +23,16 @@ import type { Beneficiary } from "../beneficiary-types"
 import { useDeleteBeneficiary } from "../hooks/use-delete-beneficiary"
 import { EditBeneficiaryDialog } from "./edit-beneficiary-dialog"
 import { CreateSupportAgreementDialog } from "@/features/support-agreements/components/create-support-agreement-dialog"
+import { usePermissions } from "@/features/auth/hooks/use-permissions"
 
 type BeneficiaryActionsProps = {
     beneficiary: Beneficiary
 }
 
 export function BeneficiaryActions({ beneficiary }: BeneficiaryActionsProps) {
+    
+    const { canFinanceWrite } = usePermissions()
+    
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
     const deleteBeneficiaryMutation = useDeleteBeneficiary()
@@ -43,6 +47,10 @@ export function BeneficiaryActions({ beneficiary }: BeneficiaryActionsProps) {
                 toast.error("Não foi possível desativar o favorecido. Verifique se ele não possui transações vinculadas.")
             }
         })
+    }
+
+    if (!canFinanceWrite) {
+        return null
     }
 
     return (
