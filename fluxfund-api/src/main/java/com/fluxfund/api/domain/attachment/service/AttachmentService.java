@@ -18,6 +18,9 @@ import com.fluxfund.api.domain.attachment.dto.AttachmentFile;
 import com.fluxfund.api.domain.attachment.dto.AttachmentResponse;
 import com.fluxfund.api.domain.attachment.mapper.AttachmentMapper;
 import com.fluxfund.api.domain.attachment.repository.AttachmentRepository;
+import com.fluxfund.api.domain.audit.AuditAction;
+import com.fluxfund.api.domain.audit.AuditEntityType;
+import com.fluxfund.api.domain.audit.service.AuditLogService;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
 import com.fluxfund.api.domain.organization.Organization;
@@ -39,6 +42,7 @@ public class AttachmentService {
         private final OrganizationRepository organizationRepository;
         private final LocalFileStorageService storageService;
         private final OrganizationAccessService organizationAccessService;
+        private final AuditLogService auditLogService;
 
         private static final long MAX_FILE_SIZE_BYTES = 10L * 1024 * 1024;
 
@@ -98,6 +102,13 @@ public class AttachmentService {
 
                         attachmentRepository.saveAndFlush(attachment);
 
+                        auditLogService.record(
+                                        organizationId,
+                                        AuditEntityType.ATTACHMENT,
+                                        attachment.getId(),
+                                        AuditAction.UPLOAD_ATTACHMENT,
+                                        "Attachment uploaded for transaction " + transactionId);
+
                         return AttachmentMapper.toResponse(attachment);
                 } catch (IOException exception) {
                         storageService.delete(storageKey);
@@ -146,8 +157,16 @@ public class AttachmentService {
                                 .findByIdAndOrganizationId(attachmentId, organizationId)
                                 .orElseThrow(() -> new ResourceNotFoundException("Attachment not found"));
 
+                UUID transactionId = attachment.getFinancialTransaction().getId();
                 storageService.delete(attachment.getStorageKey());
                 attachmentRepository.delete(attachment);
+
+                auditLogService.record(
+                                organizationId,
+                                AuditEntityType.ATTACHMENT,
+                                attachmentId,
+                                AuditAction.DELETE_ATTACHMENT,
+                                "Attachment deleted from transaction " + transactionId);
         }
 
         private String sanitizeFilename(String filename) {

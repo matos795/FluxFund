@@ -5,6 +5,9 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fluxfund.api.domain.audit.AuditAction;
+import com.fluxfund.api.domain.audit.AuditEntityType;
+import com.fluxfund.api.domain.audit.service.AuditLogService;
 import com.fluxfund.api.domain.fund.Fund;
 import com.fluxfund.api.domain.fund.repository.FundRepository;
 import com.fluxfund.api.domain.organization.Organization;
@@ -28,6 +31,7 @@ public class OrganizationSettingsService {
     private final OrganizationSettingsRepository repository;
     private final FundRepository fundRepository;
     private final OrganizationAccessService organizationAccessService;
+    private final AuditLogService auditLogService;
 
     @Transactional(readOnly = true)
     public OrganizationSettingsResponse findByOrganization(UUID organizationId) {
@@ -40,19 +44,28 @@ public class OrganizationSettingsService {
 
     public OrganizationSettingsResponse update(UUID organizationId, UpdateOrganizationSettingsRequest request) {
         organizationAccessService.requireAdminAccess(organizationId);
-        
+
         OrganizationSettings settings = findOrCreateSettings(organizationId);
 
         Fund defaultFund = null;
 
         if (request.defaultFundId() != null) {
             defaultFund = fundRepository.findByIdAndOrganizationIdAndActiveTrue(request.defaultFundId(), organizationId)
-            .orElseThrow(() -> new ResourceNotFoundException("Default fund not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Default fund not found"));
         }
 
         settings.setDefaultFund(defaultFund);
 
         repository.save(settings);
+
+        auditLogService.record(
+                organizationId,
+                AuditEntityType.ORGANIZATION_SETTINGS,
+                settings.getId(),
+                AuditAction.CHANGE_DEFAULT_FUND,
+                defaultFund != null
+                        ? "Default fund changed to " + defaultFund.getId()
+                        : "Default fund removed");
 
         return OrganizationSettingsMapper.toResponse(settings);
     }

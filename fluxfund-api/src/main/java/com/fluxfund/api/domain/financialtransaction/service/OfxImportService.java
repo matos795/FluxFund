@@ -15,6 +15,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.fluxfund.api.domain.account.Account;
 import com.fluxfund.api.domain.account.repository.AccountRepository;
+import com.fluxfund.api.domain.audit.AuditAction;
+import com.fluxfund.api.domain.audit.AuditEntityType;
+import com.fluxfund.api.domain.audit.service.AuditLogService;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
@@ -45,12 +48,13 @@ public class OfxImportService {
     private final OrganizationRepository organizationRepository;
     private final AccountRepository accountRepository;
     private final OrganizationAccessService organizationAccessService;
+    private final AuditLogService auditLogService;
 
     public ImportOfxResponse importOfx(
             UUID organizationId,
             UUID accountId,
             MultipartFile file) {
-            organizationAccessService.requireFinanceWriteAccess(organizationId);
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
         validateFile(file);
 
         Organization organization = organizationRepository.findByIdAndActiveTrue(organizationId)
@@ -110,6 +114,15 @@ public class OfxImportService {
 
                     financialTransactionRepository.save(financialTransaction);
                     imported++;
+
+                    auditLogService.record(
+                            organizationId,
+                            AuditEntityType.OFX_IMPORT,
+                            accountId,
+                            AuditAction.IMPORT_OFX,
+                            "OFX imported for account %s: imported=%d, duplicates=%d, failed=%d"
+                                    .formatted(accountId, imported, ignoredDuplicates, failed));
+                                    
                 } catch (Exception exception) {
                     failed++;
                     errors.add("Erro ao importar transação: " + exception.getMessage());

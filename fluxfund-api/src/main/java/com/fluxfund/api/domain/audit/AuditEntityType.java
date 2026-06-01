@@ -1,0 +1,10 @@
+package com.fluxfund.api.domain.audit;
+
+public enum AuditEntityType {
+    FINANCIAL_TRANSACTION,
+    TRANSACTION_ALLOCATION,
+    ATTACHMENT,
+    SUPPORT_AGREEMENT,
+    ORGANIZATION_SETTINGS,
+    OFX_IMPORT
+}

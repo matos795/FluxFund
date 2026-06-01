@@ -7,6 +7,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fluxfund.api.domain.audit.AuditAction;
+import com.fluxfund.api.domain.audit.AuditEntityType;
+import com.fluxfund.api.domain.audit.service.AuditLogService;
 import com.fluxfund.api.domain.beneficiary.Beneficiary;
 import com.fluxfund.api.domain.beneficiary.repository.BeneficiaryRepository;
 import com.fluxfund.api.domain.fund.Fund;
@@ -35,12 +38,13 @@ public class SupportAgreementService {
     private final BeneficiaryRepository beneficiaryRepository;
     private final FundRepository fundRepository;
     private final OrganizationAccessService organizationAccessService;
+    private final AuditLogService auditLogService;
 
     public SupportAgreementResponse create(
-        UUID organizationId,
-        CreateSupportAgreementRequest request) {
+            UUID organizationId,
+            CreateSupportAgreementRequest request) {
         organizationAccessService.requireFinanceWriteAccess(organizationId);
-        
+
         validateDates(request.startDate(), request.endDate());
 
         Organization organization = organizationRepository.findById(organizationId)
@@ -74,6 +78,13 @@ public class SupportAgreementService {
         agreement.setDescription(request.description());
 
         repository.save(agreement);
+
+        auditLogService.record(
+                organizationId,
+                AuditEntityType.SUPPORT_AGREEMENT,
+                agreement.getId(),
+                AuditAction.CREATE,
+                "Support agreement created");
 
         return SupportAgreementMapper.toResponse(agreement);
     }
@@ -110,7 +121,7 @@ public class SupportAgreementService {
             UUID organizationId,
             UUID id,
             UpdateSupportAgreementRequest request) {
-            organizationAccessService.requireFinanceWriteAccess(organizationId);
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         validateDates(request.startDate(), request.endDate());
 
@@ -134,6 +145,13 @@ public class SupportAgreementService {
 
         repository.save(agreement);
 
+        auditLogService.record(
+                organizationId,
+                AuditEntityType.SUPPORT_AGREEMENT,
+                agreement.getId(),
+                AuditAction.UPDATE,
+                "Support agreement updated");
+
         return SupportAgreementMapper.toResponse(agreement);
     }
 
@@ -144,6 +162,13 @@ public class SupportAgreementService {
         agreement.setActive(false);
 
         repository.save(agreement);
+
+        auditLogService.record(
+                organizationId,
+                AuditEntityType.SUPPORT_AGREEMENT,
+                agreement.getId(),
+                AuditAction.DEACTIVATE,
+                "Support agreement deactivated");
     }
 
     public SupportAgreementResponse activate(UUID organizationId, UUID id) {
@@ -168,6 +193,13 @@ public class SupportAgreementService {
         agreement.setActive(true);
 
         repository.save(agreement);
+
+        auditLogService.record(
+                organizationId,
+                AuditEntityType.SUPPORT_AGREEMENT,
+                agreement.getId(),
+                AuditAction.ACTIVATE,
+                "Support agreement activated");
 
         return SupportAgreementMapper.toResponse(agreement);
     }

@@ -19,6 +19,9 @@ import com.fluxfund.api.domain.account.Account;
 import com.fluxfund.api.domain.account.repository.AccountRepository;
 import com.fluxfund.api.domain.attachment.dto.AttachmentCountByTransactionProjection;
 import com.fluxfund.api.domain.attachment.repository.AttachmentRepository;
+import com.fluxfund.api.domain.audit.AuditAction;
+import com.fluxfund.api.domain.audit.AuditEntityType;
+import com.fluxfund.api.domain.audit.service.AuditLogService;
 import com.fluxfund.api.domain.beneficiary.Beneficiary;
 import com.fluxfund.api.domain.beneficiary.repository.BeneficiaryRepository;
 import com.fluxfund.api.domain.category.Category;
@@ -66,6 +69,7 @@ public class FinancialTransactionService {
     private final OrganizationSettingsRepository organizationSettingsRepository;
     private final AttachmentRepository attachmentRepository;
     private final OrganizationAccessService organizationAccessService;
+    private final AuditLogService auditLogService;
 
     public FinancialTransactionResponse create(UUID organizationId, CreateFinancialTransactionRequest request) {
         organizationAccessService.requireFinanceWriteAccess(organizationId);
@@ -98,6 +102,13 @@ public class FinancialTransactionService {
 
         repository.save(financialTransaction);
 
+        auditLogService.record(
+                organizationId,
+                AuditEntityType.FINANCIAL_TRANSACTION,
+                financialTransaction.getId(),
+                AuditAction.CREATE,
+                "Manual financial transaction created");
+
         return FinancialTransactionMapper.toResponse(financialTransaction);
     }
 
@@ -116,7 +127,7 @@ public class FinancialTransactionService {
             Boolean onlyUnallocated,
             UUID fundId,
             Pageable pageable) {
-                organizationAccessService.requireReadAccess(organizationId);
+        organizationAccessService.requireReadAccess(organizationId);
 
         Page<FinancialTransaction> transactions = repository
                 .findAll(FinancialTransactionSpecification.withFilters(
@@ -171,7 +182,7 @@ public class FinancialTransactionService {
             UUID organizationId,
             UUID id,
             UpdateFinancialTransactionRequest request) {
-                organizationAccessService.requireFinanceWriteAccess(organizationId);
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
@@ -197,6 +208,13 @@ public class FinancialTransactionService {
 
         repository.save(financialTransaction);
 
+        auditLogService.record(
+                organizationId,
+                AuditEntityType.FINANCIAL_TRANSACTION,
+                financialTransaction.getId(),
+                AuditAction.UPDATE,
+                "Financial transaction updated");
+
         return FinancialTransactionMapper.toResponse(financialTransaction);
     }
 
@@ -211,6 +229,13 @@ public class FinancialTransactionService {
 
         financialTransaction.setStatus(FinancialTransactionStatus.CANCELED);
         repository.save(financialTransaction);
+
+        auditLogService.record(
+                organizationId,
+                AuditEntityType.FINANCIAL_TRANSACTION,
+                financialTransaction.getId(),
+                AuditAction.CANCEL,
+                "Financial transaction canceled");
     }
 
     private FinancialTransaction findFinancialTransactionById(
@@ -224,7 +249,7 @@ public class FinancialTransactionService {
             UUID organizationId,
             UUID id,
             ClassifyFinancialTransactionRequest request) {
-                organizationAccessService.requireFinanceWriteAccess(organizationId);
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
@@ -270,12 +295,19 @@ public class FinancialTransactionService {
 
         repository.save(financialTransaction);
 
+        auditLogService.record(
+                organizationId,
+                AuditEntityType.FINANCIAL_TRANSACTION,
+                financialTransaction.getId(),
+                AuditAction.CLASSIFY,
+                "Financial transaction classified with category " + category.getId());
+
         return FinancialTransactionMapper.toResponse(financialTransaction);
     }
 
     public TransactionAllocationResponse addAllocation(UUID organizationId, UUID id,
             CreateTransactionAllocationRequest request) {
-                organizationAccessService.requireFinanceWriteAccess(organizationId);
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
@@ -287,12 +319,19 @@ public class FinancialTransactionService {
 
         repository.save(financialTransaction);
 
+        auditLogService.record(
+                organizationId,
+                AuditEntityType.TRANSACTION_ALLOCATION,
+                allocation.getId(),
+                AuditAction.ADD_ALLOCATION,
+                "Allocation added to transaction " + financialTransaction.getId());
+
         return TransactionAllocationMapper.toResponse(allocation);
     }
 
     public TransactionAllocationResponse updateAllocation(UUID organizationId, UUID id, UUID allocationId,
             UpdateTransactionAllocationRequest request) {
-                organizationAccessService.requireFinanceWriteAccess(organizationId);
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
@@ -321,6 +360,13 @@ public class FinancialTransactionService {
 
         repository.save(financialTransaction);
 
+        auditLogService.record(
+                organizationId,
+                AuditEntityType.TRANSACTION_ALLOCATION,
+                allocation.getId(),
+                AuditAction.UPDATE_ALLOCATION,
+                "Allocation updated for transaction " + financialTransaction.getId());
+
         return TransactionAllocationMapper.toResponse(allocation);
     }
 
@@ -337,14 +383,21 @@ public class FinancialTransactionService {
         financialTransaction.removeAllocation(allocation);
 
         repository.save(financialTransaction);
+
+        auditLogService.record(
+                organizationId,
+                AuditEntityType.TRANSACTION_ALLOCATION,
+                allocationId,
+                AuditAction.REMOVE_ALLOCATION,
+                "Allocation removed from transaction " + financialTransaction.getId());
     }
 
     @Transactional(readOnly = true)
     public List<TransactionAllocationResponse> findAllByTransaction(
             UUID organizationId,
             UUID transactionId) {
-                organizationAccessService.requireReadAccess(organizationId);
-                
+        organizationAccessService.requireReadAccess(organizationId);
+
         FinancialTransaction transaction = repository
                 .findByIdAndOrganizationId(transactionId, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Financial transaction not found"));
