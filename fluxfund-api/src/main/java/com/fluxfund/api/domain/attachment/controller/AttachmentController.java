@@ -59,12 +59,18 @@ public class AttachmentController {
         AttachmentFile file = service.download(organizationId, attachmentId);
 
         return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(
-                        file.contentType() != null ? file.contentType() : MediaType.APPLICATION_OCTET_STREAM_VALUE))
-                .header(
-                        HttpHeaders.CONTENT_DISPOSITION,
-                        ContentDisposition.attachment().filename(file.filename()).build().toString())
-                .body(file.content());
+        .contentType(MediaType.parseMediaType(
+                file.contentType() != null
+                        ? file.contentType()
+                        : MediaType.APPLICATION_OCTET_STREAM_VALUE))
+        .header(
+                HttpHeaders.CONTENT_DISPOSITION,
+                ContentDisposition.attachment()
+                        .filename(file.filename())
+                        .build()
+                        .toString())
+        .header("X-Content-Type-Options", "nosniff")
+        .body(file.content());
     }
 
     @DeleteMapping("/api/v1/attachments/{attachmentId}")

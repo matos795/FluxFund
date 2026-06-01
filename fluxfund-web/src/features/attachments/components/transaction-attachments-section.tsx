@@ -182,6 +182,7 @@ export function TransactionAttachmentsSection({
                             id={`attachment-file-${transactionId}`}
                             type="file"
                             onChange={handleFileChange}
+                            accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
                         />
                         {file && (
                             <p className="text-xs text-amber-700">

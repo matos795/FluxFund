@@ -1,8 +1,11 @@
 package com.fluxfund.api.domain.attachment.service;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -37,6 +40,19 @@ public class AttachmentService {
         private final LocalFileStorageService storageService;
         private final OrganizationAccessService organizationAccessService;
 
+        private static final long MAX_FILE_SIZE_BYTES = 10L * 1024 * 1024;
+
+        private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
+                        "pdf",
+                        "png",
+                        "jpg",
+                        "jpeg");
+
+        private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
+                        "application/pdf",
+                        "image/png",
+                        "image/jpeg");
+
         public AttachmentResponse upload(
                         UUID organizationId,
                         UUID transactionId,
@@ -47,6 +63,8 @@ public class AttachmentService {
                 if (file == null || file.isEmpty()) {
                         throw new BusinessException("File is required");
                 }
+
+                validateFile(file);
 
                 Organization organization = organizationRepository.findById(organizationId)
                                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
@@ -67,23 +85,27 @@ public class AttachmentService {
 
                 try {
                         storageService.save(storageKey, file.getInputStream());
+
+                        Attachment attachment = new Attachment();
+                        attachment.setOrganization(organization);
+                        attachment.setFinancialTransaction(transaction);
+                        attachment.setType(type);
+                        attachment.setOriginalFilename(originalFileName);
+                        attachment.setContentType(file.getContentType());
+                        attachment.setSizeBytes(file.getSize());
+                        attachment.setStorageKey(storageKey);
+                        attachment.setUploadedAt(OffsetDateTime.now());
+
+                        attachmentRepository.saveAndFlush(attachment);
+
+                        return AttachmentMapper.toResponse(attachment);
                 } catch (IOException exception) {
+                        storageService.delete(storageKey);
                         throw new BusinessException("Could not process uploaded file");
+                } catch (RuntimeException exception) {
+                        storageService.delete(storageKey);
+                        throw exception;
                 }
-
-                Attachment attachment = new Attachment();
-                attachment.setOrganization(organization);
-                attachment.setFinancialTransaction(transaction);
-                attachment.setType(type);
-                attachment.setOriginalFilename(originalFileName);
-                attachment.setContentType(file.getContentType());
-                attachment.setSizeBytes(file.getSize());
-                attachment.setStorageKey(storageKey);
-                attachment.setUploadedAt(OffsetDateTime.now());
-
-                attachmentRepository.save(attachment);
-
-                return AttachmentMapper.toResponse(attachment);
         }
 
         @Transactional(readOnly = true)
@@ -134,5 +156,80 @@ public class AttachmentService {
                                 .replace("/", "_")
                                 .replace("..", "_")
                                 .trim();
+        }
+
+        private void validateFile(MultipartFile file) {
+                if (file.getSize() > MAX_FILE_SIZE_BYTES) {
+                        throw new BusinessException("File exceeds the maximum size of 10MB");
+                }
+
+                String originalFilename = file.getOriginalFilename();
+
+                if (originalFilename == null || originalFilename.isBlank()) {
+                        throw new BusinessException("Invalid file name");
+                }
+
+                String extension = getExtension(originalFilename);
+
+                if (!ALLOWED_EXTENSIONS.contains(extension)) {
+                        throw new BusinessException("Only PDF, PNG and JPG files are allowed");
+                }
+
+                String contentType = file.getContentType();
+
+                if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase(Locale.ROOT))) {
+                        throw new BusinessException("Invalid file type");
+                }
+
+                validateFileSignature(file, extension);
+        }
+
+        private String getExtension(String filename) {
+                int lastDotIndex = filename.lastIndexOf('.');
+
+                if (lastDotIndex < 0 || lastDotIndex == filename.length() - 1) {
+                        throw new BusinessException("File extension is required");
+                }
+
+                return filename.substring(lastDotIndex + 1).toLowerCase(Locale.ROOT);
+        }
+
+        private void validateFileSignature(MultipartFile file, String extension) {
+                try (InputStream inputStream = file.getInputStream()) {
+                        byte[] header = inputStream.readNBytes(8);
+
+                        boolean valid = switch (extension) {
+                                case "pdf" -> startsWith(header, new byte[] { '%', 'P', 'D', 'F' });
+                                case "png" -> startsWith(header, new byte[] {
+                                                (byte) 0x89, 'P', 'N', 'G',
+                                                (byte) 0x0D, (byte) 0x0A,
+                                                (byte) 0x1A, (byte) 0x0A
+                                });
+                                case "jpg", "jpeg" -> startsWith(header, new byte[] {
+                                                (byte) 0xFF, (byte) 0xD8, (byte) 0xFF
+                                });
+                                default -> false;
+                        };
+
+                        if (!valid) {
+                                throw new BusinessException("File content does not match its extension");
+                        }
+                } catch (IOException exception) {
+                        throw new BusinessException("Could not validate uploaded file");
+                }
+        }
+
+        private boolean startsWith(byte[] content, byte[] expectedHeader) {
+                if (content.length < expectedHeader.length) {
+                        return false;
+                }
+
+                for (int index = 0; index < expectedHeader.length; index++) {
+                        if (content[index] != expectedHeader[index]) {
+                                return false;
+                        }
+                }
+
+                return true;
         }
 }
