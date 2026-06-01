@@ -13,8 +13,6 @@ import { formatCurrency, formatDate } from "@/utils/formatters"
 import { DashboardSummaryCard } from "@/features/dashboard/components/dashboard-summary-card"
 import { DashboardPendingCard } from "@/features/dashboard/components/dashboard-pending-card"
 
-const TEMP_ORGANIZATION_ID = "7b9ed617-92be-456d-81d6-dcde5841e7a0"
-
 export function DashboardPage() {
   const today = new Date()
 
@@ -29,7 +27,6 @@ export function DashboardPage() {
     isLoading,
     isError,
   } = useDashboardSummary({
-    organizationId: TEMP_ORGANIZATION_ID,
     startDate,
     endDate,
   })

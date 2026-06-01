@@ -32,8 +32,6 @@ import { useExportAccountabilityExcel } from "@/features/reports/hooks/use-expor
 import { downloadFile } from "@/utils/download-file"
 import { toast } from "sonner"
 
-const TEMP_ORGANIZATION_ID = "7b9ed617-92be-456d-81d6-dcde5841e7a0"
-
 type AccountabilityBeneficiaryGroup = {
     beneficiaryId: string
     beneficiaryName: string
@@ -172,7 +170,6 @@ export function AccountabilityReportPage() {
         isLoading,
         isError,
     } = useAccountabilityReport({
-        organizationId: TEMP_ORGANIZATION_ID,
         startDate,
         endDate,
     })
@@ -183,7 +180,6 @@ export function AccountabilityReportPage() {
         isError: isByAccountError,
     } = useAccountabilityByAccountReport(
         {
-            organizationId: TEMP_ORGANIZATION_ID,
             startDate,
             endDate,
         },
@@ -259,7 +255,6 @@ export function AccountabilityReportPage() {
     function handleExportExcel() {
         exportAccountabilityExcelMutation.mutate(
             {
-                organizationId: TEMP_ORGANIZATION_ID,
                 startDate,
                 endDate,
             },

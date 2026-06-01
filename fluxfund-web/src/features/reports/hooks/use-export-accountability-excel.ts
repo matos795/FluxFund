@@ -3,7 +3,6 @@ import { useMutation } from "@tanstack/react-query"
 import { reportsApi } from "../reports-api"
 
 type ExportAccountabilityExcelParams = {
-  organizationId: string
   startDate?: string
   endDate?: string
 }

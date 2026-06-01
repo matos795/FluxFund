@@ -2,8 +2,6 @@ import { httpClient } from "@/api/http-client"
 import type { PageResponse } from "@/types/page-response"
 import type { ClassifyFinancialTransactionRequest, CreateFinancialTransactionRequest, CreateTransactionAllocationRequest, FinancialTransaction, ImportOfxResponse, TransactionAllocation, UpdateFinancialTransactionRequest, UpdateTransactionAllocationRequest } from "./financial-transaction-types"
 
-const TEMP_ORGANIZATION_ID = "7b9ed617-92be-456d-81d6-dcde5841e7a0"
-
 type GetFinancialTransactionsParams = {
   page?: number
   size?: number
@@ -41,7 +39,6 @@ export async function getFinancialTransactions({
     "/api/v1/financial-transactions",
     {
       params: {
-        organizationId: TEMP_ORGANIZATION_ID,
         page,
         size,
         type: type || undefined,
@@ -67,14 +64,7 @@ export async function createFinancialTransaction(
   data: CreateFinancialTransactionRequest,
 ) {
   const response = await httpClient.post<FinancialTransaction>(
-    "/api/v1/financial-transactions",
-    data,
-    {
-      params: {
-        organizationId: TEMP_ORGANIZATION_ID,
-      },
-    },
-  )
+    "/api/v1/financial-transactions", data)
 
   return response.data
 }
@@ -85,23 +75,13 @@ export async function updateFinancialTransaction(
 ) {
   const response = await httpClient.put<FinancialTransaction>(
     `/api/v1/financial-transactions/${id}`,
-    data,
-    {
-      params: {
-        organizationId: TEMP_ORGANIZATION_ID,
-      },
-    },
-  )
+    data)
 
   return response.data
 }
 
 export async function cancelFinancialTransaction(id: string) {
-  await httpClient.delete(`/api/v1/financial-transactions/${id}`, {
-    params: {
-      organizationId: TEMP_ORGANIZATION_ID,
-    },
-  })
+  await httpClient.delete(`/api/v1/financial-transactions/${id}`)
 }
 
 export async function addTransactionAllocation(
@@ -109,14 +89,7 @@ export async function addTransactionAllocation(
   data: CreateTransactionAllocationRequest,
 ) {
   const response = await httpClient.post<TransactionAllocation>(
-    `/api/v1/financial-transactions/${transactionId}/allocations`,
-    data,
-    {
-      params: {
-        organizationId: TEMP_ORGANIZATION_ID,
-      },
-    },
-  )
+    `/api/v1/financial-transactions/${transactionId}/allocations`, data)
 
   return response.data
 }
@@ -128,13 +101,7 @@ export async function updateTransactionAllocation(
 ) {
   const response = await httpClient.put<TransactionAllocation>(
     `/api/v1/financial-transactions/${transactionId}/allocations/${allocationId}`,
-    data,
-    {
-      params: {
-        organizationId: TEMP_ORGANIZATION_ID,
-      },
-    },
-  )
+    data)
 
   return response.data
 }
@@ -144,13 +111,7 @@ export async function deleteTransactionAllocation(
   allocationId: string,
 ) {
   await httpClient.delete(
-    `/api/v1/financial-transactions/${transactionId}/allocations/${allocationId}`,
-    {
-      params: {
-        organizationId: TEMP_ORGANIZATION_ID,
-      },
-    },
-  )
+    `/api/v1/financial-transactions/${transactionId}/allocations/${allocationId}`)
 }
 
 export async function importOfxFile({
@@ -168,7 +129,6 @@ export async function importOfxFile({
     formData,
     {
       params: {
-        organizationId: TEMP_ORGANIZATION_ID,
         accountId,
       },
       headers: {
@@ -188,26 +148,17 @@ export async function classifyFinancialTransaction({
   data: ClassifyFinancialTransactionRequest
 }) {
   const response = await httpClient.put<FinancialTransaction>(
-    `/api/v1/financial-transactions/${transactionId}/classify`,
-    data,
-    {
-      params: {
-        organizationId: TEMP_ORGANIZATION_ID,
-      },
-    },
-  )
+    `/api/v1/financial-transactions/${transactionId}/classify`, data)
 
   return response.data
 }
 
 export type ExportSettledFinancialTransactionsParams = {
-  organizationId: string
   startDate?: string
   endDate?: string
 }
 
 export async function exportSettledFinancialTransactionsExcel({
-  organizationId,
   startDate,
   endDate,
 }: ExportSettledFinancialTransactionsParams) {
@@ -215,7 +166,6 @@ export async function exportSettledFinancialTransactionsExcel({
     "/api/v1/financial-transactions/export/settled.xlsx",
     {
       params: {
-        organizationId,
         startDate,
         endDate,
       },

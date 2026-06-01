@@ -29,7 +29,8 @@ import { useTransactionAttachments } from "../hooks/use-transaction-attachments"
 import { useUploadAttachment } from "../hooks/use-upload-attachment"
 import { useDeleteAttachment } from "../hooks/use-delete-attachment"
 import { attachmentTypeLabels } from "../attachment-labels"
-import { getAttachmentDownloadUrl } from "../attachment-api"
+import { downloadAttachment } from "../attachment-api"
+import { downloadFile } from "@/utils/download-file"
 
 const attachmentTypes: AttachmentType[] = [
     "PROOF_OF_PAYMENT",
@@ -44,6 +45,16 @@ type TransactionAttachmentsSectionProps = {
     enabled?: boolean
     mode?: "readonly" | "manage"
     onPendingUploadChange?: (hasPendingUpload: boolean) => void
+}
+
+async function handleDownloadAttachment(attachment: Attachment) {
+    try {
+        const blob = await downloadAttachment(attachment.id)
+
+        downloadFile(blob, attachment.originalFilename)
+    } catch {
+        toast.error("Não foi possível baixar o anexo.")
+    }
 }
 
 export function TransactionAttachmentsSection({
@@ -228,15 +239,13 @@ export function TransactionAttachmentsSection({
                             </div>
 
                             <div className="flex gap-2 md:justify-end">
-                                <Button variant="outline" size="sm" asChild>
-                                    <a
-                                        href={getAttachmentDownloadUrl(attachment.id)}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                    >
-                                        <Download className="mr-2 size-4" />
-                                        Baixar
-                                    </a>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleDownloadAttachment(attachment)}
+                                >
+                                    <Download className="mr-2 size-4" />
+                                    Baixar
                                 </Button>
 
                                 {canManage && (

@@ -2,7 +2,6 @@ import { httpClient } from "@/api/http-client"
 import type { DashboardSummary } from "./dashboard-types"
 
 type GetDashboardSummaryParams = {
-  organizationId: string
   startDate?: string
   endDate?: string
 }

@@ -6,8 +6,6 @@ import type {
   UpdateSupportAgreementRequest,
 } from "./support-agreement-types"
 
-const TEMP_ORGANIZATION_ID = "7b9ed617-92be-456d-81d6-dcde5841e7a0"
-
 export type GetSupportAgreementsParams = {
   page?: number
   size?: number
@@ -20,7 +18,6 @@ export async function getSupportAgreements({
   active,
 }: GetSupportAgreementsParams) {
   const params: Record<string, string | number | boolean> = {
-    organizationId: TEMP_ORGANIZATION_ID,
     page,
     size,
   }
@@ -31,23 +28,18 @@ export async function getSupportAgreements({
 
   const response = await httpClient.get<PageResponse<SupportAgreement>>(
     "/api/v1/support-agreements",
-    {
-      params,
-    },
+    { params },
   )
 
   return response.data
 }
 
 export async function createSupportAgreement(
-  data: Omit<CreateSupportAgreementRequest, "organizationId">,
+  data: CreateSupportAgreementRequest,
 ) {
   const response = await httpClient.post<SupportAgreement>(
     "/api/v1/support-agreements",
-    {
-      ...data,
-      organizationId: TEMP_ORGANIZATION_ID,
-    },
+    data,
   )
 
   return response.data
@@ -63,33 +55,18 @@ export async function updateSupportAgreement({
   const response = await httpClient.put<SupportAgreement>(
     `/api/v1/support-agreements/${id}`,
     data,
-    {
-      params: {
-        organizationId: TEMP_ORGANIZATION_ID,
-      },
-    },
   )
 
   return response.data
 }
 
 export async function deleteSupportAgreement(id: string) {
-  await httpClient.delete(`/api/v1/support-agreements/${id}`, {
-    params: {
-      organizationId: TEMP_ORGANIZATION_ID,
-    },
-  })
+  await httpClient.delete(`/api/v1/support-agreements/${id}`)
 }
 
 export async function activateSupportAgreement(id: string) {
   const response = await httpClient.patch<SupportAgreement>(
     `/api/v1/support-agreements/${id}/activate`,
-    null,
-    {
-      params: {
-        organizationId: TEMP_ORGANIZATION_ID,
-      },
-    },
   )
 
   return response.data

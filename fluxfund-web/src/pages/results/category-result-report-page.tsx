@@ -18,8 +18,6 @@ import { getFirstDayOfCurrentMonth, getTodayDate } from "@/utils/date-getters"
 
 export function CategoryResultReportPage() {
 
-    const TEMP_ORGANIZATION_ID = "7b9ed617-92be-456d-81d6-dcde5841e7a0"
-
     const [search, setSearch] = useState("")
     const [startDate, setStartDate] = useState(getFirstDayOfCurrentMonth)
     const [endDate, setEndDate] = useState(getTodayDate)
@@ -29,7 +27,6 @@ export function CategoryResultReportPage() {
         isLoading,
         isError,
     } = useCategoryResultReport({
-        organizationId: TEMP_ORGANIZATION_ID,
         startDate,
         endDate,
     })

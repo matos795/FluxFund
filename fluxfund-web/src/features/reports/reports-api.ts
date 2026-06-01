@@ -2,19 +2,16 @@ import { httpClient } from "@/api/http-client"
 import type { AccountabilityByAccountReport, AccountabilityReport, CategoryResultReport, FundReport } from "./reports-types"
 
 type GetCategoryResultReportParams = {
-  organizationId: string
   startDate?: string
   endDate?: string
 }
 
 type GetFundReportParams = {
-  organizationId: string
   startDate?: string
   endDate?: string
 }
 
 type GetAccountabilityReportParams = {
-  organizationId: string
   startDate?: string
   endDate?: string
 }

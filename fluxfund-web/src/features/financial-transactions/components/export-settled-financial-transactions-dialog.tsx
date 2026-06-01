@@ -16,8 +16,6 @@ import { Label } from "@/components/ui/label"
 import { downloadFile } from "@/utils/download-file"
 import { useExportSettledFinancialTransactionsExcel } from "../hooks/use-export-settled-financial-transactions-excel"
 
-const TEMP_ORGANIZATION_ID = "7b9ed617-92be-456d-81d6-dcde5841e7a0"
-
 function getTodayDateInputValue() {
   return new Date().toISOString().slice(0, 10)
 }
@@ -40,7 +38,6 @@ export function ExportSettledFinancialTransactionsDialog() {
   function handleExport() {
     exportSettledTransactionsMutation.mutate(
       {
-        organizationId: TEMP_ORGANIZATION_ID,
         startDate,
         endDate,
       },

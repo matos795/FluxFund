@@ -14,6 +14,15 @@ import {
 import { NavLink } from "react-router-dom"
 
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/features/auth/hooks/use-auth"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
+
+const organizationRoleLabels = {
+  OWNER: "Proprietário",
+  ADMIN: "Administrador",
+  FINANCE: "Financeiro",
+  VIEWER: "Visualização",
+}
 
 const navigationItems = [
   {
@@ -64,6 +73,15 @@ const navigationItems = [
 ]
 
 export function AppSidebar() {
+  const {
+    session,
+    activeOrganization,
+    setActiveOrganization,
+  } = useAuth()
+
+  const canSwitchOrganization =
+    (session?.user.organizations.length ?? 0) > 1
+
   return (
     <aside className="fixed inset-y-0 left-0 z-10 flex w-64 flex-col border-r bg-background">
       <div className="flex h-16 items-center border-b px-6">
@@ -105,11 +123,39 @@ export function AppSidebar() {
       </nav>
 
       <div className="border-t p-4">
-        <div className="rounded-lg bg-muted p-3">
-          <p className="text-sm font-medium">Organização atual</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            FluxFund Demo
+        <div className="space-y-2 rounded-lg bg-muted p-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Organização atual
           </p>
+
+          {canSwitchOrganization ? (
+            <Select
+              value={activeOrganization?.id}
+              onValueChange={setActiveOrganization}
+            >
+              <SelectTrigger className="h-9 bg-background">
+                <SelectValue placeholder="Selecione uma organização" />
+              </SelectTrigger>
+
+              <SelectContent>
+                {session?.user.organizations.map((organization) => (
+                  <SelectItem key={organization.id} value={organization.id}>
+                    {organization.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <p className="text-sm font-medium">
+              {activeOrganization?.name ?? "Nenhuma organização"}
+            </p>
+          )}
+
+          {activeOrganization && (
+            <p className="text-xs text-muted-foreground">
+              {organizationRoleLabels[activeOrganization.role]}
+            </p>
+          )}
         </div>
       </div>
     </aside>

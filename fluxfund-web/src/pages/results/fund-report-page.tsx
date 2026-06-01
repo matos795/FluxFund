@@ -23,8 +23,6 @@ import type { FundReportItem } from "@/features/reports/reports-types"
 import { formatCurrency } from "@/utils/formatters"
 import { getFirstDayOfCurrentMonth, getTodayDate } from "@/utils/date-getters"
 
-const TEMP_ORGANIZATION_ID = "7b9ed617-92be-456d-81d6-dcde5841e7a0"
-
 function filterFunds(items: FundReportItem[], search: string) {
     const normalizedSearch = search.trim().toLowerCase()
 
@@ -71,7 +69,6 @@ export function FundReportPage() {
         isLoading,
         isError,
     } = useFundReport({
-        organizationId: TEMP_ORGANIZATION_ID,
         startDate,
         endDate,
     })

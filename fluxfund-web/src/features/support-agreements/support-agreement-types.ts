@@ -16,7 +16,6 @@ export type SupportAgreement = {
 }
 
 export type CreateSupportAgreementRequest = {
-  organizationId: string
   beneficiaryId: string
   fundId: string
   amount: number
