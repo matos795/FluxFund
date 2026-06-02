@@ -76,7 +76,7 @@ export type CreateFinancialTransactionRequest = {
   expectedAmount: number
   settledAmount?: number | null
 
-  description: string
+  description?: string | null
   documentNumber?: string | null
 
   allocations?: []
@@ -92,7 +92,7 @@ export type UpdateFinancialTransactionRequest = {
   expectedAmount: number
   settledAmount?: number | null
 
-  description: string
+  description?: string | null
   documentNumber?: string | null
 }
 

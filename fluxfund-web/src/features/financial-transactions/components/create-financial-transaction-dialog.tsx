@@ -35,7 +35,7 @@ export function CreateFinancialTransactionDialog() {
           ? data.settledAmount
           : null,
 
-        description: data.description,
+        description: data.description ?? "",
         documentNumber: data.documentNumber || null,
 
         allocations: [],
