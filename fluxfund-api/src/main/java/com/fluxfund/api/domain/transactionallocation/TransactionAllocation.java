@@ -1,6 +1,7 @@
 package com.fluxfund.api.domain.transactionallocation;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 import com.fluxfund.api.domain.beneficiary.Beneficiary;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
@@ -45,4 +46,7 @@ public class TransactionAllocation extends BaseEntity {
 
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal amount = BigDecimal.ZERO;
+
+    @Column(name = "reference_month")
+    private LocalDate referenceMonth;
 }

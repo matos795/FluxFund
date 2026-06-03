@@ -33,6 +33,7 @@ import { TransactionAttachmentsSection } from "@/features/attachments/components
 type AllocationFormItem = {
     fundId: string
     beneficiaryId: string
+    referenceMonth: string
     amount: string
 }
 
@@ -108,6 +109,7 @@ export function ClassifyFinancialTransactionDialog({
             {
                 fundId: "",
                 beneficiaryId: "",
+                referenceMonth: "",
                 amount: remainingAmount > 0 ? String(remainingAmount) : "",
             },
         ])
@@ -174,6 +176,7 @@ export function ClassifyFinancialTransactionDialog({
             .map((allocation) => ({
                 fundId: allocation.fundId,
                 beneficiaryId: allocation.beneficiaryId || null,
+                referenceMonth: allocation.referenceMonth || null,
                 amount:
                     type === "EXPENSE"
                         ? -Math.abs(Number(allocation.amount))
@@ -365,7 +368,7 @@ export function ClassifyFinancialTransactionDialog({
                                 {allocations.map((allocation, index) => (
                                     <div
                                         key={index}
-                                        className="grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-[1fr_1fr_140px_auto]"
+                                        className="grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-[1fr_1fr_160px_140px_auto]"
                                     >
                                         <div className="space-y-2">
                                             <Label>Fundo</Label>
@@ -399,6 +402,24 @@ export function ClassifyFinancialTransactionDialog({
                                                     handleChangeAllocation(index, "beneficiaryId", value)
                                                 }
                                             />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label>Competência</Label>
+                                            <Input
+                                                type="month"
+                                                value={allocation.referenceMonth ? allocation.referenceMonth : ""}
+                                                onChange={(event) =>
+                                                    handleChangeAllocation(
+                                                        index,
+                                                        "referenceMonth",
+                                                        event.target.value,
+                                                    )
+                                                }
+                                            />
+                                            <p className="text-xs text-muted-foreground">
+                                                Para repasses de outro mês.
+                                            </p>
                                         </div>
 
                                         <div className="space-y-2">

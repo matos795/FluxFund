@@ -1,6 +1,7 @@
 package com.fluxfund.api.domain.transactionallocation.dto;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -14,6 +15,7 @@ public record TransactionAllocationResponse(
                 BeneficiarySummaryResponse beneficiary,
                 BigDecimal amount,
                 OffsetDateTime createdAt,
-                OffsetDateTime updatedAt) {
+                OffsetDateTime updatedAt,
+                LocalDate referenceMonth) {
 
 }

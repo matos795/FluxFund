@@ -50,6 +50,7 @@ export function TransactionAllocationForm({
     defaultValues: {
       fundId: defaultValues?.fundId ?? "",
       beneficiaryId: defaultValues?.beneficiaryId ?? "",
+      referenceMonth: defaultValues?.referenceMonth ?? "",
       amount: defaultValues?.amount ?? 0,
     },
   })
@@ -75,7 +76,7 @@ export function TransactionAllocationForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <div className="space-y-2">
           <Label>Fundo</Label>
           <Select

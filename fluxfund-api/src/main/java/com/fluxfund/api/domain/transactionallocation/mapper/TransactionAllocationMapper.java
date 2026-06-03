@@ -9,6 +9,7 @@ import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
 import com.fluxfund.api.domain.transactionallocation.dto.CreateTransactionAllocationRequest;
 import com.fluxfund.api.domain.transactionallocation.dto.TransactionAllocationResponse;
 import com.fluxfund.api.domain.transactionallocation.dto.UpdateTransactionAllocationRequest;
+import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.util.AmountNormalizer;
 
 public class TransactionAllocationMapper {
@@ -24,8 +25,8 @@ public class TransactionAllocationMapper {
                 financialTransaction,
                 fund,
                 beneficiary,
-                AmountNormalizer.normalizeAmount(financialTransaction, request.amount())
-        );
+                AmountNormalizer.normalizeAmount(financialTransaction, request.amount()),
+                request.referenceMonth());
 
         return transactionAllocation;
     }
@@ -40,17 +41,24 @@ public class TransactionAllocationMapper {
                         : null,
                 transactionAllocation.getAmount(),
                 transactionAllocation.getCreatedAt(),
-                transactionAllocation.getUpdatedAt()
-        );
+                transactionAllocation.getUpdatedAt(),
+                transactionAllocation.getReferenceMonth());
     }
 
-    public static void updateEntity(TransactionAllocation transactionAllocation, UpdateTransactionAllocationRequest request, Fund fund, Beneficiary beneficiary) {
+    public static void updateEntity(TransactionAllocation transactionAllocation,
+            UpdateTransactionAllocationRequest request, Fund fund, Beneficiary beneficiary) {
         if (fund != null) {
             transactionAllocation.setFund(fund);
         }
-            transactionAllocation.setBeneficiary(beneficiary);
+        transactionAllocation.setBeneficiary(beneficiary);
         if (request.amount() != null) {
-            transactionAllocation.setAmount(AmountNormalizer.normalizeAmount(transactionAllocation.getFinancialTransaction(), request.amount()));
+            transactionAllocation.setAmount(AmountNormalizer
+                    .normalizeAmount(transactionAllocation.getFinancialTransaction(), request.amount()));
+        }
+
+        if (request.referenceMonth() != null
+                && request.referenceMonth().getDayOfMonth() != 1) {
+            throw new BusinessException("Reference month must use the first day of the month");
         }
     }
 }

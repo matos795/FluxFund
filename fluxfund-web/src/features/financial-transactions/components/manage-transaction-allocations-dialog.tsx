@@ -29,7 +29,7 @@ import { TransactionAllocationForm } from "@/features/financial-transactions/tra
 import { useAddTransactionAllocation } from "@/features/financial-transactions/hooks/use-add-transaction-allocation"
 import { useUpdateTransactionAllocation } from "@/features/financial-transactions/hooks/use-update-transaction-allocation"
 import { useDeleteTransactionAllocation } from "@/features/financial-transactions/hooks/use-delete-transaction-allocation"
-import { formatCurrency } from "@/utils/formatters"
+import { formatCurrency, formatReferenceMonth, toReferenceMonthDate } from "@/utils/formatters"
 import { useOrganizationSettings } from "@/features/organization-settings/hooks/use-organization-settings"
 
 type ManageTransactionAllocationsDialogProps = {
@@ -69,6 +69,7 @@ export function ManageTransactionAllocationsDialog({
           data: {
             fundId: data.fundId,
             beneficiaryId: data.beneficiaryId || null,
+            referenceMonth: toReferenceMonthDate(data.referenceMonth),
             amount: data.amount,
           },
         },
@@ -92,6 +93,7 @@ export function ManageTransactionAllocationsDialog({
         data: {
           fundId: data.fundId,
           beneficiaryId: data.beneficiaryId || null,
+          referenceMonth: toReferenceMonthDate(data.referenceMonth),
           amount: data.amount,
         },
       },
@@ -124,6 +126,7 @@ export function ManageTransactionAllocationsDialog({
           fundId: defaultFund.id,
           beneficiaryId: null,
           amount: Math.abs(remainingAmount),
+          referenceMonth: toReferenceMonthDate(transaction.settlementDate ?? null),
         },
       },
       {
@@ -271,8 +274,8 @@ export function ManageTransactionAllocationsDialog({
                 editingAllocation
                   ? {
                     fundId: editingAllocation.fund.id,
-                    beneficiaryId:
-                      editingAllocation.beneficiary?.id ?? "",
+                    beneficiaryId: editingAllocation.beneficiary?.id ?? "",
+                    referenceMonth: editingAllocation.referenceMonth?.slice(0, 7) ?? "",
                     amount: Math.abs(editingAllocation.amount),
                   }
                   : {
@@ -305,6 +308,7 @@ export function ManageTransactionAllocationsDialog({
                 <TableRow>
                   <TableHead>Fundo</TableHead>
                   <TableHead>Favorecido</TableHead>
+                  <TableHead>Competência</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead className="w-[100px] text-right">
                     Ações
@@ -316,7 +320,7 @@ export function ManageTransactionAllocationsDialog({
                 {transaction.allocations.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={4}
+                      colSpan={5}
                       className="h-24 text-center text-sm text-muted-foreground"
                     >
                       Nenhuma alocação cadastrada.
@@ -329,6 +333,10 @@ export function ManageTransactionAllocationsDialog({
 
                       <TableCell>
                         {allocation.beneficiary?.name ?? "-"}
+                      </TableCell>
+
+                      <TableCell>
+                        {formatReferenceMonth(allocation.referenceMonth)}
                       </TableCell>
 
                       <TableCell className="text-right font-medium">

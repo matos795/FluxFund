@@ -27,7 +27,7 @@ import {
   getFinancialTransactionStatusBadgeClass,
   getFinancialTransactionTypeBadgeClass,
 } from "@/features/financial-transactions/financial-transaction-badge-styles"
-import { formatCurrency, formatDate } from "@/utils/formatters"
+import { formatCurrency, formatDate, formatReferenceMonth } from "@/utils/formatters"
 import { TransactionAttachmentsSection } from "@/features/attachments/components/transaction-attachments-section"
 
 type ViewFinancialTransactionDialogProps = {
@@ -279,6 +279,17 @@ export function ViewFinancialTransactionDialog({
                               </span>
                               <span className="text-xs text-muted-foreground">
                                 Favorecido
+                              </span>
+                            </div>
+                          </TableCell>
+
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span>
+                                {formatReferenceMonth(allocation.referenceMonth)}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                Competência
                               </span>
                             </div>
                           </TableCell>

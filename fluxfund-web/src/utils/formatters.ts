@@ -18,3 +18,21 @@ export function formatDate(value: string | null | undefined) {
 
   return `${day}/${month}/${year}`
 }
+
+export function toReferenceMonthDate(value?: string | null) {
+  return value ? `${value}-01` : null
+}
+
+export function formatReferenceMonth(value: string | null | undefined) {
+  if (!value) {
+    return "-"
+  }
+
+  const [year, month] = value.split("-")
+
+  if (!year || !month) {
+    return value
+  }
+
+  return `${month}/${year}`
+}

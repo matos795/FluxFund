@@ -24,6 +24,7 @@ export type TransactionAllocation = {
   fund: FundSummary
   beneficiary: BeneficiarySummary | null
   amount: number
+  referenceMonth: string | null
   createdAt: string
   updatedAt: string
 }
@@ -100,12 +101,14 @@ export type CreateTransactionAllocationRequest = {
   fundId: string
   beneficiaryId?: string | null
   amount: number
+  referenceMonth: string | null
 }
 
 export type UpdateTransactionAllocationRequest = {
   fundId?: string | null
   beneficiaryId?: string | null
   amount?: number | null
+  referenceMonth: string | null
 }
 
 export type ImportOfxResponse = {
@@ -128,5 +131,6 @@ export type ClassifyFinancialTransactionRequest = {
     fundId: string
     beneficiaryId?: string | null
     amount: number
+    referenceMonth: string | null
   }[]
 }

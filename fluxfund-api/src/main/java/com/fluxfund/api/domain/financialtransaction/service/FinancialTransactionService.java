@@ -636,7 +636,8 @@ public class FinancialTransactionService {
         CreateTransactionAllocationRequest allocationRequest = new CreateTransactionAllocationRequest(
                 defaultFund.getId(),
                 null,
-                financialTransaction.getSettledAmount().abs());
+                financialTransaction.getSettledAmount().abs(),
+                financialTransaction.getSettlementDate().withDayOfMonth(1));
 
         TransactionAllocation allocation = buildAllocation(
                 organizationId,

@@ -5,6 +5,8 @@ export const transactionAllocationFormSchema = z.object({
 
   beneficiaryId: z.string().optional(),
 
+  referenceMonth: z.string().optional(),
+
   amount: z.coerce
     .number()
     .positive("O valor da alocação deve ser maior que zero."),
