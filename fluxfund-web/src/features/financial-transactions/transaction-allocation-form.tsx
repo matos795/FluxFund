@@ -146,6 +146,23 @@ export function TransactionAllocationForm({
         </div>
 
         <div className="space-y-2">
+          <Label>Competência</Label>
+          <Input
+            id="referenceMonth"
+            type="month"
+            {...register("referenceMonth")}
+          />
+          {errors.referenceMonth && (
+            <p className="text-sm text-destructive">
+              {errors.referenceMonth.message}
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Para repasses de outro mês.
+          </p>
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor="amount">Valor</Label>
           <Input
             id="amount"

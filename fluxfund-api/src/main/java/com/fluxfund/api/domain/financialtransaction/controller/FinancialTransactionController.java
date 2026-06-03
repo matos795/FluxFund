@@ -173,7 +173,7 @@ public class FinancialTransactionController {
                                 ofxImportService.importOfx(organizationId, accountId, file));
         }
 
-        @GetMapping("/api/v1/financial-transactions/{transactionId}/allocations")
+        @GetMapping("/{transactionId}/allocations")
         public List<TransactionAllocationResponse> findAllByTransaction(
                         @RequestHeader(ORGANIZATION_ID) UUID organizationId,
                         @PathVariable UUID transactionId) {

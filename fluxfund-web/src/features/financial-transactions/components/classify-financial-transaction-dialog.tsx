@@ -176,11 +176,8 @@ export function ClassifyFinancialTransactionDialog({
             .map((allocation) => ({
                 fundId: allocation.fundId,
                 beneficiaryId: allocation.beneficiaryId || null,
-                referenceMonth: allocation.referenceMonth || null,
-                amount:
-                    type === "EXPENSE"
-                        ? -Math.abs(Number(allocation.amount))
-                        : Math.abs(Number(allocation.amount)),
+                referenceMonth: allocation.referenceMonth ? `${allocation.referenceMonth}-01` : null,
+                amount: Math.abs(Number(allocation.amount)),
             }))
 
         const hasIncompleteAllocation = allocations.some((allocation) => {

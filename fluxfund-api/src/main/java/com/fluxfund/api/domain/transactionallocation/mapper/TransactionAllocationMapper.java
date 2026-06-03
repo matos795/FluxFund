@@ -51,14 +51,15 @@ public class TransactionAllocationMapper {
             transactionAllocation.setFund(fund);
         }
         transactionAllocation.setBeneficiary(beneficiary);
+
         if (request.amount() != null) {
             transactionAllocation.setAmount(AmountNormalizer
                     .normalizeAmount(transactionAllocation.getFinancialTransaction(), request.amount()));
         }
 
-        if (request.referenceMonth() != null
-                && request.referenceMonth().getDayOfMonth() != 1) {
+        if (request.referenceMonth() != null && request.referenceMonth().getDayOfMonth() != 1) {
             throw new BusinessException("Reference month must use the first day of the month");
         }
+        transactionAllocation.setReferenceMonth(request.referenceMonth());
     }
 }

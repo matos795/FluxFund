@@ -311,22 +311,25 @@ public class FinancialTransactionService {
 
         FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
-        TransactionAllocation allocation = buildAllocation(organizationId, financialTransaction, request);
+        TransactionAllocation allocation = buildAllocation(
+                organizationId,
+                financialTransaction,
+                request);
 
         validateAllocationRules(allocation);
 
         financialTransaction.addAllocation(allocation);
 
-        repository.saveAndFlush(financialTransaction);
+        TransactionAllocation savedAllocation = allocationRepository.saveAndFlush(allocation);
 
         auditLogService.record(
                 organizationId,
                 AuditEntityType.TRANSACTION_ALLOCATION,
-                allocation.getId(),
+                savedAllocation.getId(),
                 AuditAction.ADD_ALLOCATION,
                 "Allocation added to transaction " + financialTransaction.getId());
 
-        return TransactionAllocationMapper.toResponse(allocation);
+        return TransactionAllocationMapper.toResponse(savedAllocation);
     }
 
     public TransactionAllocationResponse updateAllocation(UUID organizationId, UUID id, UUID allocationId,
