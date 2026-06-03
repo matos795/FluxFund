@@ -317,7 +317,7 @@ public class FinancialTransactionService {
 
         financialTransaction.addAllocation(allocation);
 
-        repository.save(financialTransaction);
+        repository.saveAndFlush(financialTransaction);
 
         auditLogService.record(
                 organizationId,
