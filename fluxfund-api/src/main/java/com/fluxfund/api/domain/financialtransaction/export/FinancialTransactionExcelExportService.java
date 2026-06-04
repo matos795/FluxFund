@@ -23,6 +23,8 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,6 +46,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class FinancialTransactionExcelExportService {
+
+    private static final Logger log = LoggerFactory.getLogger(FinancialTransactionExcelExportService.class);
 
     private final FinancialTransactionRepository financialTransactionRepository;
     private final AttachmentRepository attachmentRepository;
@@ -70,13 +74,21 @@ public class FinancialTransactionExcelExportService {
             throw new BusinessException("End date cannot be before start date");
         }
 
+        log.debug("Exporting settled transactions for organizationId={}, startDate={}, endDate={}",
+                organizationId, resolvedStartDate, resolvedEndDate);
+
         List<FinancialTransaction> transactions = financialTransactionRepository.findSettledIncomeAndExpenseForExport(
                 organizationId,
                 resolvedStartDate,
                 resolvedEndDate);
 
+        log.debug("Fetched {} transactions for export (organizationId={})", transactions.size(), organizationId);
+
         Map<UUID, List<Attachment>> attachmentsByTransactionId = loadAttachmentsByTransactionId(organizationId,
                 transactions);
+
+        log.debug("Loaded attachments for {} transactions (organizationId={})",
+                attachmentsByTransactionId.size(), organizationId);
 
         List<FinancialTransaction> receivedTransactions = transactions.stream()
                 .filter(transaction -> transaction.getType() == FinancialTransactionType.INCOME)
@@ -88,11 +100,15 @@ public class FinancialTransactionExcelExportService {
                 .sorted(transactionComparator())
                 .toList();
 
+        log.debug("Split into {} income and {} expense transactions (organizationId={})",
+                receivedTransactions.size(), paidTransactions.size(), organizationId);
+
         try (Workbook workbook = new XSSFWorkbook();
                 ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
 
             ExcelStyles styles = createStyles(workbook);
 
+            log.debug("Creating summary sheet (organizationId={})", organizationId);
             createSummarySheet(
                     workbook,
                     receivedTransactions,
@@ -101,6 +117,8 @@ public class FinancialTransactionExcelExportService {
                     resolvedEndDate,
                     styles);
 
+            log.debug("Creating 'Contas Recebidas' sheet with {} rows (organizationId={})",
+                    receivedTransactions.size(), organizationId);
             createTransactionsSheet(
                     workbook,
                     "Contas Recebidas",
@@ -109,6 +127,8 @@ public class FinancialTransactionExcelExportService {
                     attachmentsByTransactionId,
                     styles);
 
+            log.debug("Creating 'Contas Pagas' sheet with {} rows (organizationId={})",
+                    paidTransactions.size(), organizationId);
             createTransactionsSheet(
                     workbook,
                     "Contas Pagas",
@@ -117,6 +137,8 @@ public class FinancialTransactionExcelExportService {
                     attachmentsByTransactionId,
                     styles);
 
+            log.debug("Creating 'Todas as Transações' sheet with {} rows (organizationId={})",
+                    transactions.size(), organizationId);
             createAllTransactionsSheet(
                     workbook,
                     transactions.stream().sorted(transactionComparator()).toList(),
@@ -125,8 +147,15 @@ public class FinancialTransactionExcelExportService {
 
             workbook.write(outputStream);
 
+            log.debug("Excel export completed successfully (organizationId={})", organizationId);
             return outputStream.toByteArray();
         } catch (IOException exception) {
+            log.error("IOException while generating settled transactions Excel export for organizationId={}: {}",
+                    organizationId, exception.getMessage(), exception);
+            throw new BusinessException("Could not generate settled transactions Excel export");
+        } catch (Exception exception) {
+            log.error("Unexpected error while generating settled transactions Excel export for organizationId={}: {}",
+                    organizationId, exception.getMessage(), exception);
             throw new BusinessException("Could not generate settled transactions Excel export");
         }
     }
@@ -246,34 +275,43 @@ public class FinancialTransactionExcelExportService {
         createHeaderCell(headerRow, 18, "ID", styles);
 
         for (FinancialTransaction transaction : transactions) {
+            UUID transactionId = transaction.getId();
+            log.debug("Processing transaction id={} for sheet '{}'", transactionId, sheetName);
+
             List<Attachment> attachments = attachmentsByTransactionId.getOrDefault(
-                    transaction.getId(),
+                    transactionId,
                     List.of());
 
-            Row row = sheet.createRow(rowIndex++);
+            try {
+                Row row = sheet.createRow(rowIndex++);
 
-            createDateCell(row, 0, transaction.getDueDate(), styles);
-            createDateCell(row, 1, transaction.getSettlementDate(), styles);
-            createDateCell(row, 2, getReferenceMonth(transaction), styles);
-            createNumberCell(row, 3, getReferenceYear(transaction), styles);
-            createTextCell(row, 4, getDescription(transaction), styles);
-            createTextCell(row, 5, getBeneficiaryNames(transaction), styles);
-            createMoneyCell(row, 6, getAbsoluteSettledAmount(transaction), styles);
-            createTextCell(row, 7, getCategoryName(transaction), styles);
-            createTextCell(row, 8, getAccountName(transaction), styles);
-            createTextCell(row, 9, "Efetivado", styles);
-            createTextCell(row, 10, getBankName(transaction), styles);
-            createTextCell(row, 11, getFundNames(transaction), styles);
-            createTextCell(row, 12, hasPaymentProof(attachments) ? "Sim" : "Não", styles);
-            createTextCell(row, 13, hasFiscalAttachment(attachments) ? "Sim" : "Não", styles);
-            createTextCell(row, 14, getAttachmentTypeNames(attachments), styles);
-            createTextCell(row, 15, transaction.getSource().name(), styles);
-            createTextCell(row, 16, transaction.getRawDescription(), styles);
-            createTextCell(row, 17, transaction.getDocumentNumber(), styles);
-            createTextCell(row, 18, transaction.getId().toString(), styles);
+                createDateCell(row, 0, transaction.getDueDate(), styles);
+                createDateCell(row, 1, transaction.getSettlementDate(), styles);
+                createDateCell(row, 2, getReferenceMonth(transaction), styles);
+                createNumberCell(row, 3, getReferenceYear(transaction), styles);
+                createTextCell(row, 4, getDescription(transaction), styles);
+                createTextCell(row, 5, getBeneficiaryNames(transaction), styles);
+                createMoneyCell(row, 6, getAbsoluteSettledAmount(transaction), styles);
+                createTextCell(row, 7, getCategoryName(transaction), styles);
+                createTextCell(row, 8, getAccountName(transaction), styles);
+                createTextCell(row, 9, "Efetivado", styles);
+                createTextCell(row, 10, getBankName(transaction), styles);
+                createTextCell(row, 11, getFundNames(transaction), styles);
+                createTextCell(row, 12, hasPaymentProof(attachments) ? "Sim" : "Não", styles);
+                createTextCell(row, 13, hasFiscalAttachment(attachments) ? "Sim" : "Não", styles);
+                createTextCell(row, 14, getAttachmentTypeNames(attachments), styles);
+                createTextCell(row, 15, getSourceName(transaction), styles);
+                createTextCell(row, 16, transaction.getRawDescription(), styles);
+                createTextCell(row, 17, transaction.getDocumentNumber(), styles);
+                createTextCell(row, 18, transactionId != null ? transactionId.toString() : "", styles);
 
-            if (!incomeSheet && !hasFiscalAttachment(attachments)) {
-                row.getCell(13).setCellStyle(styles.warningStyle());
+                if (!incomeSheet && !hasFiscalAttachment(attachments)) {
+                    row.getCell(13).setCellStyle(styles.warningStyle());
+                }
+            } catch (Exception exception) {
+                log.error("Error processing transaction id={} in sheet '{}': {}",
+                        transactionId, sheetName, exception.getMessage(), exception);
+                throw exception;
             }
         }
 
@@ -320,36 +358,45 @@ public class FinancialTransactionExcelExportService {
         createHeaderCell(headerRow, 19, "ID", styles);
 
         for (FinancialTransaction transaction : transactions) {
+            UUID transactionId = transaction.getId();
+            log.debug("Processing transaction id={} for sheet 'Todas as Transações'", transactionId);
+
             List<Attachment> attachments = attachmentsByTransactionId.getOrDefault(
-                    transaction.getId(),
+                    transactionId,
                     List.of());
 
-            Row row = sheet.createRow(rowIndex++);
+            try {
+                Row row = sheet.createRow(rowIndex++);
 
-            createTextCell(row, 0, translateType(transaction.getType()), styles);
-            createDateCell(row, 1, transaction.getDueDate(), styles);
-            createDateCell(row, 2, transaction.getSettlementDate(), styles);
-            createDateCell(row, 3, getReferenceMonth(transaction), styles);
-            createNumberCell(row, 4, getReferenceYear(transaction), styles);
-            createTextCell(row, 5, getDescription(transaction), styles);
-            createTextCell(row, 6, getBeneficiaryNames(transaction), styles);
-            createMoneyCell(row, 7, getAbsoluteSettledAmount(transaction), styles);
-            createTextCell(row, 8, getCategoryName(transaction), styles);
-            createTextCell(row, 9, getAccountName(transaction), styles);
-            createTextCell(row, 10, "Efetivado", styles);
-            createTextCell(row, 11, getBankName(transaction), styles);
-            createTextCell(row, 12, getFundNames(transaction), styles);
-            createTextCell(row, 13, hasPaymentProof(attachments) ? "Sim" : "Não", styles);
-            createTextCell(row, 14, hasFiscalAttachment(attachments) ? "Sim" : "Não", styles);
-            createTextCell(row, 15, getAttachmentTypeNames(attachments), styles);
-            createTextCell(row, 16, transaction.getSource().name(), styles);
-            createTextCell(row, 17, transaction.getRawDescription(), styles);
-            createTextCell(row, 18, transaction.getDocumentNumber(), styles);
-            createTextCell(row, 19, transaction.getId().toString(), styles);
+                createTextCell(row, 0, translateType(transaction.getType()), styles);
+                createDateCell(row, 1, transaction.getDueDate(), styles);
+                createDateCell(row, 2, transaction.getSettlementDate(), styles);
+                createDateCell(row, 3, getReferenceMonth(transaction), styles);
+                createNumberCell(row, 4, getReferenceYear(transaction), styles);
+                createTextCell(row, 5, getDescription(transaction), styles);
+                createTextCell(row, 6, getBeneficiaryNames(transaction), styles);
+                createMoneyCell(row, 7, getAbsoluteSettledAmount(transaction), styles);
+                createTextCell(row, 8, getCategoryName(transaction), styles);
+                createTextCell(row, 9, getAccountName(transaction), styles);
+                createTextCell(row, 10, "Efetivado", styles);
+                createTextCell(row, 11, getBankName(transaction), styles);
+                createTextCell(row, 12, getFundNames(transaction), styles);
+                createTextCell(row, 13, hasPaymentProof(attachments) ? "Sim" : "Não", styles);
+                createTextCell(row, 14, hasFiscalAttachment(attachments) ? "Sim" : "Não", styles);
+                createTextCell(row, 15, getAttachmentTypeNames(attachments), styles);
+                createTextCell(row, 16, getSourceName(transaction), styles);
+                createTextCell(row, 17, transaction.getRawDescription(), styles);
+                createTextCell(row, 18, transaction.getDocumentNumber(), styles);
+                createTextCell(row, 19, transactionId != null ? transactionId.toString() : "", styles);
 
-            if (transaction.getType() == FinancialTransactionType.EXPENSE
-                    && !hasFiscalAttachment(attachments)) {
-                row.getCell(14).setCellStyle(styles.warningStyle());
+                if (transaction.getType() == FinancialTransactionType.EXPENSE
+                        && !hasFiscalAttachment(attachments)) {
+                    row.getCell(14).setCellStyle(styles.warningStyle());
+                }
+            } catch (Exception exception) {
+                log.error("Error processing transaction id={} in sheet 'Todas as Transações': {}",
+                        transactionId, exception.getMessage(), exception);
+                throw exception;
             }
         }
 
@@ -427,40 +474,55 @@ public class FinancialTransactionExcelExportService {
     }
 
     private String getFundNames(FinancialTransaction transaction) {
-        return transaction.getAllocations()
-                .stream()
+        List<TransactionAllocation> allocations = transaction.getAllocations();
+        if (allocations == null) {
+            return "";
+        }
+        return allocations.stream()
                 .map(TransactionAllocation::getFund)
                 .filter(fund -> fund != null)
                 .map(fund -> fund.getName())
+                .filter(name -> name != null)
                 .distinct()
                 .collect(Collectors.joining(", "));
     }
 
     private String getBeneficiaryNames(FinancialTransaction transaction) {
-        return transaction.getAllocations()
-                .stream()
+        List<TransactionAllocation> allocations = transaction.getAllocations();
+        if (allocations == null) {
+            return "";
+        }
+        return allocations.stream()
                 .map(TransactionAllocation::getBeneficiary)
                 .filter(beneficiary -> beneficiary != null)
                 .map(beneficiary -> beneficiary.getName())
+                .filter(name -> name != null)
                 .distinct()
                 .collect(Collectors.joining(", "));
     }
 
     private boolean hasPaymentProof(List<Attachment> attachments) {
         return attachments.stream()
+                .filter(attachment -> attachment.getType() != null)
                 .anyMatch(attachment -> attachment.getType() == AttachmentType.PROOF_OF_PAYMENT);
     }
 
     private boolean hasFiscalAttachment(List<Attachment> attachments) {
         return attachments.stream()
+                .filter(attachment -> attachment.getType() != null)
                 .anyMatch(attachment -> attachment.getType() != AttachmentType.PROOF_OF_PAYMENT);
     }
 
     private String getAttachmentTypeNames(List<Attachment> attachments) {
         return attachments.stream()
+                .filter(attachment -> attachment.getType() != null)
                 .map(attachment -> attachment.getType().name())
                 .distinct()
                 .collect(Collectors.joining(", "));
+    }
+
+    private String getSourceName(FinancialTransaction transaction) {
+        return transaction.getSource() != null ? transaction.getSource().name() : "";
     }
 
     private String translateType(FinancialTransactionType type) {

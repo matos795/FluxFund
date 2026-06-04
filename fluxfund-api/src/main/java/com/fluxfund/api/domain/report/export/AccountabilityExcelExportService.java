@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -21,6 +22,8 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityAccountBreakdownResponse;
@@ -36,6 +39,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AccountabilityExcelExportService {
 
+    private static final Logger log = LoggerFactory.getLogger(AccountabilityExcelExportService.class);
+
     private final ReportService reportService;
     private final OrganizationAccessService organizationAccessService;
 
@@ -45,20 +50,44 @@ public class AccountabilityExcelExportService {
             LocalDate endDate) {
             organizationAccessService.requireReadAccess(organizationId);
 
+        log.debug("Exporting accountability report for organizationId={}, startDate={}, endDate={}",
+                organizationId, startDate, endDate);
+
         AccountabilityByAccountReportResponse report = reportService.getAccountabilityReportByAccount(organizationId,
                 startDate, endDate);
+
+        if (report == null) {
+            log.error("Report service returned null for organizationId={}, startDate={}, endDate={}",
+                    organizationId, startDate, endDate);
+            throw new BusinessException("Could not generate accountability Excel report: report data is null");
+        }
+
+        List<AccountabilityByAccountItemResponse> items = report.items();
+        log.debug("Report loaded with {} items for organizationId={}", items != null ? items.size() : 0, organizationId);
 
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             ExcelStyles styles = createStyles(workbook);
 
+            log.debug("Creating 'Resumo' sheet (organizationId={})", organizationId);
             createSummarySheet(workbook, report, styles);
+
+            log.debug("Creating 'Fundos por Favorecido' sheet (organizationId={})", organizationId);
             createFundsSheet(workbook, report, styles);
+
+            log.debug("Creating 'Detalhamento por Banco' sheet (organizationId={})", organizationId);
             createAccountsSheet(workbook, report, styles);
 
             workbook.write(outputStream);
 
+            log.debug("Accountability Excel export completed successfully (organizationId={})", organizationId);
             return outputStream.toByteArray();
         } catch (IOException exception) {
+            log.error("IOException while generating accountability Excel report for organizationId={}: {}",
+                    organizationId, exception.getMessage(), exception);
+            throw new BusinessException("Could not generate accountability Excel report");
+        } catch (Exception exception) {
+            log.error("Unexpected error while generating accountability Excel report for organizationId={}: {}",
+                    organizationId, exception.getMessage(), exception);
             throw new BusinessException("Could not generate accountability Excel report");
         }
     }
@@ -107,8 +136,14 @@ public class AccountabilityExcelExportService {
         createHeaderCell(headerRow, 4, "Repassado", styles);
         createHeaderCell(headerRow, 5, "A Repassar", styles);
 
-        var groupedByBeneficiary = report.items()
-                .stream()
+        List<AccountabilityByAccountItemResponse> reportItems = report.items();
+        if (reportItems == null || reportItems.isEmpty()) {
+            log.debug("No items in accountability report for 'Resumo' sheet");
+            applySheetDefaults(sheet, 6);
+            return;
+        }
+
+        var groupedByBeneficiary = reportItems.stream()
                 .collect(Collectors.groupingBy(
                         AccountabilityByAccountItemResponse::beneficiaryId,
                         LinkedHashMap::new,
@@ -116,34 +151,42 @@ public class AccountabilityExcelExportService {
 
         for (var beneficiaryItems : groupedByBeneficiary.values()) {
             AccountabilityByAccountItemResponse first = beneficiaryItems.get(0);
+            log.debug("Processing beneficiary id={} name='{}' in 'Resumo' sheet",
+                    first.beneficiaryId(), first.beneficiaryName());
 
-            BigDecimal commitmentAmount = beneficiaryItems.stream()
-                    .map(AccountabilityByAccountItemResponse::commitmentAmount)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            try {
+                BigDecimal commitmentAmount = beneficiaryItems.stream()
+                        .map(AccountabilityByAccountItemResponse::commitmentAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            BigDecimal allocatedAmount = beneficiaryItems.stream()
-                    .map(AccountabilityByAccountItemResponse::allocatedAmount)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+                BigDecimal allocatedAmount = beneficiaryItems.stream()
+                        .map(AccountabilityByAccountItemResponse::allocatedAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            BigDecimal payableAmount = beneficiaryItems.stream()
-                    .map(AccountabilityByAccountItemResponse::payableAmount)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+                BigDecimal payableAmount = beneficiaryItems.stream()
+                        .map(AccountabilityByAccountItemResponse::payableAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            BigDecimal transferredAmount = beneficiaryItems.stream()
-                    .map(AccountabilityByAccountItemResponse::transferredAmount)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+                BigDecimal transferredAmount = beneficiaryItems.stream()
+                        .map(AccountabilityByAccountItemResponse::transferredAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            BigDecimal pendingAmount = beneficiaryItems.stream()
-                    .map(AccountabilityByAccountItemResponse::pendingAmount)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+                BigDecimal pendingAmount = beneficiaryItems.stream()
+                        .map(AccountabilityByAccountItemResponse::pendingAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            Row row = sheet.createRow(rowIndex++);
-            createTextCell(row, 0, first.beneficiaryName(), styles);
-            createMoneyCell(row, 1, commitmentAmount, styles);
-            createMoneyCell(row, 2, allocatedAmount, styles);
-            createMoneyCell(row, 3, payableAmount, styles);
-            createMoneyCell(row, 4, transferredAmount, styles);
-            createMoneyCell(row, 5, pendingAmount, styles);
+                Row row = sheet.createRow(rowIndex++);
+                createTextCell(row, 0, first.beneficiaryName(), styles);
+                createMoneyCell(row, 1, commitmentAmount, styles);
+                createMoneyCell(row, 2, allocatedAmount, styles);
+                createMoneyCell(row, 3, payableAmount, styles);
+                createMoneyCell(row, 4, transferredAmount, styles);
+                createMoneyCell(row, 5, pendingAmount, styles);
+            } catch (Exception exception) {
+                log.error("Error processing beneficiary id={} name='{}' in 'Resumo' sheet: {}",
+                        first.beneficiaryId(), first.beneficiaryName(), exception.getMessage(), exception);
+                throw exception;
+            }
         }
 
         applySheetDefaults(sheet, 6);
@@ -180,17 +223,33 @@ public class AccountabilityExcelExportService {
         createHeaderCell(headerRow, 6, "A Repassar", styles);
         createHeaderCell(headerRow, 7, "Qtd. Alocações", styles);
 
-        for (AccountabilityByAccountItemResponse item : report.items()) {
-            Row row = sheet.createRow(rowIndex++);
+        List<AccountabilityByAccountItemResponse> fundItems = report.items();
+        if (fundItems == null || fundItems.isEmpty()) {
+            log.debug("No items in accountability report for 'Fundos por Favorecido' sheet");
+            applySheetDefaults(sheet, 8);
+            return;
+        }
 
-            createTextCell(row, 0, item.beneficiaryName(), styles);
-            createTextCell(row, 1, item.fundName(), styles);
-            createMoneyCell(row, 2, item.commitmentAmount(), styles);
-            createMoneyCell(row, 3, item.allocatedAmount(), styles);
-            createMoneyCell(row, 4, item.payableAmount(), styles);
-            createMoneyCell(row, 5, item.transferredAmount(), styles);
-            createMoneyCell(row, 6, item.pendingAmount(), styles);
-            createNumberCell(row, 7, item.allocationCount(), styles);
+        for (AccountabilityByAccountItemResponse item : fundItems) {
+            log.debug("Processing item beneficiaryId={} fundId={} in 'Fundos por Favorecido' sheet",
+                    item.beneficiaryId(), item.fundId());
+
+            try {
+                Row row = sheet.createRow(rowIndex++);
+
+                createTextCell(row, 0, item.beneficiaryName(), styles);
+                createTextCell(row, 1, item.fundName(), styles);
+                createMoneyCell(row, 2, item.commitmentAmount(), styles);
+                createMoneyCell(row, 3, item.allocatedAmount(), styles);
+                createMoneyCell(row, 4, item.payableAmount(), styles);
+                createMoneyCell(row, 5, item.transferredAmount(), styles);
+                createMoneyCell(row, 6, item.pendingAmount(), styles);
+                createNumberCell(row, 7, item.allocationCount(), styles);
+            } catch (Exception exception) {
+                log.error("Error processing item beneficiaryId={} fundId={} in 'Fundos por Favorecido' sheet: {}",
+                        item.beneficiaryId(), item.fundId(), exception.getMessage(), exception);
+                throw exception;
+            }
         }
 
         applySheetDefaults(sheet, 8);
@@ -227,18 +286,41 @@ public class AccountabilityExcelExportService {
         createHeaderCell(headerRow, 6, "Saldo no Banco", styles);
         createHeaderCell(headerRow, 7, "Qtd. Alocações", styles);
 
-        for (AccountabilityByAccountItemResponse item : report.items()) {
-            for (AccountabilityAccountBreakdownResponse account : item.accounts()) {
-                Row row = sheet.createRow(rowIndex++);
+        List<AccountabilityByAccountItemResponse> accountItems = report.items();
+        if (accountItems == null || accountItems.isEmpty()) {
+            log.debug("No items in accountability report for 'Detalhamento por Banco' sheet");
+            applySheetDefaults(sheet, 8);
+            return;
+        }
 
-                createTextCell(row, 0, item.beneficiaryName(), styles);
-                createTextCell(row, 1, item.fundName(), styles);
-                createTextCell(row, 2, account.accountName(), styles);
-                createTextCell(row, 3, account.bankName(), styles);
-                createMoneyCell(row, 4, account.allocatedAmount(), styles);
-                createMoneyCell(row, 5, account.transferredAmount(), styles);
-                createMoneyCell(row, 6, account.pendingAmount(), styles);
-                createNumberCell(row, 7, account.allocationCount(), styles);
+        for (AccountabilityByAccountItemResponse item : accountItems) {
+            List<AccountabilityAccountBreakdownResponse> accounts = item.accounts();
+            if (accounts == null || accounts.isEmpty()) {
+                log.debug("No account breakdown for beneficiaryId={} fundId={} in 'Detalhamento por Banco' sheet",
+                        item.beneficiaryId(), item.fundId());
+                continue;
+            }
+
+            for (AccountabilityAccountBreakdownResponse account : accounts) {
+                log.debug("Processing account id={} for beneficiaryId={} fundId={} in 'Detalhamento por Banco' sheet",
+                        account.accountId(), item.beneficiaryId(), item.fundId());
+
+                try {
+                    Row row = sheet.createRow(rowIndex++);
+
+                    createTextCell(row, 0, item.beneficiaryName(), styles);
+                    createTextCell(row, 1, item.fundName(), styles);
+                    createTextCell(row, 2, account.accountName(), styles);
+                    createTextCell(row, 3, account.bankName(), styles);
+                    createMoneyCell(row, 4, account.allocatedAmount(), styles);
+                    createMoneyCell(row, 5, account.transferredAmount(), styles);
+                    createMoneyCell(row, 6, account.pendingAmount(), styles);
+                    createNumberCell(row, 7, account.allocationCount() != null ? account.allocationCount() : 0L, styles);
+                } catch (Exception exception) {
+                    log.error("Error processing account id={} for beneficiaryId={} fundId={} in 'Detalhamento por Banco' sheet: {}",
+                            account.accountId(), item.beneficiaryId(), item.fundId(), exception.getMessage(), exception);
+                    throw exception;
+                }
             }
         }
 
