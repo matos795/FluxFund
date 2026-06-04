@@ -4,6 +4,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.util.List;
+import java.util.stream.Stream;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -50,6 +53,44 @@ public class LocalFileStorageService {
             Files.deleteIfExists(resolve(storageKey));
         } catch (IOException exception) {
             throw new BusinessException("Could not delete file");
+        }
+    }
+
+    public List<StorageFileEntry> listAllFiles() {
+        try {
+            if (!Files.exists(rootPath)) {
+                return List.of();
+            }
+
+            try (Stream<Path> walk = Files.walk(rootPath)) {
+                return walk
+                        .filter(Files::isRegularFile)
+                        .map(this::toEntry)
+                        .toList();
+            }
+        } catch (IOException exception) {
+            throw new BusinessException("Could not list storage files");
+        }
+    }
+
+    public String probeContentType(String storageKey) {
+        try {
+            Path path = resolve(storageKey);
+            String detected = Files.probeContentType(path);
+            return detected != null ? detected : "application/octet-stream";
+        } catch (IOException exception) {
+            return "application/octet-stream";
+        }
+    }
+
+    private StorageFileEntry toEntry(Path path) {
+        try {
+            String storageKey = rootPath.relativize(path).toString().replace("\\", "/");
+            long sizeBytes = Files.size(path);
+            Instant createdAt = Files.getLastModifiedTime(path).toInstant();
+            return new StorageFileEntry(path.getFileName().toString(), storageKey, sizeBytes, createdAt);
+        } catch (IOException exception) {
+            throw new BusinessException("Could not read file metadata");
         }
     }
 

@@ -22,6 +22,8 @@ import com.fluxfund.api.domain.attachment.AttachmentType;
 import com.fluxfund.api.domain.attachment.dto.AttachmentFile;
 import com.fluxfund.api.domain.attachment.dto.AttachmentResponse;
 import com.fluxfund.api.domain.attachment.service.AttachmentService;
+import com.fluxfund.api.shared.storage.LocalFileStorageService;
+import com.fluxfund.api.shared.storage.StorageFileEntry;
 
 import lombok.RequiredArgsConstructor;
 
@@ -32,6 +34,7 @@ import static com.fluxfund.api.security.TenantHeaders.ORGANIZATION_ID;
 public class AttachmentController {
 
     private final AttachmentService service;
+    private final LocalFileStorageService storageService;
 
     @PostMapping(
         value = "/api/v1/financial-transactions/{transactionId}/attachments",
@@ -79,5 +82,49 @@ public class AttachmentController {
             @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @PathVariable UUID attachmentId) {
         service.delete(organizationId, attachmentId);
+    }
+
+    /**
+     * Lists every regular file present in the storage volume, returning its
+     * name, relative storage key, size in bytes, and last-modified timestamp.
+     * Requires an authenticated user — no additional organisation scoping is
+     * applied here because the endpoint is intended for administrative access
+     * to the raw volume contents.
+     */
+    @GetMapping("/api/v1/storage/files")
+    public List<StorageFileEntry> listStorageFiles() {
+        return storageService.listAllFiles();
+    }
+
+    /**
+     * Downloads a file directly from the storage volume by its storage key
+     * (the relative path returned by {@code /api/v1/storage/files}).
+     * The key is validated inside {@link LocalFileStorageService#resolve} to
+     * prevent directory-traversal attacks — any key that escapes the storage
+     * root is rejected with a 400 Bad Request.
+     *
+     * @param storageKey relative path of the file within the storage root,
+     *                   e.g. {@code organizations/abc/transactions/xyz/file.pdf}
+     */
+    @GetMapping("/api/v1/storage/files/download")
+    public ResponseEntity<byte[]> downloadStorageFile(
+            @RequestParam String storageKey) {
+
+        byte[] content = storageService.read(storageKey);
+        String contentType = storageService.probeContentType(storageKey);
+        String filename = storageKey.contains("/")
+                ? storageKey.substring(storageKey.lastIndexOf('/') + 1)
+                : storageKey;
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentType))
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment()
+                                .filename(filename)
+                                .build()
+                                .toString())
+                .header("X-Content-Type-Options", "nosniff")
+                .body(content);
     }
 }
