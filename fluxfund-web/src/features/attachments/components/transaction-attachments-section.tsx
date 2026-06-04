@@ -32,6 +32,7 @@ import { attachmentTypeLabels } from "../attachment-labels"
 import { downloadAttachment } from "../attachment-api"
 import { downloadFile } from "@/utils/download-file"
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
+import axios from "axios"
 
 const attachmentTypes: AttachmentType[] = [
     "PROOF_OF_PAYMENT",
@@ -113,7 +114,16 @@ export function TransactionAttachmentsSection({
             }
 
             toast.success("Anexo enviado com sucesso.")
-        } catch {
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                const message =
+                    error.response?.data?.message ??
+                    "Não foi possível enviar o anexo."
+
+                toast.error(message)
+                return
+            }
+
             toast.error("Não foi possível enviar o anexo.")
         }
     }

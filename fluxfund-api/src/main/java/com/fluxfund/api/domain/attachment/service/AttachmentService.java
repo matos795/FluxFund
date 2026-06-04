@@ -78,11 +78,12 @@ public class AttachmentService {
                                 .orElseThrow(() -> new ResourceNotFoundException("Financial transaction not found"));
 
                 String originalFileName = file.getOriginalFilename() != null
-                                ? file.getOriginalFilename()
+                                ? sanitizeFilename(file.getOriginalFilename())
                                 : "file";
 
-                String safeFilename = sanitizeFilename(originalFileName);
-                String storedFilename = UUID.randomUUID() + "-" + safeFilename;
+                String extension = getExtension(originalFileName);
+
+                String storedFilename = UUID.randomUUID() + "." + extension;
 
                 String storageKey = "organizations/%s/transactions/%s/%s"
                                 .formatted(organizationId, transactionId, storedFilename);
@@ -170,11 +171,21 @@ public class AttachmentService {
         }
 
         private String sanitizeFilename(String filename) {
-                return filename
+                String sanitized = filename
                                 .replace("\\", "_")
                                 .replace("/", "_")
                                 .replace("..", "_")
+                                .replace("\r", "_")
+                                .replace("\n", "_")
                                 .trim();
+
+                if (sanitized.isBlank()) {
+                        return "file";
+                }
+
+                return sanitized.length() > 180
+                                ? sanitized.substring(0, 180)
+                                : sanitized;
         }
 
         private void validateFile(MultipartFile file) {

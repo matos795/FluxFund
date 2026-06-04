@@ -1,5 +1,6 @@
 package com.fluxfund.api.domain.attachment.controller;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
@@ -33,9 +34,7 @@ public class AttachmentController {
 
     private final AttachmentService service;
 
-    @PostMapping(
-        value = "/api/v1/financial-transactions/{transactionId}/attachments",
-        consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/api/v1/financial-transactions/{transactionId}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public AttachmentResponse upload(
             @RequestHeader(ORGANIZATION_ID) UUID organizationId,
@@ -59,18 +58,18 @@ public class AttachmentController {
         AttachmentFile file = service.download(organizationId, attachmentId);
 
         return ResponseEntity.ok()
-        .contentType(MediaType.parseMediaType(
-                file.contentType() != null
-                        ? file.contentType()
-                        : MediaType.APPLICATION_OCTET_STREAM_VALUE))
-        .header(
-                HttpHeaders.CONTENT_DISPOSITION,
-                ContentDisposition.attachment()
-                        .filename(file.filename())
-                        .build()
-                        .toString())
-        .header("X-Content-Type-Options", "nosniff")
-        .body(file.content());
+                .contentType(MediaType.parseMediaType(
+                        file.contentType() != null
+                                ? file.contentType()
+                                : MediaType.APPLICATION_OCTET_STREAM_VALUE))
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment()
+                                .filename(file.filename(), StandardCharsets.UTF_8)
+                                .build()
+                                .toString())
+                .header("X-Content-Type-Options", "nosniff")
+                .body(file.content());
     }
 
     @DeleteMapping("/api/v1/attachments/{attachmentId}")
