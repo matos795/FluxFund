@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react"
-import { Check, Plus, Trash2 } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Check, Paperclip, Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -29,6 +29,9 @@ import type { FinancialTransaction } from "../financial-transaction-types"
 import { useClassifyFinancialTransaction } from "../hooks/use-classify-financial-transaction"
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { TransactionAttachmentsSection } from "@/features/attachments/components/transaction-attachments-section"
+import type { AttachmentType } from "@/features/attachments/attachment-types"
+import { useUploadAttachment } from "@/features/attachments/hooks/use-upload-attachment"
+import { attachmentTypeLabels } from "@/features/attachments/attachment-labels"
 
 type AllocationFormItem = {
     fundId: string
@@ -67,9 +70,15 @@ export function ClassifyFinancialTransactionDialog({
 
     const [allocations, setAllocations] = useState<AllocationFormItem[]>([])
 
-    const [hasPendingAttachmentUpload, setHasPendingAttachmentUpload] = useState(false)
+    const attachmentInputRef = useRef<HTMLInputElement | null>(null)
+
+    const [attachmentType, setAttachmentType] = useState<AttachmentType>("PROOF_OF_PAYMENT")
+
+    const [pendingAttachmentFile, setPendingAttachmentFile] = useState<File | null>(null)
 
     const classifyTransaction = useClassifyFinancialTransaction()
+
+    const uploadAttachmentMutation = useUploadAttachment(transaction.id)
 
     const { data: categoriesData } = useCategories({
         page: 0,
@@ -136,15 +145,16 @@ export function ClassifyFinancialTransactionDialog({
         )
     }
 
-    function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-        event.preventDefault()
+    function clearPendingAttachment() {
+        setPendingAttachmentFile(null)
 
-        if (hasPendingAttachmentUpload) {
-            toast.error(
-                'Você selecionou um arquivo, mas ainda não o enviou. Clique em "Enviar" no anexo ou remova a seleção antes de salvar a classificação.',
-            )
-            return
+        if (attachmentInputRef.current) {
+            attachmentInputRef.current.value = ""
         }
+    }
+
+    async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+        event.preventDefault()
 
         if (!type) {
             toast.error("Selecione o tipo da transação.")
@@ -209,8 +219,8 @@ export function ClassifyFinancialTransactionDialog({
             }
         }
 
-        classifyTransaction.mutate(
-            {
+        try {
+            await classifyTransaction.mutateAsync({
                 transactionId: transaction.id,
                 data: {
                     type,
@@ -223,18 +233,70 @@ export function ClassifyFinancialTransactionDialog({
                     documentNumber: transaction.documentNumber ?? undefined,
                     allocations: validAllocations,
                 },
-            },
-            {
-                onSuccess: () => {
-                    toast.success("Transação classificada com sucesso.")
-                    setDialogOpen(false)
-                },
-                onError: () => {
-                    toast.error("Não foi possível classificar a transação.")
-                },
-            },
-        )
+            })
+
+            if (pendingAttachmentFile) {
+                try {
+                    await uploadAttachmentMutation.mutateAsync({
+                        transactionId: transaction.id,
+                        type: attachmentType,
+                        file: pendingAttachmentFile,
+                    })
+
+                    toast.success("Transação classificada e anexo enviado com sucesso.")
+                } catch {
+                    toast.warning(
+                        "A transação foi classificada, mas o anexo não foi enviado. Envie novamente pela ação Anexos.",
+                    )
+                }
+            } else {
+                toast.success("Transação classificada com sucesso.")
+            }
+
+            clearPendingAttachment()
+            setDialogOpen(false)
+        } catch {
+            toast.error("Não foi possível classificar a transação.")
+        }
     }
+
+    useEffect(() => {
+        if (!dialogOpen) {
+            return
+        }
+
+        if (attachmentInputRef.current) {
+            attachmentInputRef.current.value = ""
+        }
+    }, [dialogOpen])
+
+    useEffect(() => {
+        if (!dialogOpen) {
+            return
+        }
+
+        const resetForm = () => {
+            setType(transaction.type)
+            setCategoryId(transaction.category?.id ?? "")
+            setDescription(transaction.description ?? "")
+            setSettlementDate(transaction.settlementDate ?? "")
+            setSettledAmount(
+                String(
+                    Math.abs(
+                        transaction.settledAmount ??
+                        transaction.expectedAmount ??
+                        0,
+                    ),
+                ),
+            )
+            setAllocations([])
+            setAttachmentType("PROOF_OF_PAYMENT")
+            setPendingAttachmentFile(null)
+        }
+
+        const timeoutId = window.setTimeout(resetForm, 0)
+        return () => window.clearTimeout(timeoutId)
+    }, [dialogOpen, transaction.id, transaction.type, transaction.category?.id, transaction.description, transaction.settlementDate, transaction.settledAmount, transaction.expectedAmount])
 
     return (
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -465,6 +527,91 @@ export function ClassifyFinancialTransactionDialog({
                     </div>
 
                     <div className="flex justify-end gap-2">
+
+                        <div className="space-y-3 rounded-xl border p-4">
+                            <div className="flex items-center gap-2">
+                                <Paperclip className="size-4 text-muted-foreground" />
+                                <div>
+                                    <h3 className="text-sm font-medium">Anexo opcional</h3>
+                                    <p className="text-xs text-muted-foreground">
+                                        O arquivo será enviado somente depois que a classificação for salva.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {!categoryId ? (
+                                <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                                    Selecione uma categoria para adicionar um anexo à classificação.
+                                </div>
+                            ) : (
+                                <div className="grid gap-3 rounded-lg border border-dashed p-3 md:grid-cols-[180px_1fr_auto]">
+                                    <div className="space-y-2">
+                                        <Label>Tipo</Label>
+
+                                        <Select
+                                            value={attachmentType}
+                                            onValueChange={(value) =>
+                                                setAttachmentType(value as AttachmentType)
+                                            }
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+
+                                            <SelectContent>
+                                                <SelectItem value="PROOF_OF_PAYMENT">
+                                                    {attachmentTypeLabels.PROOF_OF_PAYMENT}
+                                                </SelectItem>
+                                                <SelectItem value="RECEIPT">
+                                                    {attachmentTypeLabels.RECEIPT}
+                                                </SelectItem>
+                                                <SelectItem value="INVOICE">
+                                                    {attachmentTypeLabels.INVOICE}
+                                                </SelectItem>
+                                                <SelectItem value="CONTRACT">
+                                                    {attachmentTypeLabels.CONTRACT}
+                                                </SelectItem>
+                                                <SelectItem value="OTHER">
+                                                    {attachmentTypeLabels.OTHER}
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label>Arquivo</Label>
+
+                                        <Input
+                                            ref={attachmentInputRef}
+                                            type="file"
+                                            accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                                            onChange={(event) =>
+                                                setPendingAttachmentFile(event.target.files?.[0] ?? null)
+                                            }
+                                        />
+
+                                        {pendingAttachmentFile && (
+                                            <p className="text-xs text-amber-700">
+                                                {pendingAttachmentFile.name} será enviado ao salvar a classificação.
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-end">
+                                        {pendingAttachmentFile && (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={clearPendingAttachment}
+                                            >
+                                                Remover
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         <Button
                             type="button"
                             variant="outline"
@@ -473,8 +620,18 @@ export function ClassifyFinancialTransactionDialog({
                             Cancelar
                         </Button>
 
-                        <Button type="submit" disabled={classifyTransaction.isPending}>
-                            {classifyTransaction.isPending ? "Salvando..." : "Salvar classificação"}
+                        <Button
+                            type="submit"
+                            disabled={
+                                classifyTransaction.isPending ||
+                                uploadAttachmentMutation.isPending
+                            }
+                        >
+                            {classifyTransaction.isPending
+                                ? "Salvando classificação..."
+                                : uploadAttachmentMutation.isPending
+                                    ? "Enviando anexo..."
+                                    : "Salvar classificação"}
                         </Button>
                     </div>
                 </form>
@@ -483,7 +640,6 @@ export function ClassifyFinancialTransactionDialog({
                     transactionId={transaction.id}
                     enabled={dialogOpen}
                     mode="manage"
-                    onPendingUploadChange={setHasPendingAttachmentUpload}
                 />
             </DialogContent>
         </Dialog>

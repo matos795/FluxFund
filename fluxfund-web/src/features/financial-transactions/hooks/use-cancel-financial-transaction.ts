@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { cancelFinancialTransaction } from "../financial-transaction-api"
+import { invalidateFinancialData } from "./invalidate-financial-data"
 
 export function useCancelFinancialTransaction() {
   const queryClient = useQueryClient()
@@ -8,9 +9,7 @@ export function useCancelFinancialTransaction() {
     mutationFn: (id: string) => cancelFinancialTransaction(id),
 
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["financial-transactions"],
-      })
+      invalidateFinancialData(queryClient)
     },
   })
 }

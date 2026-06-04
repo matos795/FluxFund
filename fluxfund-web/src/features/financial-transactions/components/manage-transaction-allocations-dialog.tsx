@@ -126,7 +126,7 @@ export function ManageTransactionAllocationsDialog({
           fundId: defaultFund.id,
           beneficiaryId: null,
           amount: Math.abs(remainingAmount),
-          referenceMonth: toReferenceMonthDate(transaction.settlementDate ?? null),
+          referenceMonth: null,
         },
       },
       {

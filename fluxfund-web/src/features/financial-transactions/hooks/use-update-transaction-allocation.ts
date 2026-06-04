@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { updateTransactionAllocation } from "@/features/financial-transactions/financial-transaction-api"
 import type { UpdateTransactionAllocationRequest } from "@/features/financial-transactions/financial-transaction-types"
+import { invalidateFinancialData } from "./invalidate-financial-data"
 
 type UpdateTransactionAllocationMutationData = {
   transactionId: string
@@ -21,13 +22,7 @@ export function useUpdateTransactionAllocation() {
       updateTransactionAllocation(transactionId, allocationId, data),
 
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["financial-transactions"],
-      })
-
-      queryClient.invalidateQueries({
-        queryKey: ["funds"],
-      })
+      invalidateFinancialData(queryClient)
     },
   })
 }

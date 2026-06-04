@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { deleteTransactionAllocation } from "@/features/financial-transactions/financial-transaction-api"
+import { invalidateFinancialData } from "./invalidate-financial-data"
 
 type DeleteTransactionAllocationMutationData = {
   transactionId: string
@@ -18,13 +19,7 @@ export function useDeleteTransactionAllocation() {
       deleteTransactionAllocation(transactionId, allocationId),
 
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["financial-transactions"],
-      })
-
-      queryClient.invalidateQueries({
-        queryKey: ["funds"],
-      })
+      invalidateFinancialData(queryClient)
     },
   })
 }

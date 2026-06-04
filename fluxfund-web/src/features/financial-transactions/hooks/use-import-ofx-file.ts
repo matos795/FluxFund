@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { importOfxFile } from "../financial-transaction-api"
+import { invalidateFinancialData } from "./invalidate-financial-data"
 
 type ImportOfxFileMutationData = {
   accountId: string
@@ -15,9 +16,7 @@ export function useImportOfxFile() {
       importOfxFile({ accountId, file }),
 
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["financial-transactions"],
-      })
+      invalidateFinancialData(queryClient)
     },
   })
 }

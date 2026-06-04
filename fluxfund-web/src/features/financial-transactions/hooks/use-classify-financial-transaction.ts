@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { classifyFinancialTransaction } from "../financial-transaction-api"
 import type { ClassifyFinancialTransactionRequest } from "../financial-transaction-types"
+import { invalidateFinancialData } from "./invalidate-financial-data"
 
 type ClassifyFinancialTransactionMutationData = {
   transactionId: string
@@ -19,16 +20,10 @@ export function useClassifyFinancialTransaction() {
       }),
 
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ["financial-transactions"],
-      })
+      invalidateFinancialData(queryClient)
 
       queryClient.invalidateQueries({
         queryKey: ["financial-transaction", variables.transactionId],
-      })
-
-      queryClient.invalidateQueries({
-        queryKey: ["funds"],
       })
     },
   })
