@@ -1,5 +1,6 @@
 package com.fluxfund.api.domain.beneficiary.service;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -16,6 +17,7 @@ import com.fluxfund.api.domain.beneficiary.repository.BeneficiaryRepository;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.OrganizationRepository;
 import com.fluxfund.api.security.OrganizationAccessService;
+import com.fluxfund.api.shared.dto.OptionResponse;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 import com.fluxfund.api.shared.util.DocumentNormalizer;
@@ -32,7 +34,7 @@ public class BeneficiaryService {
     private final OrganizationRepository organizationRepository;
     private final OrganizationAccessService organizationAccessService;
 
-    public BeneficiaryResponse create(CreateBeneficiaryRequest request,  UUID organizationId) {
+    public BeneficiaryResponse create(CreateBeneficiaryRequest request, UUID organizationId) {
         organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         Organization organization = organizationRepository.findByIdAndActiveTrue(organizationId)
@@ -52,7 +54,7 @@ public class BeneficiaryService {
     public Page<BeneficiaryResponse> findAll(
             UUID organizationId,
             Pageable pageable) {
-                organizationAccessService.requireReadAccess(organizationId);
+        organizationAccessService.requireReadAccess(organizationId);
 
         return repository
                 .findAllByOrganizationIdAndActiveTrue(organizationId, pageable)
@@ -72,7 +74,7 @@ public class BeneficiaryService {
             UUID organizationId,
             UUID id,
             UpdateBeneficiaryRequest request) {
-                organizationAccessService.requireFinanceWriteAccess(organizationId);
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         Beneficiary beneficiary = findBeneficiaryById(id, organizationId);
 
@@ -105,6 +107,18 @@ public class BeneficiaryService {
 
         beneficiary.setActive(false);
         repository.save(beneficiary);
+    }
+
+    @Transactional(readOnly = true)
+    public List<OptionResponse> findOptions(UUID organizationId) {
+        organizationAccessService.requireReadAccess(organizationId);
+
+        return repository.findByOrganizationIdAndActiveTrueOrderByNameAsc(organizationId)
+                .stream()
+                .map(beneficiary -> new OptionResponse(
+                        beneficiary.getId(),
+                        beneficiary.getName()))
+                .toList();
     }
 
     private Beneficiary findBeneficiaryById(UUID id, UUID organizationId) {
@@ -150,7 +164,8 @@ public class BeneficiaryService {
 
         boolean exists = currentBeneficiaryId == null
                 ? repository.existsByOrganizationIdAndDocument(organizationId, normalizedDocument)
-                : repository.existsByOrganizationIdAndDocumentAndIdNot(organizationId, normalizedDocument, currentBeneficiaryId);
+                : repository.existsByOrganizationIdAndDocumentAndIdNot(organizationId, normalizedDocument,
+                        currentBeneficiaryId);
 
         if (exists) {
             throw new BusinessException("Beneficiary document already exists");

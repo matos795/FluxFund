@@ -1,10 +1,12 @@
 package com.fluxfund.api.domain.account.service;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.fluxfund.api.domain.account.Account;
 import com.fluxfund.api.domain.account.dto.AccountResponse;
@@ -15,6 +17,7 @@ import com.fluxfund.api.domain.account.repository.AccountRepository;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.OrganizationRepository;
 import com.fluxfund.api.security.OrganizationAccessService;
+import com.fluxfund.api.shared.dto.OptionResponse;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 
 import lombok.RequiredArgsConstructor;
@@ -83,5 +86,17 @@ public class AccountService {
 
         account.setActive(false);
         accountRepository.save(account);
+    }
+
+    @Transactional(readOnly = true)
+    public List<OptionResponse> findOptions(UUID organizationId) {
+        organizationAccessService.requireReadAccess(organizationId);
+
+        return accountRepository.findByOrganizationIdAndActiveTrueOrderByNameAsc(organizationId)
+                .stream()
+                .map(account -> new OptionResponse(
+                        account.getId(),
+                        account.getName()))
+                .toList();
     }
 }

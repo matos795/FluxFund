@@ -1,5 +1,6 @@
 package com.fluxfund.api.domain.account.controller;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -20,6 +21,7 @@ import com.fluxfund.api.domain.account.dto.AccountResponse;
 import com.fluxfund.api.domain.account.dto.CreateAccountRequest;
 import com.fluxfund.api.domain.account.dto.UpdateAccountRequest;
 import com.fluxfund.api.domain.account.service.AccountService;
+import com.fluxfund.api.shared.dto.OptionResponse;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -37,24 +39,21 @@ public class AccountController {
     @ResponseStatus(HttpStatus.CREATED)
     public AccountResponse create(
             @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @Valid @RequestBody CreateAccountRequest request
-    ) {
+            @Valid @RequestBody CreateAccountRequest request) {
         return service.create(request, organizationId);
     }
 
     @GetMapping
     public Page<AccountResponse> findAll(
             @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            Pageable pageable
-    ) {
+            Pageable pageable) {
         return service.findAll(organizationId, pageable);
     }
 
     @GetMapping("/{id}")
     public AccountResponse findById(
             @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @PathVariable UUID id
-    ) {
+            @PathVariable UUID id) {
         return service.findById(id, organizationId);
     }
 
@@ -62,8 +61,7 @@ public class AccountController {
     public AccountResponse update(
             @PathVariable UUID id,
             @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @Valid @RequestBody UpdateAccountRequest request
-    ) {
+            @Valid @RequestBody UpdateAccountRequest request) {
         return service.update(id, organizationId, request);
     }
 
@@ -71,8 +69,13 @@ public class AccountController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(
             @PathVariable UUID id,
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId
-    ) {
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId) {
         service.delete(id, organizationId);
+    }
+
+    @GetMapping("/options")
+    public List<OptionResponse> findOptions(
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId) {
+        return service.findOptions(organizationId);
     }
 }

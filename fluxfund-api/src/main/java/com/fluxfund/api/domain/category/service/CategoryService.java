@@ -1,5 +1,6 @@
 package com.fluxfund.api.domain.category.service;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -9,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fluxfund.api.domain.category.Category;
 import com.fluxfund.api.domain.category.CategoryType;
+import com.fluxfund.api.domain.category.dto.CategoryOptionResponse;
 import com.fluxfund.api.domain.category.dto.CategoryResponse;
 import com.fluxfund.api.domain.category.dto.CreateCategoryRequest;
 import com.fluxfund.api.domain.category.dto.UpdateCategoryRequest;
@@ -27,113 +29,151 @@ import lombok.RequiredArgsConstructor;
 @Transactional
 public class CategoryService {
 
-    private final CategoryRepository categoryRepository;
-    private final OrganizationRepository organizationRepository;
-    private final OrganizationAccessService organizationAccessService;
+        private final CategoryRepository categoryRepository;
+        private final OrganizationRepository organizationRepository;
+        private final OrganizationAccessService organizationAccessService;
 
-    public CategoryResponse create(CreateCategoryRequest request, UUID organizationId) {
-        organizationAccessService.requireFinanceWriteAccess(organizationId);
+        public CategoryResponse create(CreateCategoryRequest request, UUID organizationId) {
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
-        Organization organization = organizationRepository.findByIdAndActiveTrue(organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+                Organization organization = organizationRepository.findByIdAndActiveTrue(organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
-        Category parent = null;
+                Category parent = null;
 
-        if (request.parentId() != null) {
-            parent = categoryRepository.findByIdAndOrganizationIdAndActiveTrue(request.parentId(), organizationId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Parent category not found"));
+                if (request.parentId() != null) {
+                        parent = categoryRepository
+                                        .findByIdAndOrganizationIdAndActiveTrue(request.parentId(), organizationId)
+                                        .orElseThrow(() -> new ResourceNotFoundException("Parent category not found"));
+                }
+
+                if (parent != null && parent.getType() != request.type()) {
+                        throw new BusinessException(
+                                        "Parent category must have the same type");
+                }
+
+                if (parent != null &&
+                                !parent.getOrganization().getId().equals(organizationId)) {
+
+                        throw new BusinessException(
+                                        "Parent category must belong to the same organization");
+                }
+
+                Category category = CategoryMapper.createEntity(request, organization, parent);
+
+                categoryRepository.save(category);
+
+                return CategoryMapper.toResponse(category);
         }
 
-        if (parent != null && parent.getType() != request.type()) {
-            throw new BusinessException(
-                    "Parent category must have the same type");
+        @Transactional(readOnly = true)
+        public Page<CategoryResponse> findAll(
+                        UUID organizationId,
+                        Pageable pageable) {
+                organizationAccessService.requireReadAccess(organizationId);
+
+                return categoryRepository
+                                .findAllByOrganizationIdAndActiveTrue(organizationId, pageable)
+                                .map(CategoryMapper::toResponse);
         }
 
-        if (parent != null &&
-                !parent.getOrganization().getId().equals(organizationId)) {
+        @Transactional(readOnly = true)
+        public CategoryResponse findById(UUID id, UUID organizationId) {
+                organizationAccessService.requireReadAccess(organizationId);
 
-            throw new BusinessException(
-                    "Parent category must belong to the same organization");
+                Category category = categoryRepository.findByIdAndOrganizationIdAndActiveTrue(id, organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+
+                return CategoryMapper.toResponse(category);
         }
 
-        Category category = CategoryMapper.createEntity(request, organization, parent);
+        public CategoryResponse update(
+                        UUID organizationId,
+                        UUID id,
+                        UpdateCategoryRequest request) {
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
-        categoryRepository.save(category);
+                Category category = categoryRepository.findByIdAndOrganizationIdAndActiveTrue(id, organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
-        return CategoryMapper.toResponse(category);
-    }
+                Category parent = null;
 
-    @Transactional(readOnly = true)
-    public Page<CategoryResponse> findAll(
-            UUID organizationId,
-            Pageable pageable) {
-        organizationAccessService.requireReadAccess(organizationId);
+                if (request.parentId() != null) {
+                        parent = categoryRepository
+                                        .findByIdAndOrganizationIdAndActiveTrue(request.parentId(), organizationId)
+                                        .orElseThrow(() -> new ResourceNotFoundException("Parent category not found"));
+                }
 
-        return categoryRepository
-                .findAllByOrganizationIdAndActiveTrue(organizationId, pageable)
-                .map(CategoryMapper::toResponse);
-    }
+                CategoryType finalType = request.type() != null
+                                ? request.type()
+                                : category.getType();
 
-    @Transactional(readOnly = true)
-    public CategoryResponse findById(UUID id, UUID organizationId) {
-        organizationAccessService.requireReadAccess(organizationId);
+                if (parent != null && parent.getType() != finalType) {
+                        throw new BusinessException(
+                                        "Parent category must have the same type");
+                }
 
-        Category category = categoryRepository.findByIdAndOrganizationIdAndActiveTrue(id, organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+                if (parent != null &&
+                                !parent.getOrganization().getId().equals(category.getOrganization().getId())) {
 
-        return CategoryMapper.toResponse(category);
-    }
+                        throw new BusinessException(
+                                        "Parent category must belong to the same organization");
+                }
 
-    public CategoryResponse update(
-            UUID organizationId,
-            UUID id,
-            UpdateCategoryRequest request) {
-        organizationAccessService.requireFinanceWriteAccess(organizationId);
+                if (parent != null && parent.getId().equals(id)) {
+                        throw new BusinessException(
+                                        "Category cannot be its own parent");
+                }
 
-        Category category = categoryRepository.findByIdAndOrganizationIdAndActiveTrue(id, organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+                CategoryMapper.updateEntity(category, request, parent);
+                categoryRepository.save(category);
 
-        Category parent = null;
-
-        if (request.parentId() != null) {
-            parent = categoryRepository.findByIdAndOrganizationIdAndActiveTrue(request.parentId(), organizationId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Parent category not found"));
+                return CategoryMapper.toResponse(category);
         }
 
-        CategoryType finalType = request.type() != null
-                ? request.type()
-                : category.getType();
+        public void delete(UUID id, UUID organizationId) {
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
-        if (parent != null && parent.getType() != finalType) {
-            throw new BusinessException(
-                    "Parent category must have the same type");
+                Category category = categoryRepository.findByIdAndOrganizationIdAndActiveTrue(id, organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+
+                category.setActive(false);
+                categoryRepository.save(category);
         }
 
-        if (parent != null &&
-                !parent.getOrganization().getId().equals(category.getOrganization().getId())) {
+        @Transactional(readOnly = true)
+        public List<CategoryOptionResponse> findOptions(
+                        UUID organizationId,
+                        CategoryType type) {
 
-            throw new BusinessException(
-                    "Parent category must belong to the same organization");
+                organizationAccessService.requireReadAccess(organizationId);
+
+                List<Category> categories = type != null
+                                ? categoryRepository.findByOrganizationIdAndActiveTrueAndTypeOrderByNameAsc(
+                                                organizationId,
+                                                type)
+                                : categoryRepository.findByOrganizationIdAndActiveTrueOrderByNameAsc(
+                                                organizationId);
+
+                return categories.stream()
+                                .map(this::toOptionResponse)
+                                .toList();
         }
 
-        if (parent != null && parent.getId().equals(id)) {
-            throw new BusinessException(
-                    "Category cannot be its own parent");
+        private CategoryOptionResponse toOptionResponse(Category category) {
+                Category parent = category.getParent();
+
+                String label = parent != null
+                                ? parent.getName() + " > " + category.getName()
+                                : category.getName();
+
+                return new CategoryOptionResponse(
+                                category.getId(),
+                                category.getName(),
+                                label,
+                                category.getType(),
+                                parent != null ? parent.getId() : null,
+                                parent != null ? parent.getName() : null,
+                                parent != null ? 1 : 0);
         }
-
-        CategoryMapper.updateEntity(category, request, parent);
-        categoryRepository.save(category);
-
-        return CategoryMapper.toResponse(category);
-    }
-
-    public void delete(UUID id, UUID organizationId) {
-        organizationAccessService.requireFinanceWriteAccess(organizationId);
-
-        Category category = categoryRepository.findByIdAndOrganizationIdAndActiveTrue(id, organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
-
-        category.setActive(false);
-        categoryRepository.save(category);
-    }
 }

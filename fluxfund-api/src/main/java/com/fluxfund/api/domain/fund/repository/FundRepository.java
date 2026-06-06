@@ -1,6 +1,7 @@
 package com.fluxfund.api.domain.fund.repository;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -37,4 +38,6 @@ public interface FundRepository extends JpaRepository<Fund, UUID> {
         """)
         BigDecimal sumInitialBalanceByOrganizationId(
         @Param("organizationId") UUID organizationId);
+
+        List<Fund> findByOrganizationIdAndActiveTrueOrderByNameAsc(UUID organizationId);
 }

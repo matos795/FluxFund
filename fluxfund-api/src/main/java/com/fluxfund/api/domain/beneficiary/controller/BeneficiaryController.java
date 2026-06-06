@@ -1,5 +1,6 @@
 package com.fluxfund.api.domain.beneficiary.controller;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -20,6 +21,7 @@ import com.fluxfund.api.domain.beneficiary.dto.BeneficiaryResponse;
 import com.fluxfund.api.domain.beneficiary.dto.CreateBeneficiaryRequest;
 import com.fluxfund.api.domain.beneficiary.dto.UpdateBeneficiaryRequest;
 import com.fluxfund.api.domain.beneficiary.service.BeneficiaryService;
+import com.fluxfund.api.shared.dto.OptionResponse;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -79,5 +81,11 @@ public class BeneficiaryController {
         service.delete(id, organizationId);
 
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/options")
+    public ResponseEntity<List<OptionResponse>> findOptions(
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId) {
+        return ResponseEntity.ok(service.findOptions(organizationId));
     }
 }

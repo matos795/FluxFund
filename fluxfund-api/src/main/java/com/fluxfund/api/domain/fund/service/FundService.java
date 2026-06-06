@@ -1,5 +1,6 @@
 package com.fluxfund.api.domain.fund.service;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -17,6 +18,7 @@ import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.OrganizationRepository;
 import com.fluxfund.api.domain.transactionallocation.repository.TransactionAllocationRepository;
 import com.fluxfund.api.security.OrganizationAccessService;
+import com.fluxfund.api.shared.dto.OptionResponse;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 import com.fluxfund.api.shared.util.StringNormalizer;
@@ -97,6 +99,15 @@ public class FundService {
 
         fund.setActive(false);
         repository.save(fund);
+    }
+
+    @Transactional(readOnly = true)
+    public List<OptionResponse> findOptions(UUID organizationId) {
+        organizationAccessService.requireReadAccess(organizationId);
+
+        return repository.findByOrganizationIdAndActiveTrueOrderByNameAsc(organizationId).stream()
+                .map(fund -> new OptionResponse(fund.getId(), fund.getName()))
+                .toList();
     }
 
     private Fund findFundById(UUID id, UUID organizationId) {

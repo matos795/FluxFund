@@ -1,5 +1,6 @@
 package com.fluxfund.api.domain.beneficiary.repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -34,4 +35,6 @@ public interface BeneficiaryRepository extends JpaRepository<Beneficiary, UUID> 
             UUID id);
 
     Optional<Beneficiary> findByIdAndOrganizationIdAndActiveTrue(UUID beneficiaryId, UUID organizationId);
+
+    List<Beneficiary> findByOrganizationIdAndActiveTrueOrderByNameAsc(UUID organizationId);
 }

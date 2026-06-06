@@ -1,6 +1,7 @@
 package com.fluxfund.api.domain.account.repository;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -14,18 +15,20 @@ import com.fluxfund.api.domain.account.Account;
 
 public interface AccountRepository extends JpaRepository<Account, UUID> {
 
-    Page<Account> findAllByOrganizationIdAndActiveTrue(
-            UUID organizationId,
-            Pageable pageable);
+        Page<Account> findAllByOrganizationIdAndActiveTrue(
+                        UUID organizationId,
+                        Pageable pageable);
 
-    Optional<Account> findByIdAndOrganizationIdAndActiveTrue(UUID accountId, UUID organizationId);
+        Optional<Account> findByIdAndOrganizationIdAndActiveTrue(UUID accountId, UUID organizationId);
 
-    @Query("""
-            select coalesce(sum(a.initialBalance), 0)
-            from Account a
-            where a.organization.id = :organizationId
-              and a.active = true
-            """)
-    BigDecimal sumInitialBalanceByOrganizationId(
-            @Param("organizationId") UUID organizationId);
+        @Query("""
+                        select coalesce(sum(a.initialBalance), 0)
+                        from Account a
+                        where a.organization.id = :organizationId
+                          and a.active = true
+                        """)
+        BigDecimal sumInitialBalanceByOrganizationId(
+                        @Param("organizationId") UUID organizationId);
+
+        List<Account> findByOrganizationIdAndActiveTrueOrderByNameAsc(UUID organizationId);
 }
