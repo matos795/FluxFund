@@ -2,7 +2,6 @@ import { Building2, Info, Landmark, Save } from "lucide-react"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 
-import { EntityCombobox } from "@/components/form/entity-combobox"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,6 +18,7 @@ import { useOrganizationSettings } from "../hooks/use-organization-settings"
 import { useUpdateOrganizationSettings } from "../hooks/use-update-organization-settings"
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { useFundOptions } from "@/features/funds/hooks/use-fund-options"
+import { FundComboboxWithCreate } from "@/features/funds/components/fund-combobox-with-create"
 
 export function FinancialSettingsCard() {
 
@@ -34,12 +34,12 @@ export function FinancialSettingsCard() {
 
   const settings = settingsQuery.data
 
-  const effectiveDefaultFundId =
-    defaultFundId === null ? settings?.defaultFund?.id ?? "" : defaultFundId
+  const selectedFundId =
+    defaultFundId === null ? settings?.defaultFund?.id ?? null : defaultFundId
 
   const selectedFund = useMemo(() => {
-    return funds.find((fund) => fund.id === effectiveDefaultFundId) ?? null
-  }, [funds, effectiveDefaultFundId])
+    return funds.find((fund) => fund.id === selectedFundId) ?? null
+  }, [funds, selectedFundId])
 
   function handleSave() {
     updateSettingsMutation.mutate(
@@ -59,7 +59,7 @@ export function FinancialSettingsCard() {
 
   const isLoading = settingsQuery.isLoading || fundsQuery.isLoading
   const isError = settingsQuery.isError || fundsQuery.isError
-  const hasChanged = (settings?.defaultFund?.id ?? "") !== defaultFundId
+  const hasChanged = (settings?.defaultFund?.id ?? null) !== selectedFundId
 
   return (
     <Card>
@@ -131,17 +131,10 @@ export function FinancialSettingsCard() {
               <div className="space-y-2">
                 <Label>Fundo padrão</Label>
 
-                <EntityCombobox
-                  value={effectiveDefaultFundId}
-                  placeholder="Selecione um fundo"
-                  searchPlaceholder="Buscar fundo..."
-                  emptyMessage="Nenhum fundo encontrado."
-                  options={funds.map((fund) => ({
-                    value: fund.id,
-                    label: fund.label,
-                  }))}
-                  onChange={setDefaultFundId}
-                  disabled={!canAdmin}
+                <FundComboboxWithCreate
+                  value={selectedFundId ?? ""}
+                  allowClear={false}
+                  onChange={(value) => setDefaultFundId(value)}
                 />
 
                 {selectedFund && (

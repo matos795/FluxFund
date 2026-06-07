@@ -14,6 +14,7 @@ import { useBeneficiaryOptions } from "../beneficiaries/hooks/use-beneficiary-op
 import { useFundOptions } from "../funds/hooks/use-fund-options"
 import { EntityCombobox } from "@/components/form/entity-combobox"
 import { CurrencyInput } from "@/components/form/currency-input"
+import { FundComboboxWithCreate } from "../funds/components/fund-combobox-with-create"
 
 type TransactionAllocationFormProps = {
   onSubmit: (data: TransactionAllocationFormData) => void
@@ -57,7 +58,6 @@ export function TransactionAllocationForm({
   const fundsQuery = useFundOptions()
   const beneficiariesQuery = useBeneficiaryOptions()
 
-  const funds = fundsQuery.data ?? []
   const beneficiaries = beneficiariesQuery.data ?? []
 
   return (
@@ -65,16 +65,9 @@ export function TransactionAllocationForm({
       <div className="grid gap-4 md:grid-cols-4">
         <div className="space-y-2">
           <Label>Fundo</Label>
-          <EntityCombobox
+          <FundComboboxWithCreate
             value={selectedFundId}
-            placeholder="Selecione o fundo"
-            searchPlaceholder="Buscar fundo..."
-            emptyMessage="Nenhum fundo encontrado."
             allowClear={false}
-            options={funds.map((fund) => ({
-              value: fund.id,
-              label: fund.label,
-            }))}
             onChange={(value) =>
               setValue("fundId", value, {
                 shouldValidate: true,

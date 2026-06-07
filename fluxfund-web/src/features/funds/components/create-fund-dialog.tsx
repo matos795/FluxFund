@@ -1,16 +1,32 @@
-import { Plus } from "lucide-react"
 import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { useCreateFund } from "../hooks/use-create-fund"
 import type { FundFormData } from "../fund-schema"
 import { FundForm } from "./fund-form"
 
-export function CreateFundDialog() {
+type CreateFundDialogProps = {
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  onCreated?: (fundId: string) => void
+}
 
-  const [open, setOpen] = useState(false)
+export function CreateFundDialog({ open: controlledOpen, onOpenChange, onCreated }: CreateFundDialogProps) {
+
+  const [internalOpen, setInternalOpen] = useState(false)
+
+  const open = controlledOpen ?? internalOpen
+
+  function handleOpenChange(value: boolean) {
+    if (onOpenChange) {
+      onOpenChange(value)
+      return
+    }
+
+    setInternalOpen(value)
+  }
 
   const createFundMutation = useCreateFund()
 
@@ -23,9 +39,10 @@ export function CreateFundDialog() {
         initialBalanceDate: data.initialBalanceDate || undefined,
       },
       {
-        onSuccess: () => {
+        onSuccess: (fund) => {
           toast.success("Fundo criado com sucesso!")
-          setOpen(false)
+          onCreated?.(fund.id)
+          handleOpenChange(false)
         },
         onError: () => {
           toast.error("Erro ao criar fundo. Tente novamente.")
@@ -36,12 +53,12 @@ export function CreateFundDialog() {
 
   return (
     <>
-      <Button type="button" onClick={() => setOpen(true)}>
-        <Plus className="mr-2 size-4" />
-        Novo fundo
-      </Button>
-
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        {controlledOpen === undefined && (
+          <DialogTrigger asChild>
+            <Button>Novo fundo</Button>
+          </DialogTrigger>
+        )}
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Novo fundo</DialogTitle>

@@ -1,4 +1,4 @@
-import { Check, ChevronsUpDown, Search, X } from "lucide-react"
+import { Check, ChevronsUpDown, Plus, Search, X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -32,6 +32,8 @@ type EntityComboboxProps = {
   disabled?: boolean
   allowClear?: boolean
   clearLabel?: string
+  createLabel?: string
+  onCreate?: () => void
 }
 
 export function EntityCombobox({
@@ -44,6 +46,8 @@ export function EntityCombobox({
   disabled = false,
   allowClear = true,
   clearLabel = "Todos",
+  createLabel = "Criar novo",
+  onCreate,
 }: EntityComboboxProps) {
   const selectedOption = options.find((option) => option.value === value)
 
@@ -70,6 +74,23 @@ export function EntityCombobox({
           <div className="flex items-center border-b px-3">
             <Search className="mr-2 size-4 shrink-0 opacity-50" />
             <CommandInput placeholder={searchPlaceholder} />
+            {onCreate && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="ml-2 size-8 shrink-0"
+                title={createLabel}
+                onClick={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  onCreate()
+                }}
+              >
+                <Plus className="size-4" />
+                <span className="sr-only">{createLabel}</span>
+              </Button>
+            )}
           </div>
 
           <CommandList>

@@ -27,10 +27,10 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import type { AttachmentType } from "@/features/attachments/attachment-types"
 import { useUploadAttachment } from "@/features/attachments/hooks/use-upload-attachment"
 import { attachmentTypeLabels } from "@/features/attachments/attachment-labels"
-import { useFundOptions } from "@/features/funds/hooks/use-fund-options"
 import { useBeneficiaryOptions } from "@/features/beneficiaries/hooks/use-beneficiary-options"
 import { CurrencyInput } from "@/components/form/currency-input"
 import { CategoryComboboxWithCreate } from "@/features/categories/components/category-combobox-with-create"
+import { FundComboboxWithCreate } from "@/features/funds/components/fund-combobox-with-create"
 
 type AllocationFormItem = {
     fundId: string
@@ -80,8 +80,6 @@ export function ClassifyFinancialTransactionDialog({
     const classifyTransaction = useClassifyFinancialTransaction()
 
     const uploadAttachmentMutation = useUploadAttachment(transaction.id)
-
-    const { data: funds = [] } = useFundOptions()
 
     const { data: beneficiaries = [] } = useBeneficiaryOptions()
 
@@ -499,16 +497,9 @@ export function ClassifyFinancialTransactionDialog({
                                     >
                                         <div className="space-y-2">
                                             <Label>Fundo</Label>
-                                            <EntityCombobox
+                                            <FundComboboxWithCreate
                                                 value={allocation.fundId}
-                                                placeholder="Selecione o fundo"
-                                                searchPlaceholder="Buscar fundo..."
-                                                emptyMessage="Nenhum fundo encontrado."
                                                 allowClear={false}
-                                                options={funds.map((fund) => ({
-                                                    value: fund.id,
-                                                    label: fund.label,
-                                                }))}
                                                 onChange={(value) =>
                                                     handleChangeAllocation(index, "fundId", value)
                                                 }

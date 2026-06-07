@@ -12,9 +12,9 @@ import {
   type SupportAgreementFormData,
   type SupportAgreementFormInput,
 } from "../support-agreement-schema"
-import { useFundOptions } from "@/features/funds/hooks/use-fund-options"
 import { useBeneficiaryOptions } from "@/features/beneficiaries/hooks/use-beneficiary-options"
 import { CurrencyInput } from "@/components/form/currency-input"
+import { FundComboboxWithCreate } from "@/features/funds/components/fund-combobox-with-create"
 
 type SupportAgreementFormProps = {
   defaultValues?: Partial<SupportAgreementFormInput>
@@ -50,10 +50,8 @@ export function SupportAgreementForm({
   })
 
   const beneficiariesQuery = useBeneficiaryOptions()
-  const fundsQuery = useFundOptions()
 
   const beneficiaries = beneficiariesQuery.data ?? []
-  const funds = fundsQuery.data ?? []
 
   return (
     <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
@@ -89,15 +87,8 @@ export function SupportAgreementForm({
           name="fundId"
           control={control}
           render={({ field }) => (
-            <EntityCombobox
+            <FundComboboxWithCreate
               value={field.value}
-              placeholder="Selecione um fundo"
-              searchPlaceholder="Buscar fundo..."
-              emptyMessage="Nenhum fundo encontrado."
-              options={funds.map((fund) => ({
-                value: fund.id,
-                label: fund.label,
-              }))}
               allowClear={false}
               onChange={field.onChange}
             />
