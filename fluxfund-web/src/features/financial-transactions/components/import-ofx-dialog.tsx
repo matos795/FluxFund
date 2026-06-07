@@ -13,16 +13,13 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { EntityCombobox } from "@/components/form/entity-combobox"
 import { useImportOfxFile } from "../hooks/use-import-ofx-file"
-import { useAccountOptions } from "@/features/accounts/hooks/use-account-options"
+import { AccountComboboxWithCreate } from "@/features/accounts/components/account-combobox-with-create"
 
 export function ImportOfxDialog() {
   const [open, setOpen] = useState(false)
   const [accountId, setAccountId] = useState("")
   const [file, setFile] = useState<File | null>(null)
-
-  const { data: accounts = [] } = useAccountOptions()
 
   const importOfxFile = useImportOfxFile()
 
@@ -85,17 +82,10 @@ export function ImportOfxDialog() {
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
             <Label>Conta</Label>
-            <EntityCombobox
+            <AccountComboboxWithCreate
               value={accountId}
-              placeholder="Selecione uma conta"
-              searchPlaceholder="Buscar conta..."
-              emptyMessage="Nenhuma conta encontrada."
-              options={accounts.map((account) => ({
-                value: account.id,
-                label: account.label,
-              }))}
               allowClear={false}
-              onChange={setAccountId}
+              onChange={(value) => setAccountId(value)}
             />
           </div>
 

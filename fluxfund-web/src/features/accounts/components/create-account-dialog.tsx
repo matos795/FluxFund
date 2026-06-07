@@ -5,13 +5,34 @@ import type { AccountFormData } from "@/features/accounts/account-schema"
 import { AccountForm } from "@/features/accounts/components/account-form"
 
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, } from "@/components/ui/dialog"
 import { useCreateAccount } from "../hooks/use-create-account"
 import { toast } from "sonner"
 
-export function CreateAccountDialog() {
+type CreateAccountDialogProps = {
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  onCreated?: (accountId: string) => void
+}
 
-  const [open, setOpen] = useState(false)
+export function CreateAccountDialog({
+  open: controlledOpen,
+  onOpenChange,
+  onCreated
+}: CreateAccountDialogProps) {
+
+  const [internalOpen, setInternalOpen] = useState(false)
+
+  const open = controlledOpen ?? internalOpen
+
+  function handleOpenChange(value: boolean) {
+    if (onOpenChange) {
+      onOpenChange(value)
+      return
+    }
+
+    setInternalOpen(value)
+  }
 
   const createAccountMutation = useCreateAccount()
 
@@ -28,9 +49,10 @@ export function CreateAccountDialog() {
         initialBalanceDate: data.initialBalanceDate,
       },
       {
-        onSuccess: () => {
+        onSuccess: (account) => {
           toast.success("Conta criada com sucesso!")
-          setOpen(false)
+          onCreated?.(account.id)
+          handleOpenChange(false)
         },
         onError: () => {
           toast.error("Erro ao criar conta. Tente novamente.")
@@ -41,12 +63,12 @@ export function CreateAccountDialog() {
 
   return (
     <>
-      <Button type="button" onClick={() => setOpen(true)}>
-        <Plus className="mr-2 size-4" />
-        Nova conta
-      </Button>
-
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        {controlledOpen === undefined && (
+          <DialogTrigger asChild>
+            <Button>Nova conta</Button>
+          </DialogTrigger>
+        )}
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Nova conta</DialogTitle>

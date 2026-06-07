@@ -22,9 +22,9 @@ import { financialTransactionTypeLabels } from "@/features/financial-transaction
 
 import { useEffect } from "react"
 import { useAccountOptions } from "@/features/accounts/hooks/use-account-options"
-import { EntityCombobox } from "@/components/form/entity-combobox"
 import { CurrencyInput } from "@/components/form/currency-input"
 import { CategoryComboboxWithCreate } from "@/features/categories/components/category-combobox-with-create"
+import { AccountComboboxWithCreate } from "@/features/accounts/components/account-combobox-with-create"
 
 type FinancialTransactionFormProps = {
   onSubmit: (data: FinancialTransactionFormData) => void
@@ -92,24 +92,15 @@ export function FinancialTransactionForm({
 
   const accountsQuery = useAccountOptions()
 
-  const accounts = accountsQuery.data ?? []
-
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label>Conta</Label>
-          <EntityCombobox
+          <AccountComboboxWithCreate
             value={selectedAccountId}
             disabled={disableAccountField}
-            placeholder="Selecione a conta"
-            searchPlaceholder="Buscar conta..."
-            emptyMessage="Nenhuma conta encontrada."
             allowClear={false}
-            options={accounts.map((account) => ({
-              value: account.id,
-              label: account.label,
-            }))}
             onChange={(value) =>
               setValue("accountId", value, {
                 shouldValidate: true,
