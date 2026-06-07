@@ -1,4 +1,3 @@
-import { Plus } from "lucide-react"
 import { useState } from "react"
 
 import type { AccountFormData } from "@/features/accounts/account-schema"
