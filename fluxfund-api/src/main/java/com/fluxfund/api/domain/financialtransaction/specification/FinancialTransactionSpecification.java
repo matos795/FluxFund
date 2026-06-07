@@ -12,6 +12,7 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
 
+import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 
@@ -62,11 +63,19 @@ public class FinancialTransactionSpecification {
                         }
 
                         if (description != null && !description.isBlank()) {
+                                String searchTerm = "%" + description.trim().toLowerCase() + "%";
+
+                                Predicate descriptionPredicate = cb.like(
+                                                cb.lower(root.get("description")),
+                                                searchTerm);
+
+                                Predicate rawDescriptionPredicate = cb.like(
+                                                cb.lower(root.get("rawDescription")),
+                                                searchTerm);
+
                                 predicates = cb.and(
                                                 predicates,
-                                                cb.like(
-                                                                cb.lower(root.get("description")),
-                                                                "%" + description.toLowerCase().trim() + "%"));
+                                                cb.or(descriptionPredicate, rawDescriptionPredicate));
                         }
 
                         if (settlementDateFrom != null) {
