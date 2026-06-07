@@ -58,7 +58,7 @@ export function CategoriesTable({ categories }: CategoriesTableProps) {
                                             )}
                                         </TableCell>
                                         <TableCell>
-                                            <CategoryActions category={category} categories={categories} />
+                                            <CategoryActions category={category} />
                                         </TableCell>
                                     </TableRow>
                                 ))}

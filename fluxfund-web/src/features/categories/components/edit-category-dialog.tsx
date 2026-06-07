@@ -7,18 +7,19 @@ import { Pencil } from "lucide-react"
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CategoryForm } from "./category-form"
-
+import { useCategoryOptions } from "../hooks/use-category-options"
 
 type EditCategoryDialogProps = {
     category: Category
-    categories: Category[]
 }
 
-export function EditCategoryDialog({ category, categories }: EditCategoryDialogProps) {
+export function EditCategoryDialog({ category }: EditCategoryDialogProps) {
 
     const [open, setOpen] = useState(false)
 
     const updateCategoryMutation = useUpdateCategory()
+    
+    const { data: categoryOptions = [] } = useCategoryOptions()
 
     function handleUpdateCategory(data: CategoryFormData) {
         updateCategoryMutation.mutate(
@@ -77,7 +78,7 @@ export function EditCategoryDialog({ category, categories }: EditCategoryDialogP
                         submitLabel="Salvar Alterações"
                         isSubmitting={updateCategoryMutation.isPending}
                         currentCategoryId={category.id}
-                        categories={categories}
+                        categories={categoryOptions.filter((option) => option.id !== category.id)}
                     />
                 </DialogContent>
             </Dialog>

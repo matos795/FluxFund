@@ -12,10 +12,9 @@ import { usePermissions } from "@/features/auth/hooks/use-permissions"
 
 type CategoryActionsProps = {
     category: Category
-    categories: Category[]
 }
 
-export function CategoryActions({ category, categories }: CategoryActionsProps) {
+export function CategoryActions({ category }: CategoryActionsProps) {
 
     const { canFinanceWrite } = usePermissions()
 
@@ -50,7 +49,7 @@ export function CategoryActions({ category, categories }: CategoryActionsProps) 
 
                 <DropdownMenuContent align="end">
 
-                    <EditCategoryDialog category={category} categories={categories} />
+                    <EditCategoryDialog category={category} />
 
                     <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
