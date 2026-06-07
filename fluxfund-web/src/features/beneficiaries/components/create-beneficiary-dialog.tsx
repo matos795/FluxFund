@@ -1,16 +1,36 @@
-import { Plus } from "lucide-react"
 import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { useCreateBeneficiary } from "../hooks/use-create-beneficiary"
 import type { BeneficiaryFormData } from "../beneficiary-schema"
 import { BeneficiaryForm } from "./beneficiary-form"
 
-export function CreateBeneficiaryDialog() {
+type CreateBeneficiaryDialogProps = {
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  onCreated?: (beneficiaryId: string) => void
+}
 
-  const [open, setOpen] = useState(false)
+export function CreateBeneficiaryDialog({
+  open: controlledOpen,
+  onOpenChange,
+  onCreated,
+}: CreateBeneficiaryDialogProps) {
+
+  const [internalOpen, setInternalOpen] = useState(false)
+
+  const open = controlledOpen ?? internalOpen
+
+  function handleOpenChange(value: boolean) {
+    if (onOpenChange) {
+      onOpenChange(value)
+      return
+    }
+
+    setInternalOpen(value)
+  }
 
   const createBeneficiaryMutation = useCreateBeneficiary()
 
@@ -24,9 +44,12 @@ export function CreateBeneficiaryDialog() {
         phone: data.phone || undefined
       },
       {
-        onSuccess: () => {
+        onSuccess: (beneficiary) => {
           toast.success("Favorecido criado com sucesso!")
-          setOpen(false)
+
+          onCreated?.(beneficiary.id)
+
+          handleOpenChange(false)
         },
         onError: () => {
           toast.error("Erro ao criar favorecido. Tente novamente.")
@@ -37,12 +60,12 @@ export function CreateBeneficiaryDialog() {
 
   return (
     <>
-      <Button type="button" onClick={() => setOpen(true)}>
-        <Plus className="mr-2 size-4" />
-        Novo favorecido
-      </Button>
-
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        {controlledOpen === undefined && (
+          <DialogTrigger asChild>
+            <Button>Novo favorecido</Button>
+          </DialogTrigger>
+        )}
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Novo favorecido</DialogTitle>

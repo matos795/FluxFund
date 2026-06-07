@@ -12,9 +12,9 @@ import {
 } from "@/features/financial-transactions/transaction-allocation-schema"
 import { useBeneficiaryOptions } from "../beneficiaries/hooks/use-beneficiary-options"
 import { useFundOptions } from "../funds/hooks/use-fund-options"
-import { EntityCombobox } from "@/components/form/entity-combobox"
 import { CurrencyInput } from "@/components/form/currency-input"
 import { FundComboboxWithCreate } from "../funds/components/fund-combobox-with-create"
+import { BeneficiaryComboboxWithCreate } from "../beneficiaries/components/beneficiary-combobox-with-create"
 
 type TransactionAllocationFormProps = {
   onSubmit: (data: TransactionAllocationFormData) => void
@@ -58,8 +58,6 @@ export function TransactionAllocationForm({
   const fundsQuery = useFundOptions()
   const beneficiariesQuery = useBeneficiaryOptions()
 
-  const beneficiaries = beneficiariesQuery.data ?? []
-
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid gap-4 md:grid-cols-4">
@@ -84,17 +82,10 @@ export function TransactionAllocationForm({
 
         <div className="space-y-2">
           <Label>Favorecido</Label>
-          <EntityCombobox
+          <BeneficiaryComboboxWithCreate
             value={selectedBeneficiaryId ?? ""}
-            placeholder="Sem favorecido"
-            searchPlaceholder="Buscar favorecido..."
-            emptyMessage="Nenhum favorecido encontrado."
             allowClear
             clearLabel="Sem favorecido"
-            options={beneficiaries.map((beneficiary) => ({
-              value: beneficiary.id,
-              label: beneficiary.label,
-            }))}
             onChange={(value) =>
               setValue("beneficiaryId", value, {
                 shouldValidate: true,

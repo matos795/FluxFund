@@ -19,7 +19,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { EntityCombobox } from "@/components/form/entity-combobox"
 
 import type { FinancialTransaction } from "../financial-transaction-types"
 import { useClassifyFinancialTransaction } from "../hooks/use-classify-financial-transaction"
@@ -27,10 +26,10 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import type { AttachmentType } from "@/features/attachments/attachment-types"
 import { useUploadAttachment } from "@/features/attachments/hooks/use-upload-attachment"
 import { attachmentTypeLabels } from "@/features/attachments/attachment-labels"
-import { useBeneficiaryOptions } from "@/features/beneficiaries/hooks/use-beneficiary-options"
 import { CurrencyInput } from "@/components/form/currency-input"
 import { CategoryComboboxWithCreate } from "@/features/categories/components/category-combobox-with-create"
 import { FundComboboxWithCreate } from "@/features/funds/components/fund-combobox-with-create"
+import { BeneficiaryComboboxWithCreate } from "@/features/beneficiaries/components/beneficiary-combobox-with-create"
 
 type AllocationFormItem = {
     fundId: string
@@ -80,8 +79,6 @@ export function ClassifyFinancialTransactionDialog({
     const classifyTransaction = useClassifyFinancialTransaction()
 
     const uploadAttachmentMutation = useUploadAttachment(transaction.id)
-
-    const { data: beneficiaries = [] } = useBeneficiaryOptions()
 
     const totalAllocated = useMemo(() => {
         return allocations.reduce((total, allocation) => {
@@ -508,15 +505,8 @@ export function ClassifyFinancialTransactionDialog({
 
                                         <div className="space-y-2">
                                             <Label>Favorecido</Label>
-                                            <EntityCombobox
+                                            <BeneficiaryComboboxWithCreate
                                                 value={allocation.beneficiaryId}
-                                                placeholder="Sem favorecido"
-                                                searchPlaceholder="Buscar favorecido..."
-                                                emptyMessage="Nenhum favorecido encontrado."
-                                                options={beneficiaries.map((beneficiary) => ({
-                                                    value: beneficiary.id,
-                                                    label: beneficiary.label,
-                                                }))}
                                                 allowClear
                                                 clearLabel="Sem favorecido"
                                                 onChange={(value) =>

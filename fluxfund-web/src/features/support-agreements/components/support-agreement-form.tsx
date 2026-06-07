@@ -1,8 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
 
-import { EntityCombobox } from "@/components/form/entity-combobox"
-import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,9 +10,10 @@ import {
   type SupportAgreementFormData,
   type SupportAgreementFormInput,
 } from "../support-agreement-schema"
-import { useBeneficiaryOptions } from "@/features/beneficiaries/hooks/use-beneficiary-options"
 import { CurrencyInput } from "@/components/form/currency-input"
 import { FundComboboxWithCreate } from "@/features/funds/components/fund-combobox-with-create"
+import { BeneficiaryComboboxWithCreate } from "@/features/beneficiaries/components/beneficiary-combobox-with-create"
+import { Button } from "@/components/ui/button"
 
 type SupportAgreementFormProps = {
   defaultValues?: Partial<SupportAgreementFormInput>
@@ -28,7 +27,6 @@ export function SupportAgreementForm({
   defaultValues,
   submitLabel = "Salvar compromisso",
   isSubmitting = false,
-  lockBeneficiary = false,
   onSubmit,
 }: SupportAgreementFormProps) {
   const {
@@ -49,10 +47,6 @@ export function SupportAgreementForm({
     },
   })
 
-  const beneficiariesQuery = useBeneficiaryOptions()
-
-  const beneficiaries = beneficiariesQuery.data ?? []
-
   return (
     <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
       <div className="space-y-2">
@@ -61,17 +55,10 @@ export function SupportAgreementForm({
           name="beneficiaryId"
           control={control}
           render={({ field }) => (
-            <EntityCombobox
+            <BeneficiaryComboboxWithCreate
               value={field.value}
-              disabled={lockBeneficiary}
-              placeholder="Selecione um favorecido"
-              searchPlaceholder="Buscar favorecido..."
-              emptyMessage="Nenhum favorecido encontrado."
-              options={beneficiaries.map((beneficiary) => ({
-                value: beneficiary.id,
-                label: beneficiary.label,
-              }))}
-              allowClear={false}
+              allowClear
+              clearLabel="Sem favorecido"
               onChange={field.onChange}
             />
           )}
