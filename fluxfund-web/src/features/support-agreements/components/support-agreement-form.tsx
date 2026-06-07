@@ -14,6 +14,7 @@ import {
 } from "../support-agreement-schema"
 import { useFundOptions } from "@/features/funds/hooks/use-fund-options"
 import { useBeneficiaryOptions } from "@/features/beneficiaries/hooks/use-beneficiary-options"
+import { CurrencyInput } from "@/components/form/currency-input"
 
 type SupportAgreementFormProps = {
   defaultValues?: Partial<SupportAgreementFormInput>
@@ -110,13 +111,16 @@ export function SupportAgreementForm({
       <div className="grid gap-4 md:grid-cols-3">
         <div className="space-y-2">
           <Label htmlFor="amount">Valor mensal</Label>
-          <Input
-            id="amount"
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="1000,00"
-            {...register("amount", { valueAsNumber: true })}
+          <Controller
+            name="amount"
+            control={control}
+            render={({ field }) => (
+              <CurrencyInput
+                id="amount"
+                value={field.value as number | null | undefined}
+                onValueChange={field.onChange}
+              />
+            )}
           />
           {errors.amount && (
             <p className="text-sm text-destructive">{errors.amount.message}</p>

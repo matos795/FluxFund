@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm, useWatch } from "react-hook-form"
+import { Controller, useForm, useWatch } from "react-hook-form"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,6 +25,7 @@ import { useCategoryOptions } from "@/features/categories/hooks/use-category-opt
 import { useAccountOptions } from "@/features/accounts/hooks/use-account-options"
 import { EntityCombobox } from "@/components/form/entity-combobox"
 import { CategoryCombobox } from "@/components/form/category-combobox"
+import { CurrencyInput } from "@/components/form/currency-input"
 
 type FinancialTransactionFormProps = {
   onSubmit: (data: FinancialTransactionFormData) => void
@@ -223,12 +224,16 @@ export function FinancialTransactionForm({
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="expectedAmount">Valor previsto</Label>
-          <Input
-            id="expectedAmount"
-            type="number"
-            step="0.01"
-            min="0"
-            {...register("expectedAmount")}
+          <Controller
+            name="expectedAmount"
+            control={control}
+            render={({ field }) => (
+              <CurrencyInput
+                id="expectedAmount"
+                value={field.value as number | null | undefined}
+                onValueChange={field.onChange}
+              />
+            )}
           />
           {errors.expectedAmount && (
             <p className="text-sm text-destructive">
@@ -239,12 +244,17 @@ export function FinancialTransactionForm({
 
         <div className="space-y-2">
           <Label htmlFor="settledAmount">Valor baixado</Label>
-          <Input
-            id="settledAmount"
-            type="number"
-            step="0.01"
-            min="0"
-            {...register("settledAmount")}
+          <Controller
+            name="settledAmount"
+            control={control}
+            render={({ field }) => (
+              <CurrencyInput
+                id="settledAmount"
+                value={field.value as number | null | undefined}
+                allowEmpty
+                onValueChange={field.onChange}
+              />
+            )}
           />
           {errors.settledAmount && (
             <p className="text-sm text-destructive">

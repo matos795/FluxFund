@@ -1,10 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
+import { Controller, useForm } from "react-hook-form"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { fundFormSchema, type FundFormData, type FundFormInput } from "../fund-schema"
+import { CurrencyInput } from "@/components/form/currency-input"
 
 type FundFormProps = {
     onSubmit: (data: FundFormData) => void
@@ -22,6 +23,7 @@ export function FundForm({
     const {
         register,
         handleSubmit,
+        control,
         formState: { errors },
     } = useForm<FundFormInput, unknown, FundFormData>({
         resolver: zodResolver(fundFormSchema),
@@ -62,12 +64,16 @@ export function FundForm({
             <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                     <Label htmlFor="initialBalance">Saldo inicial</Label>
-                    <Input
-                        id="initialBalance"
-                        type="number"
-                        step="0.01"
-                        placeholder="0,00"
-                        {...register("initialBalance")}
+                    <Controller
+                        name="initialBalance"
+                        control={control}
+                        render={({ field }) => (
+                            <CurrencyInput
+                                id="initialBalance"
+                                value={field.value as number | null | undefined}
+                                onValueChange={field.onChange}
+                            />
+                        )}
                     />
                     {errors.initialBalance && (
                         <p className="text-sm text-destructive">

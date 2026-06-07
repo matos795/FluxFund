@@ -31,6 +31,7 @@ import { useCategoryOptions } from "@/features/categories/hooks/use-category-opt
 import { useFundOptions } from "@/features/funds/hooks/use-fund-options"
 import { useBeneficiaryOptions } from "@/features/beneficiaries/hooks/use-beneficiary-options"
 import { CategoryCombobox } from "@/components/form/category-combobox"
+import { CurrencyInput } from "@/components/form/currency-input"
 
 type AllocationFormItem = {
     fundId: string
@@ -450,12 +451,10 @@ export function ClassifyFinancialTransactionDialog({
 
                         <div className="space-y-2">
                             <Label>Valor baixado</Label>
-                            <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={settledAmount}
-                                onChange={(event) => setSettledAmount(event.target.value)}
+                            <CurrencyInput
+                                id="settledAmount"
+                                value={amountNumber}
+                                onValueChange={(value) => setSettledAmount(String(value ?? 0))}
                             />
                         </div>
 
@@ -560,13 +559,10 @@ export function ClassifyFinancialTransactionDialog({
 
                                         <div className="space-y-2">
                                             <Label>Valor</Label>
-                                            <Input
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={allocation.amount}
-                                                onChange={(event) =>
-                                                    handleChangeAllocation(index, "amount", event.target.value)
+                                            <CurrencyInput
+                                                value={Number(allocation.amount || 0)}
+                                                onValueChange={(value) =>
+                                                    handleChangeAllocation(index, "amount", String(value ?? 0))
                                                 }
                                             />
                                         </div>

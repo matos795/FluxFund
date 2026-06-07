@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm, useWatch } from "react-hook-form"
+import { Controller, useForm, useWatch } from "react-hook-form"
 
 import {
   accountFormSchema,
@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { CurrencyInput } from "@/components/form/currency-input"
 
 type AccountFormProps = {
   onSubmit: (data: AccountFormData) => void
@@ -162,13 +163,16 @@ export function AccountForm({
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="initialBalance">Saldo inicial</Label>
-          <Input
-            id="initialBalance"
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder="0,00"
-            {...register("initialBalance")}
+          <Controller
+            name="initialBalance"
+            control={control}
+            render={({ field }) => (
+              <CurrencyInput
+                id="initialBalance"
+                value={field.value as number | null | undefined}
+                onValueChange={field.onChange}
+              />
+            )}
           />
           {errors.initialBalance && (
             <p className="text-sm text-destructive">

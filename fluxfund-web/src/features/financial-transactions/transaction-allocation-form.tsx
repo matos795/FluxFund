@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm, useWatch } from "react-hook-form"
+import { Controller, useForm, useWatch } from "react-hook-form"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,6 +13,7 @@ import {
 import { useBeneficiaryOptions } from "../beneficiaries/hooks/use-beneficiary-options"
 import { useFundOptions } from "../funds/hooks/use-fund-options"
 import { EntityCombobox } from "@/components/form/entity-combobox"
+import { CurrencyInput } from "@/components/form/currency-input"
 
 type TransactionAllocationFormProps = {
   onSubmit: (data: TransactionAllocationFormData) => void
@@ -134,12 +135,16 @@ export function TransactionAllocationForm({
 
         <div className="space-y-2">
           <Label htmlFor="amount">Valor</Label>
-          <Input
-            id="amount"
-            type="number"
-            step="0.01"
-            min="0"
-            {...register("amount")}
+          <Controller
+            name="amount"
+            control={control}
+            render={({ field }) => (
+              <CurrencyInput
+                id="amount"
+                value={field.value as number | null | undefined}
+                onValueChange={field.onChange}
+              />
+            )}
           />
 
           {errors.amount && (
