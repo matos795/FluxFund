@@ -28,7 +28,7 @@ export function CategoriesPage() {
         title="Categorias"
         description="Organize receitas e despesas em um plano de contas hierárquico."
       >
-        {canFinanceWrite && <CreateCategoryDialog categories={categories} />}
+        {canFinanceWrite && <CreateCategoryDialog />}
       </PageHeader>
 
       {isLoading && <CategoriesTableSkeleton />}

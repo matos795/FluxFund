@@ -6,17 +6,15 @@ import { useState } from "react";
 import type { CategoryFormData } from "../category-schema";
 import { useCreateCategory } from "../hooks/use-create-category";
 import { toast } from "sonner";
-import type { Category } from "../category-types";
+import { useCategoryOptions } from "../hooks/use-category-options";
 
-type CreateCategoryDialogProps = {
-    categories: Category[]
-}
-
-export function CreateCategoryDialog({ categories }: CreateCategoryDialogProps) {
+export function CreateCategoryDialog() {
 
   const [open, setOpen] = useState(false)
 
   const createCategoryMutation = useCreateCategory()
+
+  const { data: categoryOptions = [] } = useCategoryOptions()
 
   function handleCreateCategory(data: CategoryFormData) {
     createCategoryMutation.mutate(
@@ -56,7 +54,7 @@ export function CreateCategoryDialog({ categories }: CreateCategoryDialogProps) 
           <CategoryForm
             onSubmit={handleCreateCategory}
             isSubmitting={createCategoryMutation.isPending}
-            categories={categories}
+            categories={categoryOptions}
           />
         </DialogContent>
       </Dialog>

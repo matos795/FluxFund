@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { categoryTypeLabels } from "../category-labels"
 import { Button } from "@/components/ui/button"
-import type { Category } from "../category-types"
+import { CategoryCombobox } from "@/components/form/category-combobox"
+import type { CategoryOption } from "../category-types"
 
 
 type CategoryFormProps = {
@@ -14,7 +15,7 @@ type CategoryFormProps = {
     isSubmitting?: boolean
     defaultValues?: Partial<CategoryFormInput>
     submitLabel?: string
-    categories?: Category[]
+    categories?: CategoryOption[]
     currentCategoryId?: string
 }
 
@@ -24,7 +25,6 @@ export function CategoryForm({
     defaultValues,
     submitLabel = "Salvar categoria",
     categories = [],
-    currentCategoryId
 }: CategoryFormProps) {
 
     const { register, handleSubmit, setValue, control, formState: { errors }, } = useForm<CategoryFormInput, unknown, CategoryFormData>({
@@ -40,14 +40,6 @@ export function CategoryForm({
 
     const selectedType = useWatch({ control, name: "type" })
     const selectedParentId = useWatch({ control, name: "parentId" })
-
-    const parentCategoryOptions = categories.filter((category) => {
-        if (!category.active) return false
-        if (category.id === currentCategoryId) return false
-        if (category.type !== selectedType) return false
-
-        return true
-    })
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -98,26 +90,22 @@ export function CategoryForm({
             <div className="space-y-2">
                 <Label>Categoria pai</Label>
 
-                <Select
-                    value={selectedParentId ?? "none"}
-                    onValueChange={(value) =>
-                        setValue("parentId", value === "none" ? null : value, {
+                <CategoryCombobox
+                    value={selectedParentId ?? ""}
+                    options={categories.filter(
+                        (category) => category.type === selectedType,
+                    )}
+                    placeholder="Sem categoria pai"
+                    searchPlaceholder="Buscar categoria pai..."
+                    emptyMessage="Nenhuma categoria encontrada."
+                    allowClear
+                    clearLabel="Sem categoria pai"
+                    onChange={(value) =>
+                        setValue("parentId", value || undefined, {
                             shouldValidate: true,
                         })
                     }
-                >
-                    <SelectTrigger>
-                        <SelectValue placeholder="Selecione a categoria pai" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="none">Nenhuma categoria pai</SelectItem>
-                        {parentCategoryOptions?.map((category) => (
-                            <SelectItem key={category.id} value={category.id}>
-                                {category.name}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                />
 
                 {errors.parentId && (
                     <p className="text-sm text-destructive">{errors.parentId.message}</p>
