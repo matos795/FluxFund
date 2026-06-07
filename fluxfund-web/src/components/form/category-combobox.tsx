@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import type { CategoryOption } from "@/features/categories/category-types"
+import { normalizeSearch } from "@/utils/normalizer"
 
 type CategoryComboboxProps = {
   value: string
@@ -69,7 +70,13 @@ export function CategoryCombobox({
       </PopoverTrigger>
 
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-        <Command>
+        <Command
+          filter={(value, search) => {
+            const normalizedSearch = normalizeSearch(search)
+
+            return value.includes(normalizedSearch) ? 1 : 0
+          }}
+        >
           <div className="flex items-center border-b px-3">
             <Search className="mr-2 size-4 shrink-0 opacity-50" />
             <CommandInput placeholder={searchPlaceholder} />
@@ -81,7 +88,7 @@ export function CategoryCombobox({
             {allowClear && (
               <CommandGroup>
                 <CommandItem
-                  value={clearLabel}
+                  value={normalizeSearch(clearLabel)}
                   onSelect={() => onChange("")}
                 >
                   <X
@@ -103,11 +110,13 @@ export function CategoryCombobox({
               return (
                 <CommandGroup key={parent.id} heading={parent.name}>
                   <CommandItem
-                    value={[
-                      parent.name,
-                      parent.label,
-                      parent.parentName ?? "",
-                    ].join(" ")}
+                    value={normalizeSearch(
+                      [
+                        parent.name,
+                        parent.label,
+                        parent.parentName ?? "",
+                      ].join(" "),
+                    )}
                     onSelect={() => onChange(parent.id)}
                   >
                     <Check
@@ -123,11 +132,13 @@ export function CategoryCombobox({
                   {children.map((child) => (
                     <CommandItem
                       key={child.id}
-                      value={[
-                        child.name,
-                        child.label,
-                        child.parentName ?? "",
-                      ].join(" ")}
+                      value={normalizeSearch(
+                        [
+                          child.name,
+                          child.label,
+                          child.parentName ?? "",
+                        ].join(" "),
+                      )}
                       onSelect={() => onChange(child.id)}
                     >
                       <Check
@@ -151,11 +162,13 @@ export function CategoryCombobox({
                 {orphanChildOptions.map((category) => (
                   <CommandItem
                     key={category.id}
-                    value={[
-                      category.name,
-                      category.label,
-                      category.parentName ?? "",
-                    ].join(" ")}
+                    value={normalizeSearch(
+                      [
+                        category.name,
+                        category.label,
+                        category.parentName ?? "",
+                      ].join(" "),
+                    )}
                     onSelect={() => onChange(category.id)}
                   >
                     <Check
