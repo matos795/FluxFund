@@ -21,11 +21,10 @@ import {
 import { financialTransactionTypeLabels } from "@/features/financial-transactions/financial-transaction-labels"
 
 import { useEffect } from "react"
-import { useCategoryOptions } from "@/features/categories/hooks/use-category-options"
 import { useAccountOptions } from "@/features/accounts/hooks/use-account-options"
 import { EntityCombobox } from "@/components/form/entity-combobox"
-import { CategoryCombobox } from "@/components/form/category-combobox"
 import { CurrencyInput } from "@/components/form/currency-input"
+import { CategoryComboboxWithCreate } from "@/features/categories/components/category-combobox-with-create"
 
 type FinancialTransactionFormProps = {
   onSubmit: (data: FinancialTransactionFormData) => void
@@ -93,13 +92,7 @@ export function FinancialTransactionForm({
 
   const accountsQuery = useAccountOptions()
 
-  const categoriesQuery = useCategoryOptions(
-    selectedType === "TRANSFER" ? undefined : selectedType,
-    selectedType !== "TRANSFER",
-  )
-
   const accounts = accountsQuery.data ?? []
-  const categories = categoriesQuery.data ?? []
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -173,18 +166,19 @@ export function FinancialTransactionForm({
       {selectedType !== "TRANSFER" && (
         <div className="space-y-2">
           <Label>Categoria</Label>
-          <CategoryCombobox
+          <CategoryComboboxWithCreate
             value={selectedCategoryId ?? ""}
+            type={selectedType}
             placeholder="Selecione a categoria"
             searchPlaceholder="Buscar categoria..."
             emptyMessage="Nenhuma categoria encontrada."
             allowClear={false}
-            options={categories}
-            onChange={(value) =>
+            disabled={false}
+            onChange={(value) => {
               setValue("categoryId", value, {
                 shouldValidate: true,
               })
-            }
+            }}
           />
 
           {errors.categoryId && (
@@ -295,11 +289,7 @@ export function FinancialTransactionForm({
       <div className="flex justify-end gap-2 pt-2">
         <Button
           type="submit"
-          disabled={
-            isSubmitting ||
-            accountsQuery.isLoading ||
-            categoriesQuery.isLoading
-          }
+          disabled={isSubmitting || accountsQuery.isLoading}
         >
           {isSubmitting ? "Salvando..." : submitLabel}
         </Button>

@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CategoryForm } from "./category-form";
 import { useState } from "react";
 import type { CategoryFormData } from "../category-schema";
@@ -8,9 +7,30 @@ import { useCreateCategory } from "../hooks/use-create-category";
 import { toast } from "sonner";
 import { useCategoryOptions } from "../hooks/use-category-options";
 
-export function CreateCategoryDialog() {
+type CreateCategoryDialogProps = {
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  onCreated?: (categoryId: string) => void
+}
 
-  const [open, setOpen] = useState(false)
+export function CreateCategoryDialog({
+  open: controlledOpen,
+  onOpenChange,
+  onCreated,
+}: CreateCategoryDialogProps) {
+
+  const [internalOpen, setInternalOpen] = useState(false)
+
+  const open = controlledOpen ?? internalOpen
+
+  function handleOpenChange(value: boolean) {
+    if (onOpenChange) {
+      onOpenChange(value)
+      return
+    }
+
+    setInternalOpen(value)
+  }
 
   const createCategoryMutation = useCreateCategory()
 
@@ -24,9 +44,12 @@ export function CreateCategoryDialog() {
         parentId: data.parentId ?? null,
       },
       {
-        onSuccess: () => {
+        onSuccess: (category) => {
           toast.success("Categoria criada com sucesso!")
-          setOpen(false)
+
+          onCreated?.(category.id)
+
+          handleOpenChange(false)
         },
         onError: () => {
           toast.error("Erro ao criar categoria. Tente novamente.")
@@ -37,12 +60,13 @@ export function CreateCategoryDialog() {
 
   return (
     <>
-      <Button type="button" onClick={() => setOpen(true)}>
-        <Plus className="mr-2 size-4" />
-        Nova categoria
-      </Button>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+        {controlledOpen === undefined && (
+          <DialogTrigger asChild>
+            <Button>Nova categoria</Button>
+          </DialogTrigger>
+        )}
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Nova categoria</DialogTitle>

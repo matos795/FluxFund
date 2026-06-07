@@ -27,11 +27,10 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import type { AttachmentType } from "@/features/attachments/attachment-types"
 import { useUploadAttachment } from "@/features/attachments/hooks/use-upload-attachment"
 import { attachmentTypeLabels } from "@/features/attachments/attachment-labels"
-import { useCategoryOptions } from "@/features/categories/hooks/use-category-options"
 import { useFundOptions } from "@/features/funds/hooks/use-fund-options"
 import { useBeneficiaryOptions } from "@/features/beneficiaries/hooks/use-beneficiary-options"
-import { CategoryCombobox } from "@/components/form/category-combobox"
 import { CurrencyInput } from "@/components/form/currency-input"
+import { CategoryComboboxWithCreate } from "@/features/categories/components/category-combobox-with-create"
 
 type AllocationFormItem = {
     fundId: string
@@ -81,11 +80,6 @@ export function ClassifyFinancialTransactionDialog({
     const classifyTransaction = useClassifyFinancialTransaction()
 
     const uploadAttachmentMutation = useUploadAttachment(transaction.id)
-
-    const { data: categories = [] } = useCategoryOptions(
-        type === "TRANSFER" ? undefined : type,
-        type !== "TRANSFER",
-    )
 
     const { data: funds = [] } = useFundOptions()
 
@@ -423,13 +417,14 @@ export function ClassifyFinancialTransactionDialog({
 
                         <div className="space-y-2">
                             <Label>Categoria</Label>
-                            <CategoryCombobox
+                            <CategoryComboboxWithCreate
                                 value={categoryId}
+                                type={type === "TRANSFER" ? undefined : type}
                                 placeholder="Selecione a categoria"
                                 searchPlaceholder="Buscar categoria..."
                                 emptyMessage="Nenhuma categoria encontrada."
                                 allowClear={false}
-                                options={categories}
+                                disabled={type === "TRANSFER"}
                                 onChange={(value) => {
                                     setCategoryId(value)
 

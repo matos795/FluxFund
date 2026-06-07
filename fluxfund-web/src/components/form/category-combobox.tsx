@@ -1,4 +1,4 @@
-import { Check, ChevronsUpDown, Search, X } from "lucide-react"
+import { Check, ChevronsUpDown, Plus, Search, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -28,6 +28,8 @@ type CategoryComboboxProps = {
   disabled?: boolean
   allowClear?: boolean
   clearLabel?: string
+  onCreate?: () => void
+  createLabel?: string
 }
 
 export function CategoryCombobox({
@@ -40,6 +42,8 @@ export function CategoryCombobox({
   disabled = false,
   allowClear = true,
   clearLabel = "Todas as categorias",
+  onCreate,
+  createLabel = "Nova categoria",
 }: CategoryComboboxProps) {
   const selectedOption = options.find((option) => option.id === value)
 
@@ -79,7 +83,29 @@ export function CategoryCombobox({
         >
           <div className="flex items-center border-b px-3">
             <Search className="mr-2 size-4 shrink-0 opacity-50" />
-            <CommandInput placeholder={searchPlaceholder} />
+
+            <CommandInput
+              placeholder={searchPlaceholder}
+              className="flex-1"
+            />
+
+            {onCreate && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="ml-2 size-8 shrink-0"
+                title={createLabel}
+                onClick={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  onCreate()
+                }}
+              >
+                <Plus className="size-4" />
+                <span className="sr-only">{createLabel}</span>
+              </Button>
+            )}
           </div>
 
           <CommandList>
