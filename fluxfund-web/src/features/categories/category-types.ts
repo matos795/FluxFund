@@ -29,3 +29,13 @@ export type UpdateCategoryRequest = {
     type?: CategoryType
     parentId?: string | null
 }
+
+export type CategoryOption = {
+  id: string
+  name: string
+  label: string
+  type: CategoryType
+  parentId: string | null
+  parentName: string | null
+  level: number
+}

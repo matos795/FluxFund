@@ -1,6 +1,7 @@
 import { httpClient } from "@/api/http-client"
 import type { Beneficiary, CreateBeneficiaryRequest, UpdateBeneficiaryRequest } from "./beneficiary-types"
 import type { PageResponse } from "@/types/page-response"
+import type { OptionResponse } from "@/types/option-response"
 
 type GetBeneficiariesParams = {
   page?: number
@@ -39,4 +40,12 @@ export async function updateBeneficiary(data: UpdateBeneficiaryRequest) {
 
 export async function deleteBeneficiary(id: string) {
   await httpClient.delete(`/api/v1/beneficiaries/${id}`)
+}
+
+export async function getBeneficiaryOptions() {
+  const response = await httpClient.get<OptionResponse[]>(
+    "/api/v1/beneficiaries/options",
+  )
+
+  return response.data
 }

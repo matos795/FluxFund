@@ -12,6 +12,7 @@ export function useDeleteAccount() {
       queryClient.invalidateQueries({
         queryKey: ["accounts"],
       })
+      queryClient.invalidateQueries({ queryKey: ["account-options"] })
     },
   })
 }

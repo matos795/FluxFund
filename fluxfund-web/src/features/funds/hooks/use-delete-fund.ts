@@ -9,6 +9,7 @@ export function useDeleteFund() {
         mutationFn: (id: string) => deleteFund(id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["funds"] })
+            queryClient.invalidateQueries({ queryKey: ["fund-options"] })
         },
     })
 }

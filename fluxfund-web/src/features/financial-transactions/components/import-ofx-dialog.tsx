@@ -14,20 +14,15 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { EntityCombobox } from "@/components/form/entity-combobox"
-import { useAccounts } from "@/features/accounts/hooks/use-accounts"
 import { useImportOfxFile } from "../hooks/use-import-ofx-file"
+import { useAccountOptions } from "@/features/accounts/hooks/use-account-options"
 
 export function ImportOfxDialog() {
   const [open, setOpen] = useState(false)
   const [accountId, setAccountId] = useState("")
   const [file, setFile] = useState<File | null>(null)
 
-  const { data: accountsData } = useAccounts({
-    page: 0,
-    size: 100,
-  })
-
-  const accounts = accountsData?.content ?? []
+  const { data: accounts = [] } = useAccountOptions()
 
   const importOfxFile = useImportOfxFile()
 
@@ -97,8 +92,9 @@ export function ImportOfxDialog() {
               emptyMessage="Nenhuma conta encontrada."
               options={accounts.map((account) => ({
                 value: account.id,
-                label: account.name,
+                label: account.label,
               }))}
+              allowClear={false}
               onChange={setAccountId}
             />
           </div>

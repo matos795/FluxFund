@@ -1,4 +1,4 @@
-import { Check, ChevronsUpDown, Search } from "lucide-react"
+import { Check, ChevronsUpDown, Search, X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,7 @@ import {
 type EntityComboboxOption = {
   value: string
   label: string
+  searchValue?: string
 }
 
 type EntityComboboxProps = {
@@ -29,6 +30,8 @@ type EntityComboboxProps = {
   emptyMessage?: string
   onChange: (value: string) => void
   disabled?: boolean
+  allowClear?: boolean
+  clearLabel?: string
 }
 
 export function EntityCombobox({
@@ -39,6 +42,8 @@ export function EntityCombobox({
   emptyMessage = "Nenhum resultado encontrado.",
   onChange,
   disabled = false,
+  allowClear = true,
+  clearLabel = "Todos",
 }: EntityComboboxProps) {
   const selectedOption = options.find((option) => option.value === value)
 
@@ -55,6 +60,7 @@ export function EntityCombobox({
           <span className="truncate">
             {selectedOption ? selectedOption.label : placeholder}
           </span>
+
           <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -70,23 +76,25 @@ export function EntityCombobox({
             <CommandEmpty>{emptyMessage}</CommandEmpty>
 
             <CommandGroup>
-              <CommandItem
-                value="ALL"
-                onSelect={() => onChange("")}
-              >
-                <Check
-                  className={cn(
-                    "mr-2 size-4",
-                    value === "" ? "opacity-100" : "opacity-0",
-                  )}
-                />
-                Todos
-              </CommandItem>
+              {allowClear && (
+                <CommandItem
+                  value={clearLabel}
+                  onSelect={() => onChange("")}
+                >
+                  <X
+                    className={cn(
+                      "mr-2 size-4",
+                      value === "" ? "opacity-100" : "opacity-40",
+                    )}
+                  />
+                  {clearLabel}
+                </CommandItem>
+              )}
 
               {options.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={option.label}
+                  value={option.searchValue ?? option.label}
                   onSelect={() => onChange(option.value)}
                 >
                   <Check
@@ -95,7 +103,8 @@ export function EntityCombobox({
                       value === option.value ? "opacity-100" : "opacity-0",
                     )}
                   />
-                  {option.label}
+
+                  <span className="truncate">{option.label}</span>
                 </CommandItem>
               ))}
             </CommandGroup>

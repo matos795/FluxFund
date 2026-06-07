@@ -14,11 +14,11 @@ import {
 } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useFunds } from "@/features/funds/hooks/use-funds"
 
 import { useOrganizationSettings } from "../hooks/use-organization-settings"
 import { useUpdateOrganizationSettings } from "../hooks/use-update-organization-settings"
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
+import { useFundOptions } from "@/features/funds/hooks/use-fund-options"
 
 export function FinancialSettingsCard() {
 
@@ -29,15 +29,10 @@ export function FinancialSettingsCard() {
   const settingsQuery = useOrganizationSettings()
   const updateSettingsMutation = useUpdateOrganizationSettings()
 
-  const fundsQuery = useFunds({
-    page: 0,
-    size: 100,
-  })
+  const fundsQuery = useFundOptions()
+  const funds = useMemo(() => fundsQuery.data ?? [], [fundsQuery.data])
 
   const settings = settingsQuery.data
-  const funds = useMemo(() => fundsQuery.data?.content ?? [], [
-    fundsQuery.data?.content,
-  ])
 
   const effectiveDefaultFundId =
     defaultFundId === null ? settings?.defaultFund?.id ?? "" : defaultFundId
@@ -143,7 +138,7 @@ export function FinancialSettingsCard() {
                   emptyMessage="Nenhum fundo encontrado."
                   options={funds.map((fund) => ({
                     value: fund.id,
-                    label: fund.name,
+                    label: fund.label,
                   }))}
                   onChange={setDefaultFundId}
                   disabled={!canAdmin}
@@ -151,7 +146,7 @@ export function FinancialSettingsCard() {
 
                 {selectedFund && (
                   <p className="text-xs text-muted-foreground">
-                    Atual: {selectedFund.name}
+                    Atual: {selectedFund.label}
                   </p>
                 )}
               </div>

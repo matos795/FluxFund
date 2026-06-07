@@ -1,5 +1,5 @@
 import type { PageResponse } from "@/types/page-response"
-import type { Category, CreateCategoryRequest, UpdateCategoryRequest } from "./category-types"
+import type { Category, CategoryOption, CategoryType, CreateCategoryRequest, UpdateCategoryRequest } from "./category-types"
 import { httpClient } from "@/api/http-client"
 
 type GetCategoriesParams = {
@@ -35,4 +35,15 @@ export async function updateCategory(data: UpdateCategoryRequest) {
 
 export async function deleteCategory(id: string) {
     await httpClient.delete(`/api/v1/categories/${id}`)
+}
+
+export async function getCategoryOptions(type?: CategoryType) {
+  const response = await httpClient.get<CategoryOption[]>(
+    "/api/v1/categories/options",
+    {
+      params: type ? { type } : undefined,
+    },
+  )
+
+  return response.data
 }

@@ -6,12 +6,12 @@ import { FinancialTransactionsTable } from "@/features/financial-transactions/co
 import { useFinancialTransactions } from "@/features/financial-transactions/hooks/use-financial-transactions"
 import { CreateFinancialTransactionDialog } from "@/features/financial-transactions/components/create-financial-transaction-dialog"
 import { FinancialTransactionFilters } from "@/features/financial-transactions/components/financial-transaction-filters"
-import { useAccounts } from "@/features/accounts/hooks/use-accounts"
-import { useCategories } from "@/features/categories/hooks/use-categories"
 import { ImportOfxDialog } from "@/features/financial-transactions/components/import-ofx-dialog"
 import { useSearchParams } from "react-router-dom"
 import { ExportSettledFinancialTransactionsDialog } from "@/features/financial-transactions/components/export-settled-financial-transactions-dialog"
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
+import { useCategoryOptions } from "@/features/categories/hooks/use-category-options"
+import { useAccountOptions } from "@/features/accounts/hooks/use-account-options"
 
 export function TransactionsPage() {
 
@@ -60,18 +60,8 @@ export function TransactionsPage() {
     onlyUnallocated,
   })
 
-  const { data: accountsData } = useAccounts({
-    page: 0,
-    size: 100,
-  })
-
-  const { data: categoriesData } = useCategories({
-    page: 0,
-    size: 100,
-  })
-
-  const accounts = accountsData?.content ?? []
-  const categories = categoriesData?.content ?? []
+  const { data: accounts = [] } = useAccountOptions()
+  const { data: categories = [] } = useCategoryOptions()
 
   function handleClearFilters() {
     setType("")
@@ -117,8 +107,14 @@ export function TransactionsPage() {
         settlementDateTo={settlementDateTo}
         onlyUnclassified={onlyUnclassified}
         onlyUnallocated={onlyUnallocated}
-        accounts={accounts}
-        categories={categories}
+        accounts={accounts.map((account) => ({
+          id: account.id,
+          name: account.label,
+        }))}
+        categories={categories.map((category) => ({
+          id: category.id,
+          name: category.label,
+        }))}
         onTypeChange={(value) => {
           setType(value)
           setPage(0)

@@ -5,6 +5,7 @@ import type {
   CreateAccountRequest,
   UpdateAccountRequest,
 } from "@/features/accounts/types"
+import type { OptionResponse } from "@/types/option-response"
 
 type GetAccountsParams = {
   page?: number
@@ -43,4 +44,12 @@ export async function updateAccount(data: UpdateAccountRequest) {
 
 export async function deleteAccount(id: string) {
   await httpClient.delete(`/api/v1/accounts/${id}`)
+}
+
+export async function getAccountOptions() {
+  const response = await httpClient.get<OptionResponse[]>(
+    "/api/v1/accounts/options",
+  )
+
+  return response.data
 }

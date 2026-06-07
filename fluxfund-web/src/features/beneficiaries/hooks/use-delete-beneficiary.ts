@@ -11,6 +11,7 @@ export function useDeleteBeneficiary() {
       queryClient.invalidateQueries({
         queryKey: ["beneficiaries"],
       })
+      queryClient.invalidateQueries({ queryKey: ["beneficiary-options"] })
     },
   })
 }

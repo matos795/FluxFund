@@ -9,6 +9,7 @@ export function useUpdateCategory() {
         mutationFn: (data: UpdateCategoryRequest) => updateCategory(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["categories"] })
+            queryClient.invalidateQueries({ queryKey: ["category-options"] })
         }
     })
 }

@@ -13,6 +13,7 @@ export function useUpdateAccount() {
             queryClient.invalidateQueries({
                 queryKey: ["accounts"],
             })
+            queryClient.invalidateQueries({ queryKey: ["account-options"] })
         },
     })
 }

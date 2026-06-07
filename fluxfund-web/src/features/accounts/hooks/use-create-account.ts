@@ -12,7 +12,8 @@ export function useCreateAccount() {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["accounts"],
-      })
+      },)
+      queryClient.invalidateQueries({ queryKey: ["account-options"] })
     },
   })
 }

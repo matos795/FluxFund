@@ -4,21 +4,15 @@ import { useForm, useWatch } from "react-hook-form"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 
 import {
   transactionAllocationFormSchema,
   type TransactionAllocationFormData,
   type TransactionAllocationFormInput,
 } from "@/features/financial-transactions/transaction-allocation-schema"
-import { useFunds } from "@/features/funds/hooks/use-funds"
-import { useBeneficiaries } from "@/features/beneficiaries/hooks/use-beneficiaries"
+import { useBeneficiaryOptions } from "../beneficiaries/hooks/use-beneficiary-options"
+import { useFundOptions } from "../funds/hooks/use-fund-options"
+import { EntityCombobox } from "@/components/form/entity-combobox"
 
 type TransactionAllocationFormProps = {
   onSubmit: (data: TransactionAllocationFormData) => void
@@ -26,8 +20,6 @@ type TransactionAllocationFormProps = {
   defaultValues?: Partial<TransactionAllocationFormInput>
   submitLabel?: string
 }
-
-const NONE_BENEFICIARY_VALUE = "__none__"
 
 export function TransactionAllocationForm({
   onSubmit,
@@ -61,44 +53,33 @@ export function TransactionAllocationForm({
     name: "beneficiaryId",
   })
 
-  const fundsQuery = useFunds({
-    page: 0,
-    size: 100,
-  })
+  const fundsQuery = useFundOptions()
+  const beneficiariesQuery = useBeneficiaryOptions()
 
-  const beneficiariesQuery = useBeneficiaries({
-    page: 0,
-    size: 100,
-  })
-
-  const funds = fundsQuery.data?.content ?? []
-  const beneficiaries = beneficiariesQuery.data?.content ?? []
+  const funds = fundsQuery.data ?? []
+  const beneficiaries = beneficiariesQuery.data ?? []
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid gap-4 md:grid-cols-4">
         <div className="space-y-2">
           <Label>Fundo</Label>
-          <Select
+          <EntityCombobox
             value={selectedFundId}
-            onValueChange={(value) =>
+            placeholder="Selecione o fundo"
+            searchPlaceholder="Buscar fundo..."
+            emptyMessage="Nenhum fundo encontrado."
+            allowClear={false}
+            options={funds.map((fund) => ({
+              value: fund.id,
+              label: fund.label,
+            }))}
+            onChange={(value) =>
               setValue("fundId", value, {
                 shouldValidate: true,
               })
             }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione o fundo" />
-            </SelectTrigger>
-
-            <SelectContent>
-              {funds.map((fund) => (
-                <SelectItem key={fund.id} value={fund.id}>
-                  {fund.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
 
           {errors.fundId && (
             <p className="text-sm text-destructive">
@@ -109,34 +90,23 @@ export function TransactionAllocationForm({
 
         <div className="space-y-2">
           <Label>Favorecido</Label>
-          <Select
-            value={selectedBeneficiaryId || NONE_BENEFICIARY_VALUE}
-            onValueChange={(value) =>
-              setValue(
-                "beneficiaryId",
-                value === NONE_BENEFICIARY_VALUE ? "" : value,
-                {
-                  shouldValidate: true,
-                },
-              )
+          <EntityCombobox
+            value={selectedBeneficiaryId ?? ""}
+            placeholder="Sem favorecido"
+            searchPlaceholder="Buscar favorecido..."
+            emptyMessage="Nenhum favorecido encontrado."
+            allowClear
+            clearLabel="Sem favorecido"
+            options={beneficiaries.map((beneficiary) => ({
+              value: beneficiary.id,
+              label: beneficiary.label,
+            }))}
+            onChange={(value) =>
+              setValue("beneficiaryId", value, {
+                shouldValidate: true,
+              })
             }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Sem favorecido" />
-            </SelectTrigger>
-
-            <SelectContent>
-              <SelectItem value={NONE_BENEFICIARY_VALUE}>
-                Sem favorecido
-              </SelectItem>
-
-              {beneficiaries.map((beneficiary) => (
-                <SelectItem key={beneficiary.id} value={beneficiary.id}>
-                  {beneficiary.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
 
           {errors.beneficiaryId && (
             <p className="text-sm text-destructive">

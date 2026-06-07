@@ -10,6 +10,7 @@ export function useCreateFund() {
         mutationFn: (data: CreateFundRequest) => createFund(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["funds"] })
+            queryClient.invalidateQueries({ queryKey: ["fund-options"] })
         },
     })
 }

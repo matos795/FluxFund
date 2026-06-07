@@ -20,10 +20,11 @@ import {
 } from "@/features/financial-transactions/financial-transaction-schema"
 import { financialTransactionTypeLabels } from "@/features/financial-transactions/financial-transaction-labels"
 
-import { useAccounts } from "@/features/accounts/hooks/use-accounts"
-import { useCategories } from "@/features/categories/hooks/use-categories"
-import type { CategorySummary } from "@/features/categories/category-types"
 import { useEffect } from "react"
+import { useCategoryOptions } from "@/features/categories/hooks/use-category-options"
+import { useAccountOptions } from "@/features/accounts/hooks/use-account-options"
+import { EntityCombobox } from "@/components/form/entity-combobox"
+import { CategoryCombobox } from "@/components/form/category-combobox"
 
 type FinancialTransactionFormProps = {
   onSubmit: (data: FinancialTransactionFormData) => void
@@ -89,64 +90,38 @@ export function FinancialTransactionForm({
   const selectedAccountId = useWatch({ control, name: "accountId" })
   const selectedCategoryId = useWatch({ control, name: "categoryId" })
 
-  const accountsQuery = useAccounts({
-    page: 0,
-    size: 100,
-  })
+  const accountsQuery = useAccountOptions()
 
-  const categoriesQuery = useCategories({
-    page: 0,
-    size: 100,
-  })
+  const categoriesQuery = useCategoryOptions(
+    selectedType === "TRANSFER" ? undefined : selectedType,
+    selectedType !== "TRANSFER",
+  )
 
-  const accounts = accountsQuery.data?.content ?? []
-
-  const categories =
-    categoriesQuery.data?.content.filter((category) => {
-      if (selectedType === "TRANSFER") {
-        return false
-      }
-
-      return category.type === selectedType
-    }) ?? []
-
-  function formatCategoryLabel(category: {
-    name: string
-    parent?: CategorySummary | null
-  }) {
-    if (category.parent) {
-      return `${category.name} -> ${category.parent.name}`
-    }
-
-    return category.name
-  }
+  const accounts = accountsQuery.data ?? []
+  const categories = categoriesQuery.data ?? []
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label>Conta</Label>
-          <Select
+          <EntityCombobox
             value={selectedAccountId}
             disabled={disableAccountField}
-            onValueChange={(value) =>
+            placeholder="Selecione a conta"
+            searchPlaceholder="Buscar conta..."
+            emptyMessage="Nenhuma conta encontrada."
+            allowClear={false}
+            options={accounts.map((account) => ({
+              value: account.id,
+              label: account.label,
+            }))}
+            onChange={(value) =>
               setValue("accountId", value, {
                 shouldValidate: true,
               })
             }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione a conta" />
-            </SelectTrigger>
-
-            <SelectContent>
-              {accounts.map((account) => (
-                <SelectItem key={account.id} value={account.id}>
-                  {account.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
 
           {errors.accountId && (
             <p className="text-sm text-destructive">
@@ -197,26 +172,19 @@ export function FinancialTransactionForm({
       {selectedType !== "TRANSFER" && (
         <div className="space-y-2">
           <Label>Categoria</Label>
-          <Select
-            value={selectedCategoryId}
-            onValueChange={(value) =>
+          <CategoryCombobox
+            value={selectedCategoryId ?? ""}
+            placeholder="Selecione a categoria"
+            searchPlaceholder="Buscar categoria..."
+            emptyMessage="Nenhuma categoria encontrada."
+            allowClear={false}
+            options={categories}
+            onChange={(value) =>
               setValue("categoryId", value, {
                 shouldValidate: true,
               })
             }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione a categoria" />
-            </SelectTrigger>
-
-            <SelectContent>
-              {categories.map((category) => (
-                <SelectItem key={category.id} value={category.id}>
-                  {formatCategoryLabel(category)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
 
           {errors.categoryId && (
             <p className="text-sm text-destructive">

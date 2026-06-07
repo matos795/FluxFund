@@ -12,6 +12,7 @@ export function useUpdateBeneficiary() {
             queryClient.invalidateQueries({
                 queryKey: ["beneficiaries"],
             })
+            queryClient.invalidateQueries({ queryKey: ["beneficiary-options"] })
         },
     })
 }

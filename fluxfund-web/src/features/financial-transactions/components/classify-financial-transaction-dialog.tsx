@@ -21,16 +21,16 @@ import {
 } from "@/components/ui/select"
 import { EntityCombobox } from "@/components/form/entity-combobox"
 
-import { useCategories } from "@/features/categories/hooks/use-categories"
-import { useFunds } from "@/features/funds/hooks/use-funds"
-import { useBeneficiaries } from "@/features/beneficiaries/hooks/use-beneficiaries"
-
 import type { FinancialTransaction } from "../financial-transaction-types"
 import { useClassifyFinancialTransaction } from "../hooks/use-classify-financial-transaction"
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import type { AttachmentType } from "@/features/attachments/attachment-types"
 import { useUploadAttachment } from "@/features/attachments/hooks/use-upload-attachment"
 import { attachmentTypeLabels } from "@/features/attachments/attachment-labels"
+import { useCategoryOptions } from "@/features/categories/hooks/use-category-options"
+import { useFundOptions } from "@/features/funds/hooks/use-fund-options"
+import { useBeneficiaryOptions } from "@/features/beneficiaries/hooks/use-beneficiary-options"
+import { CategoryCombobox } from "@/components/form/category-combobox"
 
 type AllocationFormItem = {
     fundId: string
@@ -81,28 +81,14 @@ export function ClassifyFinancialTransactionDialog({
 
     const uploadAttachmentMutation = useUploadAttachment(transaction.id)
 
-    const { data: categoriesData } = useCategories({
-        page: 0,
-        size: 100,
-    })
+    const { data: categories = [] } = useCategoryOptions(
+        type === "TRANSFER" ? undefined : type,
+        type !== "TRANSFER",
+    )
 
-    const { data: fundsData } = useFunds({
-        page: 0,
-        size: 100,
-    })
+    const { data: funds = [] } = useFundOptions()
 
-    const { data: beneficiariesData } = useBeneficiaries({
-        page: 0,
-        size: 100,
-    })
-
-    const funds = fundsData?.content ?? []
-    const beneficiaries = beneficiariesData?.content ?? []
-
-    const filteredCategories = useMemo(() => {
-        const categories = categoriesData?.content ?? []
-        return categories.filter((category) => category.type === type)
-    }, [categoriesData, type])
+    const { data: beneficiaries = [] } = useBeneficiaryOptions()
 
     const totalAllocated = useMemo(() => {
         return allocations.reduce((total, allocation) => {
@@ -436,15 +422,13 @@ export function ClassifyFinancialTransactionDialog({
 
                         <div className="space-y-2">
                             <Label>Categoria</Label>
-                            <EntityCombobox
+                            <CategoryCombobox
                                 value={categoryId}
                                 placeholder="Selecione a categoria"
                                 searchPlaceholder="Buscar categoria..."
                                 emptyMessage="Nenhuma categoria encontrada."
-                                options={filteredCategories.map((category) => ({
-                                    value: category.id,
-                                    label: category.name,
-                                }))}
+                                allowClear={false}
+                                options={categories}
                                 onChange={(value) => {
                                     setCategoryId(value)
 
@@ -526,9 +510,10 @@ export function ClassifyFinancialTransactionDialog({
                                                 placeholder="Selecione o fundo"
                                                 searchPlaceholder="Buscar fundo..."
                                                 emptyMessage="Nenhum fundo encontrado."
+                                                allowClear={false}
                                                 options={funds.map((fund) => ({
                                                     value: fund.id,
-                                                    label: fund.name,
+                                                    label: fund.label,
                                                 }))}
                                                 onChange={(value) =>
                                                     handleChangeAllocation(index, "fundId", value)
@@ -545,8 +530,10 @@ export function ClassifyFinancialTransactionDialog({
                                                 emptyMessage="Nenhum favorecido encontrado."
                                                 options={beneficiaries.map((beneficiary) => ({
                                                     value: beneficiary.id,
-                                                    label: beneficiary.name,
+                                                    label: beneficiary.label,
                                                 }))}
+                                                allowClear
+                                                clearLabel="Sem favorecido"
                                                 onChange={(value) =>
                                                     handleChangeAllocation(index, "beneficiaryId", value)
                                                 }
