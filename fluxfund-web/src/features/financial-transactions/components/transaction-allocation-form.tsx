@@ -22,6 +22,7 @@ import { useOrganizationSettings } from "@/features/organization-settings/hooks/
 import type { FinancialTransactionType } from "../financial-transaction-types"
 
 type TransactionAllocationFormProps = {
+  onCancel?: () => void
   transactionType: FinancialTransactionType
   onSubmit: (data: TransactionAllocationFormData) => void
   isSubmitting?: boolean
@@ -38,6 +39,7 @@ type TransactionAllocationFormProps = {
 }
 
 export function TransactionAllocationForm({
+  onCancel,
   transactionType,
   onSubmit,
   isSubmitting = false,
@@ -98,7 +100,7 @@ export function TransactionAllocationForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="space-y-2">
           <Label>Fundo</Label>
           <FundComboboxWithCreate
@@ -155,7 +157,7 @@ export function TransactionAllocationForm({
           </p>
         </div>
 
-        <div className="space-y-2">
+                <div className="space-y-2">
           <Label htmlFor="amount">Valor</Label>
           <Controller
             name="amount"
@@ -175,8 +177,10 @@ export function TransactionAllocationForm({
             </p>
           )}
         </div>
-        {reallocationSuggestion && (
-          <div className="md:col-span-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+      </div>
+
+      {reallocationSuggestion && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
             <div className="flex gap-2">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" />
 
@@ -231,9 +235,19 @@ export function TransactionAllocationForm({
             </div>
           </div>
         )}
-      </div>
 
-      <div className="flex justify-end">
+      <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
+        {onCancel && (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onCancel}
+            disabled={isSubmitting}
+          >
+            Cancelar
+          </Button>
+        )}
+
         <Button
           type="submit"
           disabled={
@@ -245,6 +259,6 @@ export function TransactionAllocationForm({
           {isSubmitting ? "Salvando..." : submitLabel}
         </Button>
       </div>
-    </form>
+    </form >
   )
 }

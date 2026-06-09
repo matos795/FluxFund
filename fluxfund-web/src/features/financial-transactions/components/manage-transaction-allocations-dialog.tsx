@@ -280,7 +280,7 @@ export function ManageTransactionAllocationsDialog({
           }
         }}
       >
-        <DialogContent className="sm:max-w-4xl">
+        <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>Alocações da transação</DialogTitle>
             <DialogDescription>
@@ -289,179 +289,172 @@ export function ManageTransactionAllocationsDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-3 md:grid-cols-4">
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground">Transação</p>
-              <p className="truncate text-sm font-medium">
-                {transaction.description}
-              </p>
-            </div>
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-2">
+            <div className="grid gap-3 md:grid-cols-4">
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Transação</p>
+                <p className="truncate text-sm font-medium">
+                  {transaction.description}
+                </p>
+              </div>
 
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground">Valor baixado</p>
-              <p className="text-sm font-medium">
-                {formatCurrency(settledAmount)}
-              </p>
-            </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Valor baixado</p>
+                <p className="text-sm font-medium">
+                  {formatCurrency(settledAmount)}
+                </p>
+              </div>
 
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground">Total alocado</p>
-              <p className="text-sm font-medium">
-                {formatCurrency(totalAllocated)}
-              </p>
-            </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Total alocado</p>
+                <p className="text-sm font-medium">
+                  {formatCurrency(totalAllocated)}
+                </p>
+              </div>
 
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground">Restante</p>
-              <p className="text-sm font-medium">
-                {formatCurrency(remainingAmount)}
-              </p>
-            </div>
-          </div>
-
-          {canAllocateRemainingToDefaultFund && (
-            <div className="rounded-lg border bg-muted/30 p-4">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <h3 className="text-sm font-medium">
-                    Alocação rápida no fundo padrão
-                  </h3>
-
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Envie o valor restante para {defaultFund?.name}. Essa ação usa a
-                    configuração financeira da organização.
-                  </p>
-                </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleAllocateRemainingToDefaultFund}
-                  disabled={addAllocationMutation.isPending}
-                >
-                  <Wand2 className="mr-2 size-4" />
-                  Alocar restante no fundo padrão
-                </Button>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Restante</p>
+                <p className="text-sm font-medium">
+                  {formatCurrency(remainingAmount)}
+                </p>
               </div>
             </div>
-          )}
 
-          <div className="rounded-lg border p-4">
-            <h3 className="mb-4 text-sm font-medium">
-              {editingAllocation ? "Editar alocação" : "Adicionar alocação"}
-            </h3>
+            {canAllocateRemainingToDefaultFund && (
+              <div className="rounded-lg border bg-muted/30 p-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h3 className="text-sm font-medium">
+                      Alocação rápida no fundo padrão
+                    </h3>
 
-            <TransactionAllocationForm
-              key={editingAllocation?.id ?? "new-allocation"}
-              transactionType={transaction.type}
-              defaultValues={
-                editingAllocation
-                  ? {
-                    fundId: editingAllocation.fund.id,
-                    beneficiaryId: editingAllocation.beneficiary?.id ?? "",
-                    referenceMonth:
-                      editingAllocation.referenceMonth?.slice(0, 7) ?? "",
-                    amount: Math.abs(editingAllocation.amount),
-                  }
-                  : {
-                    amount: remainingAmount,
-                  }
-              }
-              submitLabel={
-                editingAllocation ? "Salvar alocação" : "Adicionar alocação"
-              }
-              onSubmit={handleSubmitAllocation}
-              isSubmitting={isSubmitting}
-              onApplyReallocationSuggestion={
-                editingAllocation ? undefined : handleApplyReallocationSuggestion
-              }
-            />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Envie o valor restante para {defaultFund?.name}. Essa ação usa a
+                      configuração financeira da organização.
+                    </p>
+                  </div>
 
-            {editingAllocation && (
-              <div className="mt-3 flex justify-end">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setEditingAllocation(null)}
-                >
-                  Cancelar edição
-                </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleAllocateRemainingToDefaultFund}
+                    disabled={addAllocationMutation.isPending}
+                  >
+                    <Wand2 className="mr-2 size-4" />
+                    Alocar restante no fundo padrão
+                  </Button>
+                </div>
               </div>
             )}
-          </div>
 
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fundo</TableHead>
-                  <TableHead>Favorecido</TableHead>
-                  <TableHead>Competência</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead className="w-[100px] text-right">
-                    Ações
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
+            <div className="rounded-lg border bg-card p-4 shadow-sm">
+              <h3 className="mb-4 text-sm font-medium">
+                {editingAllocation ? "Editar alocação" : "Adicionar alocação"}
+              </h3>
 
-              <TableBody>
-                {transaction.allocations.length === 0 ? (
+              <TransactionAllocationForm
+                key={editingAllocation?.id ?? "new-allocation"}
+                onCancel={
+                  editingAllocation ? () => setEditingAllocation(null) : undefined
+                }
+                transactionType={transaction.type}
+                defaultValues={
+                  editingAllocation
+                    ? {
+                      fundId: editingAllocation.fund.id,
+                      beneficiaryId: editingAllocation.beneficiary?.id ?? "",
+                      referenceMonth:
+                        editingAllocation.referenceMonth?.slice(0, 7) ?? "",
+                      amount: Math.abs(editingAllocation.amount),
+                    }
+                    : {
+                      amount: remainingAmount,
+                    }
+                }
+                submitLabel={
+                  editingAllocation ? "Salvar alocação" : "Adicionar alocação"
+                }
+                onSubmit={handleSubmitAllocation}
+                isSubmitting={isSubmitting}
+                onApplyReallocationSuggestion={
+                  editingAllocation ? undefined : handleApplyReallocationSuggestion
+                }
+              />
+            </div>
+
+            <div className="overflow-x-auto rounded-md border">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className="h-24 text-center text-sm text-muted-foreground"
-                    >
-                      Nenhuma alocação cadastrada.
-                    </TableCell>
+                    <TableHead>Fundo</TableHead>
+                    <TableHead>Favorecido</TableHead>
+                    <TableHead>Competência</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead className="w-[100px] text-right">
+                      Ações
+                    </TableHead>
                   </TableRow>
-                ) : (
-                  transaction.allocations.map((allocation) => {
-                    return (
-                      <TableRow key={allocation.id} >
-                        <TableCell>{allocation.fund.name}</TableCell>
+                </TableHeader>
 
-                        <TableCell>
-                          {allocation.beneficiary?.name ?? "-"}
-                        </TableCell>
+                <TableBody>
+                  {transaction.allocations.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={5}
+                        className="h-24 text-center text-sm text-muted-foreground"
+                      >
+                        Nenhuma alocação cadastrada.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    transaction.allocations.map((allocation) => {
+                      return (
+                        <TableRow key={allocation.id} >
+                          <TableCell>{allocation.fund.name}</TableCell>
 
-                        <TableCell>
-                          {formatReferenceMonth(allocation.referenceMonth)}
-                        </TableCell>
+                          <TableCell>
+                            {allocation.beneficiary?.name ?? "-"}
+                          </TableCell>
 
-                        <TableCell className="text-right font-medium">
-                          {formatCurrency(Math.abs(allocation.amount))}
-                        </TableCell>
+                          <TableCell>
+                            {formatReferenceMonth(allocation.referenceMonth)}
+                          </TableCell>
 
-                        <TableCell>
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setEditingAllocation(allocation)}
-                            >
-                              <Pencil className="size-4" />
-                              <span className="sr-only">Editar</span>
-                            </Button>
+                          <TableCell className="text-right font-medium">
+                            {formatCurrency(Math.abs(allocation.amount))}
+                          </TableCell>
 
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteAllocation(allocation)}
-                              disabled={deleteAllocationMutation.isPending}
-                            >
-                              <Trash2 className="size-4 text-destructive" />
-                              <span className="sr-only">Remover</span>
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })
-                )}
-              </TableBody>
-            </Table>
+                          <TableCell>
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setEditingAllocation(allocation)}
+                              >
+                                <Pencil className="size-4" />
+                                <span className="sr-only">Editar</span>
+                              </Button>
+
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteAllocation(allocation)}
+                                disabled={deleteAllocationMutation.isPending}
+                              >
+                                <Trash2 className="size-4 text-destructive" />
+                                <span className="sr-only">Remover</span>
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </DialogContent>
       </Dialog >
