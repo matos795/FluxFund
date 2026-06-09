@@ -23,7 +23,7 @@ export function AppHeader() {
       .toUpperCase() ?? "U"
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background px-6">
+    <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between border-b bg-background/95 px-4 backdrop-blur md:px-6">
       <div>
         <p className="text-sm text-muted-foreground">Bem-vindo,</p>
         <h1 className="text-lg font-semibold">
@@ -32,7 +32,7 @@ export function AppHeader() {
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="relative hidden md:block">
+        <div className="relative hidden lg:block">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input placeholder="Buscar..." className="w-72 pl-9" />
         </div>

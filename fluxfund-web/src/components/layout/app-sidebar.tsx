@@ -72,7 +72,16 @@ const navigationItems = [
   },
 ]
 
-export function AppSidebar() {
+type AppSidebarProps = {
+  expanded: boolean
+  onExpandedChange: (expanded: boolean) => void
+}
+
+export function AppSidebar({
+  expanded,
+  onExpandedChange,
+}: AppSidebarProps) {
+
   const {
     session,
     activeOrganization,
@@ -83,81 +92,118 @@ export function AppSidebar() {
     (session?.user.organizations.length ?? 0) > 1
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-10 flex w-64 flex-col border-r bg-background">
-      <div className="flex h-16 items-center border-b px-6">
-        <div className="flex items-center gap-2">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <HandCoins className="size-5" />
-          </div>
+    <div className="w-16 shrink-0">
+      <aside
+        onMouseEnter={() => onExpandedChange(true)}
+        onMouseLeave={() => onExpandedChange(false)}
+        className={cn(
+          "fixed left-0 top-0 z-30 flex h-screen flex-col border-r bg-background shadow-sm transition-all duration-300",
+          expanded ? "w-64" : "w-16",
+        )}
+      >
+        <div
+          className={cn(
+            "flex h-16 shrink-0 items-center border-b px-3",
+            expanded ? "justify-between" : "justify-center",
+          )}
+        >
+          {expanded ? (
+            <div className="flex items-center gap-2">
+              <div className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                <HandCoins className="size-5" />
+              </div>
 
-          <div>
-            <strong className="block leading-none">FluxFund</strong>
-            <span className="text-xs text-muted-foreground">
-              Gestão financeira
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <nav className="flex-1 space-y-1 p-3">
-        {navigationItems.map((item) => {
-          const Icon = item.icon
-
-          return (
-            <NavLink
-              key={item.href}
-              to={item.href}
-              end={item.href === "/"}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-                  isActive && "bg-muted text-foreground"
-                )
-              }
-            >
-              <Icon className="size-4" />
-              {item.label}
-            </NavLink>
-          )
-        })}
-      </nav>
-
-      <div className="border-t p-4">
-        <div className="space-y-2 rounded-lg bg-muted p-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Organização atual
-          </p>
-
-          {canSwitchOrganization ? (
-            <Select
-              value={activeOrganization?.id}
-              onValueChange={setActiveOrganization}
-            >
-              <SelectTrigger className="h-9 bg-background">
-                <SelectValue placeholder="Selecione uma organização" />
-              </SelectTrigger>
-
-              <SelectContent>
-                {session?.user.organizations.map((organization) => (
-                  <SelectItem key={organization.id} value={organization.id}>
-                    {organization.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <div>
+                <strong className="block leading-none">FluxFund</strong>
+                <span className="text-xs text-muted-foreground">
+                  Gestão financeira
+                </span>
+              </div>
+            </div>
           ) : (
-            <p className="text-sm font-medium">
-              {activeOrganization?.name ?? "Nenhuma organização"}
-            </p>
-          )}
-
-          {activeOrganization && (
-            <p className="text-xs text-muted-foreground">
-              {organizationRoleLabels[activeOrganization.role]}
-            </p>
+            <div className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+              <HandCoins className="size-5" />
+            </div>
           )}
         </div>
-      </div>
-    </aside>
+
+        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+          {navigationItems.map((item) => {
+            const Icon = item.icon
+
+            return (
+              <NavLink
+                key={item.href}
+                to={item.href}
+                title={!expanded ? item.label : undefined}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center rounded-lg px-3 py-2 text-sm transition-colors",
+                    expanded ? "gap-3" : "justify-center",
+                    isActive
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )
+                }
+              >
+                <Icon className="size-4 shrink-0" />
+
+                {expanded && (
+                  <span className="truncate">
+                    {item.label}
+                  </span>
+                )}
+              </NavLink>
+            )
+          })}
+        </nav>
+
+        <div className="shrink-0 border-t p-4">
+          {expanded ? (
+            <div className="space-y-2 rounded-lg bg-muted p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Organização atual
+              </p>
+
+              {canSwitchOrganization ? (
+                <Select
+                  value={activeOrganization?.id}
+                  onValueChange={setActiveOrganization}
+                >
+                  <SelectTrigger className="h-9 bg-background">
+                    <SelectValue placeholder="Selecione uma organização" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {session?.user.organizations.map((organization) => (
+                      <SelectItem key={organization.id} value={organization.id}>
+                        {organization.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-sm font-medium">
+                  {activeOrganization?.name ?? "Nenhuma organização"}
+                </p>
+              )}
+
+              {activeOrganization && (
+                <p className="text-xs text-muted-foreground">
+                  {organizationRoleLabels[activeOrganization.role]}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div
+              title={activeOrganization?.name}
+              className="mx-auto flex size-9 items-center justify-center rounded-full bg-muted text-xs font-semibold"
+            >
+              {activeOrganization?.name?.charAt(0) ?? "O"}
+            </div>
+          )}
+        </div>
+      </aside>
+    </div>
   )
 }
