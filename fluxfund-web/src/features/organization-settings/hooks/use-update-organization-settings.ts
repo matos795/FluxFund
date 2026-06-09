@@ -23,6 +23,8 @@ export function useUpdateOrganizationSettings() {
         queryKey: ["funds"],
       })
 
+      queryClient.invalidateQueries({ queryKey: ["fund-options"] })
+
       queryClient.invalidateQueries({
         queryKey: ["dashboard-summary"],
       })

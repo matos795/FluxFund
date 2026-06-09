@@ -29,3 +29,9 @@ export type FundSummary = {
     id: string
     name: string
 }
+
+export type FundOption = {
+  id: string
+  label: string
+  currentBalance: number
+}

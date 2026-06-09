@@ -34,13 +34,28 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
     BigDecimal sumAmountByFinancialTransactionId(UUID financialTransactionId);
 
     @Query("""
-                select coalesce(sum(a.amount), 0)
-                from TransactionAllocation a
-                where a.fund.id = :fundId
-                  and a.organization.id = :organizationId
-                  and a.financialTransaction.status = 'SETTLED'
+            select coalesce(sum(a.amount), 0)
+            from TransactionAllocation a
+            where a.fund.id = :fundId
+              and a.organization.id = :organizationId
+              and a.financialTransaction.status = 'SETTLED'
             """)
-    BigDecimal sumAmountByFundId(UUID organizationId, UUID fundId);
+    BigDecimal sumAmountByFundId(
+            @Param("organizationId") UUID organizationId,
+            @Param("fundId") UUID fundId);
+
+    @Query("""
+            select coalesce(sum(a.amount), 0)
+            from TransactionAllocation a
+            where a.fund.id = :fundId
+              and a.organization.id = :organizationId
+              and a.financialTransaction.status = 'SETTLED'
+              and a.financialTransaction.id <> :excludedTransactionId
+            """)
+    BigDecimal sumAmountByFundIdExcludingTransaction(
+            @Param("organizationId") UUID organizationId,
+            @Param("fundId") UUID fundId,
+            @Param("excludedTransactionId") UUID excludedTransactionId);
 
     @Query("""
             select coalesce(sum(a.amount), 0)

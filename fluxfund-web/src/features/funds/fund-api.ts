@@ -1,7 +1,6 @@
 import type { PageResponse } from "@/types/page-response"
 import { httpClient } from "@/api/http-client"
-import type { CreateFundRequest, Fund, UpdateFundRequest } from "./fund-types"
-import type { OptionResponse } from "@/types/option-response"
+import type { CreateFundRequest, Fund, FundOption, UpdateFundRequest } from "./fund-types"
 
 type GetFundsParams = {
     page?: number
@@ -39,7 +38,7 @@ export async function deleteFund(id: string) {
 }
 
 export async function getFundOptions() {
-  const response = await httpClient.get<OptionResponse[]>(
+  const response = await httpClient.get<FundOption[]>(
     "/api/v1/funds/options",
   )
 

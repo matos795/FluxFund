@@ -104,6 +104,7 @@ public class FinancialTransactionService {
 
         validateFundNegativePolicy(
                 organizationId,
+                financialTransaction.getId(),
                 Map.of(),
                 toImpactByFund(financialTransaction.getAllocations()));
 
@@ -305,6 +306,7 @@ public class FinancialTransactionService {
 
         validateFundNegativePolicy(
                 organizationId,
+                financialTransaction.getId(),
                 oldImpactByFund,
                 toImpactByFund(financialTransaction.getAllocations()));
 
@@ -335,6 +337,7 @@ public class FinancialTransactionService {
 
         validateFundNegativePolicy(
                 organizationId,
+                financialTransaction.getId(),
                 Map.of(),
                 singleImpact(allocation));
 
@@ -385,6 +388,7 @@ public class FinancialTransactionService {
 
         validateFundNegativePolicy(
                 organizationId,
+                financialTransaction.getId(),
                 oldImpactByFund,
                 singleImpact(allocation));
 
@@ -686,6 +690,7 @@ public class FinancialTransactionService {
 
     private void validateFundNegativePolicy(
             UUID organizationId,
+            UUID currentTransactionId,
             Map<UUID, BigDecimal> oldImpactByFund,
             Map<UUID, BigDecimal> newImpactByFund) {
 
@@ -706,19 +711,16 @@ public class FinancialTransactionService {
                     .findByIdAndOrganizationIdAndActiveTrue(fundId, organizationId)
                     .orElseThrow(() -> new ResourceNotFoundException("Fund not found"));
 
-            BigDecimal currentBalance = calculateCurrentFundBalance(organizationId, fund);
-
-            BigDecimal oldImpact = oldImpactByFund.getOrDefault(
-                    fundId,
-                    BigDecimal.ZERO);
+            BigDecimal currentBalance = calculateCurrentFundBalance(
+                    organizationId,
+                    fund,
+                    currentTransactionId);
 
             BigDecimal newImpact = newImpactByFund.getOrDefault(
                     fundId,
                     BigDecimal.ZERO);
 
-            BigDecimal projectedBalance = currentBalance
-                    .subtract(oldImpact)
-                    .add(newImpact);
+            BigDecimal projectedBalance = currentBalance.add(newImpact);
 
             boolean fundWasAlreadyNegative = currentBalance.compareTo(BigDecimal.ZERO) < 0;
 
@@ -757,10 +759,19 @@ public class FinancialTransactionService {
                 allocation.getAmount());
     }
 
-    private BigDecimal calculateCurrentFundBalance(UUID organizationId, Fund fund) {
-        BigDecimal allocationsSum = allocationRepository.sumAmountByFundId(
-                organizationId,
-                fund.getId());
+    private BigDecimal calculateCurrentFundBalance(
+            UUID organizationId,
+            Fund fund,
+            UUID excludedTransactionId) {
+
+        BigDecimal allocationsSum = excludedTransactionId != null
+                ? allocationRepository.sumAmountByFundIdExcludingTransaction(
+                        organizationId,
+                        fund.getId(),
+                        excludedTransactionId)
+                : allocationRepository.sumAmountByFundId(
+                        organizationId,
+                        fund.getId());
 
         return fund.getInitialBalance().add(allocationsSum);
     }

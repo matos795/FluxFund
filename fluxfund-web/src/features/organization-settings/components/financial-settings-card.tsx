@@ -19,12 +19,19 @@ import { useUpdateOrganizationSettings } from "../hooks/use-update-organization-
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { useFundOptions } from "@/features/funds/hooks/use-fund-options"
 import { FundComboboxWithCreate } from "@/features/funds/components/fund-combobox-with-create"
+import { Switch } from "@/components/ui/switch"
+import { getApiErrorMessage } from "@/utils/api-error"
 
 export function FinancialSettingsCard() {
 
   const { canAdmin } = usePermissions()
 
-  const [defaultFundId, setDefaultFundId] = useState<string | null>(null)
+  const [defaultFundId, setDefaultFundId] = useState<string | undefined>()
+  const [allowNegativeFunds, setAllowNegativeFunds] = useState<boolean | undefined>()
+  const [
+    suggestDefaultFundReallocation,
+    setSuggestDefaultFundReallocation,
+  ] = useState<boolean | undefined>()
 
   const settingsQuery = useOrganizationSettings()
   const updateSettingsMutation = useUpdateOrganizationSettings()
@@ -34,8 +41,13 @@ export function FinancialSettingsCard() {
 
   const settings = settingsQuery.data
 
-  const selectedFundId =
-    defaultFundId === null ? settings?.defaultFund?.id ?? null : defaultFundId
+  const effectiveDefaultFundId = defaultFundId ?? settings?.defaultFund?.id ?? ""
+
+  const effectiveAllowNegativeFunds = allowNegativeFunds ?? settings?.allowNegativeFunds ?? true
+
+  const effectiveSuggestDefaultFundReallocation = suggestDefaultFundReallocation ?? settings?.suggestDefaultFundReallocation ?? false
+
+  const selectedFundId = effectiveDefaultFundId
 
   const selectedFund = useMemo(() => {
     return funds.find((fund) => fund.id === selectedFundId) ?? null
@@ -44,22 +56,57 @@ export function FinancialSettingsCard() {
   function handleSave() {
     updateSettingsMutation.mutate(
       {
-        defaultFundId: defaultFundId || null,
+        defaultFundId: effectiveDefaultFundId || null,
+        allowNegativeFunds: effectiveAllowNegativeFunds,
+        suggestDefaultFundReallocation:
+          canSuggestDefaultFundReallocation &&
+          effectiveSuggestDefaultFundReallocation,
       },
       {
         onSuccess: () => {
-          toast.success("Configurações financeiras salvas com sucesso.")
+          toast.success("Configurações financeiras atualizadas.")
+
+          setDefaultFundId(undefined)
+          setAllowNegativeFunds(undefined)
+          setSuggestDefaultFundReallocation(undefined)
         },
-        onError: () => {
-          toast.error("Não foi possível salvar as configurações.")
+        onError: (error) => {
+          toast.error(
+            getApiErrorMessage(
+              error,
+              "Não foi possível atualizar as configurações.",
+            ),
+          )
         },
       },
     )
   }
 
+  function handleAllowNegativeFundsChange(value: boolean) {
+    setAllowNegativeFunds(value)
+
+    if (value) {
+      setSuggestDefaultFundReallocation(false)
+    }
+  }
+
+  function handleDefaultFundChange(value: string) {
+    setDefaultFundId(value)
+
+    if (!value) {
+      setSuggestDefaultFundReallocation(false)
+    }
+  }
+
   const isLoading = settingsQuery.isLoading || fundsQuery.isLoading
   const isError = settingsQuery.isError || fundsQuery.isError
-  const hasChanged = (settings?.defaultFund?.id ?? null) !== selectedFundId
+  const hasChanged =
+    (settings?.defaultFund?.id ?? "") !== effectiveDefaultFundId ||
+    settings?.allowNegativeFunds !== effectiveAllowNegativeFunds ||
+    settings?.suggestDefaultFundReallocation !==
+    effectiveSuggestDefaultFundReallocation
+
+  const canSuggestDefaultFundReallocation = !effectiveAllowNegativeFunds && Boolean(effectiveDefaultFundId)
 
   return (
     <Card>
@@ -132,9 +179,10 @@ export function FinancialSettingsCard() {
                 <Label>Fundo padrão</Label>
 
                 <FundComboboxWithCreate
-                  value={selectedFundId ?? ""}
+                  value={selectedFundId}
                   allowClear={false}
-                  onChange={(value) => setDefaultFundId(value)}
+                  disabled={!canAdmin}
+                  onChange={handleDefaultFundChange}
                 />
 
                 {selectedFund && (
@@ -142,6 +190,48 @@ export function FinancialSettingsCard() {
                     Atual: {selectedFund.label}
                   </p>
                 )}
+              </div>
+            </div>
+
+            <div className="space-y-4 rounded-lg border p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Permitir fundos negativos</p>
+                  <p className="text-sm text-muted-foreground">
+                    Quando ativado, o sistema permite que fundos fiquem com saldo abaixo de zero.
+                  </p>
+                </div>
+
+                <Switch
+                  checked={effectiveAllowNegativeFunds}
+                  disabled={!canAdmin}
+                  onCheckedChange={handleAllowNegativeFundsChange}
+                />
+              </div>
+
+              <div className="flex items-start justify-between gap-4 border-t pt-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">
+                    Sugerir remanejamento para o fundo padrão
+                  </p>
+
+                  <p className="text-sm text-muted-foreground">
+                    Quando um fundo não tiver saldo suficiente, o sistema sugere dividir o valor
+                    com o fundo padrão. Nada é salvo automaticamente.
+                  </p>
+
+                  {!canSuggestDefaultFundReallocation && (
+                    <p className="text-xs text-amber-700">
+                      Disponível apenas quando fundos negativos estão bloqueados e existe um fundo padrão configurado.
+                    </p>
+                  )}
+                </div>
+
+                <Switch
+                  checked={canSuggestDefaultFundReallocation && effectiveSuggestDefaultFundReallocation}
+                  disabled={!canAdmin || !canSuggestDefaultFundReallocation}
+                  onCheckedChange={setSuggestDefaultFundReallocation}
+                />
               </div>
             </div>
 

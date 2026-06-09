@@ -10,25 +10,42 @@ import {
   type TransactionAllocationFormData,
   type TransactionAllocationFormInput,
 } from "@/features/financial-transactions/transaction-allocation-schema"
-import { useBeneficiaryOptions } from "../beneficiaries/hooks/use-beneficiary-options"
-import { useFundOptions } from "../funds/hooks/use-fund-options"
+import { useBeneficiaryOptions } from "../../beneficiaries/hooks/use-beneficiary-options"
+import { useFundOptions } from "../../funds/hooks/use-fund-options"
 import { CurrencyInput } from "@/components/form/currency-input"
-import { FundComboboxWithCreate } from "../funds/components/fund-combobox-with-create"
-import { BeneficiaryComboboxWithCreate } from "../beneficiaries/components/beneficiary-combobox-with-create"
+import { FundComboboxWithCreate } from "../../funds/components/fund-combobox-with-create"
+import { BeneficiaryComboboxWithCreate } from "../../beneficiaries/components/beneficiary-combobox-with-create"
+import { getDefaultFundReallocationSuggestion } from "@/utils/fund-reallocation"
+import { formatCurrency } from "@/utils/formatters"
+import { AlertTriangle } from "lucide-react"
+import { useOrganizationSettings } from "@/features/organization-settings/hooks/use-organization-settings"
+import type { FinancialTransactionType } from "../financial-transaction-types"
 
 type TransactionAllocationFormProps = {
+  transactionType: FinancialTransactionType
   onSubmit: (data: TransactionAllocationFormData) => void
   isSubmitting?: boolean
   defaultValues?: Partial<TransactionAllocationFormInput>
   submitLabel?: string
+  onApplyReallocationSuggestion?: (data: {
+    selectedFundId: string
+    selectedFundAmount: number
+    defaultFundId: string
+    defaultFundAmount: number
+    beneficiaryId: string
+    referenceMonth: string
+  }) => void
 }
 
 export function TransactionAllocationForm({
+  transactionType,
   onSubmit,
   isSubmitting = false,
   defaultValues,
   submitLabel = "Adicionar alocação",
+  onApplyReallocationSuggestion,
 }: TransactionAllocationFormProps) {
+
   const {
     register,
     handleSubmit,
@@ -54,9 +71,30 @@ export function TransactionAllocationForm({
     control,
     name: "beneficiaryId",
   })
+  const amount = useWatch({
+    control,
+    name: "amount",
+  })
 
   const fundsQuery = useFundOptions()
   const beneficiariesQuery = useBeneficiaryOptions()
+  const settingsQuery = useOrganizationSettings()
+
+  const funds = fundsQuery.data ?? []
+  const settings = settingsQuery.data
+
+  const reallocationSuggestion = getDefaultFundReallocationSuggestion({
+    fundId: selectedFundId,
+    amount: Number(amount || 0),
+    transactionType,
+    funds,
+    settings,
+  })
+
+  const referenceMonth = useWatch({
+    control,
+    name: "referenceMonth",
+  })
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -137,6 +175,62 @@ export function TransactionAllocationForm({
             </p>
           )}
         </div>
+        {reallocationSuggestion && (
+          <div className="md:col-span-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <div className="flex gap-2">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+
+              <div className="space-y-2">
+                <p className="font-medium">
+                  O fundo selecionado não possui saldo suficiente.
+                </p>
+
+                <p>
+                  Saldo disponível em{" "}
+                  <strong>{reallocationSuggestion.selectedFund.label}</strong>:{" "}
+                  {formatCurrency(
+                    Math.max(reallocationSuggestion.selectedFund.currentBalance, 0),
+                  )}.
+                </p>
+
+                <p>
+                  Sugestão: alocar{" "}
+                  <strong>
+                    {formatCurrency(reallocationSuggestion.selectedFundAmount)}
+                  </strong>{" "}
+                  em {reallocationSuggestion.selectedFund.label} e{" "}
+                  <strong>
+                    {formatCurrency(reallocationSuggestion.defaultFundAmount)}
+                  </strong>{" "}
+                  em {reallocationSuggestion.defaultFund.label}.
+                </p>
+
+                <p className="text-xs">
+                  Nada será salvo automaticamente. Revise as alocações antes de enviar.
+                </p>
+                {onApplyReallocationSuggestion && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      onApplyReallocationSuggestion({
+                        selectedFundId: reallocationSuggestion.selectedFund.id,
+                        selectedFundAmount: reallocationSuggestion.selectedFundAmount,
+                        defaultFundId: reallocationSuggestion.defaultFund.id,
+                        defaultFundAmount: reallocationSuggestion.defaultFundAmount,
+                        beneficiaryId: selectedBeneficiaryId ?? "",
+                        referenceMonth: referenceMonth ?? "",
+                      })
+                    }
+                  >
+                    Aplicar sugestão
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex justify-end">
