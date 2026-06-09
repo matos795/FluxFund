@@ -1,5 +1,6 @@
 package com.fluxfund.api.domain.fund.service;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -10,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fluxfund.api.domain.fund.Fund;
 import com.fluxfund.api.domain.fund.dto.CreateFundRequest;
+import com.fluxfund.api.domain.fund.dto.FundOptionResponse;
 import com.fluxfund.api.domain.fund.dto.FundResponse;
 import com.fluxfund.api.domain.fund.dto.UpdateFundRequest;
 import com.fluxfund.api.domain.fund.mapper.FundMapper;
@@ -18,7 +20,6 @@ import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.OrganizationRepository;
 import com.fluxfund.api.domain.transactionallocation.repository.TransactionAllocationRepository;
 import com.fluxfund.api.security.OrganizationAccessService;
-import com.fluxfund.api.shared.dto.OptionResponse;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 import com.fluxfund.api.shared.util.StringNormalizer;
@@ -54,7 +55,7 @@ public class FundService {
     public Page<FundResponse> findAll(
             UUID organizationId,
             Pageable pageable) {
-                organizationAccessService.requireReadAccess(organizationId);
+        organizationAccessService.requireReadAccess(organizationId);
 
         return repository
                 .findAllByOrganizationIdAndActiveTrue(organizationId, pageable)
@@ -74,7 +75,7 @@ public class FundService {
             UUID id,
             UUID organizationId,
             UpdateFundRequest request) {
-                organizationAccessService.requireFinanceWriteAccess(organizationId);
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         Fund fund = findFundById(id, organizationId);
 
@@ -102,11 +103,22 @@ public class FundService {
     }
 
     @Transactional(readOnly = true)
-    public List<OptionResponse> findOptions(UUID organizationId) {
+    public List<FundOptionResponse> findOptions(UUID organizationId) {
         organizationAccessService.requireReadAccess(organizationId);
 
-        return repository.findByOrganizationIdAndActiveTrueOrderByNameAsc(organizationId).stream()
-                .map(fund -> new OptionResponse(fund.getId(), fund.getName()))
+        return repository.findByOrganizationIdAndActiveTrueOrderByNameAsc(organizationId)
+                .stream()
+                .map(fund -> {
+                    BigDecimal currentBalance = fund.getInitialBalance()
+                            .add(allocationRepository.sumAmountByFundId(
+                                    organizationId,
+                                    fund.getId()));
+
+                    return new FundOptionResponse(
+                            fund.getId(),
+                            fund.getName(),
+                            currentBalance);
+                })
                 .toList();
     }
 

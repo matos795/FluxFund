@@ -50,11 +50,30 @@ public class OrganizationSettingsService {
         Fund defaultFund = null;
 
         if (request.defaultFundId() != null) {
-            defaultFund = fundRepository.findByIdAndOrganizationIdAndActiveTrue(request.defaultFundId(), organizationId)
+            defaultFund = fundRepository.findByIdAndOrganizationIdAndActiveTrue(
+                    request.defaultFundId(),
+                    organizationId)
                     .orElseThrow(() -> new ResourceNotFoundException("Default fund not found"));
         }
 
         settings.setDefaultFund(defaultFund);
+
+        if (request.allowNegativeFunds() != null) {
+            settings.setAllowNegativeFunds(request.allowNegativeFunds());
+        }
+
+        if (request.suggestDefaultFundReallocation() != null) {
+            settings.setSuggestDefaultFundReallocation(
+                    request.suggestDefaultFundReallocation());
+        }
+
+        if (settings.isAllowNegativeFunds()) {
+            settings.setSuggestDefaultFundReallocation(false);
+        }
+
+        if (settings.getDefaultFund() == null) {
+            settings.setSuggestDefaultFundReallocation(false);
+        }
 
         repository.save(settings);
 
@@ -64,8 +83,8 @@ public class OrganizationSettingsService {
                 settings.getId(),
                 AuditAction.CHANGE_DEFAULT_FUND,
                 defaultFund != null
-                        ? "Default fund changed to " + defaultFund.getId()
-                        : "Default fund removed");
+                        ? "Organization settings updated. Default fund: " + defaultFund.getId()
+                        : "Organization settings updated. Default fund removed");
 
         return OrganizationSettingsMapper.toResponse(settings);
     }

@@ -18,10 +18,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fluxfund.api.domain.fund.dto.CreateFundRequest;
+import com.fluxfund.api.domain.fund.dto.FundOptionResponse;
 import com.fluxfund.api.domain.fund.dto.FundResponse;
 import com.fluxfund.api.domain.fund.dto.UpdateFundRequest;
 import com.fluxfund.api.domain.fund.service.FundService;
-import com.fluxfund.api.shared.dto.OptionResponse;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -84,9 +84,8 @@ public class FundController {
     }
 
     @GetMapping("/options")
-    public ResponseEntity<List<OptionResponse>> findOptions(
+    public List<FundOptionResponse> findOptions(
             @RequestHeader(ORGANIZATION_ID) UUID organizationId) {
-
-        return ResponseEntity.ok(service.findOptions(organizationId));
+        return service.findOptions(organizationId);
     }
 }

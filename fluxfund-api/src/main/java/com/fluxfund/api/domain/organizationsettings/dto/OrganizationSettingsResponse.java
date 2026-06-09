@@ -10,6 +10,8 @@ public record OrganizationSettingsResponse(
         UUID organizationId,
         FundSummaryResponse defaultFund,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        OffsetDateTime updatedAt,
+        Boolean allowNegativeFunds,
+        Boolean suggestDefaultFundReallocation
 ) {
 }

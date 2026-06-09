@@ -3,6 +3,7 @@ package com.fluxfund.api.domain.financialtransaction.service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -41,6 +42,7 @@ import com.fluxfund.api.domain.fund.Fund;
 import com.fluxfund.api.domain.fund.repository.FundRepository;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.OrganizationRepository;
+import com.fluxfund.api.domain.organizationsettings.OrganizationSettings;
 import com.fluxfund.api.domain.organizationsettings.repository.OrganizationSettingsRepository;
 import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
 import com.fluxfund.api.domain.transactionallocation.dto.CreateTransactionAllocationRequest;
@@ -99,6 +101,11 @@ public class FinancialTransactionService {
         addDefaultFundAllocationIfNeeded(organizationId, financialTransaction);
 
         validateTotalAllocatedAmount(financialTransaction);
+
+        validateFundNegativePolicy(
+                organizationId,
+                Map.of(),
+                toImpactByFund(financialTransaction.getAllocations()));
 
         repository.save(financialTransaction);
 
@@ -285,6 +292,9 @@ public class FinancialTransactionService {
 
         normalizeTransactionStatusAndAmounts(financialTransaction);
 
+        Map<UUID, BigDecimal> oldImpactByFund = toImpactByFund(
+                financialTransaction.getAllocations());
+
         financialTransaction.getAllocations().clear();
 
         addInitialAllocations(organizationId, financialTransaction, request.allocations());
@@ -292,6 +302,11 @@ public class FinancialTransactionService {
         addDefaultFundAllocationIfNeeded(organizationId, financialTransaction);
 
         validateTotalAllocatedAmount(financialTransaction);
+
+        validateFundNegativePolicy(
+                organizationId,
+                oldImpactByFund,
+                toImpactByFund(financialTransaction.getAllocations()));
 
         repository.save(financialTransaction);
 
@@ -318,6 +333,11 @@ public class FinancialTransactionService {
 
         validateAllocationRules(allocation);
 
+        validateFundNegativePolicy(
+                organizationId,
+                Map.of(),
+                singleImpact(allocation));
+
         financialTransaction.addAllocation(allocation);
 
         TransactionAllocation savedAllocation = allocationRepository.saveAndFlush(allocation);
@@ -343,6 +363,8 @@ public class FinancialTransactionService {
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("TransactionAllocation not found"));
 
+        Map<UUID, BigDecimal> oldImpactByFund = singleImpact(allocation);
+
         Fund fund = null;
         if (request.fundId() != null) {
             fund = fundRepository.findByIdAndOrganizationIdAndActiveTrue(request.fundId(), organizationId)
@@ -360,6 +382,11 @@ public class FinancialTransactionService {
 
         validateBasicAllocationRules(allocation);
         validateTotalAllocatedAmount(financialTransaction);
+
+        validateFundNegativePolicy(
+                organizationId,
+                oldImpactByFund,
+                singleImpact(allocation));
 
         repository.save(financialTransaction);
 
@@ -650,5 +677,91 @@ public class FinancialTransactionService {
         validateBasicAllocationRules(allocation);
 
         financialTransaction.addAllocation(allocation);
+    }
+
+    private OrganizationSettings getOrganizationSettings(UUID organizationId) {
+        return organizationSettingsRepository.findByOrganizationId(organizationId)
+                .orElse(null);
+    }
+
+    private void validateFundNegativePolicy(
+            UUID organizationId,
+            Map<UUID, BigDecimal> oldImpactByFund,
+            Map<UUID, BigDecimal> newImpactByFund) {
+
+        OrganizationSettings settings = getOrganizationSettings(organizationId);
+
+        if (settings == null || settings.isAllowNegativeFunds()) {
+            return;
+        }
+
+        Map<UUID, BigDecimal> allImpactedFunds = new HashMap<>();
+
+        oldImpactByFund.forEach((fundId, amount) -> allImpactedFunds.merge(fundId, BigDecimal.ZERO, BigDecimal::add));
+
+        newImpactByFund.forEach((fundId, amount) -> allImpactedFunds.merge(fundId, BigDecimal.ZERO, BigDecimal::add));
+
+        for (UUID fundId : allImpactedFunds.keySet()) {
+            Fund fund = fundRepository
+                    .findByIdAndOrganizationIdAndActiveTrue(fundId, organizationId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Fund not found"));
+
+            BigDecimal currentBalance = calculateCurrentFundBalance(organizationId, fund);
+
+            BigDecimal oldImpact = oldImpactByFund.getOrDefault(
+                    fundId,
+                    BigDecimal.ZERO);
+
+            BigDecimal newImpact = newImpactByFund.getOrDefault(
+                    fundId,
+                    BigDecimal.ZERO);
+
+            BigDecimal projectedBalance = currentBalance
+                    .subtract(oldImpact)
+                    .add(newImpact);
+
+            boolean fundWasAlreadyNegative = currentBalance.compareTo(BigDecimal.ZERO) < 0;
+
+            boolean projectedIsNegative = projectedBalance.compareTo(BigDecimal.ZERO) < 0;
+
+            boolean gotWorse = projectedBalance.compareTo(currentBalance) < 0;
+
+            if (!fundWasAlreadyNegative && projectedIsNegative) {
+                throw new BusinessException(
+                        "A alocação deixaria o fundo '" + fund.getName() + "' negativo.");
+            }
+
+            if (fundWasAlreadyNegative && gotWorse) {
+                throw new BusinessException(
+                        "O fundo '" + fund.getName() + "' já está negativo e esta operação pioraria o saldo.");
+            }
+        }
+    }
+
+    private Map<UUID, BigDecimal> toImpactByFund(List<TransactionAllocation> allocations) {
+        if (allocations == null || allocations.isEmpty()) {
+            return Map.of();
+        }
+
+        return allocations.stream()
+                .collect(Collectors.groupingBy(
+                        allocation -> allocation.getFund().getId(),
+                        Collectors.mapping(
+                                TransactionAllocation::getAmount,
+                                Collectors.reducing(BigDecimal.ZERO, BigDecimal::add))));
+    }
+
+    private Map<UUID, BigDecimal> singleImpact(TransactionAllocation allocation) {
+        return Map.of(
+                allocation.getFund().getId(),
+                allocation.getAmount());
+    }
+
+    private BigDecimal calculateCurrentFundBalance(UUID organizationId, Fund fund) {
+        BigDecimal allocationsSum = allocationRepository.sumAmountByFundId(
+                organizationId,
+                fund.getId());
+
+        return fund.getInitialBalance().add(allocationsSum);
     }
 }

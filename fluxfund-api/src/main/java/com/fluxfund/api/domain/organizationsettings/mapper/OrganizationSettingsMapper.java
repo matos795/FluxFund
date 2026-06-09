@@ -17,7 +17,9 @@ public class OrganizationSettingsMapper {
                         ? FundMapper.toSummaryResponse(settings.getDefaultFund())
                         : null,
                 settings.getCreatedAt(),
-                settings.getUpdatedAt()
+                settings.getUpdatedAt(),
+                settings.isAllowNegativeFunds(),
+                settings.isSuggestDefaultFundReallocation()
         );
     }
 }
