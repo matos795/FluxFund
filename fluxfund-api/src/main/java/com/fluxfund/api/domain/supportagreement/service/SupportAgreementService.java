@@ -1,5 +1,7 @@
 package com.fluxfund.api.domain.supportagreement.service;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -202,6 +204,29 @@ public class SupportAgreementService {
                 "Support agreement activated");
 
         return SupportAgreementMapper.toResponse(agreement);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SupportAgreementResponse> findActiveSuggestions(
+            UUID organizationId,
+            UUID beneficiaryId,
+            LocalDate referenceDate) {
+        organizationAccessService.requireReadAccess(organizationId);
+
+        beneficiaryRepository
+                .findByIdAndOrganizationIdAndActiveTrue(beneficiaryId, organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Beneficiary not found"));
+
+        LocalDate effectiveReferenceDate = referenceDate != null ? referenceDate : LocalDate.now();
+
+        return repository
+                .findActiveSuggestionsByBeneficiary(
+                        organizationId,
+                        beneficiaryId,
+                        effectiveReferenceDate)
+                .stream()
+                .map(SupportAgreementMapper::toResponse)
+                .toList();
     }
 
     private SupportAgreement findEntityById(UUID organizationId, UUID id) {

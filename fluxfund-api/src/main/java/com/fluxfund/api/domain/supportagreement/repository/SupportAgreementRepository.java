@@ -15,53 +15,70 @@ import com.fluxfund.api.domain.supportagreement.SupportAgreement;
 
 public interface SupportAgreementRepository extends JpaRepository<SupportAgreement, UUID> {
 
-        Page<SupportAgreement> findAllByOrganizationIdAndActiveTrue(
-                        UUID organizationId,
-                        Pageable pageable);
+  Page<SupportAgreement> findAllByOrganizationIdAndActiveTrue(
+      UUID organizationId,
+      Pageable pageable);
 
-        Page<SupportAgreement> findAllByOrganizationId(
-                        UUID organizationId,
-                        Pageable pageable);
+  Page<SupportAgreement> findAllByOrganizationId(
+      UUID organizationId,
+      Pageable pageable);
 
-        Optional<SupportAgreement> findByIdAndOrganizationId(
-                        UUID id,
-                        UUID organizationId);
+  Optional<SupportAgreement> findByIdAndOrganizationId(
+      UUID id,
+      UUID organizationId);
 
-        boolean existsByOrganizationIdAndBeneficiaryIdAndFundIdAndActiveTrue(
-                        UUID organizationId,
-                        UUID beneficiaryId,
-                        UUID fundId);
+  boolean existsByOrganizationIdAndBeneficiaryIdAndFundIdAndActiveTrue(
+      UUID organizationId,
+      UUID beneficiaryId,
+      UUID fundId);
 
-        Page<SupportAgreement> findAllByOrganizationIdAndActiveFalse(
-                        UUID organizationId,
-                        Pageable pageable);
+  Page<SupportAgreement> findAllByOrganizationIdAndActiveFalse(
+      UUID organizationId,
+      Pageable pageable);
 
-        @Query("""
-                        select sa
-                        from SupportAgreement sa
-                        where sa.organization.id = :organizationId
-                          and sa.active = true
-                          and sa.startDate <= :endDate
-                          and (sa.endDate is null or sa.endDate >= :startDate)
-                        """)
-        Page<SupportAgreement> findActiveInPeriod(
-                        UUID organizationId,
-                        LocalDate startDate,
-                        LocalDate endDate,
-                        Pageable pageable);
+  @Query("""
+      select sa
+      from SupportAgreement sa
+      where sa.organization.id = :organizationId
+        and sa.active = true
+        and sa.startDate <= :endDate
+        and (sa.endDate is null or sa.endDate >= :startDate)
+      """)
+  Page<SupportAgreement> findActiveInPeriod(
+      UUID organizationId,
+      LocalDate startDate,
+      LocalDate endDate,
+      Pageable pageable);
 
-        @Query("""
-                        select sa
-                        from SupportAgreement sa
-                        join fetch sa.beneficiary
-                        join fetch sa.fund
-                        where sa.organization.id = :organizationId
-                          and sa.active = true
-                          and sa.startDate <= :endDate
-                          and (sa.endDate is null or sa.endDate >= :startDate)
-                        """)
-        List<SupportAgreement> findActiveInPeriodForReport(
-                        @Param("organizationId") UUID organizationId,
-                        @Param("startDate") LocalDate startDate,
-                        @Param("endDate") LocalDate endDate);
+  @Query("""
+      select sa
+      from SupportAgreement sa
+      join fetch sa.beneficiary
+      join fetch sa.fund
+      where sa.organization.id = :organizationId
+        and sa.active = true
+        and sa.startDate <= :endDate
+        and (sa.endDate is null or sa.endDate >= :startDate)
+      """)
+  List<SupportAgreement> findActiveInPeriodForReport(
+      @Param("organizationId") UUID organizationId,
+      @Param("startDate") LocalDate startDate,
+      @Param("endDate") LocalDate endDate);
+
+  @Query("""
+      select sa
+      from SupportAgreement sa
+      join fetch sa.beneficiary
+      join fetch sa.fund
+      where sa.organization.id = :organizationId
+        and sa.beneficiary.id = :beneficiaryId
+        and sa.active = true
+        and sa.startDate <= :referenceDate
+        and (sa.endDate is null or sa.endDate >= :referenceDate)
+      order by sa.fund.name asc
+      """)
+  List<SupportAgreement> findActiveSuggestionsByBeneficiary(
+      @Param("organizationId") UUID organizationId,
+      @Param("beneficiaryId") UUID beneficiaryId,
+      @Param("referenceDate") LocalDate referenceDate);
 }

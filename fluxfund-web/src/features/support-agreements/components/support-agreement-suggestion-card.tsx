@@ -1,0 +1,112 @@
+import { HandCoins } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import { formatCurrency } from "@/utils/formatters"
+import type { FinancialTransactionType } from "@/features/financial-transactions/financial-transaction-types"
+import { useSupportAgreementSuggestions } from "../hooks/use-support-agreement-suggestions"
+
+type SupportAgreementSuggestionCardProps = {
+  beneficiaryId?: string | null
+  transactionType: FinancialTransactionType
+  referenceMonth?: string | null
+  remainingAmount?: number
+  onApply: (data: {
+    fundId: string
+    beneficiaryId: string
+    referenceMonth: string
+    amount: number
+  }) => void
+}
+
+export function SupportAgreementSuggestionCard({
+  beneficiaryId,
+  transactionType,
+  referenceMonth,
+  remainingAmount,
+  onApply,
+}: SupportAgreementSuggestionCardProps) {
+  const shouldSearch = transactionType === "EXPENSE" && Boolean(beneficiaryId)
+
+  const referenceDate = referenceMonth ? `${referenceMonth}-01` : undefined
+
+  const { data: suggestions = [], isLoading } = useSupportAgreementSuggestions(
+    {
+      beneficiaryId: beneficiaryId ?? "",
+      referenceDate,
+    },
+    { enabled: shouldSearch },
+  )
+
+  if (!shouldSearch || isLoading || suggestions.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
+      <div className="flex gap-2">
+        <HandCoins className="mt-0.5 size-4 shrink-0" />
+
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <p className="font-medium">Compromisso ativo encontrado.</p>
+            <p className="text-xs text-emerald-900/80">
+              Use esta sugestão para evitar alocar o repasse no fundo errado.
+              Nada será salvo automaticamente.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            {suggestions.map((agreement) => {
+              const availableAmount = Math.max(
+                Number(remainingAmount ?? agreement.amount),
+                0,
+              )
+
+              const suggestedAmount =
+                availableAmount > 0
+                  ? Math.min(Number(agreement.amount), availableAmount)
+                  : Number(agreement.amount)
+
+              return (
+                <div
+                  key={agreement.id}
+                  className="flex flex-col gap-2 rounded-md border border-emerald-200 bg-background/70 p-3 md:flex-row md:items-center md:justify-between"
+                >
+                  <div>
+                    <p className="font-medium">
+                      {agreement.fund.name} ·{" "}
+                      {formatCurrency(Number(agreement.amount))}
+                    </p>
+
+                    {suggestedAmount < Number(agreement.amount) && (
+                      <p className="text-xs text-muted-foreground">
+                        O compromisso é maior que o valor restante. A sugestão
+                        usará {formatCurrency(suggestedAmount)}.
+                      </p>
+                    )}
+                  </div>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      onApply({
+                        fundId: agreement.fund.id,
+                        beneficiaryId: agreement.beneficiary.id,
+                        referenceMonth: referenceMonth ?? "",
+                        amount: suggestedAmount,
+                      })
+                    }
+                  >
+                    Usar compromisso
+                  </Button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

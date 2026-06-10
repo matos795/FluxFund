@@ -20,6 +20,7 @@ import { formatCurrency } from "@/utils/formatters"
 import { AlertTriangle } from "lucide-react"
 import { useOrganizationSettings } from "@/features/organization-settings/hooks/use-organization-settings"
 import type { FinancialTransactionType } from "../financial-transaction-types"
+import { SupportAgreementSuggestionCard } from "@/features/support-agreements/components/support-agreement-suggestion-card"
 
 type TransactionAllocationFormProps = {
   onCancel?: () => void
@@ -157,7 +158,7 @@ export function TransactionAllocationForm({
           </p>
         </div>
 
-                <div className="space-y-2">
+        <div className="space-y-2">
           <Label htmlFor="amount">Valor</Label>
           <Controller
             name="amount"
@@ -181,60 +182,77 @@ export function TransactionAllocationForm({
 
       {reallocationSuggestion && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-            <div className="flex gap-2">
-              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+          <div className="flex gap-2">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
 
-              <div className="space-y-2">
-                <p className="font-medium">
-                  O fundo selecionado não possui saldo suficiente.
-                </p>
+            <div className="space-y-2">
+              <p className="font-medium">
+                O fundo selecionado não possui saldo suficiente.
+              </p>
 
-                <p>
-                  Saldo disponível em{" "}
-                  <strong>{reallocationSuggestion.selectedFund.label}</strong>:{" "}
-                  {formatCurrency(
-                    Math.max(reallocationSuggestion.selectedFund.currentBalance, 0),
-                  )}.
-                </p>
+              <p>
+                Saldo disponível em{" "}
+                <strong>{reallocationSuggestion.selectedFund.label}</strong>:{" "}
+                {formatCurrency(
+                  Math.max(reallocationSuggestion.selectedFund.currentBalance, 0),
+                )}.
+              </p>
 
-                <p>
-                  Sugestão: alocar{" "}
-                  <strong>
-                    {formatCurrency(reallocationSuggestion.selectedFundAmount)}
-                  </strong>{" "}
-                  em {reallocationSuggestion.selectedFund.label} e{" "}
-                  <strong>
-                    {formatCurrency(reallocationSuggestion.defaultFundAmount)}
-                  </strong>{" "}
-                  em {reallocationSuggestion.defaultFund.label}.
-                </p>
+              <p>
+                Sugestão: alocar{" "}
+                <strong>
+                  {formatCurrency(reallocationSuggestion.selectedFundAmount)}
+                </strong>{" "}
+                em {reallocationSuggestion.selectedFund.label} e{" "}
+                <strong>
+                  {formatCurrency(reallocationSuggestion.defaultFundAmount)}
+                </strong>{" "}
+                em {reallocationSuggestion.defaultFund.label}.
+              </p>
 
-                <p className="text-xs">
-                  Nada será salvo automaticamente. Revise as alocações antes de enviar.
-                </p>
-                {onApplyReallocationSuggestion && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      onApplyReallocationSuggestion({
-                        selectedFundId: reallocationSuggestion.selectedFund.id,
-                        selectedFundAmount: reallocationSuggestion.selectedFundAmount,
-                        defaultFundId: reallocationSuggestion.defaultFund.id,
-                        defaultFundAmount: reallocationSuggestion.defaultFundAmount,
-                        beneficiaryId: selectedBeneficiaryId ?? "",
-                        referenceMonth: referenceMonth ?? "",
-                      })
-                    }
-                  >
-                    Aplicar sugestão
-                  </Button>
-                )}
-              </div>
+              <p className="text-xs">
+                Nada será salvo automaticamente. Revise as alocações antes de enviar.
+              </p>
+              {onApplyReallocationSuggestion && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    onApplyReallocationSuggestion({
+                      selectedFundId: reallocationSuggestion.selectedFund.id,
+                      selectedFundAmount: reallocationSuggestion.selectedFundAmount,
+                      defaultFundId: reallocationSuggestion.defaultFund.id,
+                      defaultFundAmount: reallocationSuggestion.defaultFundAmount,
+                      beneficiaryId: selectedBeneficiaryId ?? "",
+                      referenceMonth: referenceMonth ?? "",
+                    })
+                  }
+                >
+                  Aplicar sugestão
+                </Button>
+              )}
             </div>
           </div>
-        )}
+        </div>
+      )}
+
+      <SupportAgreementSuggestionCard
+        beneficiaryId={selectedBeneficiaryId}
+        transactionType={transactionType}
+        referenceMonth={referenceMonth}
+        remainingAmount={Number(amount || 0)}
+        onApply={(suggestion) => {
+          setValue("fundId", suggestion.fundId, { shouldValidate: true })
+          setValue("beneficiaryId", suggestion.beneficiaryId, {
+            shouldValidate: true,
+          })
+          setValue("referenceMonth", suggestion.referenceMonth, {
+            shouldValidate: true,
+          })
+          setValue("amount", suggestion.amount, { shouldValidate: true })
+        }}
+      />
 
       <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
         {onCancel && (

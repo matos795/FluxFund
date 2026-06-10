@@ -12,6 +12,11 @@ export type GetSupportAgreementsParams = {
   active?: boolean
 }
 
+export type GetSupportAgreementSuggestionsParams = {
+  beneficiaryId: string
+  referenceDate?: string
+}
+
 export async function getSupportAgreements({
   page = 0,
   size = 10,
@@ -67,6 +72,24 @@ export async function deleteSupportAgreement(id: string) {
 export async function activateSupportAgreement(id: string) {
   const response = await httpClient.patch<SupportAgreement>(
     `/api/v1/support-agreements/${id}/activate`,
+  )
+
+  return response.data
+}
+
+export async function getSupportAgreementSuggestions({
+  beneficiaryId,
+  referenceDate,
+}: GetSupportAgreementSuggestionsParams) {
+  const params: Record<string, string> = { beneficiaryId }
+
+  if (referenceDate) {
+    params.referenceDate = referenceDate
+  }
+
+  const response = await httpClient.get<SupportAgreement[]>(
+    "/api/v1/support-agreements/suggestions",
+    { params },
   )
 
   return response.data

@@ -1,5 +1,7 @@
 package com.fluxfund.api.domain.supportagreement.controller;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -47,6 +49,17 @@ public class SupportAgreementController {
             @RequestParam(required = false) Boolean active,
             Pageable pageable) {
         return service.findAll(organizationId, active, pageable);
+    }
+
+    @GetMapping("/api/v1/support-agreements/suggestions")
+    public List<SupportAgreementResponse> findActiveSuggestions(
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+            @RequestParam UUID beneficiaryId,
+            @RequestParam(required = false) LocalDate referenceDate) {
+        return service.findActiveSuggestions(
+                organizationId,
+                beneficiaryId,
+                referenceDate);
     }
 
     @GetMapping("/api/v1/support-agreements/{id}")

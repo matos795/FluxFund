@@ -35,6 +35,7 @@ import { useOrganizationSettings } from "@/features/organization-settings/hooks/
 import { getDefaultFundReallocationSuggestion } from "@/utils/fund-reallocation"
 import { formatCurrency } from "@/utils/formatters"
 import { getApiErrorMessage } from "@/utils/api-error"
+import { SupportAgreementSuggestionCard } from "@/features/support-agreements/components/support-agreement-suggestion-card"
 
 type AllocationFormItem = {
     fundId: string
@@ -610,6 +611,19 @@ export function ClassifyFinancialTransactionDialog({
                                                     </Button>
                                                 </div>
                                             </div>
+
+                                            <SupportAgreementSuggestionCard
+                                                beneficiaryId={allocation.beneficiaryId}
+                                                transactionType={type}
+                                                referenceMonth={allocation.referenceMonth}
+                                                remainingAmount={Number(allocation.amount || 0)}
+                                                onApply={(suggestion) => {
+                                                    handleChangeAllocation(index, "fundId", suggestion.fundId)
+                                                    handleChangeAllocation(index, "beneficiaryId", suggestion.beneficiaryId)
+                                                    handleChangeAllocation(index, "referenceMonth", suggestion.referenceMonth)
+                                                    handleChangeAllocation(index, "amount", String(suggestion.amount))
+                                                }}
+                                            />
 
                                             {suggestion && (
                                                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
