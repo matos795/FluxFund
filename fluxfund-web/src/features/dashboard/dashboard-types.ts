@@ -28,3 +28,12 @@ export type ExpenseByCategoryItem = {
   amount: number
   percentage: number
 }
+
+export type FundOverviewItem = {
+  fundId: string
+  fundName: string
+  currentBalance: number
+  incomeAllocated: number
+  expenseAllocated: number
+  periodBalance: number
+}

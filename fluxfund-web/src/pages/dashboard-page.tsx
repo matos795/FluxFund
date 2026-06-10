@@ -25,6 +25,8 @@ import { useDashboardMonthlyCashFlow } from "@/features/dashboard/hooks/use-dash
 import { MonthlyCashFlowChart } from "@/features/dashboard/components/monthly-cash-flow-chart"
 import { useDashboardExpensesByCategory } from "@/features/dashboard/hooks/use-dashboard-expenses-by-category"
 import { ExpensesByCategoryChart } from "@/features/dashboard/components/expenses-by-category-chart"
+import { useDashboardFundsOverview } from "@/features/dashboard/hooks/use-dashboard-funds-overview"
+import { FundsOverviewChart } from "@/features/dashboard/components/funds-overview-chart"
 
 export function DashboardPage() {
   const [periodPreset, setPeriodPreset] =
@@ -53,6 +55,12 @@ export function DashboardPage() {
     startDate: period.startDate,
     endDate: period.endDate,
     limit: 8,
+  })
+
+  const { data: fundsOverview = [] } = useDashboardFundsOverview({
+    startDate: period.startDate,
+    endDate: period.endDate,
+    limit: 10,
   })
 
   if (isLoading) {
@@ -232,35 +240,33 @@ export function DashboardPage() {
 
       <section className="grid gap-4 xl:grid-cols-2">
         <ExpensesByCategoryChart data={expensesByCategory} />
+        <FundsOverviewChart data={fundsOverview} />
+      </section>
 
-        <div className="rounded-xl border bg-card p-4">
-          <h3 className="font-semibold">Como interpretar</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Este gráfico mostra quais categorias concentraram mais despesas no
-            período selecionado.
-          </p>
+      <section className="rounded-xl border bg-card p-4">
+        <h3 className="font-semibold">Leitura financeira</h3>
 
-          <div className="mt-4 space-y-3 text-sm">
-            <div className="rounded-lg bg-muted p-3">
-              <p className="font-medium">Categoria muito alta</p>
-              <p className="text-muted-foreground">
-                Pode indicar uma área que merece revisão ou conferência.
-              </p>
-            </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="rounded-lg bg-muted p-3 text-sm">
+            <p className="font-medium">Despesas por categoria</p>
+            <p className="mt-1 text-muted-foreground">
+              Mostra onde o dinheiro saiu no período selecionado.
+            </p>
+          </div>
 
-            <div className="rounded-lg bg-muted p-3">
-              <p className="font-medium">Categoria inesperada</p>
-              <p className="text-muted-foreground">
-                Pode indicar erro de classificação ou gasto fora do padrão.
-              </p>
-            </div>
+          <div className="rounded-lg bg-muted p-3 text-sm">
+            <p className="font-medium">Situação dos fundos</p>
+            <p className="mt-1 text-muted-foreground">
+              Mostra a fotografia atual das destinações internas.
+            </p>
+          </div>
 
-            <div className="rounded-lg bg-muted p-3">
-              <p className="font-medium">Poucas categorias aparecendo</p>
-              <p className="text-muted-foreground">
-                Verifique se as despesas estão sendo classificadas corretamente.
-              </p>
-            </div>
+          <div className="rounded-lg bg-muted p-3 text-sm">
+            <p className="font-medium">Fundos negativos</p>
+            <p className="mt-1 text-muted-foreground">
+              Indicam projetos ou caixas que precisam de reposição, revisão ou
+              conferência.
+            </p>
           </div>
         </div>
       </section>

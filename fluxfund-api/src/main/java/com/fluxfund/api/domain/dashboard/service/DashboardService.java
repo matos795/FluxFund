@@ -18,6 +18,7 @@ import com.fluxfund.api.domain.account.repository.AccountRepository;
 import com.fluxfund.api.domain.dashboard.dto.DashboardSummaryResponse;
 import com.fluxfund.api.domain.dashboard.dto.ExpenseByCategoryProjection;
 import com.fluxfund.api.domain.dashboard.dto.ExpenseByCategoryResponse;
+import com.fluxfund.api.domain.dashboard.dto.FundOverviewResponse;
 import com.fluxfund.api.domain.dashboard.dto.MonthlyCashFlowProjection;
 import com.fluxfund.api.domain.dashboard.dto.MonthlyCashFlowResponse;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
@@ -275,5 +276,66 @@ public class DashboardService {
                 }
 
                 return value.substring(0, 1).toUpperCase() + value.substring(1);
+        }
+
+        public List<FundOverviewResponse> getFundsOverview(
+                        UUID organizationId,
+                        LocalDate startDate,
+                        LocalDate endDate,
+                        Integer limit) {
+                organizationAccessService.requireReadAccess(organizationId);
+
+                validateOrganizationExists(organizationId);
+
+                LocalDate resolvedStartDate = startDate != null
+                                ? startDate
+                                : LocalDate.now().withDayOfYear(1);
+
+                LocalDate resolvedEndDate = endDate != null
+                                ? endDate
+                                : LocalDate.now();
+
+                if (resolvedEndDate.isBefore(resolvedStartDate)) {
+                        throw new BusinessException("End date cannot be before start date");
+                }
+
+                int resolvedLimit = limit != null && limit > 0 ? limit : 10;
+
+                return fundRepository
+                                .findFundsOverview(
+                                                organizationId,
+                                                resolvedStartDate,
+                                                resolvedEndDate,
+                                                resolvedLimit)
+                                .stream()
+                                .map(row -> {
+                                        BigDecimal initialBalance = row.getInitialBalance() != null
+                                                        ? row.getInitialBalance()
+                                                        : BigDecimal.ZERO;
+
+                                        BigDecimal currentMovement = row.getCurrentMovement() != null
+                                                        ? row.getCurrentMovement()
+                                                        : BigDecimal.ZERO;
+
+                                        BigDecimal incomeAllocated = row.getIncomeAllocated() != null
+                                                        ? row.getIncomeAllocated()
+                                                        : BigDecimal.ZERO;
+
+                                        BigDecimal expenseAllocated = row.getExpenseAllocated() != null
+                                                        ? row.getExpenseAllocated()
+                                                        : BigDecimal.ZERO;
+
+                                        BigDecimal currentBalance = initialBalance.add(currentMovement);
+                                        BigDecimal periodBalance = incomeAllocated.subtract(expenseAllocated);
+
+                                        return new FundOverviewResponse(
+                                                        row.getFundId(),
+                                                        row.getFundName(),
+                                                        currentBalance,
+                                                        incomeAllocated,
+                                                        expenseAllocated,
+                                                        periodBalance);
+                                })
+                                .toList();
         }
 }
