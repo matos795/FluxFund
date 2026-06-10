@@ -13,6 +13,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.fluxfund.api.domain.dashboard.dto.ExpenseByCategoryProjection;
 import com.fluxfund.api.domain.dashboard.dto.MonthlyCashFlowProjection;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
@@ -162,4 +163,26 @@ List<MonthlyCashFlowProjection> findMonthlyCashFlow(
         @Param("organizationId") UUID organizationId,
         @Param("startDate") LocalDate startDate,
         @Param("endDate") LocalDate endDate);
+
+        @Query(value = """
+        select
+            c.id as categoryId,
+            c.name as categoryName,
+            coalesce(sum(abs(t.settled_amount)), 0) as amount
+        from financial_transaction t
+        join category c on c.id = t.category_id
+        where t.organization_id = :organizationId
+          and t.status = 'SETTLED'
+          and t.type = 'EXPENSE'
+          and t.category_id is not null
+          and t.settlement_date between :startDate and :endDate
+        group by c.id, c.name
+        order by amount desc
+        limit :limit
+        """, nativeQuery = true)
+List<ExpenseByCategoryProjection> findExpensesByCategory(
+        @Param("organizationId") UUID organizationId,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate,
+        @Param("limit") int limit);
 }

@@ -1,6 +1,7 @@
 package com.fluxfund.api.domain.dashboard.service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
@@ -15,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fluxfund.api.domain.account.repository.AccountRepository;
 import com.fluxfund.api.domain.dashboard.dto.DashboardSummaryResponse;
+import com.fluxfund.api.domain.dashboard.dto.ExpenseByCategoryProjection;
+import com.fluxfund.api.domain.dashboard.dto.ExpenseByCategoryResponse;
 import com.fluxfund.api.domain.dashboard.dto.MonthlyCashFlowProjection;
 import com.fluxfund.api.domain.dashboard.dto.MonthlyCashFlowResponse;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
@@ -204,6 +207,60 @@ public class DashboardService {
                 }
 
                 return result;
+        }
+
+        public List<ExpenseByCategoryResponse> getExpensesByCategory(
+                        UUID organizationId,
+                        LocalDate startDate,
+                        LocalDate endDate,
+                        Integer limit) {
+                organizationAccessService.requireReadAccess(organizationId);
+
+                validateOrganizationExists(organizationId);
+
+                LocalDate resolvedStartDate = startDate != null
+                                ? startDate
+                                : LocalDate.now().withDayOfYear(1);
+
+                LocalDate resolvedEndDate = endDate != null
+                                ? endDate
+                                : LocalDate.now();
+
+                if (resolvedEndDate.isBefore(resolvedStartDate)) {
+                        throw new BusinessException("End date cannot be before start date");
+                }
+
+                int resolvedLimit = limit != null && limit > 0 ? limit : 8;
+
+                List<ExpenseByCategoryProjection> rows = financialTransactionRepository.findExpensesByCategory(
+                                organizationId,
+                                resolvedStartDate,
+                                resolvedEndDate,
+                                resolvedLimit);
+
+                BigDecimal total = rows.stream()
+                                .map(row -> row.getAmount() != null ? row.getAmount() : BigDecimal.ZERO)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                return rows.stream()
+                                .map(row -> {
+                                        BigDecimal amount = row.getAmount() != null
+                                                        ? row.getAmount()
+                                                        : BigDecimal.ZERO;
+
+                                        BigDecimal percentage = total.compareTo(BigDecimal.ZERO) > 0
+                                                        ? amount
+                                                                        .multiply(BigDecimal.valueOf(100))
+                                                                        .divide(total, 2, RoundingMode.HALF_UP)
+                                                        : BigDecimal.ZERO;
+
+                                        return new ExpenseByCategoryResponse(
+                                                        row.getCategoryId(),
+                                                        row.getCategoryName(),
+                                                        amount,
+                                                        percentage);
+                                })
+                                .toList();
         }
 
         private void validateOrganizationExists(UUID organizationId) {

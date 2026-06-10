@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fluxfund.api.domain.dashboard.dto.DashboardSummaryResponse;
+import com.fluxfund.api.domain.dashboard.dto.ExpenseByCategoryResponse;
 import com.fluxfund.api.domain.dashboard.dto.MonthlyCashFlowResponse;
 import com.fluxfund.api.domain.dashboard.service.DashboardService;
 
@@ -45,5 +46,20 @@ public class DashboardController {
 
         return ResponseEntity.ok(
                 service.getMonthlyCashFlow(organizationId, startDate, endDate));
+    }
+
+    @GetMapping("/expenses-by-category")
+    public ResponseEntity<List<ExpenseByCategoryResponse>> getExpensesByCategory(
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) Integer limit) {
+
+        return ResponseEntity.ok(
+                service.getExpensesByCategory(
+                        organizationId,
+                        startDate,
+                        endDate,
+                        limit));
     }
 }

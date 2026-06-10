@@ -21,3 +21,10 @@ export type MonthlyCashFlowItem = {
   expense: number
   net: number
 }
+
+export type ExpenseByCategoryItem = {
+  categoryId: string
+  categoryName: string
+  amount: number
+  percentage: number
+}

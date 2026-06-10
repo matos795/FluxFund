@@ -1,9 +1,13 @@
 import { httpClient } from "@/api/http-client"
-import type { DashboardSummary, MonthlyCashFlowItem } from "./dashboard-types"
+import type { DashboardSummary, ExpenseByCategoryItem, MonthlyCashFlowItem } from "./dashboard-types"
 
 type GetDashboardSummaryParams = {
   startDate?: string
   endDate?: string
+}
+
+type GetDashboardChartParams = GetDashboardSummaryParams & {
+  limit?: number
 }
 
 export const dashboardApi = {
@@ -21,6 +25,17 @@ export const dashboardApi = {
   async getMonthlyCashFlow(params: GetDashboardSummaryParams) {
     const response = await httpClient.get<MonthlyCashFlowItem[]>(
       "/api/v1/dashboard/monthly-cash-flow",
+      {
+        params,
+      },
+    )
+
+    return response.data
+  },
+
+  async getExpensesByCategory(params: GetDashboardChartParams) {
+    const response = await httpClient.get<ExpenseByCategoryItem[]>(
+      "/api/v1/dashboard/expenses-by-category",
       {
         params,
       },

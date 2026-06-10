@@ -23,6 +23,8 @@ import { useDashboardSummary } from "@/features/dashboard/hooks/use-dashboard-su
 import { formatCurrency, formatDate } from "@/utils/formatters"
 import { useDashboardMonthlyCashFlow } from "@/features/dashboard/hooks/use-dashboard-monthly-cash-flow"
 import { MonthlyCashFlowChart } from "@/features/dashboard/components/monthly-cash-flow-chart"
+import { useDashboardExpensesByCategory } from "@/features/dashboard/hooks/use-dashboard-expenses-by-category"
+import { ExpensesByCategoryChart } from "@/features/dashboard/components/expenses-by-category-chart"
 
 export function DashboardPage() {
   const [periodPreset, setPeriodPreset] =
@@ -47,7 +49,11 @@ export function DashboardPage() {
     endDate: period.endDate,
   })
 
-  console.log("monthlyCashFlow", monthlyCashFlow)
+  const { data: expensesByCategory = [] } = useDashboardExpensesByCategory({
+    startDate: period.startDate,
+    endDate: period.endDate,
+    limit: 8,
+  })
 
   if (isLoading) {
     return <p>Carregando dashboard...</p>
@@ -218,6 +224,41 @@ export function DashboardPage() {
               <p className="text-muted-foreground">
                 Pode indicar sazonalidade, repasses concentrados ou lançamentos fora
                 do padrão.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-2">
+        <ExpensesByCategoryChart data={expensesByCategory} />
+
+        <div className="rounded-xl border bg-card p-4">
+          <h3 className="font-semibold">Como interpretar</h3>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Este gráfico mostra quais categorias concentraram mais despesas no
+            período selecionado.
+          </p>
+
+          <div className="mt-4 space-y-3 text-sm">
+            <div className="rounded-lg bg-muted p-3">
+              <p className="font-medium">Categoria muito alta</p>
+              <p className="text-muted-foreground">
+                Pode indicar uma área que merece revisão ou conferência.
+              </p>
+            </div>
+
+            <div className="rounded-lg bg-muted p-3">
+              <p className="font-medium">Categoria inesperada</p>
+              <p className="text-muted-foreground">
+                Pode indicar erro de classificação ou gasto fora do padrão.
+              </p>
+            </div>
+
+            <div className="rounded-lg bg-muted p-3">
+              <p className="font-medium">Poucas categorias aparecendo</p>
+              <p className="text-muted-foreground">
+                Verifique se as despesas estão sendo classificadas corretamente.
               </p>
             </div>
           </div>

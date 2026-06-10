@@ -70,7 +70,7 @@
     --chart-1: 217 32% 52%; /* azul slate */
     --chart-2: 262 28% 58%; /* violeta suave */
     --chart-3: 220 35% 45%; /* linha: azul acinzentado */
-    --chart-4: oklch(0.371 0 0);
+    --chart-4: 245 22% 55%;
     --chart-5: oklch(0.269 0 0);
     --radius: 0.625rem;
     --sidebar: oklch(0.985 0 0);
@@ -105,7 +105,7 @@
     --chart-1: 217 38% 64%;
     --chart-2: 262 34% 68%;
     --chart-3: 220 40% 72%;
-    --chart-4: oklch(0.371 0 0);
+    --chart-4: 245 28% 68%;
     --chart-5: oklch(0.269 0 0);
     --sidebar: oklch(0.205 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
