@@ -24,7 +24,7 @@ export function DashboardPendingCard({
     to
 }: DashboardPendingCardProps) {
     const content = (
-        <Card>
+        <Card className={to ? "transition hover:bg-muted/50" : undefined}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">{title}</CardTitle>
                 <Icon className="size-4 text-muted-foreground" />
