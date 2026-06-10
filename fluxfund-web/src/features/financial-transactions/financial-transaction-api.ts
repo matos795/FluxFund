@@ -60,6 +60,14 @@ export async function getFinancialTransactions({
   return response.data
 }
 
+export async function getFinancialTransactionById(id: string) {
+  const response = await httpClient.get<FinancialTransaction>(
+    `/api/v1/financial-transactions/${id}`,
+  )
+
+  return response.data
+}
+
 export async function createFinancialTransaction(
   data: CreateFinancialTransactionRequest,
 ) {

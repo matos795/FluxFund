@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 import { PageHeader } from "@/components/layout/page-header"
 import { PagePagination } from "@/components/pagination/page-pagination"
@@ -12,12 +12,36 @@ import { ExportSettledFinancialTransactionsDialog } from "@/features/financial-t
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { useCategoryOptions } from "@/features/categories/hooks/use-category-options"
 import { useAccountOptions } from "@/features/accounts/hooks/use-account-options"
+import { useFinancialTransaction } from "@/features/financial-transactions/hooks/use-financial-transaction"
+import { ViewFinancialTransactionDialog } from "@/features/financial-transactions/components/view-financial-transaction-dialog"
+import { ClassifyFinancialTransactionDialog } from "@/features/financial-transactions/components/classify-financial-transaction-dialog"
+import { ManageTransactionAllocationsDialog } from "@/features/financial-transactions/components/manage-transaction-allocations-dialog"
+import { FinancialTransactionAttachmentsDialog } from "@/features/attachments/components/financial-transaction-attachments-dialog"
 
 export function TransactionsPage() {
 
   const { canFinanceWrite } = usePermissions()
 
   const [searchParams, setSearchParams] = useSearchParams()
+
+  const actionTransactionId = searchParams.get("transactionId")
+  const action = searchParams.get("action") ?? "view"
+
+  const isValidAction =
+    action === "view" ||
+    action === "classify" ||
+    action === "allocate" ||
+    action === "attachments"
+
+  const resolvedAction = isValidAction ? action : "view"
+
+  const directDialogKey = useMemo(() => {
+    if (!actionTransactionId) {
+      return null
+    }
+
+    return `${actionTransactionId}:${resolvedAction}`
+  }, [actionTransactionId, resolvedAction])
 
   const [page, setPage] = useState(0)
   const [size, setSize] = useState(10)
@@ -43,6 +67,11 @@ export function TransactionsPage() {
     searchParams.get("onlyUnallocated") === "true",
   )
 
+  const [directDialogOpen, setDirectDialogOpen] = useState(false)
+  const [openedDirectDialogKey, setOpenedDirectDialogKey] = useState<
+    string | null
+  >(null)
+
   const { data, isLoading, isError } = useFinancialTransactions({
     page,
     size,
@@ -63,6 +92,30 @@ export function TransactionsPage() {
   const { data: accounts = [] } = useAccountOptions()
   const { data: categories = [] } = useCategoryOptions()
 
+  const { data: directTransaction, isLoading: isDirectTransactionLoading } =
+    useFinancialTransaction({
+      id: actionTransactionId,
+    })
+
+  useEffect(() => {
+    if (!directTransaction || !directDialogKey) {
+      return
+    }
+
+    if (openedDirectDialogKey === directDialogKey) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setDirectDialogOpen(true)
+      setOpenedDirectDialogKey(directDialogKey)
+    }, 0)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [directTransaction, directDialogKey, openedDirectDialogKey])
+
   function handleClearFilters() {
     setType("")
     setStatus("")
@@ -77,6 +130,23 @@ export function TransactionsPage() {
     setOnlyUnallocated(false)
     setPage(0)
     setSearchParams({})
+  }
+
+  function handleDirectDialogOpenChange(open: boolean) {
+    setDirectDialogOpen(open)
+
+    if (open) {
+      return
+    }
+
+    const nextParams = new URLSearchParams(searchParams)
+
+    nextParams.delete("transactionId")
+    nextParams.delete("action")
+
+    setSearchParams(nextParams, {
+      replace: true,
+    })
   }
 
   return (
@@ -195,6 +265,12 @@ export function TransactionsPage() {
         </div>
       )}
 
+      {isDirectTransactionLoading && actionTransactionId && (
+        <div className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+          Abrindo transação selecionada...
+        </div>
+      )}
+
       {data && (
         <>
           <FinancialTransactionsTable
@@ -222,6 +298,42 @@ export function TransactionsPage() {
             onPageChange={setPage}
           />
         </>
+      )}
+
+      {directTransaction && resolvedAction === "view" && (
+        <ViewFinancialTransactionDialog
+          transaction={directTransaction}
+          open={directDialogOpen}
+          onOpenChange={handleDirectDialogOpenChange}
+          trigger={null}
+        />
+      )}
+
+      {directTransaction && resolvedAction === "classify" && (
+        <ClassifyFinancialTransactionDialog
+          transaction={directTransaction}
+          open={directDialogOpen}
+          onOpenChange={handleDirectDialogOpenChange}
+          trigger={null}
+        />
+      )}
+
+      {directTransaction && resolvedAction === "allocate" && (
+        <ManageTransactionAllocationsDialog
+          transaction={directTransaction}
+          open={directDialogOpen}
+          onOpenChange={handleDirectDialogOpenChange}
+          trigger={null}
+        />
+      )}
+
+      {directTransaction && resolvedAction === "attachments" && (
+        <FinancialTransactionAttachmentsDialog
+          transaction={directTransaction}
+          open={directDialogOpen}
+          onOpenChange={handleDirectDialogOpenChange}
+          trigger={null}
+        />
       )}
     </div>
   )

@@ -14,12 +14,22 @@ import type { FinancialTransaction } from "@/features/financial-transactions/fin
 
 type FinancialTransactionAttachmentsDialogProps = {
   transaction: FinancialTransaction
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  trigger?: React.ReactNode | null
 }
 
 export function FinancialTransactionAttachmentsDialog({
   transaction,
+  open,
+  onOpenChange,
+  trigger
 }: FinancialTransactionAttachmentsDialogProps) {
-  const [open, setOpen] = useState(false)
+
+  const [internalOpen, setInternalOpen] = useState(false)
+
+  const dialogOpen = open ?? internalOpen
+  const setDialogOpen = onOpenChange ?? setInternalOpen
 
   const transactionDescription =
     transaction.description?.trim() ||
@@ -28,17 +38,21 @@ export function FinancialTransactionAttachmentsDialog({
 
   return (
     <>
+    {trigger === undefined ? (
       <DropdownMenuItem
         onSelect={(event) => {
           event.preventDefault()
-          setOpen(true)
+          setDialogOpen(true)
         }}
       >
         <Paperclip className="mr-2 size-4" />
         Anexos
       </DropdownMenuItem>
+    ) : (
+      trigger
+    )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Anexos da transação</DialogTitle>
@@ -49,7 +63,7 @@ export function FinancialTransactionAttachmentsDialog({
 
           <TransactionAttachmentsSection
             transactionId={transaction.id}
-            enabled={open}
+            enabled={dialogOpen}
             mode="manage"
           />
         </DialogContent>

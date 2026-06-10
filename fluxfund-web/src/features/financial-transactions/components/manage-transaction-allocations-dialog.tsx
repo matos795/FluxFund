@@ -35,12 +35,22 @@ import { getApiErrorMessage } from "@/utils/api-error"
 
 type ManageTransactionAllocationsDialogProps = {
   transaction: FinancialTransaction
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  trigger?: React.ReactNode | null
 }
 
 export function ManageTransactionAllocationsDialog({
   transaction,
+  open,
+  onOpenChange,
+  trigger,
 }: ManageTransactionAllocationsDialogProps) {
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+
+  const dialogOpen = open ?? internalOpen
+  const setDialogOpen = onOpenChange ?? setInternalOpen
+
   const [editingAllocation, setEditingAllocation] =
     useState<TransactionAllocation | null>(null)
 
@@ -260,20 +270,24 @@ export function ManageTransactionAllocationsDialog({
 
   return (
     <>
-      <DropdownMenuItem
-        onSelect={(event) => {
-          event.preventDefault()
-          setOpen(true)
-        }}
-      >
-        <WalletCards className="mr-2 size-4" />
-        Alocações
-      </DropdownMenuItem>
+      {trigger === undefined ? (
+        <DropdownMenuItem
+          onSelect={(event) => {
+            event.preventDefault()
+            setDialogOpen(true)
+          }}
+        >
+          <WalletCards className="mr-2 size-4" />
+          Alocações
+        </DropdownMenuItem>
+      ) : (
+        trigger
+      )}
 
       <Dialog
-        open={open}
+        open={dialogOpen}
         onOpenChange={(isOpen) => {
-          setOpen(isOpen)
+          setDialogOpen(isOpen)
 
           if (!isOpen) {
             setEditingAllocation(null)
