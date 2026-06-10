@@ -156,6 +156,7 @@ export function MonthlyCashFlowChart({ data }: MonthlyCashFlowChartProps) {
                   dataKey="income"
                   name="Receitas"
                   fill="hsl(var(--chart-1))"
+                  fillOpacity={0.85}
                   radius={[6, 6, 0, 0]}
                   maxBarSize={34}
                 />
@@ -164,6 +165,7 @@ export function MonthlyCashFlowChart({ data }: MonthlyCashFlowChartProps) {
                   dataKey="expense"
                   name="Despesas"
                   fill="hsl(var(--chart-2))"
+                  fillOpacity={0.85}
                   radius={[6, 6, 0, 0]}
                   maxBarSize={34}
                 />
