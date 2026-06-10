@@ -11,7 +11,6 @@ import {
 } from "lucide-react"
 
 import { PageHeader } from "@/components/layout/page-header"
-import { DashboardPendingCard } from "@/features/dashboard/components/dashboard-pending-card"
 import { DashboardPeriodFilter } from "@/features/dashboard/components/dashboard-period-filter"
 import { DashboardSummaryCard } from "@/features/dashboard/components/dashboard-summary-card"
 import {
@@ -27,6 +26,8 @@ import { useDashboardExpensesByCategory } from "@/features/dashboard/hooks/use-d
 import { ExpensesByCategoryChart } from "@/features/dashboard/components/expenses-by-category-chart"
 import { useDashboardFundsOverview } from "@/features/dashboard/hooks/use-dashboard-funds-overview"
 import { FundsOverviewChart } from "@/features/dashboard/components/funds-overview-chart"
+import { useDashboardAlerts } from "@/features/dashboard/hooks/use-dashboard-alerts"
+import { DashboardAlertsPanel } from "@/features/dashboard/components/dashboard-alerts-panel"
 
 export function DashboardPage() {
   const [periodPreset, setPeriodPreset] =
@@ -61,6 +62,11 @@ export function DashboardPage() {
     startDate: period.startDate,
     endDate: period.endDate,
     limit: 10,
+  })
+
+  const { data: alerts } = useDashboardAlerts({
+    startDate: period.startDate,
+    endDate: period.endDate,
   })
 
   if (isLoading) {
@@ -271,22 +277,8 @@ export function DashboardPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2">
-        <DashboardPendingCard
-          title="Transações a classificar"
-          value={summary?.unclassifiedCount ?? 0}
-          description="Clique para revisar lançamentos que ainda precisam de categoria."
-          icon={AlertTriangle}
-          to="/transactions?onlyUnclassified=true"
-        />
-
-        <DashboardPendingCard
-          title="Transações a alocar"
-          value={summary?.unallocatedCount ?? 0}
-          description="Clique para resolver lançamentos sem destinação completa."
-          icon={AlertTriangle}
-          to="/transactions?onlyUnallocated=true&status=SETTLED"
-        />
+      <section>
+        <DashboardAlertsPanel alerts={alerts} />
       </section>
     </div>
   )

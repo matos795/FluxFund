@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fluxfund.api.domain.account.repository.AccountRepository;
+import com.fluxfund.api.domain.dashboard.dto.DashboardAlertsResponse;
 import com.fluxfund.api.domain.dashboard.dto.DashboardSummaryResponse;
 import com.fluxfund.api.domain.dashboard.dto.ExpenseByCategoryProjection;
 import com.fluxfund.api.domain.dashboard.dto.ExpenseByCategoryResponse;
@@ -337,5 +338,45 @@ public class DashboardService {
                                                         periodBalance);
                                 })
                                 .toList();
+        }
+
+        public DashboardAlertsResponse getAlerts(
+                        UUID organizationId,
+                        LocalDate startDate,
+                        LocalDate endDate) {
+                organizationAccessService.requireReadAccess(organizationId);
+
+                validateOrganizationExists(organizationId);
+
+                LocalDate resolvedStartDate = startDate != null
+                                ? startDate
+                                : LocalDate.now().withDayOfYear(1);
+
+                LocalDate resolvedEndDate = endDate != null
+                                ? endDate
+                                : LocalDate.now();
+
+                if (resolvedEndDate.isBefore(resolvedStartDate)) {
+                        throw new BusinessException("End date cannot be before start date");
+                }
+
+                DashboardSummaryResponse summary = getSummary(
+                                organizationId,
+                                resolvedStartDate,
+                                resolvedEndDate);
+
+                long negativeFundsCount = fundRepository.countNegativeFunds(organizationId);
+
+                long expensesWithoutFiscalDocumentCount = financialTransactionRepository
+                                .countSettledExpensesWithoutFiscalDocument(
+                                                organizationId,
+                                                resolvedStartDate,
+                                                resolvedEndDate);
+
+                return new DashboardAlertsResponse(
+                                summary.unclassifiedCount(),
+                                summary.unallocatedCount(),
+                                negativeFundsCount,
+                                expensesWithoutFiscalDocumentCount);
         }
 }

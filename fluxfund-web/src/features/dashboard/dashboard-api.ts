@@ -1,5 +1,5 @@
 import { httpClient } from "@/api/http-client"
-import type { DashboardSummary, ExpenseByCategoryItem, FundOverviewItem, MonthlyCashFlowItem } from "./dashboard-types"
+import type { DashboardAlerts, DashboardSummary, ExpenseByCategoryItem, FundOverviewItem, MonthlyCashFlowItem } from "./dashboard-types"
 
 type GetDashboardSummaryParams = {
   startDate?: string
@@ -47,6 +47,17 @@ export const dashboardApi = {
   async getFundsOverview(params: GetDashboardChartParams) {
     const response = await httpClient.get<FundOverviewItem[]>(
       "/api/v1/dashboard/funds-overview",
+      {
+        params,
+      },
+    )
+
+    return response.data
+  },
+
+  async getAlerts(params: GetDashboardSummaryParams) {
+    const response = await httpClient.get<DashboardAlerts>(
+      "/api/v1/dashboard/alerts",
       {
         params,
       },

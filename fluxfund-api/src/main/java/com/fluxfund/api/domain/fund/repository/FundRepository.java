@@ -97,4 +97,21 @@ public interface FundRepository extends JpaRepository<Fund, UUID> {
                         @Param("startDate") LocalDate startDate,
                         @Param("endDate") LocalDate endDate,
                         @Param("limit") int limit);
+
+        @Query(value = """
+                        select count(*)
+                        from fund f
+                        where f.organization_id = :organizationId
+                          and f.active = true
+                          and (
+                              f.initial_balance +
+                              coalesce((
+                                  select sum(a.amount)
+                                  from transaction_allocation a
+                                  where a.fund_id = f.id
+                                    and a.organization_id = :organizationId
+                              ), 0)
+                          ) < 0
+                        """, nativeQuery = true)
+        long countNegativeFunds(@Param("organizationId") UUID organizationId);
 }

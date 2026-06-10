@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fluxfund.api.domain.dashboard.dto.DashboardAlertsResponse;
 import com.fluxfund.api.domain.dashboard.dto.DashboardSummaryResponse;
 import com.fluxfund.api.domain.dashboard.dto.ExpenseByCategoryResponse;
 import com.fluxfund.api.domain.dashboard.dto.FundOverviewResponse;
@@ -77,5 +78,15 @@ public class DashboardController {
                         startDate,
                         endDate,
                         limit));
+    }
+
+    @GetMapping("/alerts")
+    public ResponseEntity<DashboardAlertsResponse> getAlerts(
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
+        return ResponseEntity.ok(
+                service.getAlerts(organizationId, startDate, endDate));
     }
 }

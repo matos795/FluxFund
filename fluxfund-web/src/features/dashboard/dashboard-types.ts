@@ -37,3 +37,10 @@ export type FundOverviewItem = {
   expenseAllocated: number
   periodBalance: number
 }
+
+export type DashboardAlerts = {
+  unclassifiedCount: number
+  unallocatedCount: number
+  negativeFundsCount: number
+  expensesWithoutFiscalDocumentCount: number
+}
