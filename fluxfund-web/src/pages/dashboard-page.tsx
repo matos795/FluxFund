@@ -21,6 +21,8 @@ import {
 } from "@/features/dashboard/dashboard-periods"
 import { useDashboardSummary } from "@/features/dashboard/hooks/use-dashboard-summary"
 import { formatCurrency, formatDate } from "@/utils/formatters"
+import { useDashboardMonthlyCashFlow } from "@/features/dashboard/hooks/use-dashboard-monthly-cash-flow"
+import { MonthlyCashFlowChart } from "@/features/dashboard/components/monthly-cash-flow-chart"
 
 export function DashboardPage() {
   const [periodPreset, setPeriodPreset] =
@@ -39,6 +41,13 @@ export function DashboardPage() {
     startDate: period.startDate,
     endDate: period.endDate,
   })
+
+  const { data: monthlyCashFlow = [] } = useDashboardMonthlyCashFlow({
+    startDate: period.startDate,
+    endDate: period.endDate,
+  })
+
+  console.log("monthlyCashFlow", monthlyCashFlow)
 
   if (isLoading) {
     return <p>Carregando dashboard...</p>
@@ -176,6 +185,42 @@ export function DashboardPage() {
               tone={card.tone}
             />
           ))}
+        </div>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-3">
+        <MonthlyCashFlowChart data={monthlyCashFlow} />
+
+        <div className="rounded-xl border bg-card p-4">
+          <h3 className="font-semibold">Leitura rápida</h3>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Compare as barras de receitas e despesas para entender o volume mensal.
+            A linha mostra o resultado final de cada mês.
+          </p>
+
+          <div className="mt-4 space-y-3 text-sm">
+            <div className="rounded-lg bg-muted p-3">
+              <p className="font-medium">Receitas maiores que despesas</p>
+              <p className="text-muted-foreground">
+                O mês tende a gerar resultado positivo.
+              </p>
+            </div>
+
+            <div className="rounded-lg bg-muted p-3">
+              <p className="font-medium">Despesas maiores que receitas</p>
+              <p className="text-muted-foreground">
+                O mês tende a gerar resultado negativo.
+              </p>
+            </div>
+
+            <div className="rounded-lg bg-muted p-3">
+              <p className="font-medium">Resultado oscilando muito</p>
+              <p className="text-muted-foreground">
+                Pode indicar sazonalidade, repasses concentrados ou lançamentos fora
+                do padrão.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 

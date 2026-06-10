@@ -1,6 +1,7 @@
 package com.fluxfund.api.domain.dashboard.controller;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.format.annotation.DateTimeFormat;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fluxfund.api.domain.dashboard.dto.DashboardSummaryResponse;
+import com.fluxfund.api.domain.dashboard.dto.MonthlyCashFlowResponse;
 import com.fluxfund.api.domain.dashboard.service.DashboardService;
 
 import lombok.RequiredArgsConstructor;
@@ -28,15 +30,20 @@ public class DashboardController {
     @GetMapping("/summary")
     public ResponseEntity<DashboardSummaryResponse> getSummary(
             @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate startDate,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate endDate) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
 
         return ResponseEntity.ok(
-                service.getSummary(organizationId, startDate, endDate)
-        );
+                service.getSummary(organizationId, startDate, endDate));
+    }
+
+    @GetMapping("/monthly-cash-flow")
+    public ResponseEntity<List<MonthlyCashFlowResponse>> getMonthlyCashFlow(
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
+        return ResponseEntity.ok(
+                service.getMonthlyCashFlow(organizationId, startDate, endDate));
     }
 }

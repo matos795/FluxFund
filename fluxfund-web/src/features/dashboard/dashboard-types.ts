@@ -13,3 +13,11 @@ export type DashboardSummary = {
   unclassifiedCount: number
   unallocatedCount: number
 }
+
+export type MonthlyCashFlowItem = {
+  month: string
+  label: string
+  income: number
+  expense: number
+  net: number
+}

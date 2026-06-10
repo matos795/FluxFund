@@ -13,6 +13,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.fluxfund.api.domain.dashboard.dto.MonthlyCashFlowProjection;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
@@ -143,4 +144,22 @@ public interface FinancialTransactionRepository
             @Param("organizationId") UUID organizationId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
+
+            @Query(value = """
+        select
+            to_char(date_trunc('month', t.settlement_date), 'YYYY-MM') as month,
+            coalesce(sum(case when t.type = 'INCOME' then abs(t.settled_amount) else 0 end), 0) as income,
+            coalesce(sum(case when t.type = 'EXPENSE' then abs(t.settled_amount) else 0 end), 0) as expense
+        from financial_transaction t
+        where t.organization_id = :organizationId
+          and t.status = 'SETTLED'
+          and t.type in ('INCOME', 'EXPENSE')
+          and t.settlement_date between :startDate and :endDate
+        group by date_trunc('month', t.settlement_date)
+        order by date_trunc('month', t.settlement_date)
+        """, nativeQuery = true)
+List<MonthlyCashFlowProjection> findMonthlyCashFlow(
+        @Param("organizationId") UUID organizationId,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate);
 }
