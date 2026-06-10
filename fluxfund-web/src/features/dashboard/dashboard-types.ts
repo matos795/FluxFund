@@ -44,3 +44,26 @@ export type DashboardAlerts = {
   negativeFundsCount: number
   expensesWithoutFiscalDocumentCount: number
 }
+
+export type DashboardTransactionActionItem = {
+  transactionId: string
+  settlementDate: string | null
+  description: string | null
+  rawDescription: string | null
+  accountName: string
+  categoryName: string | null
+  amount: number
+}
+
+export type DashboardFundActionItem = {
+  fundId: string
+  fundName: string
+  currentBalance: number
+}
+
+export type DashboardActionItems = {
+  unclassifiedTransactions: DashboardTransactionActionItem[]
+  unallocatedTransactions: DashboardTransactionActionItem[]
+  expensesWithoutFiscalDocument: DashboardTransactionActionItem[]
+  negativeFunds: DashboardFundActionItem[]
+}

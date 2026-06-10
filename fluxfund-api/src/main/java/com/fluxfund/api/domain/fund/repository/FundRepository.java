@@ -12,6 +12,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.fluxfund.api.domain.dashboard.dto.DashboardFundActionItemProjection;
 import com.fluxfund.api.domain.dashboard.dto.FundOverviewProjection;
 import com.fluxfund.api.domain.fund.Fund;
 
@@ -114,4 +115,36 @@ public interface FundRepository extends JpaRepository<Fund, UUID> {
                           ) < 0
                         """, nativeQuery = true)
         long countNegativeFunds(@Param("organizationId") UUID organizationId);
+
+        @Query(value = """
+                        select
+                            f.id as fundId,
+                            f.name as fundName,
+                            (
+                                f.initial_balance +
+                                coalesce((
+                                    select sum(a.amount)
+                                    from transaction_allocation a
+                                    where a.fund_id = f.id
+                                      and a.organization_id = :organizationId
+                                ), 0)
+                            ) as currentBalance
+                        from fund f
+                        where f.organization_id = :organizationId
+                          and f.active = true
+                          and (
+                              f.initial_balance +
+                              coalesce((
+                                  select sum(a.amount)
+                                  from transaction_allocation a
+                                  where a.fund_id = f.id
+                                    and a.organization_id = :organizationId
+                              ), 0)
+                          ) < 0
+                        order by currentBalance asc
+                        limit :limit
+                        """, nativeQuery = true)
+        List<DashboardFundActionItemProjection> findNegativeFundActionItems(
+                        @Param("organizationId") UUID organizationId,
+                        @Param("limit") int limit);
 }

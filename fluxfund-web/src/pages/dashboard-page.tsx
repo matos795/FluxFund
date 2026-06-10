@@ -28,6 +28,8 @@ import { useDashboardFundsOverview } from "@/features/dashboard/hooks/use-dashbo
 import { FundsOverviewChart } from "@/features/dashboard/components/funds-overview-chart"
 import { useDashboardAlerts } from "@/features/dashboard/hooks/use-dashboard-alerts"
 import { DashboardAlertsPanel } from "@/features/dashboard/components/dashboard-alerts-panel"
+import { useDashboardActionItems } from "@/features/dashboard/hooks/use-dashboard-action-items"
+import { DashboardActionItemsPanel } from "@/features/dashboard/components/dashboard-action-items-panel"
 
 export function DashboardPage() {
   const [periodPreset, setPeriodPreset] =
@@ -67,6 +69,12 @@ export function DashboardPage() {
   const { data: alerts } = useDashboardAlerts({
     startDate: period.startDate,
     endDate: period.endDate,
+  })
+
+  const { data: actionItems } = useDashboardActionItems({
+    startDate: period.startDate,
+    endDate: period.endDate,
+    limit: 5,
   })
 
   if (isLoading) {
@@ -279,6 +287,7 @@ export function DashboardPage() {
 
       <section>
         <DashboardAlertsPanel alerts={alerts} />
+        <DashboardActionItemsPanel actionItems={actionItems} />
       </section>
     </div>
   )

@@ -15,8 +15,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fluxfund.api.domain.account.repository.AccountRepository;
+import com.fluxfund.api.domain.dashboard.dto.DashboardActionItemsResponse;
 import com.fluxfund.api.domain.dashboard.dto.DashboardAlertsResponse;
+import com.fluxfund.api.domain.dashboard.dto.DashboardFundActionItemProjection;
+import com.fluxfund.api.domain.dashboard.dto.DashboardFundActionItemResponse;
 import com.fluxfund.api.domain.dashboard.dto.DashboardSummaryResponse;
+import com.fluxfund.api.domain.dashboard.dto.DashboardTransactionActionItemProjection;
+import com.fluxfund.api.domain.dashboard.dto.DashboardTransactionActionItemResponse;
 import com.fluxfund.api.domain.dashboard.dto.ExpenseByCategoryProjection;
 import com.fluxfund.api.domain.dashboard.dto.ExpenseByCategoryResponse;
 import com.fluxfund.api.domain.dashboard.dto.FundOverviewResponse;
@@ -378,5 +383,85 @@ public class DashboardService {
                                 summary.unallocatedCount(),
                                 negativeFundsCount,
                                 expensesWithoutFiscalDocumentCount);
+        }
+
+        public DashboardActionItemsResponse getActionItems(
+                        UUID organizationId,
+                        LocalDate startDate,
+                        LocalDate endDate,
+                        Integer limit) {
+                organizationAccessService.requireReadAccess(organizationId);
+
+                validateOrganizationExists(organizationId);
+
+                LocalDate resolvedStartDate = startDate != null
+                                ? startDate
+                                : LocalDate.now().withDayOfYear(1);
+
+                LocalDate resolvedEndDate = endDate != null
+                                ? endDate
+                                : LocalDate.now();
+
+                if (resolvedEndDate.isBefore(resolvedStartDate)) {
+                        throw new BusinessException("End date cannot be before start date");
+                }
+
+                int resolvedLimit = limit != null && limit > 0 ? limit : 5;
+
+                List<DashboardTransactionActionItemResponse> unclassifiedTransactions = financialTransactionRepository
+                                .findUnclassifiedActionItems(organizationId, resolvedLimit)
+                                .stream()
+                                .map(this::toTransactionActionItemResponse)
+                                .toList();
+
+                List<DashboardTransactionActionItemResponse> unallocatedTransactions = financialTransactionRepository
+                                .findUnallocatedActionItems(organizationId, resolvedLimit)
+                                .stream()
+                                .map(this::toTransactionActionItemResponse)
+                                .toList();
+
+                List<DashboardTransactionActionItemResponse> expensesWithoutFiscalDocument = financialTransactionRepository
+                                .findExpensesWithoutFiscalDocumentActionItems(
+                                                organizationId,
+                                                resolvedStartDate,
+                                                resolvedEndDate,
+                                                resolvedLimit)
+                                .stream()
+                                .map(this::toTransactionActionItemResponse)
+                                .toList();
+
+                List<DashboardFundActionItemResponse> negativeFunds = fundRepository
+                                .findNegativeFundActionItems(organizationId, resolvedLimit)
+                                .stream()
+                                .map(this::toFundActionItemResponse)
+                                .toList();
+
+                return new DashboardActionItemsResponse(
+                                unclassifiedTransactions,
+                                unallocatedTransactions,
+                                expensesWithoutFiscalDocument,
+                                negativeFunds);
+        }
+
+        private DashboardTransactionActionItemResponse toTransactionActionItemResponse(
+                        DashboardTransactionActionItemProjection row) {
+                return new DashboardTransactionActionItemResponse(
+                                row.getTransactionId(),
+                                row.getSettlementDate(),
+                                row.getDescription(),
+                                row.getRawDescription(),
+                                row.getAccountName(),
+                                row.getCategoryName(),
+                                row.getAmount() != null ? row.getAmount() : BigDecimal.ZERO);
+        }
+
+        private DashboardFundActionItemResponse toFundActionItemResponse(
+                        DashboardFundActionItemProjection row) {
+                return new DashboardFundActionItemResponse(
+                                row.getFundId(),
+                                row.getFundName(),
+                                row.getCurrentBalance() != null
+                                                ? row.getCurrentBalance()
+                                                : BigDecimal.ZERO);
         }
 }
