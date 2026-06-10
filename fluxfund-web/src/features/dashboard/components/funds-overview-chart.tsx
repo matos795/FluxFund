@@ -19,9 +19,11 @@ import {
 } from "@/components/ui/card"
 import { formatCurrency } from "@/utils/formatters"
 import type { FundOverviewItem } from "../dashboard-types"
+import { DashboardCardSkeleton } from "./dashboard-card-skeleton"
 
 type FundsOverviewChartProps = {
     data: FundOverviewItem[]
+    isLoading?: boolean
 }
 
 type TooltipPayloadItem = {
@@ -78,7 +80,12 @@ function shortenFundName(name: string) {
     return `${name.slice(0, 24)}...`
 }
 
-export function FundsOverviewChart({ data }: FundsOverviewChartProps) {
+export function FundsOverviewChart({ data, isLoading = false }: FundsOverviewChartProps) {
+
+    if (isLoading) {
+        return <DashboardCardSkeleton />
+    }
+    
     const hasData = data.length > 0
 
     const chartData = data.map((item) => ({

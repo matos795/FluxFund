@@ -18,9 +18,11 @@ import {
 } from "@/components/ui/card"
 import { formatCurrency } from "@/utils/formatters"
 import type { MonthlyCashFlowItem } from "../dashboard-types"
+import { DashboardCardSkeleton } from "./dashboard-card-skeleton"
 
 type MonthlyCashFlowChartProps = {
   data: MonthlyCashFlowItem[]
+  isLoading?: boolean
 }
 
 type TooltipPayloadItem = {
@@ -68,7 +70,15 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   )
 }
 
-export function MonthlyCashFlowChart({ data }: MonthlyCashFlowChartProps) {
+export function MonthlyCashFlowChart({
+  data,
+  isLoading = false,
+}: MonthlyCashFlowChartProps) {
+
+  if (isLoading) {
+  return <DashboardCardSkeleton />
+}
+
   const hasData = data.some(
     (item) => item.income !== 0 || item.expense !== 0 || item.net !== 0,
   )

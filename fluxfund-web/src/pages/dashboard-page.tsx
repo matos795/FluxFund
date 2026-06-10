@@ -161,29 +161,41 @@ export function DashboardPage() {
     endDate: period.endDate,
   })
 
-  const { data: monthlyCashFlow = [] } = useDashboardMonthlyCashFlow({
+  const {
+    data: monthlyCashFlow = [],
+    isLoading: isMonthlyCashFlowLoading,
+  } = useDashboardMonthlyCashFlow({
     startDate: period.startDate,
     endDate: period.endDate,
   })
 
-  const { data: expensesByCategory = [] } = useDashboardExpensesByCategory({
+  const {
+    data: expensesByCategory = [],
+    isLoading: isExpensesByCategoryLoading,
+  } = useDashboardExpensesByCategory({
     startDate: period.startDate,
     endDate: period.endDate,
     limit: 8,
   })
 
-  const { data: fundsOverview = [] } = useDashboardFundsOverview({
+  const {
+    data: fundsOverview = [],
+    isLoading: isFundsOverviewLoading,
+  } = useDashboardFundsOverview({
     startDate: period.startDate,
     endDate: period.endDate,
     limit: 10,
   })
 
-  const { data: alerts } = useDashboardAlerts({
+  const { data: alerts, isLoading: isAlertsLoading } = useDashboardAlerts({
     startDate: period.startDate,
     endDate: period.endDate,
   })
 
-  const { data: actionItems } = useDashboardActionItems({
+  const {
+    data: actionItems,
+    isLoading: isActionItemsLoading,
+  } = useDashboardActionItems({
     startDate: period.startDate,
     endDate: period.endDate,
     limit: 5,
@@ -389,10 +401,13 @@ export function DashboardPage() {
       </section>
 
       <section>
-        <DashboardAlertsPanel alerts={alerts} />
+        <DashboardAlertsPanel alerts={alerts} isLoading={isAlertsLoading} />
       </section>
 
-      <DashboardActionItemsPanel actionItems={actionItems} />
+      <DashboardActionItemsPanel
+        actionItems={actionItems}
+        isLoading={isActionItemsLoading}
+      />
 
       <section className="space-y-4">
         <DashboardSectionHeader
@@ -401,7 +416,10 @@ export function DashboardPage() {
         />
 
         <div className="grid gap-4 xl:grid-cols-3">
-          <MonthlyCashFlowChart data={monthlyCashFlow} />
+          <MonthlyCashFlowChart
+            data={monthlyCashFlow}
+            isLoading={isMonthlyCashFlowLoading}
+          />
 
           <Card>
             <CardHeader>
@@ -441,8 +459,14 @@ export function DashboardPage() {
         </div>
 
         <div className="grid gap-4 xl:grid-cols-2">
-          <ExpensesByCategoryChart data={expensesByCategory} />
-          <FundsOverviewChart data={fundsOverview} />
+          <ExpensesByCategoryChart
+            data={expensesByCategory}
+            isLoading={isExpensesByCategoryLoading}
+          />
+          <FundsOverviewChart
+            data={fundsOverview}
+            isLoading={isFundsOverviewLoading}
+          />
         </div>
       </section>
     </div>

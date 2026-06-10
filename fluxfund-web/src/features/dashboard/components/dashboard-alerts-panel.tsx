@@ -14,9 +14,11 @@ import {
     CardTitle,
 } from "@/components/ui/card"
 import type { DashboardAlerts } from "../dashboard-types"
+import { DashboardCardSkeleton } from "./dashboard-card-skeleton"
 
 type DashboardAlertsPanelProps = {
     alerts?: DashboardAlerts
+    isLoading?: boolean
 }
 
 type AlertItem = {
@@ -40,7 +42,12 @@ const badgeClasses = {
     neutral: "bg-background text-foreground hover:bg-background",
 }
 
-export function DashboardAlertsPanel({ alerts }: DashboardAlertsPanelProps) {
+export function DashboardAlertsPanel({ alerts, isLoading = false }: DashboardAlertsPanelProps) {
+
+    if (isLoading) {
+        return <DashboardCardSkeleton height="h-28" />
+    }
+
     const items: AlertItem[] = [
         {
             title: "A classificar",

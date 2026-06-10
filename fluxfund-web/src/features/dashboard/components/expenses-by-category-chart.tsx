@@ -17,9 +17,11 @@ import {
 } from "@/components/ui/card"
 import { formatCurrency } from "@/utils/formatters"
 import type { ExpenseByCategoryItem } from "../dashboard-types"
+import { DashboardCardSkeleton } from "./dashboard-card-skeleton"
 
 type ExpensesByCategoryChartProps = {
   data: ExpenseByCategoryItem[]
+  isLoading?: boolean
 }
 
 type TooltipPayloadItem = {
@@ -80,6 +82,7 @@ function shortenCategoryName(name: string) {
 
 export function ExpensesByCategoryChart({
   data,
+  isLoading = false,
 }: ExpensesByCategoryChartProps) {
   const hasData = data.length > 0
 
@@ -87,6 +90,10 @@ export function ExpensesByCategoryChart({
     ...item,
     shortCategoryName: shortenCategoryName(item.categoryName),
   }))
+
+  if (isLoading) {
+    return <DashboardCardSkeleton />
+  }
 
   return (
     <Card className="overflow-hidden">
