@@ -11,6 +11,7 @@ export type FinancialTransactionType =
 export type FinancialTransactionSource =
   | "MANUAL"
   | "OFX"
+  | "CREDIT_CARD"
 
 export type FinancialTransactionStatus =
   | "PENDING"
@@ -39,6 +40,10 @@ export type FinancialTransaction = {
   status: FinancialTransactionStatus
 
   externalId: string | null
+
+  creditCardStatementId: string | null
+  installmentNumber: number | null
+  installmentCount: number | null
 
   dueDate: string | null
   settlementDate: string | null
@@ -120,7 +125,7 @@ export type ImportOfxResponse = {
 
 export type ClassifyFinancialTransactionRequest = {
   type: "INCOME" | "EXPENSE" | "TRANSFER"
-  categoryId: string
+  categoryId?: string | null
   dueDate?: string
   settlementDate?: string
   expectedAmount?: number

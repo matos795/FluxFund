@@ -265,9 +265,20 @@ public class FinancialTransactionService {
             throw new BusinessException("Canceled transactions cannot be classified");
         }
 
-        Category category = categoryRepository
-                .findByIdAndOrganizationIdAndActiveTrue(request.categoryId(), organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+        Category category = null;
+
+        if(request.type() != FinancialTransactionType.TRANSFER) {
+            if (request.categoryId() == null) {
+                throw new BusinessException("Category is required for income and expense transactions");
+            }
+
+            category = categoryRepository.findByIdAndOrganizationIdAndActiveTrue(request.categoryId(), organizationId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+        }
+
+        if (request.type() == FinancialTransactionType.TRANSFER && request.categoryId() != null) {
+            throw new BusinessException("Transfer transactions cannot have a category");
+        }
 
         validateCategoryMatchesTransactionType(request.type(), category);
 
@@ -313,11 +324,11 @@ public class FinancialTransactionService {
         repository.save(financialTransaction);
 
         auditLogService.record(
-                organizationId,
-                AuditEntityType.FINANCIAL_TRANSACTION,
-                financialTransaction.getId(),
-                AuditAction.CLASSIFY,
-                "Financial transaction classified with category " + category.getId());
+            organizationId,
+            AuditEntityType.FINANCIAL_TRANSACTION,
+            financialTransaction.getId(),
+            AuditAction.CLASSIFY,
+            "Financial transaction classified with category " + (category != null ? category.getId() : "<none>"));
 
         return FinancialTransactionMapper.toResponse(financialTransaction);
     }

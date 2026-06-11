@@ -224,14 +224,7 @@ export function ClassifyFinancialTransactionDialog({
             return
         }
 
-        if (type === "TRANSFER") {
-            toast.error(
-                "Transações OFX de transferência ainda devem ser ajustadas manualmente.",
-            )
-            return
-        }
-
-        if (!categoryId) {
+        if (type !== "TRANSFER" && !categoryId) {
             toast.error("Selecione uma categoria.")
             return
         }
@@ -246,22 +239,24 @@ export function ClassifyFinancialTransactionDialog({
             return
         }
 
-        const validAllocations = allocations
-            .filter(
-                (allocation) =>
-                    allocation.fundId &&
-                    Number(allocation.amount || 0) > 0,
-            )
-            .map((allocation) => ({
-                fundId: allocation.fundId,
-                beneficiaryId: allocation.beneficiaryId || null,
-                referenceMonth: allocation.referenceMonth
-                    ? `${allocation.referenceMonth}-01`
-                    : null,
-                amount: Math.abs(Number(allocation.amount)),
-            }))
+        const validAllocations = type === "TRANSFER"
+            ? []
+            : allocations
+                .filter(
+                    (allocation) =>
+                        allocation.fundId &&
+                        Number(allocation.amount || 0) > 0,
+                )
+                .map((allocation) => ({
+                    fundId: allocation.fundId,
+                    beneficiaryId: allocation.beneficiaryId || null,
+                    referenceMonth: allocation.referenceMonth
+                        ? `${allocation.referenceMonth}-01`
+                        : null,
+                    amount: Math.abs(Number(allocation.amount)),
+                }))
 
-        const hasIncompleteAllocation = allocations.some((allocation) => {
+        const hasIncompleteAllocation = type !== "TRANSFER" && allocations.some((allocation) => {
             const amount = Number(allocation.amount || 0)
 
             return amount > 0 && !allocation.fundId
@@ -317,7 +312,7 @@ export function ClassifyFinancialTransactionDialog({
                 transactionId: transaction.id,
                 data: {
                     type,
-                    categoryId,
+                    categoryId: type === "TRANSFER" ? null : categoryId,
                     dueDate: settlementDate,
                     settlementDate,
                     expectedAmount: amountNumber,
@@ -456,6 +451,7 @@ export function ClassifyFinancialTransactionDialog({
                                 <SelectContent>
                                     <SelectItem value="INCOME">Receita</SelectItem>
                                     <SelectItem value="EXPENSE">Despesa</SelectItem>
+                                    <SelectItem value="TRANSFER">Transferência</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -465,7 +461,7 @@ export function ClassifyFinancialTransactionDialog({
                             <CategoryComboboxWithCreate
                                 value={categoryId}
                                 type={type === "TRANSFER" ? undefined : type}
-                                placeholder="Selecione a categoria"
+                                placeholder={type === "TRANSFER" ? "Transferência não usa categoria" : "Selecione a categoria"}
                                 searchPlaceholder="Buscar categoria..."
                                 emptyMessage="Nenhuma categoria encontrada."
                                 allowClear={false}
@@ -508,6 +504,7 @@ export function ClassifyFinancialTransactionDialog({
                         </div>
                     </div>
 
+                    {type !== "TRANSFER" && (
                     <div className="space-y-3 rounded-xl border p-4">
                         <div className="flex items-center justify-between gap-4">
                             <div>
@@ -689,6 +686,7 @@ export function ClassifyFinancialTransactionDialog({
                             </span>
                         </div>
                     </div>
+                    )}
 
                     <div className="space-y-3 rounded-xl border p-4">
                         <div className="flex items-center justify-between gap-4">
@@ -703,7 +701,7 @@ export function ClassifyFinancialTransactionDialog({
                                 </div>
                             </div>
 
-                            {categoryId && (
+                            {(categoryId || type === "TRANSFER") && (
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -716,7 +714,7 @@ export function ClassifyFinancialTransactionDialog({
                             )}
                         </div>
 
-                        {!categoryId ? (
+                        {!categoryId && type !== "TRANSFER" ? (
                             <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
                                 Selecione uma categoria para adicionar anexos à classificação.
                             </div>

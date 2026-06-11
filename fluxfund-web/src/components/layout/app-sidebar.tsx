@@ -1,6 +1,7 @@
 import {
   Banknote,
   ChartNoAxesCombined,
+  CreditCard,
   FolderTree,
   HandCoins,
   HandHeart,
@@ -59,6 +60,11 @@ const navigationItems = [
     label: "Transações",
     href: "/transactions",
     icon: ReceiptText,
+  },
+  {
+    label: "Cartões",
+    href: "/credit-card-statements",
+    icon: CreditCard,
   },
   {
     label: "Relatórios",

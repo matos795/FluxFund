@@ -17,6 +17,7 @@ import { SettingsPage } from "@/pages/settings-page"
 import { SupportAgreementsPage } from "@/pages/support-agreements-page"
 import { TransactionsPage } from "@/pages/transactions-page"
 import { ProtectedRoute } from "@/routes/protected-route"
+import { CreditCardStatementsPage } from "@/pages/credit-card-statements-page"
 
 export function AppRoutes() {
   return (
@@ -46,6 +47,7 @@ export function AppRoutes() {
             path="/reports/accountability"
             element={<AccountabilityReportPage />}
           />
+          <Route path="/credit-card-statements" element={<CreditCardStatementsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>

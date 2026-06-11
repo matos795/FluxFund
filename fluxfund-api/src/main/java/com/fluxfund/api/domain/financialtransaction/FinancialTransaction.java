@@ -8,6 +8,7 @@ import java.util.List;
 
 import com.fluxfund.api.domain.account.Account;
 import com.fluxfund.api.domain.category.Category;
+import com.fluxfund.api.domain.creditcardstatement.CreditCardStatement;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
 import com.fluxfund.api.shared.BaseEntity;
@@ -96,6 +97,16 @@ public class FinancialTransaction extends BaseEntity {
 
     @Column(name = "classified_at")
     private LocalDateTime classifiedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "credit_card_statement_id")
+    private CreditCardStatement creditCardStatement;
+
+    @Column(name = "installment_number")
+    private Integer installmentNumber;
+
+    @Column(name = "installment_count")
+    private Integer installmentCount;
 
     @Builder.Default
     @OneToMany(mappedBy = "financialTransaction", cascade = CascadeType.ALL, orphanRemoval = true)

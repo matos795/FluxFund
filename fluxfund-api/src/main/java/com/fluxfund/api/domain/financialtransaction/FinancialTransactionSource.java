@@ -2,5 +2,6 @@ package com.fluxfund.api.domain.financialtransaction;
 
 public enum FinancialTransactionSource {
     MANUAL,
-    OFX
+    OFX,
+    CREDIT_CARD
 }

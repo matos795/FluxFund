@@ -16,7 +16,6 @@ import jakarta.validation.constraints.Size;
 public record ClassifyFinancialTransactionRequest(
     @NotNull
     FinancialTransactionType type,
-    @NotNull
     UUID categoryId,
     LocalDate dueDate,
     @NotNull

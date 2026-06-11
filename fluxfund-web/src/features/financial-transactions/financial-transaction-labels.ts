@@ -16,4 +16,5 @@ export const financialTransactionStatusLabels: Record<FinancialTransactionStatus
 export const financialTransactionSourceLabels: Record<FinancialTransactionSource, string> = {
   MANUAL: "Manual",
   OFX: "OFX",
+  CREDIT_CARD: "Cartão de crédito",
 }

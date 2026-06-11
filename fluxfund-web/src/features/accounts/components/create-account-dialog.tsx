@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, } from "@/components/ui/dialog"
 import { useCreateAccount } from "../hooks/use-create-account"
 import { toast } from "sonner"
+import { getApiErrorMessage } from "@/utils/api-error"
 
 type CreateAccountDialogProps = {
   open?: boolean
@@ -53,9 +54,11 @@ export function CreateAccountDialog({
           onCreated?.(account.id)
           handleOpenChange(false)
         },
-        onError: () => {
-          toast.error("Erro ao criar conta. Tente novamente.")
-        }
+        onError: (error) => {
+          toast.error(
+            getApiErrorMessage(error, "Erro ao criar conta. Tente novamente."),
+          )
+        },
       },
     )
   }

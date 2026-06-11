@@ -54,6 +54,11 @@ public class FinancialTransactionMapper {
                 financialTransaction.getSource(),
                 financialTransaction.getStatus(),
                 financialTransaction.getExternalId(),
+                financialTransaction.getCreditCardStatement() != null
+                        ? financialTransaction.getCreditCardStatement().getId()
+                        : null,
+                financialTransaction.getInstallmentNumber(),
+                financialTransaction.getInstallmentCount(),
                 financialTransaction.getDueDate(),
                 financialTransaction.getSettlementDate(),
                 financialTransaction.getExpectedAmount(),

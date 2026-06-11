@@ -15,40 +15,44 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.transactionallocation.dto.TransactionAllocationResponse;
 
 public record FinancialTransactionResponse(
-                UUID id,
+        UUID id,
 
-                AccountSummaryResponse account,
-                CategorySummaryResponse category,
+        AccountSummaryResponse account,
+        CategorySummaryResponse category,
 
-                FinancialTransactionType type,
-                FinancialTransactionSource source,
-                FinancialTransactionStatus status,
+        FinancialTransactionType type,
+        FinancialTransactionSource source,
+        FinancialTransactionStatus status,
 
-                String externalId,
+        String externalId,
 
-                LocalDate dueDate,
-                LocalDate settlementDate,
+        UUID creditCardStatementId,
+        Integer installmentNumber,
+        Integer installmentCount,
 
-                BigDecimal expectedAmount,
-                BigDecimal settledAmount,
+        LocalDate dueDate,
+        LocalDate settlementDate,
 
-                BigDecimal interestAmount,
-                BigDecimal discountAmount,
+        BigDecimal expectedAmount,
+        BigDecimal settledAmount,
 
-                String description,
-                String rawDescription,
-                String documentNumber,
+        BigDecimal interestAmount,
+        BigDecimal discountAmount,
 
-                List<TransactionAllocationResponse> allocations,
+        String description,
+        String rawDescription,
+        String documentNumber,
 
-                LocalDateTime importedAt,
-                LocalDateTime classifiedAt,
+        List<TransactionAllocationResponse> allocations,
 
-                OffsetDateTime createdAt,
-                OffsetDateTime updatedAt,
+        LocalDateTime importedAt,
+        LocalDateTime classifiedAt,
 
-                long attachmentCount,
-                long paymentProofAttachmentCount,
-                long fiscalAttachmentCount) {
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt,
+
+        long attachmentCount,
+        long paymentProofAttachmentCount,
+        long fiscalAttachmentCount) {
 
 }

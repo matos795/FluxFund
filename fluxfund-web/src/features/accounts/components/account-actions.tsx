@@ -24,6 +24,7 @@ import {
 import { EditAccountDialog } from "./edit-account-dialog"
 import { toast } from "sonner"
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
+import { getApiErrorMessage } from "@/utils/api-error"
 
 type AccountActionsProps = {
     account: Account
@@ -43,9 +44,11 @@ export function AccountActions({ account }: AccountActionsProps) {
                 toast.success("Conta desativada com sucesso!")
                 setDeleteDialogOpen(false)
             },
-            onError: () => {
-                toast.error("Não foi possível desativar a conta. Verifique se ela não possui transações vinculadas.")
-            }
+            onError: (error) => {
+                toast.error(
+                    getApiErrorMessage(error, "Não foi possível desativar a conta. Verifique se ela não possui transações vinculadas."),
+                )
+            },
         })
     }
 
