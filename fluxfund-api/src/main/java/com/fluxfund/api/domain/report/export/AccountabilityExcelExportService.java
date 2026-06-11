@@ -48,7 +48,7 @@ public class AccountabilityExcelExportService {
             UUID organizationId,
             LocalDate startDate,
             LocalDate endDate) {
-            organizationAccessService.requireReadAccess(organizationId);
+        organizationAccessService.requireReadAccess(organizationId);
 
         log.debug("Exporting accountability report for organizationId={}, startDate={}, endDate={}",
                 organizationId, startDate, endDate);
@@ -63,7 +63,8 @@ public class AccountabilityExcelExportService {
         }
 
         List<AccountabilityByAccountItemResponse> items = report.items();
-        log.debug("Report loaded with {} items for organizationId={}", items != null ? items.size() : 0, organizationId);
+        log.debug("Report loaded with {} items for organizationId={}", items != null ? items.size() : 0,
+                organizationId);
 
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             ExcelStyles styles = createStyles(workbook);
@@ -195,8 +196,7 @@ public class AccountabilityExcelExportService {
     private void createFundsSheet(
             Workbook workbook,
             AccountabilityByAccountReportResponse report,
-            ExcelStyles styles
-    ) {
+            ExcelStyles styles) {
         Sheet sheet = workbook.createSheet("Fundos por Favorecido");
 
         int rowIndex = 0;
@@ -258,8 +258,7 @@ public class AccountabilityExcelExportService {
     private void createAccountsSheet(
             Workbook workbook,
             AccountabilityByAccountReportResponse report,
-            ExcelStyles styles
-    ) {
+            ExcelStyles styles) {
         Sheet sheet = workbook.createSheet("Detalhamento por Banco");
 
         int rowIndex = 0;
@@ -315,10 +314,13 @@ public class AccountabilityExcelExportService {
                     createMoneyCell(row, 4, account.allocatedAmount(), styles);
                     createMoneyCell(row, 5, account.transferredAmount(), styles);
                     createMoneyCell(row, 6, account.pendingAmount(), styles);
-                    createNumberCell(row, 7, account.allocationCount() != null ? account.allocationCount() : 0L, styles);
+                    createNumberCell(row, 7, account.allocationCount() != null ? account.allocationCount() : 0L,
+                            styles);
                 } catch (Exception exception) {
-                    log.error("Error processing account id={} for beneficiaryId={} fundId={} in 'Detalhamento por Banco' sheet: {}",
-                            account.accountId(), item.beneficiaryId(), item.fundId(), exception.getMessage(), exception);
+                    log.error(
+                            "Error processing account id={} for beneficiaryId={} fundId={} in 'Detalhamento por Banco' sheet: {}",
+                            account.accountId(), item.beneficiaryId(), item.fundId(), exception.getMessage(),
+                            exception);
                     throw exception;
                 }
             }
@@ -372,8 +374,7 @@ public class AccountabilityExcelExportService {
                 headerStyle,
                 textStyle,
                 moneyStyle,
-                numberStyle
-        );
+                numberStyle);
     }
 
     private void createHeaderCell(Row row, int columnIndex, String value, ExcelStyles styles) {
@@ -400,22 +401,50 @@ public class AccountabilityExcelExportService {
         cell.setCellStyle(styles.numberStyle());
     }
 
+    private static final int[] ACCOUNTABILITY_SUMMARY_COLUMN_WIDTHS = {
+            30, // Favorecido
+            18, // Compromissos
+            22, // Ofertas Destinadas
+            18, // Total Devido
+            18, // Repassado
+            18 // A Repassar
+    };
+
+    private static final int[] ACCOUNTABILITY_DETAIL_COLUMN_WIDTHS = {
+            30, // Favorecido
+            30, // Fundo
+            26, // Conta
+            22, // Banco
+            22, // Ofertas Destinadas
+            18, // Repassado
+            18, // Saldo no Banco / A Repassar
+            18 // Qtd. Alocações
+    };
+
     private void applySheetDefaults(Sheet sheet, int numberOfColumns) {
         sheet.createFreezePane(0, 4);
+
         sheet.setAutoFilter(new CellRangeAddress(
                 3,
                 3,
                 0,
-                numberOfColumns - 1
-        ));
+                numberOfColumns - 1));
+
+        int[] widths = numberOfColumns == 6
+                ? ACCOUNTABILITY_SUMMARY_COLUMN_WIDTHS
+                : ACCOUNTABILITY_DETAIL_COLUMN_WIDTHS;
 
         for (int columnIndex = 0; columnIndex < numberOfColumns; columnIndex++) {
-            sheet.autoSizeColumn(columnIndex);
-            sheet.setColumnWidth(
-                    columnIndex,
-                    Math.min(sheet.getColumnWidth(columnIndex) + 1000, 18000)
-            );
+            int widthInChars = columnIndex < widths.length
+                    ? widths[columnIndex]
+                    : 18;
+
+            sheet.setColumnWidth(columnIndex, toExcelWidth(widthInChars));
         }
+    }
+
+    private int toExcelWidth(int characters) {
+        return Math.min(characters * 256, 18000);
     }
 
     private void setThinBorders(CellStyle style) {
@@ -431,7 +460,6 @@ public class AccountabilityExcelExportService {
             CellStyle headerStyle,
             CellStyle textStyle,
             CellStyle moneyStyle,
-            CellStyle numberStyle
-    ) {
+            CellStyle numberStyle) {
     }
 }

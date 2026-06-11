@@ -644,6 +644,55 @@ public class FinancialTransactionExcelExportService {
         cell.setCellStyle(styles.numberStyle());
     }
 
+    private static final int[] SUMMARY_COLUMN_WIDTHS = {
+            38, 18, 14
+    };
+
+    private static final int[] TRANSACTION_COLUMN_WIDTHS = {
+            14, // Vencimento
+            16, // Recebimento/Pagamento
+            18, // Mês Referência
+            10, // Ano
+            42, // Descrição
+            30, // Pagador/Favorecido
+            16, // Valor
+            28, // Conta Contábil
+            26, // Conta Corrente
+            14, // Status
+            20, // Banco
+            30, // Fundos
+            20, // Comprovante Pgto?
+            18, // Anexo Fiscal?
+            26, // Tipos de Anexo
+            16, // Origem
+            42, // Descrição Original
+            22, // Documento
+            38  // ID
+    };
+
+    private static final int[] ALL_TRANSACTIONS_COLUMN_WIDTHS = {
+            14, // Tipo
+            14, // Vencimento
+            22, // Pagamento/Recebimento
+            18, // Mês Referência
+            10, // Ano
+            42, // Descrição
+            30, // Favorecido/Pagador
+            16, // Valor
+            28, // Conta Contábil
+            26, // Conta Corrente
+            14, // Status
+            20, // Banco
+            30, // Fundos
+            20, // Comprovante Pgto?
+            18, // Anexo Fiscal?
+            26, // Tipos de Anexo
+            16, // Origem
+            42, // Descrição Original
+            22, // Documento
+            38  // ID
+    };
+
     private void applySheetDefaults(Sheet sheet, int numberOfColumns, int headerRowIndex) {
         sheet.createFreezePane(0, headerRowIndex + 1);
 
@@ -653,12 +702,35 @@ public class FinancialTransactionExcelExportService {
                 0,
                 numberOfColumns - 1));
 
+        int[] widths = resolveColumnWidths(numberOfColumns);
+
         for (int columnIndex = 0; columnIndex < numberOfColumns; columnIndex++) {
-            sheet.autoSizeColumn(columnIndex);
-            sheet.setColumnWidth(
-                    columnIndex,
-                    Math.min(sheet.getColumnWidth(columnIndex) + 1000, 18000));
+            int widthInChars = columnIndex < widths.length
+                    ? widths[columnIndex]
+                    : 18;
+
+            sheet.setColumnWidth(columnIndex, toExcelWidth(widthInChars));
         }
+    }
+
+    private int[] resolveColumnWidths(int numberOfColumns) {
+        if (numberOfColumns == 3) {
+            return SUMMARY_COLUMN_WIDTHS;
+        }
+
+        if (numberOfColumns == 19) {
+            return TRANSACTION_COLUMN_WIDTHS;
+        }
+
+        if (numberOfColumns == 20) {
+            return ALL_TRANSACTIONS_COLUMN_WIDTHS;
+        }
+
+        return new int[numberOfColumns];
+    }
+
+    private int toExcelWidth(int characters) {
+        return Math.min(characters * 256, 18000);
     }
 
     private void setThinBorders(CellStyle style) {
