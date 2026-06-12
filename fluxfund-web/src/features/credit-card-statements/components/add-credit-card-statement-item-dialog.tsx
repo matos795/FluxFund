@@ -199,8 +199,6 @@ export function AddCreditCardStatementItemDialog({
               placeholder="Selecione a categoria"
               searchPlaceholder="Buscar categoria..."
               emptyMessage="Nenhuma categoria de despesa encontrada."
-              allowClear
-              clearLabel="Sem categoria agora"
               onChange={(value) =>
                 setValue("categoryId", value, { shouldValidate: true })
               }

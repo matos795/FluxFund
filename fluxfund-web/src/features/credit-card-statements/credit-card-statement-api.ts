@@ -4,6 +4,7 @@ import type {
   CreateCreditCardItemRequest,
   CreateCreditCardStatementRequest,
   CreditCardStatement,
+  CreditCardStatementImportResponse,
   CreditCardStatementStatus,
   PayCreditCardStatementRequest,
 } from "./credit-card-statement-types"
@@ -74,4 +75,27 @@ export async function payCreditCardStatement(
 
 export async function cancelCreditCardStatement(statementId: string) {
   await httpClient.delete(`/api/v1/credit-card-statements/${statementId}`)
+}
+
+export async function importCreditCardStatementOfx({
+  statementId,
+  file,
+}: {
+  statementId: string
+  file: File
+}) {
+  const formData = new FormData()
+  formData.append("file", file)
+
+  const response = await httpClient.post<CreditCardStatementImportResponse>(
+    `/api/v1/credit-card-statements/${statementId}/import/ofx`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    },
+  )
+
+  return response.data
 }

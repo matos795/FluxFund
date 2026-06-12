@@ -55,3 +55,10 @@ export type PayCreditCardStatementRequest = {
 export type CreditCardStatementWithItems = CreditCardStatement & {
   items?: FinancialTransaction[]
 }
+
+export type CreditCardStatementImportResponse = {
+  imported: number
+  ignoredDuplicates: number
+  failed: number
+  errors: string[]
+}

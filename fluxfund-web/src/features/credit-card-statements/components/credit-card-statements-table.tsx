@@ -36,6 +36,7 @@ import type { CreditCardStatement } from "../credit-card-statement-types"
 import { useCancelCreditCardStatement } from "../hooks/use-cancel-credit-card-statement"
 import { AddCreditCardStatementItemDialog } from "./add-credit-card-statement-item-dialog"
 import { PayCreditCardStatementDialog } from "./pay-credit-card-statement-dialog"
+import { ImportCreditCardStatementOfxDialog } from "./import-credit-card-statement-ofx-dialog"
 
 type CreditCardStatementsTableProps = {
   statements: CreditCardStatement[]
@@ -157,6 +158,7 @@ export function CreditCardStatementsTable({
                     <div className="flex justify-end gap-2">
                       {canFinanceWrite && (
                         <>
+                          <ImportCreditCardStatementOfxDialog statement={statement} />
                           <AddCreditCardStatementItemDialog statement={statement} />
                           <PayCreditCardStatementDialog statement={statement} />
                         </>

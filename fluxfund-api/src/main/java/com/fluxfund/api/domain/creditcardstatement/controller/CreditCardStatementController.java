@@ -7,13 +7,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.fluxfund.api.domain.creditcardstatement.CreditCardStatementStatus;
 import com.fluxfund.api.domain.creditcardstatement.dto.CreateCreditCardItemRequest;
 import com.fluxfund.api.domain.creditcardstatement.dto.CreateCreditCardStatementRequest;
+import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementImportResponse;
 import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementResponse;
 import com.fluxfund.api.domain.creditcardstatement.dto.PayCreditCardStatementRequest;
 import com.fluxfund.api.domain.creditcardstatement.dto.UpdateCreditCardStatementRequest;
+import com.fluxfund.api.domain.creditcardstatement.service.CreditCardStatementOfxImportService;
 import com.fluxfund.api.domain.creditcardstatement.service.CreditCardStatementService;
 import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionResponse;
 
@@ -28,6 +31,7 @@ import static com.fluxfund.api.security.TenantHeaders.ORGANIZATION_ID;
 public class CreditCardStatementController {
 
     private final CreditCardStatementService service;
+    private final CreditCardStatementOfxImportService ofxImportService;
 
     @PostMapping
     public ResponseEntity<CreditCardStatementResponse> create(
@@ -92,5 +96,15 @@ public class CreditCardStatementController {
             @RequestBody @Valid PayCreditCardStatementRequest request) {
 
         return ResponseEntity.ok(service.pay(organizationId, id, request));
+    }
+
+    @PostMapping("/{id}/import-ofx")
+    public ResponseEntity<CreditCardStatementImportResponse> importOfx(
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+            @PathVariable UUID id,
+            @RequestParam("file") MultipartFile file) {
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ofxImportService.importOfx(organizationId, id, file));
     }
 }

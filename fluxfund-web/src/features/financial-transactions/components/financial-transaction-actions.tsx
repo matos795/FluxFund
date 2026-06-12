@@ -18,6 +18,8 @@ import { ViewFinancialTransactionDialog } from "./view-financial-transaction-dia
 import { ClassifyFinancialTransactionDialog } from "./classify-financial-transaction-dialog"
 import { FinancialTransactionAttachmentsDialog } from "@/features/attachments/components/financial-transaction-attachments-dialog"
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
+import { LinkCreditCardPaymentDialog } from "@/features/credit-card-statements/components/link-credit-card-payment-dialog"
+import { getApiErrorMessage } from "@/utils/api-error"
 
 type FinancialTransactionActionsProps = {
   transaction: FinancialTransaction
@@ -38,9 +40,12 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
         toast.success("Transação cancelada com sucesso.")
         setCancelDialogOpen(false)
       },
-      onError: () => {
+      onError: (error) => {
         toast.error(
-          "Não foi possível cancelar a transação. Verifique se ela não possui alocações vinculadas.",
+          getApiErrorMessage(
+            error,
+            "Não foi possível cancelar a transação. Verifique se ela não possui alocações vinculadas.",
+          ),
         )
       },
     })
@@ -49,7 +54,8 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
   const needsClassification =
     transaction.source === "OFX" &&
     transaction.status === "SETTLED" &&
-    !transaction.category 
+    transaction.type !== "TRANSFER" &&
+    !transaction.category
 
   const canEdit =
     transaction.status !== "CANCELED" &&
@@ -66,6 +72,13 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
     !needsClassification
 
   const canCancel = transaction.status !== "CANCELED"
+
+  const canLinkCreditCardPayment =
+    transaction.source === "OFX" &&
+    transaction.status === "SETTLED" &&
+    transaction.type === "EXPENSE" &&
+    transaction.account.type !== "CREDIT_CARD" &&
+    !transaction.category
 
   return (
     <>
@@ -87,6 +100,10 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
 
           {canFinanceWrite && canManageAllocations && (
             <ManageTransactionAllocationsDialog transaction={transaction} />
+          )}
+
+          {canFinanceWrite && canLinkCreditCardPayment && (
+            <LinkCreditCardPaymentDialog transaction={transaction} />
           )}
 
           {canFinanceWrite && needsClassification && (

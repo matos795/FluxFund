@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { CreditCard } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useForm, useWatch } from "react-hook-form"
 import { toast } from "sonner"
 
@@ -24,6 +24,8 @@ import {
   type PayCreditCardStatementFormInput,
 } from "../credit-card-statement-schema"
 import { usePayCreditCardStatement } from "../hooks/use-pay-credit-card-statement"
+import { useCreditCardPaymentCandidates } from "../hooks/use-credit-card-payment-candidates"
+import { formatCurrency, formatDate } from "@/utils/formatters"
 
 type PayCreditCardStatementDialogProps = {
   statement: CreditCardStatement
@@ -62,6 +64,34 @@ export function PayCreditCardStatementDialog({
   const selectedPaymentAccountId = useWatch({
     control,
     name: "paymentAccountId",
+  })
+
+  useEffect(() => {
+    if (!selectedPaymentAccountId) {
+      return
+    }
+
+    const selectedAccount = accountsQuery.data?.content.find(
+      (account) => account.id === selectedPaymentAccountId,
+    )
+
+    if (selectedAccount?.type === "CREDIT_CARD") {
+      setValue("paymentAccountId", "", {
+        shouldValidate: true,
+      })
+    }
+  }, [accountsQuery.data?.content, selectedPaymentAccountId, setValue])
+
+  const paymentCandidatesQuery = useCreditCardPaymentCandidates({
+    statement,
+    paymentAccountId: selectedPaymentAccountId,
+  })
+
+  const paymentCandidates = paymentCandidatesQuery.data ?? []
+  const bestCandidate = paymentCandidates[0]
+  const selectedPaymentTransactionId = useWatch({
+    control,
+    name: "paymentTransactionId",
   })
 
   function handleOpenChange(value: boolean) {
@@ -158,16 +188,100 @@ export function PayCreditCardStatementDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="paymentTransactionId">
-              ID da transação OFX de pagamento da fatura
-            </Label>
-            <Input
-              id="paymentTransactionId"
-              placeholder="Opcional: cole o ID da transação bancária de pagamento"
-              {...register("paymentTransactionId")}
+            <Label>Transação OFX do pagamento da fatura</Label>
+
+            <EntityCombobox
+              value={selectedPaymentTransactionId ?? ""}
+              options={paymentCandidates.map(({ transaction, score }, index) => {
+                const amount = Math.abs(
+                  transaction.settledAmount ?? transaction.expectedAmount ?? 0,
+                )
+
+                const description =
+                  transaction.description?.trim() ||
+                  transaction.rawDescription?.trim() ||
+                  "Transação OFX"
+
+                const isBest = index === 0 && score > 0
+
+                return {
+                  value: transaction.id,
+                  label: `${isBest ? "Sugestão: " : ""}${description} · ${formatCurrency(amount)} · ${formatDate(transaction.settlementDate)}`,
+                }
+              })}
+              placeholder={
+                selectedPaymentAccountId
+                  ? "Selecione a transação OFX do pagamento"
+                  : "Selecione primeiro a conta de pagamento"
+              }
+              searchPlaceholder="Buscar transação..."
+              emptyMessage={
+                paymentCandidatesQuery.isFetching
+                  ? "Buscando transações..."
+                  : "Nenhuma transação OFX candidata encontrada."
+              }
+              allowClear
+              onChange={(value) => {
+                setValue("paymentTransactionId", value, {
+                  shouldValidate: true,
+                })
+
+                const selectedCandidate = paymentCandidates.find(
+                  ({ transaction }) => transaction.id === value,
+                )
+
+                if (selectedCandidate?.transaction.settlementDate) {
+                  setValue("paymentDate", selectedCandidate.transaction.settlementDate, {
+                    shouldValidate: true,
+                  })
+                }
+              }}
             />
+
+            {bestCandidate && !selectedPaymentTransactionId && (
+              <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+                <p className="font-medium">Sugestão encontrada</p>
+                <p className="text-muted-foreground">
+                  {bestCandidate.transaction.description?.trim() ||
+                    bestCandidate.transaction.rawDescription?.trim() ||
+                    "Transação OFX"}
+                </p>
+                <p className="text-muted-foreground">
+                  Valor:{" "}
+                  {formatCurrency(
+                    Math.abs(
+                      bestCandidate.transaction.settledAmount ??
+                      bestCandidate.transaction.expectedAmount ??
+                      0,
+                    ),
+                  )}{" "}
+                  · Data: {formatDate(bestCandidate.transaction.settlementDate)}
+                </p>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  className="mt-2"
+                  onClick={() => {
+                    setValue("paymentTransactionId", bestCandidate.transaction.id, {
+                      shouldValidate: true,
+                    })
+
+                    if (bestCandidate.transaction.settlementDate) {
+                      setValue("paymentDate", bestCandidate.transaction.settlementDate, {
+                        shouldValidate: true,
+                      })
+                    }
+                  }}
+                >
+                  Usar sugestão
+                </Button>
+              </div>
+            )}
+
             <p className="text-xs text-muted-foreground">
-              Campo opcional. Por enquanto, você pode deixar vazio e tratar a transação bancária pela tela de transações.
+              Se você selecionar uma transação OFX, o backend deve vinculá-la à fatura e transformá-la em transferência para evitar duplicidade de despesa.
             </p>
           </div>
 
