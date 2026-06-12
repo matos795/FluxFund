@@ -1,5 +1,6 @@
 package com.fluxfund.api.domain.creditcardstatement.controller;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -98,7 +99,7 @@ public class CreditCardStatementController {
         return ResponseEntity.ok(service.pay(organizationId, id, request));
     }
 
-    @PostMapping("/{id}/import-ofx")
+    @PostMapping({"/{id}/import-ofx", "/{id}/import/ofx"})
     public ResponseEntity<CreditCardStatementImportResponse> importOfx(
             @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @PathVariable UUID id,
@@ -106,5 +107,13 @@ public class CreditCardStatementController {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ofxImportService.importOfx(organizationId, id, file));
+    }
+
+    @GetMapping("/{id}/items")
+    public ResponseEntity<List<FinancialTransactionResponse>> findItems(
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+            @PathVariable UUID id) {
+
+        return ResponseEntity.ok(service.findItems(organizationId, id));
     }
 }

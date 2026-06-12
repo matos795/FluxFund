@@ -8,4 +8,5 @@ export function invalidateFinancialData(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: ["category-result-report"] })
   queryClient.invalidateQueries({ queryKey: ["accountability-report"] })
   queryClient.invalidateQueries({ queryKey: ["accountability-by-account-report"] })
+  queryClient.invalidateQueries({ queryKey: ["credit-card-statement-items"] })
 }

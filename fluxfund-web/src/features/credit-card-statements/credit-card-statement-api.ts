@@ -99,3 +99,11 @@ export async function importCreditCardStatementOfx({
 
   return response.data
 }
+
+export async function getCreditCardStatementItems(statementId: string) {
+  const response = await httpClient.get<FinancialTransaction[]>(
+    `/api/v1/credit-card-statements/${statementId}/items`,
+  )
+
+  return response.data
+}

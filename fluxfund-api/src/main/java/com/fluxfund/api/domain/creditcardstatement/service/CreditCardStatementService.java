@@ -319,4 +319,20 @@ public class CreditCardStatementService {
                 totalAmount,
                 itemCount);
     }
+
+    @Transactional(readOnly = true)
+    public List<FinancialTransactionResponse> findItems(
+            UUID organizationId,
+            UUID statementId) {
+
+        organizationAccessService.requireReadAccess(organizationId);
+
+        findStatement(organizationId, statementId);
+
+        return financialTransactionRepository
+                .findCreditCardStatementItems(organizationId, statementId)
+                .stream()
+                .map(FinancialTransactionMapper::toResponse)
+                .toList();
+    }
 }
