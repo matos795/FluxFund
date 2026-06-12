@@ -20,6 +20,7 @@ import { FinancialTransactionAttachmentsDialog } from "@/features/attachments/co
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { LinkCreditCardPaymentDialog } from "@/features/credit-card-statements/components/link-credit-card-payment-dialog"
 import { getApiErrorMessage } from "@/utils/api-error"
+import { needsFinancialTransactionClassification } from "../src/features/financial-transactions/financial-transaction-rules"
 
 type FinancialTransactionActionsProps = {
   transaction: FinancialTransaction
@@ -51,11 +52,7 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
     })
   }
 
-  const needsClassification =
-    (transaction.source === "OFX" || transaction.source === "CSV") &&
-    transaction.status === "SETTLED" &&
-    transaction.type !== "TRANSFER" &&
-    !transaction.category
+  const needsClassification = needsFinancialTransactionClassification(transaction)
 
   const canEdit =
     transaction.status !== "CANCELED" &&

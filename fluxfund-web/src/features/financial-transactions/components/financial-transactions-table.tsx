@@ -14,6 +14,7 @@ import {
 import { formatCurrency, formatDate } from "@/utils/formatters"
 import type { FinancialTransaction } from "../financial-transaction-types"
 import {
+  financialTransactionSourceLabels,
   financialTransactionStatusLabels,
   financialTransactionTypeLabels,
 } from "../financial-transaction-labels"
@@ -25,6 +26,7 @@ import { FinancialTransactionActions } from "./financial-transaction-actions"
 import { ViewFinancialTransactionDialog } from "./view-financial-transaction-dialog"
 import { ClassifyFinancialTransactionDialog } from "./classify-financial-transaction-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { needsFinancialTransactionClassification } from "../src/features/financial-transactions/financial-transaction-rules"
 
 type FinancialTransactionsTableProps = {
   financialTransactions: FinancialTransaction[]
@@ -50,7 +52,7 @@ export function FinancialTransactionsTable({
     useState<FinancialTransaction | null>(null)
 
   function handleRowClick(transaction: FinancialTransaction) {
-    if (needsClassification(transaction)) {
+    if (needsFinancialTransactionClassification(transaction)) {
       setTransactionToClassify(transaction)
       return
     }
@@ -147,7 +149,7 @@ export function FinancialTransactionsTable({
                       >
                         <TableCell>
                           <div className="flex flex-col gap-1">
-                            {needsClassification(transaction) ? (
+                            {needsFinancialTransactionClassification(transaction) ? (
                               <Badge className="w-fit bg-orange-100 text-orange-700 hover:bg-orange-100">
                                 <AlertCircle className="mr-1 size-3" />
                                 Classificar
@@ -162,11 +164,9 @@ export function FinancialTransactionsTable({
                               </Badge>
                             )}
 
-                            {transaction.source === "OFX" && (
-                              <span className="text-xs text-muted-foreground">
-                                OFX
-                              </span>
-                            )}
+                            <span className="text-xs text-muted-foreground">
+                              {financialTransactionSourceLabels[transaction.source]}
+                            </span>
                           </div>
                         </TableCell>
 
@@ -292,14 +292,6 @@ export function FinancialTransactionsTable({
         />
       )}
     </>
-  )
-}
-
-function needsClassification(transaction: FinancialTransaction) {
-  return (
-    (transaction.source === "OFX" || transaction.source === "CSV") &&
-    transaction.status === "SETTLED" &&
-    !transaction.category
   )
 }
 
