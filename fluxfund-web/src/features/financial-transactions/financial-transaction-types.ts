@@ -11,6 +11,7 @@ export type FinancialTransactionType =
 export type FinancialTransactionSource =
   | "MANUAL"
   | "OFX"
+  | "CSV"
   | "CREDIT_CARD"
 
 export type FinancialTransactionStatus =
@@ -138,4 +139,11 @@ export type ClassifyFinancialTransactionRequest = {
     amount: number
     referenceMonth: string | null
   }[]
+}
+
+export type ImportCsvResponse = {
+  imported: number
+  ignoredDuplicates: number
+  failed: number
+  errors: string[]
 }

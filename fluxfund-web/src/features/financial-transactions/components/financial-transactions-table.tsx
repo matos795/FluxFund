@@ -297,7 +297,7 @@ export function FinancialTransactionsTable({
 
 function needsClassification(transaction: FinancialTransaction) {
   return (
-    transaction.source === "OFX" &&
+    (transaction.source === "OFX" || transaction.source === "CSV") &&
     transaction.status === "SETTLED" &&
     !transaction.category
   )

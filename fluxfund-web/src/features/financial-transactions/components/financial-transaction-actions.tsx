@@ -52,7 +52,7 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
   }
 
   const needsClassification =
-    transaction.source === "OFX" &&
+    (transaction.source === "OFX" || transaction.source === "CSV") &&
     transaction.status === "SETTLED" &&
     transaction.type !== "TRANSFER" &&
     !transaction.category
@@ -74,7 +74,7 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
   const canCancel = transaction.status !== "CANCELED"
 
   const canLinkCreditCardPayment =
-    transaction.source === "OFX" &&
+    (transaction.source === "OFX" || transaction.source === "CSV") &&
     transaction.status === "SETTLED" &&
     transaction.type === "EXPENSE" &&
     transaction.account.type !== "CREDIT_CARD" &&

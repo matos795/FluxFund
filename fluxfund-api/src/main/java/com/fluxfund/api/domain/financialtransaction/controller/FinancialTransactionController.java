@@ -33,11 +33,13 @@ import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionResp
 import com.fluxfund.api.domain.financialtransaction.dto.ImportOfxResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.UpdateFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.export.FinancialTransactionExcelExportService;
+import com.fluxfund.api.domain.financialtransaction.service.FinancialTransactionCsvImportService;
 import com.fluxfund.api.domain.financialtransaction.service.FinancialTransactionService;
 import com.fluxfund.api.domain.financialtransaction.service.OfxImportService;
 import com.fluxfund.api.domain.transactionallocation.dto.CreateTransactionAllocationRequest;
 import com.fluxfund.api.domain.transactionallocation.dto.TransactionAllocationResponse;
 import com.fluxfund.api.domain.transactionallocation.dto.UpdateTransactionAllocationRequest;
+import com.fluxfund.api.shared.importer.ImportProfile;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +53,7 @@ public class FinancialTransactionController {
         private final FinancialTransactionService service;
         private final OfxImportService ofxImportService;
         private final FinancialTransactionExcelExportService excelExportService;
+        private final FinancialTransactionCsvImportService csvImportService;
 
         @PostMapping
         public ResponseEntity<FinancialTransactionResponse> create(
@@ -202,5 +205,16 @@ public class FinancialTransactionController {
                                                                 .build()
                                                                 .toString())
                                 .body(file);
+        }
+
+        @PostMapping(value = "/import/csv", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+        public ResponseEntity<ImportOfxResponse> importCsv(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @RequestParam UUID accountId,
+                        @RequestParam ImportProfile profile,
+                        @RequestParam MultipartFile file) {
+
+                return ResponseEntity.ok(
+                                csvImportService.importCsv(organizationId, accountId, profile, file));
         }
 }

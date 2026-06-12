@@ -17,6 +17,7 @@ import { ViewFinancialTransactionDialog } from "@/features/financial-transaction
 import { ClassifyFinancialTransactionDialog } from "@/features/financial-transactions/components/classify-financial-transaction-dialog"
 import { ManageTransactionAllocationsDialog } from "@/features/financial-transactions/components/manage-transaction-allocations-dialog"
 import { FinancialTransactionAttachmentsDialog } from "@/features/attachments/components/financial-transaction-attachments-dialog"
+import { ImportCsvDialog } from "@/features/financial-transactions/components/import-csv-dialog"
 
 export function TransactionsPage() {
 
@@ -159,6 +160,7 @@ export function TransactionsPage() {
           {canFinanceWrite && (
             <>
               <ImportOfxDialog />
+              <ImportCsvDialog />
               <CreateFinancialTransactionDialog />
             </>
           )}

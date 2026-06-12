@@ -9,6 +9,7 @@ import type {
   PayCreditCardStatementRequest,
 } from "./credit-card-statement-types"
 import type { FinancialTransaction } from "../financial-transactions/financial-transaction-types"
+import type { ImportProfile } from "@/utils/imports/import-profile"
 
 type GetCreditCardStatementsParams = {
   page?: number
@@ -88,7 +89,7 @@ export async function importCreditCardStatementOfx({
   formData.append("file", file)
 
   const response = await httpClient.post<CreditCardStatementImportResponse>(
-    `/api/v1/credit-card-statements/${statementId}/import/ofx`,
+    `/api/v1/credit-card-statements/${statementId}/import-ofx`,
     formData,
     {
       headers: {
@@ -103,6 +104,34 @@ export async function importCreditCardStatementOfx({
 export async function getCreditCardStatementItems(statementId: string) {
   const response = await httpClient.get<FinancialTransaction[]>(
     `/api/v1/credit-card-statements/${statementId}/items`,
+  )
+
+  return response.data
+}
+
+export async function importCreditCardStatementFile({
+  statementId,
+  profile,
+  file,
+}: {
+  statementId: string
+  profile: ImportProfile
+  file: File
+}) {
+  const formData = new FormData()
+  formData.append("file", file)
+
+  const response = await httpClient.post<CreditCardStatementImportResponse>(
+    `/api/v1/credit-card-statements/${statementId}/import/file`,
+    formData,
+    {
+      params: {
+        profile,
+      },
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    },
   )
 
   return response.data

@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,7 +20,9 @@ import com.fluxfund.api.domain.creditcardstatement.dto.PayCreditCardStatementReq
 import com.fluxfund.api.domain.creditcardstatement.dto.UpdateCreditCardStatementRequest;
 import com.fluxfund.api.domain.creditcardstatement.service.CreditCardStatementOfxImportService;
 import com.fluxfund.api.domain.creditcardstatement.service.CreditCardStatementService;
+import com.fluxfund.api.domain.creditcardstatement.service.CreditCardStatementSpreadsheetImportService;
 import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionResponse;
+import com.fluxfund.api.shared.importer.ImportProfile;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +36,7 @@ public class CreditCardStatementController {
 
     private final CreditCardStatementService service;
     private final CreditCardStatementOfxImportService ofxImportService;
+    private final CreditCardStatementSpreadsheetImportService spreadsheetImportService;
 
     @PostMapping
     public ResponseEntity<CreditCardStatementResponse> create(
@@ -99,7 +103,7 @@ public class CreditCardStatementController {
         return ResponseEntity.ok(service.pay(organizationId, id, request));
     }
 
-    @PostMapping({"/{id}/import-ofx", "/{id}/import/ofx"})
+    @PostMapping({ "/{id}/import-ofx", "/{id}/import/ofx" })
     public ResponseEntity<CreditCardStatementImportResponse> importOfx(
             @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @PathVariable UUID id,
@@ -115,5 +119,20 @@ public class CreditCardStatementController {
             @PathVariable UUID id) {
 
         return ResponseEntity.ok(service.findItems(organizationId, id));
+    }
+
+    @PostMapping(value = "/{id}/import/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CreditCardStatementImportResponse> importFile(
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+            @PathVariable UUID id,
+            @RequestParam ImportProfile profile,
+            @RequestParam("file") MultipartFile file) {
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(spreadsheetImportService.importFile(
+                        organizationId,
+                        id,
+                        profile,
+                        file));
     }
 }

@@ -235,6 +235,8 @@ export function FinancialTransactionFilters({
                 <SelectItem value="ALL">Todas</SelectItem>
                 <SelectItem value="MANUAL">Manual</SelectItem>
                 <SelectItem value="OFX">OFX</SelectItem>
+                <SelectItem value="CSV">CSV</SelectItem>
+                <SelectItem value="CREDIT_CARD">Cartão de crédito</SelectItem>
               </SelectContent>
             </Select>
           </div>

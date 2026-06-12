@@ -57,8 +57,9 @@ export type CreditCardStatementWithItems = CreditCardStatement & {
 }
 
 export type CreditCardStatementImportResponse = {
-  imported: number
-  ignoredDuplicates: number
-  failed: number
+  importedCount: number
+  ignoredDuplicateCount: number
+  importedItems: FinancialTransaction[]
+  failedCount: number
   errors: string[]
 }

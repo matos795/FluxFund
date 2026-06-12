@@ -1,6 +1,7 @@
 import { httpClient } from "@/api/http-client"
 import type { PageResponse } from "@/types/page-response"
-import type { ClassifyFinancialTransactionRequest, CreateFinancialTransactionRequest, CreateTransactionAllocationRequest, FinancialTransaction, ImportOfxResponse, TransactionAllocation, UpdateFinancialTransactionRequest, UpdateTransactionAllocationRequest } from "./financial-transaction-types"
+import type { ClassifyFinancialTransactionRequest, CreateFinancialTransactionRequest, CreateTransactionAllocationRequest, FinancialTransaction, ImportCsvResponse, ImportOfxResponse, TransactionAllocation, UpdateFinancialTransactionRequest, UpdateTransactionAllocationRequest } from "./financial-transaction-types"
+import type { ImportProfile } from "@/utils/imports/import-profile"
 
 type GetFinancialTransactionsParams = {
   page?: number
@@ -138,6 +139,35 @@ export async function importOfxFile({
     {
       params: {
         accountId,
+      },
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    },
+  )
+
+  return response.data
+}
+
+export async function importCsvFile({
+  accountId,
+  profile,
+  file,
+}: {
+  accountId: string
+  profile: ImportProfile
+  file: File
+}) {
+  const formData = new FormData()
+  formData.append("file", file)
+
+  const response = await httpClient.post<ImportCsvResponse>(
+    "/api/v1/financial-transactions/import/csv",
+    formData,
+    {
+      params: {
+        accountId,
+        profile,
       },
       headers: {
         "Content-Type": "multipart/form-data",
