@@ -23,6 +23,7 @@ import { formatCurrency, formatDate } from "@/utils/formatters"
 import type { CreditCardStatement } from "../credit-card-statement-types"
 import { useCreditCardStatementItems } from "../hooks/use-credit-card-statement-items"
 import { FinancialTransactionActions } from "@/features/financial-transactions/components/financial-transaction-actions"
+import { getCreditCardStatementItemsSummary } from "../credit-card-statement-items-summary"
 
 type ViewCreditCardStatementItemsDialogProps = {
   statement: CreditCardStatement
@@ -33,23 +34,6 @@ function getStatusLabel(status: string) {
   if (status === "SETTLED") return "Pago"
   if (status === "CANCELED") return "Cancelado"
   return status
-}
-
-function getTransactionAmount(item: {
-  expectedAmount?: number | null
-  settledAmount?: number | null
-}) {
-  return Math.abs(item.settledAmount ?? item.expectedAmount ?? 0)
-}
-
-function getAllocatedAmount(item: {
-  allocations?: { amount?: number | null }[] | null
-}) {
-  return Math.abs(
-    item.allocations?.reduce((total, allocation) => {
-      return total + Math.abs(allocation.amount ?? 0)
-    }, 0) ?? 0,
-  )
 }
 
 type SummaryCardProps = {
@@ -94,54 +78,10 @@ export function ViewCreditCardStatementItemsDialog({
   const items = useMemo(() => itemsQuery.data ?? [], [itemsQuery.data])
 
   const summary = useMemo(() => {
-    const totalAmount = items.reduce((total, item) => {
-      return total + getTransactionAmount(item)
-    }, 0)
-
-    const classifiedItems = items.filter((item) => Boolean(item.category))
-    const unclassifiedItems = items.filter((item) => !item.category)
-
-    const classifiedAmount = classifiedItems.reduce((total, item) => {
-      return total + getTransactionAmount(item)
-    }, 0)
-
-    const unclassifiedAmount = unclassifiedItems.reduce((total, item) => {
-      return total + getTransactionAmount(item)
-    }, 0)
-
-    const allocatedAmount = items.reduce((total, item) => {
-      return total + getAllocatedAmount(item)
-    }, 0)
-
-    const unallocatedItems = items.filter((item) => {
-      const amount = getTransactionAmount(item)
-      const allocated = getAllocatedAmount(item)
-
-      return allocated + 0.01 < amount
-    })
-
-    const unallocatedAmount = items.reduce((total, item) => {
-      const amount = getTransactionAmount(item)
-      const allocated = getAllocatedAmount(item)
-
-      return total + Math.max(amount - allocated, 0)
-    }, 0)
-
-    return {
-      totalAmount,
-      classifiedAmount,
-      unclassifiedAmount,
-      allocatedAmount,
-      unallocatedAmount,
-      itemCount: items.length,
-      classifiedCount: classifiedItems.length,
-      unclassifiedCount: unclassifiedItems.length,
-      unallocatedCount: unallocatedItems.length,
-    }
+    return getCreditCardStatementItemsSummary(items)
   }, [items])
 
-  const hasReviewIssues =
-    summary.unclassifiedCount > 0 || summary.unallocatedCount > 0
+  const hasReviewIssues = summary.hasReviewIssues
 
   const reviewStatusLabel = hasReviewIssues
     ? "Fatura precisa de revisão"
@@ -239,7 +179,7 @@ export function ViewCreditCardStatementItemsDialog({
                 description={`${summary.unallocatedCount} itens incompletos`}
                 warning={summary.unallocatedCount > 0}
               />
-              
+
             </div>
 
             <div className="flex justify-end">

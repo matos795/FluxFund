@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod"
-import { CreditCard } from "lucide-react"
-import { useEffect, useState } from "react"
+import { AlertTriangle, CheckCircle2, CreditCard } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
 import { useForm, useWatch } from "react-hook-form"
 import { toast } from "sonner"
 
@@ -26,6 +26,8 @@ import {
 import { usePayCreditCardStatement } from "../hooks/use-pay-credit-card-statement"
 import { useCreditCardPaymentCandidates } from "../hooks/use-credit-card-payment-candidates"
 import { formatCurrency, formatDate } from "@/utils/formatters"
+import { getCreditCardStatementItemsSummary } from "../credit-card-statement-items-summary"
+import { useCreditCardStatementItems } from "../hooks/use-credit-card-statement-items"
 
 type PayCreditCardStatementDialogProps = {
   statement: CreditCardStatement
@@ -34,6 +36,7 @@ type PayCreditCardStatementDialogProps = {
 export function PayCreditCardStatementDialog({
   statement,
 }: PayCreditCardStatementDialogProps) {
+  const [acknowledgePendingReview, setAcknowledgePendingReview] = useState(false)
   const [open, setOpen] = useState(false)
   const payStatementMutation = usePayCreditCardStatement()
   const accountsQuery = useAccounts({ page: 0, size: 200 })
@@ -66,6 +69,24 @@ export function PayCreditCardStatementDialog({
     name: "paymentAccountId",
   })
 
+  const itemsQuery = useCreditCardStatementItems(statement.id, open)
+
+  const statementItems = useMemo(() => {
+    return itemsQuery.data ?? []
+  }, [itemsQuery.data])
+
+  const statementItemsSummary = useMemo(() => {
+    return getCreditCardStatementItemsSummary(statementItems)
+  }, [statementItems])
+
+  const hasNoItems =
+    !itemsQuery.isLoading && !itemsQuery.isError && statementItems.length === 0
+
+  const hasReviewIssues = statementItemsSummary.hasReviewIssues
+
+  const mustAcknowledgeReview =
+    hasReviewIssues && !acknowledgePendingReview
+
   useEffect(() => {
     if (!selectedPaymentAccountId) {
       return
@@ -97,12 +118,29 @@ export function PayCreditCardStatementDialog({
   function handleOpenChange(value: boolean) {
     if (!value) {
       reset()
+      setAcknowledgePendingReview(false)
     }
 
     setOpen(value)
   }
 
   function handlePayStatement(data: PayCreditCardStatementFormData) {
+
+    if (itemsQuery.isLoading) {
+      toast.error("Aguarde a verificação dos itens da fatura.")
+      return
+    }
+
+    if (hasNoItems) {
+      toast.error("Não é possível pagar uma fatura sem itens.")
+      return
+    }
+
+    if (hasReviewIssues && !acknowledgePendingReview) {
+      toast.error("Confirme que deseja pagar a fatura mesmo com pendências.")
+      return
+    }
+
     payStatementMutation.mutate(
       {
         statementId: statement.id,
@@ -125,6 +163,12 @@ export function PayCreditCardStatementDialog({
   }
 
   const canPay = statement.status !== "PAID" && statement.status !== "CANCELED"
+
+  const isPaymentDisabled =
+    payStatementMutation.isPending ||
+    itemsQuery.isLoading ||
+    hasNoItems ||
+    mustAcknowledgeReview
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -285,6 +329,94 @@ export function PayCreditCardStatementDialog({
             </p>
           </div>
 
+          <div className="space-y-3 rounded-lg border p-3">
+            <div className="flex items-start gap-3">
+              {itemsQuery.isLoading ? (
+                <AlertTriangle className="mt-0.5 size-4 text-muted-foreground" />
+              ) : hasNoItems || hasReviewIssues ? (
+                <AlertTriangle className="mt-0.5 size-4 text-amber-600" />
+              ) : (
+                <CheckCircle2 className="mt-0.5 size-4 text-emerald-600" />
+              )}
+
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Conferência da fatura</p>
+
+                {itemsQuery.isLoading && (
+                  <p className="text-sm text-muted-foreground">
+                    Verificando itens da fatura...
+                  </p>
+                )}
+
+                {itemsQuery.isError && (
+                  <p className="text-sm text-destructive">
+                    Não foi possível verificar os itens da fatura.
+                  </p>
+                )}
+
+                {!itemsQuery.isLoading && !itemsQuery.isError && hasNoItems && (
+                  <p className="text-sm text-amber-700">
+                    Esta fatura não possui itens. Revise antes de marcar como paga.
+                  </p>
+                )}
+
+                {!itemsQuery.isLoading &&
+                  !itemsQuery.isError &&
+                  !hasNoItems &&
+                  !hasReviewIssues && (
+                    <p className="text-sm text-muted-foreground">
+                      Todos os itens estão classificados e alocados.
+                    </p>
+                  )}
+
+                {!itemsQuery.isLoading &&
+                  !itemsQuery.isError &&
+                  !hasNoItems &&
+                  hasReviewIssues && (
+                    <div className="space-y-1 text-sm text-amber-700">
+                      <p>
+                        Esta fatura ainda possui pendências de revisão:
+                      </p>
+
+                      {statementItemsSummary.unclassifiedCount > 0 && (
+                        <p>
+                          • {statementItemsSummary.unclassifiedCount} itens sem categoria (
+                          {formatCurrency(statementItemsSummary.unclassifiedAmount)})
+                        </p>
+                      )}
+
+                      {statementItemsSummary.unallocatedCount > 0 && (
+                        <p>
+                          • {statementItemsSummary.unallocatedCount} itens com alocação incompleta (
+                          {formatCurrency(statementItemsSummary.unallocatedAmount)})
+                        </p>
+                      )}
+                    </div>
+                  )}
+              </div>
+            </div>
+
+            {!itemsQuery.isLoading &&
+              !itemsQuery.isError &&
+              !hasNoItems &&
+              hasReviewIssues && (
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={acknowledgePendingReview}
+                    onChange={(event) =>
+                      setAcknowledgePendingReview(event.target.checked)
+                    }
+                  />
+
+                  <span>
+                    Entendo que esta fatura ainda possui pendências e desejo marcar como paga mesmo assim.
+                  </span>
+                </label>
+              )}
+          </div>
+
           <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
             <Button
               type="button"
@@ -295,8 +427,8 @@ export function PayCreditCardStatementDialog({
               Cancelar
             </Button>
 
-            <Button type="submit" disabled={payStatementMutation.isPending}>
-              {payStatementMutation.isPending ? "Salvando..." : "Marcar como paga"}
+            <Button type="submit" disabled={isPaymentDisabled}>
+              {payStatementMutation.isPending ? "Pagando..." : "Pagar fatura"}
             </Button>
           </div>
         </form>
