@@ -22,6 +22,7 @@ import {
   type CreditCardStatementFormInput,
 } from "../credit-card-statement-schema"
 import { useCreateCreditCardStatement } from "../hooks/use-create-credit-card-statement"
+import { buildCreditCardStatementName, getDefaultClosingDate, getDefaultDueDate } from "../credit-card-statement-date-utils"
 
 type CreateCreditCardStatementDialogProps = {
   open?: boolean
@@ -56,9 +57,10 @@ export function CreateCreditCardStatementDialog({
     resolver: zodResolver(creditCardStatementFormSchema),
     defaultValues: {
       creditCardAccountId: "",
+      referenceMonth: "",
       name: "",
       closingDate: "",
-      dueDate: new Date().toISOString().slice(0, 10),
+      dueDate: "",
     },
   })
 
@@ -66,6 +68,18 @@ export function CreateCreditCardStatementDialog({
     control,
     name: "creditCardAccountId",
   })
+
+  const selectedReferenceMonth = useWatch({
+    control,
+    name: "referenceMonth",
+  })
+
+  const selectedCreditCardAccount = creditCardAccounts.find(
+    (account) => account.id === selectedCreditCardAccountId,
+  )
+
+  const selectedCreditCardAccountName = selectedCreditCardAccount?.name
+
 
   function handleOpenChange(value: boolean) {
     if (!value) {
@@ -98,6 +112,41 @@ export function CreateCreditCardStatementDialog({
         },
       },
     )
+  }
+
+  function handleApplySuggestion() {
+    if (!selectedCreditCardAccountId) {
+      toast.error("Selecione o cartão.")
+      return
+    }
+
+    if (!selectedReferenceMonth) {
+      toast.error("Selecione o mês da fatura.")
+      return
+    }
+
+    const suggestedName = buildCreditCardStatementName({
+      accountName: selectedCreditCardAccountName,
+      referenceMonth: selectedReferenceMonth,
+    })
+
+    const suggestedClosingDate = getDefaultClosingDate(selectedReferenceMonth)
+    const suggestedDueDate = getDefaultDueDate(selectedReferenceMonth)
+
+    setValue("name", suggestedName, {
+      shouldDirty: true,
+      shouldValidate: true,
+    })
+
+    setValue("closingDate", suggestedClosingDate, {
+      shouldDirty: true,
+      shouldValidate: true,
+    })
+
+    setValue("dueDate", suggestedDueDate, {
+      shouldDirty: true,
+      shouldValidate: true,
+    })
   }
 
   return (
@@ -143,6 +192,27 @@ export function CreateCreditCardStatementDialog({
               </p>
             )}
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="referenceMonth">Mês da fatura</Label>
+            <Input
+              id="referenceMonth"
+              type="month"
+              {...register("referenceMonth")}
+            />
+            <p className="text-xs text-muted-foreground">
+              Use o mês de referência da fatura. O sistema pode sugerir nome, fechamento e vencimento.
+            </p>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!selectedReferenceMonth || !selectedCreditCardAccountId}
+            onClick={handleApplySuggestion}
+          >
+            Sugerir nome e datas
+          </Button>
 
           <div className="space-y-2">
             <Label htmlFor="name">Nome da fatura</Label>

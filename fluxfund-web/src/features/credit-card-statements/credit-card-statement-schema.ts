@@ -2,6 +2,7 @@ import { z } from "zod"
 
 export const creditCardStatementFormSchema = z.object({
   creditCardAccountId: z.string().min(1, "Selecione o cartão."),
+  referenceMonth: z.string().optional(),
   name: z.string().min(1, "Informe o nome da fatura."),
   closingDate: z.string().optional(),
   dueDate: z.string().min(1, "Informe o vencimento da fatura."),
