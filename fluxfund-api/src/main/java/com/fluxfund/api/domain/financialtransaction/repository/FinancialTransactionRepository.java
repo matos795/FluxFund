@@ -76,11 +76,13 @@ public interface FinancialTransactionRepository
       from FinancialTransaction t
       where t.organization.id = :organizationId
         and t.status <> :canceledStatus
+        and t.type <> :transferType
         and t.category is null
       """)
   long countUnclassifiedByOrganizationId(
       @Param("organizationId") UUID organizationId,
-      @Param("canceledStatus") FinancialTransactionStatus canceledStatus);
+      @Param("canceledStatus") FinancialTransactionStatus canceledStatus,
+      @Param("transferType") FinancialTransactionType transferType);
 
   @Query("""
       select count(t)
@@ -209,22 +211,23 @@ public interface FinancialTransactionRepository
       @Param("endDate") LocalDate endDate);
 
   @Query(value = """
-      select
-          t.id as transactionId,
-          t.settlement_date as settlementDate,
-          t.description as description,
-          t.raw_description as rawDescription,
-          a.name as accountName,
-          null as categoryName,
-          abs(t.settled_amount) as amount
-      from financial_transaction t
-      join account a on a.id = t.account_id
-      where t.organization_id = :organizationId
-        and t.status != 'CANCELED'
-        and t.category_id is null
-      order by coalesce(t.settlement_date, t.due_date) desc, t.created_at desc
-      limit :limit
-      """, nativeQuery = true)
+          select
+              t.id as transactionId,
+              t.settlement_date as settlementDate,
+              t.description as description,
+              t.raw_description as rawDescription,
+              a.name as accountName,
+              null as categoryName,
+              abs(t.settled_amount) as amount
+          from financial_transaction t
+          join account a on a.id = t.account_id
+          where t.organization_id = :organizationId
+      and t.status != 'CANCELED'
+      and t.type != 'TRANSFER'
+      and t.category_id is null
+          order by coalesce(t.settlement_date, t.due_date) desc, t.created_at desc
+          limit :limit
+          """, nativeQuery = true)
   List<DashboardTransactionActionItemProjection> findUnclassifiedActionItems(
       @Param("organizationId") UUID organizationId,
       @Param("limit") int limit);
@@ -334,4 +337,29 @@ public interface FinancialTransactionRepository
   List<FinancialTransaction> findCreditCardStatementItems(
       @Param("organizationId") UUID organizationId,
       @Param("statementId") UUID statementId);
+
+  @Query("""
+          select coalesce(sum(
+              case
+                  when t.type = com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.INCOME
+                      then abs(t.settledAmount)
+                  when t.type = com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.EXPENSE
+                      then -abs(t.settledAmount)
+                  when t.type = com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
+                       and t.transferDirection = com.fluxfund.api.domain.financialtransaction.TransferDirection.IN
+                      then abs(t.settledAmount)
+                  when t.type = com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
+                       and t.transferDirection = com.fluxfund.api.domain.financialtransaction.TransferDirection.OUT
+                      then -abs(t.settledAmount)
+                  else 0
+              end
+          ), 0)
+          from FinancialTransaction t
+          where t.organization.id = :organizationId
+            and t.account.id = :accountId
+            and t.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+      """)
+  BigDecimal sumAccountMovementBalance(
+      @Param("organizationId") UUID organizationId,
+      @Param("accountId") UUID accountId);
 }

@@ -125,7 +125,8 @@ public class DashboardService {
                 long unclassifiedCount = financialTransactionRepository
                                 .countUnclassifiedByOrganizationId(
                                                 organizationId,
-                                                FinancialTransactionStatus.CANCELED);
+                                                FinancialTransactionStatus.CANCELED,
+                                                FinancialTransactionType.TRANSFER);
 
                 long unallocatedCount = financialTransactionRepository
                                 .countUnallocatedByOrganizationId(

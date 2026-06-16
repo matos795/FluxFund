@@ -105,6 +105,10 @@ public class FinancialTransactionSpecification {
                                 predicates = cb.and(
                                                 predicates,
                                                 cb.notEqual(root.get("status"), FinancialTransactionStatus.CANCELED));
+
+                                predicates = cb.and(
+                                                predicates,
+                                                cb.notEqual(root.get("type"), FinancialTransactionType.TRANSFER));
                         }
 
                         if (Boolean.TRUE.equals(onlyUnallocated)) {

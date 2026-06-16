@@ -76,7 +76,12 @@ public class FinancialTransactionMapper {
                 financialTransaction.getUpdatedAt(),
                 attachmentCount,
                 paymentProofAttachmentCount,
-                fiscalAttachmentCount);
+                fiscalAttachmentCount,
+                financialTransaction.getTransferDirection(),
+                financialTransaction.getTransferGroupId(),
+                financialTransaction.getTransferCounterpartyAccount() != null
+                        ? AccountMapper.toSummaryResponse(financialTransaction.getTransferCounterpartyAccount())
+                        : null);
     }
 
     public static void updateEntity(

@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fluxfund.api.domain.account.Account;
+import com.fluxfund.api.domain.account.AccountType;
 import com.fluxfund.api.domain.account.repository.AccountRepository;
 import com.fluxfund.api.domain.attachment.dto.AttachmentCountByTransactionProjection;
 import com.fluxfund.api.domain.attachment.repository.AttachmentRepository;
@@ -31,7 +32,9 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
+import com.fluxfund.api.domain.financialtransaction.TransferDirection;
 import com.fluxfund.api.domain.financialtransaction.dto.ClassifyFinancialTransactionRequest;
+import com.fluxfund.api.domain.financialtransaction.dto.CreateAccountTransferRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.CreateFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.UpdateFinancialTransactionRequest;
@@ -267,7 +270,7 @@ public class FinancialTransactionService {
 
         Category category = null;
 
-        if(request.type() != FinancialTransactionType.TRANSFER) {
+        if (request.type() != FinancialTransactionType.TRANSFER) {
             if (request.categoryId() == null) {
                 throw new BusinessException("Category is required for income and expense transactions");
             }
@@ -324,11 +327,11 @@ public class FinancialTransactionService {
         repository.save(financialTransaction);
 
         auditLogService.record(
-            organizationId,
-            AuditEntityType.FINANCIAL_TRANSACTION,
-            financialTransaction.getId(),
-            AuditAction.CLASSIFY,
-            "Financial transaction classified with category " + (category != null ? category.getId() : "<none>"));
+                organizationId,
+                AuditEntityType.FINANCIAL_TRANSACTION,
+                financialTransaction.getId(),
+                AuditAction.CLASSIFY,
+                "Financial transaction classified with category " + (category != null ? category.getId() : "<none>"));
 
         return FinancialTransactionMapper.toResponse(financialTransaction);
     }
@@ -451,6 +454,86 @@ public class FinancialTransactionService {
                 .stream()
                 .map(TransactionAllocationMapper::toResponse)
                 .toList();
+    }
+
+    @Transactional
+    public List<FinancialTransactionResponse> createAccountTransfer(
+            UUID organizationId,
+            CreateAccountTransferRequest request) {
+
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
+
+        if (request.sourceAccountId().equals(request.destinationAccountId())) {
+            throw new BusinessException("Source and destination accounts must be different");
+        }
+
+        Account sourceAccount = accountRepository
+                .findByIdAndOrganizationIdAndActiveTrue(request.sourceAccountId(), organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Source account not found"));
+
+        Account destinationAccount = accountRepository
+                .findByIdAndOrganizationIdAndActiveTrue(request.destinationAccountId(), organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Destination account not found"));
+
+        if (sourceAccount.getType() == AccountType.CREDIT_CARD
+                || destinationAccount.getType() == AccountType.CREDIT_CARD) {
+            throw new BusinessException("Credit card accounts cannot be used in account transfers");
+        }
+
+        UUID transferGroupId = UUID.randomUUID();
+
+        String description = request.description() != null && !request.description().isBlank()
+                ? request.description().trim()
+                : "Transferência entre contas";
+
+        FinancialTransaction outTransaction = new FinancialTransaction();
+
+        outTransaction.setOrganization(sourceAccount.getOrganization());
+        outTransaction.setAccount(sourceAccount);
+        outTransaction.setType(FinancialTransactionType.TRANSFER);
+        outTransaction.setSource(FinancialTransactionSource.MANUAL);
+        outTransaction.setStatus(FinancialTransactionStatus.SETTLED);
+        outTransaction.setTransferDirection(TransferDirection.OUT);
+        outTransaction.setTransferGroupId(transferGroupId);
+        outTransaction.setTransferCounterpartyAccount(destinationAccount);
+        outTransaction.setCategory(null);
+        outTransaction.setDueDate(request.transferDate());
+        outTransaction.setSettlementDate(request.transferDate());
+        outTransaction.setExpectedAmount(request.amount());
+        outTransaction.setSettledAmount(request.amount());
+        outTransaction.setInterestAmount(BigDecimal.ZERO);
+        outTransaction.setDiscountAmount(BigDecimal.ZERO);
+        outTransaction.setDescription(description);
+        outTransaction.setRawDescription(description);
+        outTransaction.setClassifiedAt(null);
+
+        FinancialTransaction inTransaction = new FinancialTransaction();
+
+        inTransaction.setOrganization(sourceAccount.getOrganization());
+        inTransaction.setAccount(destinationAccount);
+        inTransaction.setType(FinancialTransactionType.TRANSFER);
+        inTransaction.setSource(FinancialTransactionSource.MANUAL);
+        inTransaction.setStatus(FinancialTransactionStatus.SETTLED);
+        inTransaction.setTransferDirection(TransferDirection.IN);
+        inTransaction.setTransferGroupId(transferGroupId);
+        inTransaction.setTransferCounterpartyAccount(sourceAccount);
+        inTransaction.setCategory(null);
+        inTransaction.setDueDate(request.transferDate());
+        inTransaction.setSettlementDate(request.transferDate());
+        inTransaction.setExpectedAmount(request.amount());
+        inTransaction.setSettledAmount(request.amount());
+        inTransaction.setInterestAmount(BigDecimal.ZERO);
+        inTransaction.setDiscountAmount(BigDecimal.ZERO);
+        inTransaction.setDescription(description);
+        inTransaction.setRawDescription(description);
+        inTransaction.setClassifiedAt(null);
+
+        FinancialTransaction savedOut = repository.save(outTransaction);
+        FinancialTransaction savedIn = repository.save(inTransaction);
+
+        return List.of(
+                FinancialTransactionMapper.toResponse(savedOut),
+                FinancialTransactionMapper.toResponse(savedIn));
     }
 
     private TransactionAllocation buildAllocation(

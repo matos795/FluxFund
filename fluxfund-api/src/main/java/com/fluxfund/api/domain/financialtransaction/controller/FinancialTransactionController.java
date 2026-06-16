@@ -28,6 +28,7 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.dto.ClassifyFinancialTransactionRequest;
+import com.fluxfund.api.domain.financialtransaction.dto.CreateAccountTransferRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.CreateFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.ImportOfxResponse;
@@ -216,5 +217,14 @@ public class FinancialTransactionController {
 
                 return ResponseEntity.ok(
                                 csvImportService.importCsv(organizationId, accountId, profile, file));
+        }
+
+        @PostMapping("/transfers")
+        public ResponseEntity<List<FinancialTransactionResponse>> createAccountTransfer(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @RequestBody @Valid CreateAccountTransferRequest request) {
+
+                return ResponseEntity.status(HttpStatus.CREATED)
+                                .body(service.createAccountTransfer(organizationId, request));
         }
 }

@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import com.fluxfund.api.domain.account.Account;
 import com.fluxfund.api.domain.category.Category;
@@ -107,6 +108,17 @@ public class FinancialTransaction extends BaseEntity {
 
     @Column(name = "installment_count")
     private Integer installmentCount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "transfer_direction")
+    private TransferDirection transferDirection;
+
+    @Column(name = "transfer_group_id")
+    private UUID transferGroupId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "transfer_counterparty_account_id")
+    private Account transferCounterpartyAccount;
 
     @Builder.Default
     @OneToMany(mappedBy = "financialTransaction", cascade = CascadeType.ALL, orphanRemoval = true)
