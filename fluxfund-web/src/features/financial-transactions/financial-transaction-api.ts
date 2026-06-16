@@ -1,6 +1,6 @@
 import { httpClient } from "@/api/http-client"
 import type { PageResponse } from "@/types/page-response"
-import type { ClassifyFinancialTransactionRequest, CreateFinancialTransactionRequest, CreateTransactionAllocationRequest, FinancialTransaction, ImportCsvResponse, ImportOfxResponse, TransactionAllocation, UpdateFinancialTransactionRequest, UpdateTransactionAllocationRequest } from "./financial-transaction-types"
+import type { ClassifyFinancialTransactionRequest, CreateAccountTransferRequest, CreateFinancialTransactionRequest, CreateTransactionAllocationRequest, FinancialTransaction, ImportCsvResponse, ImportOfxResponse, TransactionAllocation, UpdateFinancialTransactionRequest, UpdateTransactionAllocationRequest } from "./financial-transaction-types"
 import type { ImportProfile } from "@/utils/imports/import-profile"
 
 type GetFinancialTransactionsParams = {
@@ -209,6 +209,17 @@ export async function exportSettledFinancialTransactionsExcel({
       },
       responseType: "blob",
     },
+  )
+
+  return response.data
+}
+
+export async function createAccountTransfer(
+  data: CreateAccountTransferRequest,
+) {
+  const response = await httpClient.post<FinancialTransaction[]>(
+    "/api/v1/financial-transactions/transfers",
+    data,
   )
 
   return response.data

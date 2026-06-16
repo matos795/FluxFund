@@ -18,6 +18,7 @@ import { ClassifyFinancialTransactionDialog } from "@/features/financial-transac
 import { ManageTransactionAllocationsDialog } from "@/features/financial-transactions/components/manage-transaction-allocations-dialog"
 import { FinancialTransactionAttachmentsDialog } from "@/features/attachments/components/financial-transaction-attachments-dialog"
 import { ImportCsvDialog } from "@/features/financial-transactions/components/import-csv-dialog"
+import { CreateAccountTransferDialog } from "@/features/financial-transactions/components/create-account-transfer-dialog"
 
 export function TransactionsPage() {
 
@@ -161,6 +162,7 @@ export function TransactionsPage() {
             <>
               <ImportOfxDialog />
               <ImportCsvDialog />
+              <CreateAccountTransferDialog />
               <CreateFinancialTransactionDialog />
             </>
           )}

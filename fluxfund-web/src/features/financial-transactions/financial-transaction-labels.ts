@@ -1,4 +1,4 @@
-import type { FinancialTransactionSource, FinancialTransactionStatus, FinancialTransactionType } from "./financial-transaction-types"
+import type { FinancialTransactionSource, FinancialTransactionStatus, FinancialTransactionType, TransferDirection } from "./financial-transaction-types"
 
 export const financialTransactionTypeLabels: Record<FinancialTransactionType, string> = {
   INCOME: "Receita",
@@ -18,4 +18,9 @@ export const financialTransactionSourceLabels: Record<FinancialTransactionSource
   OFX: "OFX",
   CSV: "CSV",
   CREDIT_CARD: "Cartão de crédito",
+}
+
+export const transferDirectionLabels: Record<TransferDirection, string> = {
+  IN: "Entrada",
+  OUT: "Saída",
 }

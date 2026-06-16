@@ -17,6 +17,7 @@ import {
   financialTransactionSourceLabels,
   financialTransactionStatusLabels,
   financialTransactionTypeLabels,
+  transferDirectionLabels,
 } from "../financial-transaction-labels"
 import {
   getFinancialTransactionStatusBadgeClass,
@@ -26,7 +27,7 @@ import { FinancialTransactionActions } from "./financial-transaction-actions"
 import { ViewFinancialTransactionDialog } from "./view-financial-transaction-dialog"
 import { ClassifyFinancialTransactionDialog } from "./classify-financial-transaction-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { needsFinancialTransactionClassification } from "../src/features/financial-transactions/financial-transaction-rules"
+import { needsFinancialTransactionClassification } from "../financial-transaction-rules"
 
 type FinancialTransactionsTableProps = {
   financialTransactions: FinancialTransaction[]
@@ -190,7 +191,10 @@ export function FinancialTransactionsTable({
                               transaction.type,
                             )}
                           >
-                            {financialTransactionTypeLabels[transaction.type]}
+                            {transaction.type === "TRANSFER" && transaction.transferDirection
+                              ? `${financialTransactionTypeLabels[transaction.type]} · ${transferDirectionLabels[transaction.transferDirection]
+                              }`
+                              : financialTransactionTypeLabels[transaction.type]}
                           </Badge>
                         </TableCell>
 
@@ -222,7 +226,17 @@ export function FinancialTransactionsTable({
                             <span className="truncate font-medium">
                               {transaction.account.name}
                             </span>
-                            {transaction.account.bankName && (
+
+                            {transaction.type === "TRANSFER" &&
+                              transaction.transferCounterpartyAccount && (
+                                <span className="truncate text-xs text-muted-foreground">
+                                  {transaction.transferDirection === "OUT"
+                                    ? `Para: ${transaction.transferCounterpartyAccount.name}`
+                                    : `De: ${transaction.transferCounterpartyAccount.name}`}
+                                </span>
+                              )}
+
+                            {transaction.type !== "TRANSFER" && transaction.account.bankName && (
                               <span className="truncate text-xs text-muted-foreground">
                                 {transaction.account.bankName}
                               </span>
@@ -298,6 +312,10 @@ export function FinancialTransactionsTable({
 type AllocationStatus = "NOT_APPLICABLE" | "FULL" | "PARTIAL" | "NONE"
 
 function getAllocationStatus(transaction: FinancialTransaction): AllocationStatus {
+  if (transaction.type === "TRANSFER") {
+    return "NOT_APPLICABLE"
+  }
+
   if (transaction.status !== "SETTLED") {
     return "NOT_APPLICABLE"
   }
@@ -369,6 +387,14 @@ function AttachmentBadge({
   const attachmentCount = transaction.attachmentCount ?? 0
   const fiscalCount = transaction.fiscalAttachmentCount ?? 0
   const paymentProofCount = transaction.paymentProofAttachmentCount ?? 0
+
+  if (transaction.type === "TRANSFER") {
+    return (
+      <Badge variant="outline" className="text-muted-foreground">
+        -
+      </Badge>
+    )
+  }
 
   if (attachmentCount === 0) {
     if (transaction.type === "EXPENSE" && transaction.status === "SETTLED") {

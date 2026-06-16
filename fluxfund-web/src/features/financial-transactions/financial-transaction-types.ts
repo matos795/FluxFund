@@ -20,6 +20,8 @@ export type FinancialTransactionStatus =
   | "CANCELED"
   | "IMPORTED"
 
+export type TransferDirection = "IN" | "OUT"
+
 export type TransactionAllocation = {
   id: string
   financialTransactionId: string
@@ -70,6 +72,18 @@ export type FinancialTransaction = {
   attachmentCount: number
   paymentProofAttachmentCount: number
   fiscalAttachmentCount: number
+
+  transferDirection: TransferDirection | null
+  transferGroupId: string | null
+  transferCounterpartyAccount: AccountSummary | null
+}
+
+export type CreateAccountTransferRequest = {
+  sourceAccountId: string
+  destinationAccountId: string
+  transferDate: string
+  amount: number
+  description?: string | null
 }
 
 export type CreateFinancialTransactionRequest = {
