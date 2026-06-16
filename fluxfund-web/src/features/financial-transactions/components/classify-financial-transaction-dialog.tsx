@@ -36,6 +36,8 @@ import { getDefaultFundReallocationSuggestion } from "@/utils/fund-reallocation"
 import { formatCurrency } from "@/utils/formatters"
 import { getApiErrorMessage } from "@/utils/api-error"
 import { SupportAgreementSuggestionCard } from "@/features/support-agreements/components/support-agreement-suggestion-card"
+import { useAccounts } from "@/features/accounts/hooks/use-accounts"
+import { EntityCombobox } from "@/components/form/entity-combobox"
 
 type AllocationFormItem = {
     fundId: string
@@ -82,12 +84,39 @@ export function ClassifyFinancialTransactionDialog({
 
     const [pendingAttachments, setPendingAttachments] = useState<PendingAttachmentItem[]>([])
 
+    const [transferDirection, setTransferDirection] = useState<
+        FinancialTransaction["transferDirection"]
+    >(
+        transaction.transferDirection ??
+        (transaction.type === "INCOME" ? "IN" : "OUT"),
+    )
+
+    const [transferCounterpartyAccountId, setTransferCounterpartyAccountId] =
+        useState(transaction.transferCounterpartyAccount?.id ?? "")
+
     const classifyTransaction = useClassifyFinancialTransaction()
 
     const uploadAttachmentMutation = useUploadAttachment(transaction.id)
 
     const { data: funds = [] } = useFundOptions()
     const { data: settings } = useOrganizationSettings()
+
+    const accountsQuery = useAccounts({ page: 0, size: 200 })
+
+    const transferCounterpartyAccountOptions =
+        accountsQuery.data?.content
+            .filter(
+                (account) =>
+                    account.active &&
+                    account.type !== "CREDIT_CARD" &&
+                    account.id !== transaction.account.id,
+            )
+            .map((account) => ({
+                value: account.id,
+                label: account.bankName
+                    ? `${account.name} · ${account.bankName}`
+                    : account.name,
+            })) ?? []
 
     const totalAllocated = useMemo(() => {
         return allocations.reduce((total, allocation) => {
@@ -229,6 +258,23 @@ export function ClassifyFinancialTransactionDialog({
             return
         }
 
+        if (type === "TRANSFER") {
+            if (!transferDirection) {
+                toast.error("Selecione se a transferência é entrada ou saída.")
+                return
+            }
+
+            if (!transferCounterpartyAccountId) {
+                toast.error("Selecione a conta contraparte da transferência.")
+                return
+            }
+
+            if (transferCounterpartyAccountId === transaction.account.id) {
+                toast.error("A conta contraparte deve ser diferente da conta da transação.")
+                return
+            }
+        }
+
         if (!settlementDate) {
             toast.error("Informe a data de baixa.")
             return
@@ -263,7 +309,7 @@ export function ClassifyFinancialTransactionDialog({
 
                 return amount > 0 && !allocation.fundId
             })
-            
+
         if (hasIncompleteAllocation) {
             toast.error("Selecione um fundo para todas as alocações com valor.")
             return
@@ -302,12 +348,15 @@ export function ClassifyFinancialTransactionDialog({
             return
         }
 
-        const attachmentsToUpload = pendingAttachments.filter(
-            (
-                attachment,
-            ): attachment is PendingAttachmentItem & { file: File } =>
-                attachment.file !== null,
-        )
+        const attachmentsToUpload =
+            type === "TRANSFER"
+                ? []
+                : pendingAttachments.filter(
+                    (
+                        attachment,
+                    ): attachment is PendingAttachmentItem & { file: File } =>
+                        attachment.file !== null,
+                )
 
         try {
             await classifyTransaction.mutateAsync({
@@ -321,6 +370,9 @@ export function ClassifyFinancialTransactionDialog({
                     settledAmount: amountNumber,
                     description: description || undefined,
                     documentNumber: transaction.documentNumber ?? undefined,
+                    transferDirection: type === "TRANSFER" ? transferDirection : null,
+                    transferCounterpartyAccountId:
+                        type === "TRANSFER" ? transferCounterpartyAccountId : null,
                     allocations: validAllocations,
                 },
             })
@@ -395,11 +447,19 @@ export function ClassifyFinancialTransactionDialog({
             )
             setAllocations([])
             setPendingAttachments([])
+            setTransferDirection(
+                transaction.transferDirection ??
+                (transaction.type === "INCOME" ? "IN" : "OUT"),
+            )
+
+            setTransferCounterpartyAccountId(
+                transaction.transferCounterpartyAccount?.id ?? "",
+            )
         }
 
         const timeoutId = window.setTimeout(resetForm, 0)
         return () => window.clearTimeout(timeoutId)
-    }, [dialogOpen, transaction.id, transaction.type, transaction.category?.id, transaction.description, transaction.settlementDate, transaction.settledAmount, transaction.expectedAmount])
+    }, [dialogOpen, transaction.id, transaction.type, transaction.category?.id, transaction.description, transaction.settlementDate, transaction.settledAmount, transaction.expectedAmount, transaction.transferDirection, transaction.transferCounterpartyAccount?.id])
 
     return (
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -442,8 +502,19 @@ export function ClassifyFinancialTransactionDialog({
                             <Select
                                 value={type}
                                 onValueChange={(value) => {
-                                    setType(value as FinancialTransaction["type"])
+                                    const nextType = value as FinancialTransaction["type"]
+
+                                    setType(nextType)
                                     setCategoryId("")
+
+                                    if (nextType === "TRANSFER") {
+                                        setAllocations([])
+                                        setPendingAttachments([])
+
+                                        setTransferDirection(
+                                            transaction.type === "INCOME" ? "IN" : "OUT",
+                                        )
+                                    }
                                 }}
                             >
                                 <SelectTrigger>
@@ -458,25 +529,46 @@ export function ClassifyFinancialTransactionDialog({
                             </Select>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label>Categoria</Label>
-                            <CategoryComboboxWithCreate
-                                value={categoryId}
-                                type={type === "TRANSFER" ? undefined : type}
-                                placeholder={type === "TRANSFER" ? "Transferência não usa categoria" : "Selecione a categoria"}
-                                searchPlaceholder="Buscar categoria..."
-                                emptyMessage="Nenhuma categoria encontrada."
-                                allowClear={false}
-                                disabled={type === "TRANSFER"}
-                                onChange={(value) => {
-                                    setCategoryId(value)
+                        {type === "TRANSFER" ? (
+                            <div className="space-y-2">
+                                <Label>Direção</Label>
 
-                                    if (!value) {
-                                        setPendingAttachments([])
+                                <Select
+                                    value={transferDirection ?? ""}
+                                    onValueChange={(value) =>
+                                        setTransferDirection(value as FinancialTransaction["transferDirection"])
                                     }
-                                }}
-                            />
-                        </div>
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecione a direção" />
+                                    </SelectTrigger>
+
+                                    <SelectContent>
+                                        <SelectItem value="OUT">Saída para outra conta</SelectItem>
+                                        <SelectItem value="IN">Entrada de outra conta</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                <Label>Categoria</Label>
+                                <CategoryComboboxWithCreate
+                                    value={categoryId}
+                                    type={type}
+                                    placeholder="Selecione a categoria"
+                                    searchPlaceholder="Buscar categoria..."
+                                    emptyMessage="Nenhuma categoria encontrada."
+                                    allowClear={false}
+                                    onChange={(value) => {
+                                        setCategoryId(value)
+
+                                        if (!value) {
+                                            setPendingAttachments([])
+                                        }
+                                    }}
+                                />
+                            </div>
+                        )}
 
                         <div className="space-y-2">
                             <Label>Data de baixa</Label>
@@ -504,10 +596,38 @@ export function ClassifyFinancialTransactionDialog({
                                 onChange={(event) => setDescription(event.target.value)}
                             />
                         </div>
+
+                        {type === "TRANSFER" && (
+                            <div className="space-y-2 md:col-span-2">
+                                <Label>Conta contraparte</Label>
+
+                                <EntityCombobox
+                                    value={transferCounterpartyAccountId}
+                                    options={transferCounterpartyAccountOptions}
+                                    placeholder="Selecione a outra conta"
+                                    searchPlaceholder="Buscar conta..."
+                                    emptyMessage="Nenhuma conta encontrada."
+                                    allowClear={false}
+                                    onChange={setTransferCounterpartyAccountId}
+                                />
+
+                                <p className="text-xs text-muted-foreground">
+                                    Escolha a outra conta envolvida nesta transferência. Se a transação atual
+                                    é uma saída, esta será a conta de destino. Se é uma entrada, esta será a
+                                    conta de origem.
+                                </p>
+                            </div>
+                        )}
                     </div>
 
-                    {type !== "TRANSFER" && (
-                        <div className="space-y-3 rounded-xl border p-4">
+                    {type === "TRANSFER" && (
+                        <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
+                            Transferências entre contas não usam categoria, fundo, favorecido nem
+                            anexo fiscal. Elas não entram como receita ou despesa nos relatórios.
+                        </div>
+                    )}
+
+                    <div className="space-y-3 rounded-xl border p-4">
                             <div className="flex items-center justify-between gap-4">
                                 <div>
                                     <h3 className="text-sm font-medium">Alocações</h3>
@@ -688,128 +808,129 @@ export function ClassifyFinancialTransactionDialog({
                                 </span>
                             </div>
                         </div>
-                    )}
 
-                    <div className="space-y-3 rounded-xl border p-4">
-                        <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-2">
-                                <Paperclip className="size-4 text-muted-foreground" />
+                    {type !== "TRANSFER" && (
+                        <div className="space-y-3 rounded-xl border p-4">
+                            <div className="flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-2">
+                                    <Paperclip className="size-4 text-muted-foreground" />
 
-                                <div>
-                                    <h3 className="text-sm font-medium">Anexos opcionais</h3>
-                                    <p className="text-xs text-muted-foreground">
-                                        Os arquivos serão enviados somente depois que a classificação for salva.
-                                    </p>
+                                    <div>
+                                        <h3 className="text-sm font-medium">Anexos opcionais</h3>
+                                        <p className="text-xs text-muted-foreground">
+                                            Os arquivos serão enviados somente depois que a classificação for salva.
+                                        </p>
+                                    </div>
                                 </div>
+
+                                {(categoryId) && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleAddPendingAttachment}
+                                    >
+                                        <Plus className="mr-2 size-4" />
+                                        Adicionar anexo
+                                    </Button>
+                                )}
                             </div>
 
-                            {(categoryId || type === "TRANSFER") && (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleAddPendingAttachment}
-                                >
-                                    <Plus className="mr-2 size-4" />
-                                    Adicionar anexo
-                                </Button>
+                            {!categoryId ? (
+                                <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                                    Selecione uma categoria para adicionar anexos à classificação.
+                                </div>
+                            ) : pendingAttachments.length === 0 ? (
+                                <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                                    Nenhum anexo selecionado. Você pode salvar a classificação sem anexos
+                                    ou adicionar comprovantes e documentos agora.
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {pendingAttachments.map((attachment) => (
+                                        <div
+                                            key={attachment.id}
+                                            className="grid gap-3 rounded-lg border border-dashed p-3 md:grid-cols-[180px_minmax(0,1fr)_auto] md:items-end"
+                                        >
+                                            <div className="space-y-2">
+                                                <Label>Tipo</Label>
+
+                                                <Select
+                                                    value={attachment.type}
+                                                    onValueChange={(value) =>
+                                                        handleChangePendingAttachmentType(
+                                                            attachment.id,
+                                                            value as AttachmentType,
+                                                        )
+                                                    }
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+
+                                                    <SelectContent>
+                                                        <SelectItem value="PROOF_OF_PAYMENT">
+                                                            {attachmentTypeLabels.PROOF_OF_PAYMENT}
+                                                        </SelectItem>
+
+                                                        <SelectItem value="RECEIPT">
+                                                            {attachmentTypeLabels.RECEIPT}
+                                                        </SelectItem>
+
+                                                        <SelectItem value="INVOICE">
+                                                            {attachmentTypeLabels.INVOICE}
+                                                        </SelectItem>
+
+                                                        <SelectItem value="CONTRACT">
+                                                            {attachmentTypeLabels.CONTRACT}
+                                                        </SelectItem>
+
+                                                        <SelectItem value="OTHER">
+                                                            {attachmentTypeLabels.OTHER}
+                                                        </SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label>Arquivo</Label>
+
+                                                <Input
+                                                    type="file"
+                                                    accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                                                    onChange={(event) =>
+                                                        handleChangePendingAttachmentFile(
+                                                            attachment.id,
+                                                            event.target.files?.[0] ?? null,
+                                                        )
+                                                    }
+                                                />
+
+                                                {attachment.file && (
+                                                    <p className="truncate text-xs text-amber-700">
+                                                        {attachment.file.name} será enviado ao salvar a classificação.
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            <div className="flex items-end">
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() =>
+                                                        handleRemovePendingAttachment(attachment.id)
+                                                    }
+                                                >
+                                                    <Trash2 className="size-4 text-destructive" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             )}
                         </div>
-
-                        {!categoryId && type !== "TRANSFER" ? (
-                            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                                Selecione uma categoria para adicionar anexos à classificação.
-                            </div>
-                        ) : pendingAttachments.length === 0 ? (
-                            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                                Nenhum anexo selecionado. Você pode salvar a classificação sem anexos
-                                ou adicionar comprovantes e documentos agora.
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                {pendingAttachments.map((attachment) => (
-                                    <div
-                                        key={attachment.id}
-                                        className="grid gap-3 rounded-lg border border-dashed p-3 md:grid-cols-[180px_minmax(0,1fr)_auto] md:items-end"
-                                    >
-                                        <div className="space-y-2">
-                                            <Label>Tipo</Label>
-
-                                            <Select
-                                                value={attachment.type}
-                                                onValueChange={(value) =>
-                                                    handleChangePendingAttachmentType(
-                                                        attachment.id,
-                                                        value as AttachmentType,
-                                                    )
-                                                }
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue />
-                                                </SelectTrigger>
-
-                                                <SelectContent>
-                                                    <SelectItem value="PROOF_OF_PAYMENT">
-                                                        {attachmentTypeLabels.PROOF_OF_PAYMENT}
-                                                    </SelectItem>
-
-                                                    <SelectItem value="RECEIPT">
-                                                        {attachmentTypeLabels.RECEIPT}
-                                                    </SelectItem>
-
-                                                    <SelectItem value="INVOICE">
-                                                        {attachmentTypeLabels.INVOICE}
-                                                    </SelectItem>
-
-                                                    <SelectItem value="CONTRACT">
-                                                        {attachmentTypeLabels.CONTRACT}
-                                                    </SelectItem>
-
-                                                    <SelectItem value="OTHER">
-                                                        {attachmentTypeLabels.OTHER}
-                                                    </SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label>Arquivo</Label>
-
-                                            <Input
-                                                type="file"
-                                                accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
-                                                onChange={(event) =>
-                                                    handleChangePendingAttachmentFile(
-                                                        attachment.id,
-                                                        event.target.files?.[0] ?? null,
-                                                    )
-                                                }
-                                            />
-
-                                            {attachment.file && (
-                                                <p className="truncate text-xs text-amber-700">
-                                                    {attachment.file.name} será enviado ao salvar a classificação.
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        <div className="flex items-end">
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() =>
-                                                    handleRemovePendingAttachment(attachment.id)
-                                                }
-                                            >
-                                                <Trash2 className="size-4 text-destructive" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                    )}
 
                     <div className="flex justify-end gap-2 border-t pt-4">
                         <Button

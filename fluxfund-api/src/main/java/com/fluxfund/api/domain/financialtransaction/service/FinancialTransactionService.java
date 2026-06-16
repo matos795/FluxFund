@@ -268,6 +268,10 @@ public class FinancialTransactionService {
             throw new BusinessException("Canceled transactions cannot be classified");
         }
 
+        if (request.type() == FinancialTransactionType.TRANSFER) {
+            return classifyAsTransfer(organizationId, financialTransaction, request);
+        }
+
         Category category = null;
 
         if (request.type() != FinancialTransactionType.TRANSFER) {
@@ -289,6 +293,9 @@ public class FinancialTransactionService {
         financialTransaction.setCategory(category);
         financialTransaction.setDueDate(request.dueDate());
         financialTransaction.setSettlementDate(request.settlementDate());
+        financialTransaction.setTransferDirection(null);
+        financialTransaction.setTransferGroupId(null);
+        financialTransaction.setTransferCounterpartyAccount(null);
 
         BigDecimal expectedAmount = Objects.requireNonNullElse(
                 request.expectedAmount(),
@@ -868,5 +875,91 @@ public class FinancialTransactionService {
                         fund.getId());
 
         return fund.getInitialBalance().add(allocationsSum);
+    }
+
+    private FinancialTransactionResponse classifyAsTransfer(
+            UUID organizationId,
+            FinancialTransaction financialTransaction,
+            ClassifyFinancialTransactionRequest request) {
+
+        if (request.transferDirection() == null) {
+            throw new BusinessException("Transfer direction is required");
+        }
+
+        if (request.transferCounterpartyAccountId() == null) {
+            throw new BusinessException("Transfer counterparty account is required");
+        }
+
+        if (financialTransaction.getAccount().getId().equals(request.transferCounterpartyAccountId())) {
+            throw new BusinessException("Transfer counterparty account must be different from transaction account");
+        }
+
+        Account counterpartyAccount = accountRepository
+                .findByIdAndOrganizationIdAndActiveTrue(
+                        request.transferCounterpartyAccountId(),
+                        organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Transfer counterparty account not found"));
+
+        if (counterpartyAccount.getType() == AccountType.CREDIT_CARD) {
+            throw new BusinessException("Credit card accounts cannot be used in account transfers");
+        }
+
+        Map<UUID, BigDecimal> oldImpactByFund = toImpactByFund(
+                financialTransaction.getAllocations());
+
+        financialTransaction.setType(FinancialTransactionType.TRANSFER);
+        financialTransaction.setCategory(null);
+
+        financialTransaction.setTransferDirection(request.transferDirection());
+        financialTransaction.setTransferCounterpartyAccount(counterpartyAccount);
+
+        if (financialTransaction.getTransferGroupId() == null) {
+            financialTransaction.setTransferGroupId(UUID.randomUUID());
+        }
+
+        LocalDate settlementDate = request.settlementDate();
+
+        financialTransaction.setDueDate(
+                request.dueDate() != null ? request.dueDate() : settlementDate);
+        financialTransaction.setSettlementDate(settlementDate);
+
+        BigDecimal amount = Objects.requireNonNullElse(
+                request.settledAmount(),
+                Objects.requireNonNullElse(
+                        request.expectedAmount(),
+                        financialTransaction.getSettledAmount() != null
+                                ? financialTransaction.getSettledAmount()
+                                : financialTransaction.getExpectedAmount()));
+
+        financialTransaction.setExpectedAmount(amount.abs());
+        financialTransaction.setSettledAmount(amount.abs());
+
+        if (request.description() != null) {
+            financialTransaction.setDescription(request.description());
+        }
+
+        financialTransaction.setDocumentNumber(request.documentNumber());
+        financialTransaction.setClassifiedAt(LocalDateTime.now());
+
+        financialTransaction.getAllocations().clear();
+
+        normalizeTransactionStatusAndAmounts(financialTransaction);
+
+        validateFundNegativePolicy(
+                organizationId,
+                financialTransaction.getId(),
+                oldImpactByFund,
+                Map.of());
+
+        FinancialTransaction savedTransaction = repository.save(financialTransaction);
+
+        auditLogService.record(
+                organizationId,
+                AuditEntityType.FINANCIAL_TRANSACTION,
+                financialTransaction.getId(),
+                AuditAction.CLASSIFY,
+                "Financial transaction classified as transfer");
+
+        return FinancialTransactionMapper.toResponse(savedTransaction);
     }
 }

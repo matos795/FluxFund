@@ -147,6 +147,8 @@ export type ClassifyFinancialTransactionRequest = {
   settledAmount?: number
   description?: string
   documentNumber?: string
+  transferDirection?: TransferDirection | null
+  transferCounterpartyAccountId?: string | null
   allocations?: {
     fundId: string
     beneficiaryId?: string | null

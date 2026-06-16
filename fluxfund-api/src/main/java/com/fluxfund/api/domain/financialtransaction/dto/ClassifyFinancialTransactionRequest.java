@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
+import com.fluxfund.api.domain.financialtransaction.TransferDirection;
 import com.fluxfund.api.domain.transactionallocation.dto.CreateTransactionAllocationRequest;
 
 import jakarta.validation.Valid;
@@ -28,6 +29,8 @@ public record ClassifyFinancialTransactionRequest(
     String description,
     @Size(max = 255)
     String documentNumber,
+    TransferDirection transferDirection,
+UUID transferCounterpartyAccountId,
     @Valid
     List<CreateTransactionAllocationRequest> allocations
 ) {
