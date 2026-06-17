@@ -7,6 +7,8 @@ import com.fluxfund.api.domain.category.CategoryType;
 public record UpdateCategoryRequest(
         String name,
         CategoryType type,
-        UUID parentId
+        UUID parentId,
+        Boolean requiresFiscalDocument,
+        Boolean requiresPaymentProof
     ) {
 }

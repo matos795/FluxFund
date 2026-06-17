@@ -75,6 +75,16 @@ public class OrganizationSettingsService {
             settings.setSuggestDefaultFundReallocation(false);
         }
 
+        if (request.requireFiscalDocumentForExpenses() != null) {
+            settings.setRequireFiscalDocumentForExpenses(
+                    request.requireFiscalDocumentForExpenses());
+        }
+
+        if (request.requireProofForIncomes() != null) {
+            settings.setRequireProofForIncomes(
+                    request.requireProofForIncomes());
+        }
+
         repository.save(settings);
 
         auditLogService.record(

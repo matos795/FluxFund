@@ -12,7 +12,8 @@ public record CategoryResponse(
         CategoryType type,
         CategorySummaryResponse parent,
         Boolean active,
+        Boolean requiresFiscalDocument,
+        Boolean requiresPaymentProof,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
-    ) {
+        OffsetDateTime updatedAt) {
 }

@@ -38,4 +38,10 @@ public class OrganizationSettings extends BaseEntity {
 
         @Column(name = "suggest_default_fund_reallocation", nullable = false)
         private boolean suggestDefaultFundReallocation = false;
+
+        @Column(name = "require_fiscal_document_for_expenses", nullable = false)
+        private boolean requireFiscalDocumentForExpenses = true;
+
+        @Column(name = "require_proof_for_incomes", nullable = false)
+        private boolean requireProofForIncomes = false;
 }

@@ -41,4 +41,10 @@ public class Category extends BaseEntity {
 
     @Column(nullable = false)
     private boolean active = true;
+
+    @Column(name = "requires_fiscal_document", nullable = false)
+    private boolean requiresFiscalDocument = false;
+
+    @Column(name = "requires_payment_proof", nullable = false)
+    private boolean requiresPaymentProof = false;
 }

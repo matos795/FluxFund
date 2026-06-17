@@ -5,6 +5,8 @@ import java.util.UUID;
 public record UpdateOrganizationSettingsRequest(
         UUID defaultFundId,
         Boolean allowNegativeFunds,
-        Boolean suggestDefaultFundReallocation
+        Boolean suggestDefaultFundReallocation,
+        Boolean requireFiscalDocumentForExpenses,
+        Boolean requireProofForIncomes
 ) {
 }
