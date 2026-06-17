@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/layout/page-header"
 import { Card, CardContent } from "@/components/ui/card"
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { FinancialSettingsCard } from "@/features/organization-settings/components/financial-settings-card"
+import { OrganizationUsersSettingsCard } from "@/features/organization-users/components/organization-users-settings-card"
 
 export function SettingsPage() {
 
@@ -31,12 +32,15 @@ export function SettingsPage() {
                 Financeiro
               </a>
 
-              <span className="block rounded-lg px-3 py-2 text-sm text-muted-foreground">
-                Organização em breve
-              </span>
+              <a
+                href="#users"
+                className="block rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                Usuários e permissões
+              </a>
 
               <span className="block rounded-lg px-3 py-2 text-sm text-muted-foreground">
-                Usuários e permissões em breve
+                Organização em breve
               </span>
 
               <span className="block rounded-lg px-3 py-2 text-sm text-muted-foreground">
@@ -50,8 +54,16 @@ export function SettingsPage() {
           </CardContent>
         </Card>
 
-        <div id="financial">
-          <FinancialSettingsCard />
+        <div className="space-y-6">
+          <div id="financial">
+            <FinancialSettingsCard />
+          </div>
+
+          {canAdmin && (
+            <div id="users">
+              <OrganizationUsersSettingsCard />
+            </div>
+          )}
         </div>
       </div>
     </div>

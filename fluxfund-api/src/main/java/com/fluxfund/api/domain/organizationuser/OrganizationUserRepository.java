@@ -16,4 +16,13 @@ public interface OrganizationUserRepository extends JpaRepository<OrganizationUs
     List<OrganizationUser> findAllByUser_IdAndActiveTrueAndOrganization_ActiveTrue(
             UUID userId
     );
+
+    Optional<OrganizationUser> findByOrganization_IdAndUser_Id(
+            UUID organizationId,
+            UUID userId
+    );
+
+    List<OrganizationUser> findAllByOrganization_IdOrderByUser_NameAsc(
+            UUID organizationId
+    );
 }
