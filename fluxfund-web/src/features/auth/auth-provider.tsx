@@ -121,6 +121,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
     queryClient.clear()
   }, [])
 
+
+  const refreshUser = useCallback(async () => {
+    if (!session?.accessToken) {
+      return null
+    }
+
+    const user = await getAuthenticatedUser()
+
+    const activeOrganizationStillExists = user.organizations.some(
+      (organization) => organization.id === session.activeOrganizationId,
+    )
+
+    const nextSession: AuthSession = {
+      accessToken: session.accessToken,
+      user,
+      activeOrganizationId: activeOrganizationStillExists
+        ? session.activeOrganizationId
+        : user.organizations[0]?.id ?? null,
+    }
+
+    storeSession(nextSession)
+    setSession(nextSession)
+
+    return nextSession
+  }, [session])
+
   const setActiveOrganization = useCallback(
     (organizationId: string) => {
       if (!session) {
@@ -156,8 +182,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       login,
       logout,
       setActiveOrganization,
+      refreshUser,
     }),
-    [session, isLoadingSession, activeOrganization, login, logout, setActiveOrganization],
+    [session, isLoadingSession, activeOrganization, login, logout, setActiveOrganization, refreshUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

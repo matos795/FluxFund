@@ -13,6 +13,7 @@ type AuthContextValue = {
   login: (data: LoginRequest) => Promise<AuthSession>
   logout: () => void
   setActiveOrganization: (organizationId: string) => void
+  refreshUser: () => Promise<AuthSession | null>
 }
 
 export const AuthContext = createContext<AuthContextValue | undefined>(
