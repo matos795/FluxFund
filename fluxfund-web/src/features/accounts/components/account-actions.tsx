@@ -32,7 +32,7 @@ type AccountActionsProps = {
 
 export function AccountActions({ account }: AccountActionsProps) {
 
-    const { canFinanceWrite } = usePermissions()
+    const { canManageAccounts } = usePermissions()
 
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
@@ -52,7 +52,7 @@ export function AccountActions({ account }: AccountActionsProps) {
         })
     }
 
-    if (!canFinanceWrite) {
+    if (!canManageAccounts) {
         return null
     }
 

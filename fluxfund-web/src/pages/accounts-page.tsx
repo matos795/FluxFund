@@ -11,7 +11,7 @@ const PAGE_SIZE = 10
 
 export function AccountsPage() {
 
-  const { canFinanceWrite } = usePermissions()
+  const { canManageAccounts } = usePermissions()
 
   const [page, setPage] = useState(0)
 
@@ -28,7 +28,7 @@ export function AccountsPage() {
         title="Contas"
         description="Gerencie contas bancárias, caixas físicos, carteiras e contas digitais."
       >
-        {canFinanceWrite && <CreateAccountDialog />}
+        {canManageAccounts && <CreateAccountDialog />}
       </PageHeader>
 
       {isLoading && <AccountsTableSkeleton />}

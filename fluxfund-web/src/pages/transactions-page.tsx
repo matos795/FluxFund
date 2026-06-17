@@ -37,13 +37,16 @@ export function TransactionsPage() {
 
   const resolvedAction = isValidAction ? action : "view"
 
+  const safeResolvedAction =
+    canFinanceWrite ? resolvedAction : "view"
+
   const directDialogKey = useMemo(() => {
     if (!actionTransactionId) {
       return null
     }
 
-    return `${actionTransactionId}:${resolvedAction}`
-  }, [actionTransactionId, resolvedAction])
+    return `${actionTransactionId}:${safeResolvedAction}`
+  }, [actionTransactionId, safeResolvedAction])
 
   const [page, setPage] = useState(0)
   const [size, setSize] = useState(10)
@@ -304,7 +307,7 @@ export function TransactionsPage() {
         </>
       )}
 
-      {directTransaction && resolvedAction === "view" && (
+      {directTransaction && safeResolvedAction === "view" && (
         <ViewFinancialTransactionDialog
           transaction={directTransaction}
           open={directDialogOpen}
@@ -313,7 +316,7 @@ export function TransactionsPage() {
         />
       )}
 
-      {directTransaction && resolvedAction === "classify" && (
+      {directTransaction && canFinanceWrite && safeResolvedAction === "classify" && (
         <ClassifyFinancialTransactionDialog
           transaction={directTransaction}
           open={directDialogOpen}
@@ -322,7 +325,7 @@ export function TransactionsPage() {
         />
       )}
 
-      {directTransaction && resolvedAction === "allocate" && (
+      {directTransaction && canFinanceWrite && safeResolvedAction === "allocate" && (
         <ManageTransactionAllocationsDialog
           transaction={directTransaction}
           open={directDialogOpen}
@@ -331,7 +334,7 @@ export function TransactionsPage() {
         />
       )}
 
-      {directTransaction && resolvedAction === "attachments" && (
+      {directTransaction && canFinanceWrite && safeResolvedAction === "attachments" && (
         <FinancialTransactionAttachmentsDialog
           transaction={directTransaction}
           open={directDialogOpen}

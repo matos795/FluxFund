@@ -5,24 +5,46 @@ export function usePermissions() {
 
   const role = activeOrganization?.role
 
+  const isOwner = role === "OWNER"
+  const isAdmin = role === "ADMIN"
+  const isFinance = role === "FINANCE"
+  const isViewer = role === "VIEWER"
+
   const canRead = Boolean(role)
 
-  const canFinanceWrite =
-    role === "OWNER" ||
-    role === "ADMIN" ||
-    role === "FINANCE"
+  const canFinanceWrite = isOwner || isAdmin || isFinance
 
-  const canAdmin =
-    role === "OWNER" ||
-    role === "ADMIN"
+  const canAdmin = isOwner || isAdmin
 
-  const isViewer = role === "VIEWER"
+  const canManageOrganization = canAdmin
+
+  const canManageUsers = canAdmin
+
+  const canManageOwners = isOwner
+
+  const canManageAccounts = canAdmin
+
+  const canManageFinancialSettings = canAdmin
+
+  const canExportReports = canRead
 
   return {
     role,
+
+    isOwner,
+    isAdmin,
+    isFinance,
+    isViewer,
+
     canRead,
     canFinanceWrite,
     canAdmin,
-    isViewer,
+
+    canManageOrganization,
+    canManageUsers,
+    canManageOwners,
+    canManageAccounts,
+    canManageFinancialSettings,
+    canExportReports,
   }
 }

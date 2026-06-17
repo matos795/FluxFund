@@ -32,7 +32,7 @@ public class AccountService {
     private final OrganizationAccessService organizationAccessService;
 
     public AccountResponse create(CreateAccountRequest request, UUID organizationId) {
-        organizationAccessService.requireFinanceWriteAccess(organizationId);
+        organizationAccessService.requireAdminAccess(organizationId);
 
         Organization organization = organizationRepository.findByIdAndActiveTrue(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
@@ -67,7 +67,7 @@ public class AccountService {
             UUID id,
             UUID organizationId,
             UpdateAccountRequest request) {
-        organizationAccessService.requireFinanceWriteAccess(organizationId);
+        organizationAccessService.requireAdminAccess(organizationId);
 
         Account account = accountRepository.findByIdAndOrganizationIdAndActiveTrue(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
@@ -79,7 +79,7 @@ public class AccountService {
     }
 
     public void delete(UUID id, UUID organizationId) {
-        organizationAccessService.requireFinanceWriteAccess(organizationId);
+        organizationAccessService.requireAdminAccess(organizationId);
 
         Account account = accountRepository.findByIdAndOrganizationIdAndActiveTrue(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found"));

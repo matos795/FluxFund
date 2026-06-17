@@ -17,12 +17,16 @@ import { CreditCardStatementsTable } from "@/features/credit-card-statements/com
 import { creditCardStatementStatusLabels } from "@/features/credit-card-statements/credit-card-statement-labels"
 import type { CreditCardStatementStatus } from "@/features/credit-card-statements/credit-card-statement-types"
 import { useCreditCardStatements } from "@/features/credit-card-statements/hooks/use-credit-card-statements"
+import { usePermissions } from "@/features/auth/hooks/use-permissions"
 
 const ALL_STATUS = "ALL"
 
 type StatusFilter = CreditCardStatementStatus | typeof ALL_STATUS
 
 export function CreditCardStatementsPage() {
+
+  const { canFinanceWrite } = usePermissions()
+
   const [page, setPage] = useState(0)
   const [size, setSize] = useState(10)
   const [status, setStatus] = useState<StatusFilter>("OPEN")
@@ -53,7 +57,7 @@ export function CreditCardStatementsPage() {
         title="Cartões de crédito"
         description="Gerencie faturas e lance cada compra do cartão como uma despesa individual com categoria, alocação e anexos."
       >
-        <CreateCreditCardStatementDialog />
+        {canFinanceWrite && <CreateCreditCardStatementDialog />}
       </PageHeader>
 
       <Card className="mb-4">

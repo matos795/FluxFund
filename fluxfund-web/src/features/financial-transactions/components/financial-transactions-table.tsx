@@ -28,6 +28,7 @@ import { ViewFinancialTransactionDialog } from "./view-financial-transaction-dia
 import { ClassifyFinancialTransactionDialog } from "./classify-financial-transaction-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { needsFinancialTransactionClassification } from "../financial-transaction-rules"
+import { usePermissions } from "@/features/auth/hooks/use-permissions"
 
 type FinancialTransactionsTableProps = {
   financialTransactions: FinancialTransaction[]
@@ -46,6 +47,9 @@ export function FinancialTransactionsTable({
   onSizeChange,
   onSortChange,
 }: FinancialTransactionsTableProps) {
+
+  const { canFinanceWrite } = usePermissions()
+
   const [transactionToView, setTransactionToView] =
     useState<FinancialTransaction | null>(null)
 
@@ -53,7 +57,10 @@ export function FinancialTransactionsTable({
     useState<FinancialTransaction | null>(null)
 
   function handleRowClick(transaction: FinancialTransaction) {
-    if (needsFinancialTransactionClassification(transaction)) {
+    if (
+      canFinanceWrite &&
+      needsFinancialTransactionClassification(transaction)
+    ) {
       setTransactionToClassify(transaction)
       return
     }
