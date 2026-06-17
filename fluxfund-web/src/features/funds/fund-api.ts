@@ -57,3 +57,25 @@ export async function createFundTransfer(data: CreateFundTransferRequest) {
 export async function cancelFundTransfer(id: string) {
   await httpClient.delete(`/api/v1/fund-transfers/${id}`)
 }
+
+type GetFundTransfersParams = {
+  page?: number
+  size?: number
+}
+
+export async function getFundTransfers({
+  page = 0,
+  size = 10,
+}: GetFundTransfersParams = {}) {
+  const response = await httpClient.get<PageResponse<FundTransfer>>(
+    "/api/v1/fund-transfers",
+    {
+      params: {
+        page,
+        size,
+      },
+    },
+  )
+
+  return response.data
+}
