@@ -58,4 +58,23 @@ public interface FundTransferRepository extends JpaRepository<FundTransfer, UUID
             @Param("organizationId") UUID organizationId,
             @Param("fundId") UUID fundId,
             @Param("excludedTransferId") UUID excludedTransferId);
+
+    @Query("""
+            select coalesce(sum(
+                case
+                    when ft.destinationFund.active = true then ft.amount
+                    else 0
+                end
+                -
+                case
+                    when ft.sourceFund.active = true then ft.amount
+                    else 0
+                end
+            ), 0)
+            from FundTransfer ft
+            where ft.organization.id = :organizationId
+              and ft.status = com.fluxfund.api.domain.fundtransfer.FundTransferStatus.ACTIVE
+            """)
+    BigDecimal sumNetAmountForActiveFundsByOrganizationId(
+            @Param("organizationId") UUID organizationId);
 }

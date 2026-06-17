@@ -106,7 +106,7 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             left join TransactionAllocation a
                 on a.fund = f
                 and a.organization.id = :organizationId
-                and a.financialTransaction.status <> com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.CANCELED
+                and a.financialTransaction.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
             left join a.financialTransaction ft
             where f.organization.id = :organizationId
               and f.active = true
@@ -221,4 +221,14 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             @Param("organizationId") UUID organizationId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
+
+    @Query("""
+            select coalesce(sum(a.amount), 0)
+            from TransactionAllocation a
+            where a.organization.id = :organizationId
+              and a.fund.active = true
+              and a.financialTransaction.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+            """)
+    BigDecimal sumSettledActiveFundAllocationsByOrganizationId(
+            @Param("organizationId") UUID organizationId);
 }

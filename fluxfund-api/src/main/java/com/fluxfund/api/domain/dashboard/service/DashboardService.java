@@ -31,6 +31,7 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
 import com.fluxfund.api.domain.fund.repository.FundRepository;
+import com.fluxfund.api.domain.fundtransfer.repository.FundTransferRepository;
 import com.fluxfund.api.domain.organization.OrganizationRepository;
 import com.fluxfund.api.domain.transactionallocation.repository.TransactionAllocationRepository;
 import com.fluxfund.api.security.OrganizationAccessService;
@@ -50,6 +51,7 @@ public class DashboardService {
         private final AccountRepository accountRepository;
         private final FundRepository fundRepository;
         private final OrganizationAccessService organizationAccessService;
+        private final FundTransferRepository fundTransferRepository;
 
         public DashboardSummaryResponse getSummary(
                         UUID organizationId,
@@ -102,9 +104,10 @@ public class DashboardService {
                                 .sumInitialBalanceByOrganizationId(organizationId);
 
                 BigDecimal fundsAllocationBalance = allocationRepository
-                                .sumActiveFundAllocationsByOrganizationId(
-                                                organizationId,
-                                                FinancialTransactionStatus.CANCELED);
+                                .sumSettledActiveFundAllocationsByOrganizationId(organizationId);
+
+                BigDecimal fundsTransferBalance = fundTransferRepository
+                                .sumNetAmountForActiveFundsByOrganizationId(organizationId);
 
                 BigDecimal netTotal = incomeTotal.subtract(expenseTotal);
 
@@ -113,7 +116,8 @@ public class DashboardService {
                                 .subtract(allTimeExpenseTotal);
 
                 BigDecimal fundsTotalBalance = fundsInitialBalance
-                                .add(fundsAllocationBalance);
+                                .add(fundsAllocationBalance)
+                                .add(fundsTransferBalance);
 
                 long transactionCount = financialTransactionRepository
                                 .countByOrganizationIdAndStatusNotAndSettlementDateBetween(

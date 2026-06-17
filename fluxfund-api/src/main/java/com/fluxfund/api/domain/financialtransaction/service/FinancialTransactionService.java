@@ -43,6 +43,7 @@ import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransact
 import com.fluxfund.api.domain.financialtransaction.specification.FinancialTransactionSpecification;
 import com.fluxfund.api.domain.fund.Fund;
 import com.fluxfund.api.domain.fund.repository.FundRepository;
+import com.fluxfund.api.domain.fundtransfer.repository.FundTransferRepository;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.OrganizationRepository;
 import com.fluxfund.api.domain.organizationsettings.OrganizationSettings;
@@ -75,6 +76,7 @@ public class FinancialTransactionService {
     private final AttachmentRepository attachmentRepository;
     private final OrganizationAccessService organizationAccessService;
     private final AuditLogService auditLogService;
+    private final FundTransferRepository fundTransferRepository;
 
     public FinancialTransactionResponse create(UUID organizationId, CreateFinancialTransactionRequest request) {
         organizationAccessService.requireFinanceWriteAccess(organizationId);
@@ -917,7 +919,13 @@ public class FinancialTransactionService {
                         organizationId,
                         fund.getId());
 
-        return fund.getInitialBalance().add(allocationsSum);
+        BigDecimal transferSum = fundTransferRepository.sumNetAmountByFundId(
+                organizationId,
+                fund.getId());
+
+        return fund.getInitialBalance()
+                .add(allocationsSum)
+                .add(transferSum);
     }
 
     private FinancialTransactionResponse classifyAsTransfer(

@@ -116,7 +116,7 @@ export function FundReportPage() {
                             {formatCurrency(report?.fundsTotalBalance ?? 0)}
                         </div>
                         <p className="text-xs text-muted-foreground">
-                            Saldo atual considerando todas as alocações.
+                            Saldo atual considerando alocações e transferências internas.
                         </p>
                     </CardContent>
                 </Card>
