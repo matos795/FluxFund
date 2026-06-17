@@ -16,6 +16,7 @@ import com.fluxfund.api.domain.fund.dto.FundResponse;
 import com.fluxfund.api.domain.fund.dto.UpdateFundRequest;
 import com.fluxfund.api.domain.fund.mapper.FundMapper;
 import com.fluxfund.api.domain.fund.repository.FundRepository;
+import com.fluxfund.api.domain.fundtransfer.repository.FundTransferRepository;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.OrganizationRepository;
 import com.fluxfund.api.domain.transactionallocation.repository.TransactionAllocationRepository;
@@ -35,6 +36,7 @@ public class FundService {
     private final OrganizationRepository organizationRepository;
     private final TransactionAllocationRepository allocationRepository;
     private final OrganizationAccessService organizationAccessService;
+    private final FundTransferRepository fundTransferRepository;
 
     public FundResponse create(CreateFundRequest request, UUID organizationId) {
         organizationAccessService.requireFinanceWriteAccess(organizationId);
@@ -48,7 +50,7 @@ public class FundService {
 
         repository.save(fund);
 
-        return FundMapper.toResponse(fund, allocationRepository.sumAmountByFundId(organizationId, fund.getId()));
+        return FundMapper.toResponse(fund, getFundCurrentMovement(organizationId, fund.getId()));
     }
 
     @Transactional(readOnly = true)
@@ -59,7 +61,7 @@ public class FundService {
 
         return repository
                 .findAllByOrganizationIdAndActiveTrue(organizationId, pageable)
-                .map(x -> FundMapper.toResponse(x, allocationRepository.sumAmountByFundId(organizationId, x.getId())));
+                .map(x -> FundMapper.toResponse(x, getFundCurrentMovement(organizationId, x.getId())));
     }
 
     @Transactional(readOnly = true)
@@ -68,7 +70,7 @@ public class FundService {
 
         Fund fund = findFundById(id, organizationId);
 
-        return FundMapper.toResponse(fund, allocationRepository.sumAmountByFundId(organizationId, fund.getId()));
+        return FundMapper.toResponse(fund, getFundCurrentMovement(organizationId, fund.getId()));
     }
 
     public FundResponse update(
@@ -90,7 +92,7 @@ public class FundService {
         FundMapper.updateEntity(fund, request);
         repository.save(fund);
 
-        return FundMapper.toResponse(fund, allocationRepository.sumAmountByFundId(organizationId, fund.getId()));
+        return FundMapper.toResponse(fund, getFundCurrentMovement(organizationId, fund.getId()));
     }
 
     public void delete(UUID id, UUID organizationId) {
@@ -110,9 +112,7 @@ public class FundService {
                 .stream()
                 .map(fund -> {
                     BigDecimal currentBalance = fund.getInitialBalance()
-                            .add(allocationRepository.sumAmountByFundId(
-                                    organizationId,
-                                    fund.getId()));
+                            .add(getFundCurrentMovement(organizationId, fund.getId()));
 
                     return new FundOptionResponse(
                             fund.getId(),
@@ -150,5 +150,17 @@ public class FundService {
         if (exists) {
             throw new BusinessException("Fund name already exists");
         }
+    }
+
+    private BigDecimal getFundCurrentMovement(UUID organizationId, UUID fundId) {
+        BigDecimal allocationBalance = allocationRepository.sumAmountByFundId(
+                organizationId,
+                fundId);
+
+        BigDecimal transferBalance = fundTransferRepository.sumNetAmountByFundId(
+                organizationId,
+                fundId);
+
+        return allocationBalance.add(transferBalance);
     }
 }

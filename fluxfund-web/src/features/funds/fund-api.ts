@@ -1,6 +1,6 @@
 import type { PageResponse } from "@/types/page-response"
 import { httpClient } from "@/api/http-client"
-import type { CreateFundRequest, Fund, FundOption, UpdateFundRequest } from "./fund-types"
+import type { CreateFundRequest, CreateFundTransferRequest, Fund, FundOption, FundTransfer, UpdateFundRequest } from "./fund-types"
 
 type GetFundsParams = {
     page?: number
@@ -43,4 +43,17 @@ export async function getFundOptions() {
   )
 
   return response.data
+}
+
+export async function createFundTransfer(data: CreateFundTransferRequest) {
+  const response = await httpClient.post<FundTransfer>(
+    "/api/v1/fund-transfers",
+    data,
+  )
+
+  return response.data
+}
+
+export async function cancelFundTransfer(id: string) {
+  await httpClient.delete(`/api/v1/fund-transfers/${id}`)
 }

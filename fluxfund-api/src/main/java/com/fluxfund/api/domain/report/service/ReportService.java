@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
+import com.fluxfund.api.domain.fundtransfer.repository.FundTransferRepository;
 import com.fluxfund.api.domain.organization.OrganizationRepository;
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityAccountBreakdownResponse;
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityByAccountItemResponse;
@@ -46,6 +47,7 @@ public class ReportService {
         private final TransactionAllocationRepository transactionAllocationRepository;
         private final SupportAgreementRepository supportAgreementRepository;
         private final OrganizationAccessService organizationAccessService;
+        private final FundTransferRepository fundTransferRepository;
 
         public CategoryResultReportResponse getCategoryResultReport(
                         UUID organizationId,
@@ -123,8 +125,13 @@ public class ReportService {
                                         BigDecimal periodBalance = projection.incomeAllocated()
                                                         .subtract(projection.expenseAllocated());
 
+                                        BigDecimal transferBalance = fundTransferRepository.sumNetAmountByFundId(
+                                                        organizationId,
+                                                        projection.fundId());
+
                                         BigDecimal currentBalance = projection.initialBalance()
-                                                        .add(projection.historicalAllocationBalance());
+                                                        .add(projection.historicalAllocationBalance())
+                                                        .add(transferBalance);
 
                                         return new FundReportItemResponse(
                                                         projection.fundId(),

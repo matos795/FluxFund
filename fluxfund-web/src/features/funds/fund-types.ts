@@ -35,3 +35,25 @@ export type FundOption = {
   label: string
   currentBalance: number
 }
+
+export type FundTransferStatus = "ACTIVE" | "CANCELED"
+
+export type FundTransfer = {
+  id: string
+  sourceFund: FundSummary
+  destinationFund: FundSummary
+  amount: number
+  transferDate: string
+  description: string | null
+  status: FundTransferStatus
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type CreateFundTransferRequest = {
+  sourceFundId: string
+  destinationFundId: string
+  transferDate: string
+  amount: number
+  description?: string | null
+}

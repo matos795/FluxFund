@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/layout/page-header"
 import { PagePagination } from "@/components/pagination/page-pagination"
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { CreateFundDialog } from "@/features/funds/components/create-fund-dialog"
+import { CreateFundTransferDialog } from "@/features/funds/components/create-fund-transfer-dialog"
 import { FundsTable } from "@/features/funds/components/funds-table"
 import { FundsTableSkeleton } from "@/features/funds/components/funds-table-skeleton"
 import { useFunds } from "@/features/funds/hooks/use-funds"
@@ -28,7 +29,12 @@ export function FundsPage() {
         title="Fundos"
         description="Gerencie fundos, projetos e destinações internas de recursos."
       >
-        {canFinanceWrite && <CreateFundDialog />}
+        {canFinanceWrite && (
+          <>
+            <CreateFundTransferDialog />
+            <CreateFundDialog />
+          </>
+        )}
       </PageHeader>
 
       {isLoading && <FundsTableSkeleton />}
