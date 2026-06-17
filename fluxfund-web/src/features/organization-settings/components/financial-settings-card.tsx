@@ -29,6 +29,15 @@ export function FinancialSettingsCard() {
   const [defaultFundId, setDefaultFundId] = useState<string | undefined>()
   const [allowNegativeFunds, setAllowNegativeFunds] = useState<boolean | undefined>()
   const [
+    requireFiscalDocumentForExpenses,
+    setRequireFiscalDocumentForExpenses,
+  ] = useState<boolean | undefined>()
+
+  const [
+    requireProofForIncomes,
+    setRequireProofForIncomes,
+  ] = useState<boolean | undefined>()
+  const [
     suggestDefaultFundReallocation,
     setSuggestDefaultFundReallocation,
   ] = useState<boolean | undefined>()
@@ -47,6 +56,16 @@ export function FinancialSettingsCard() {
 
   const effectiveSuggestDefaultFundReallocation = suggestDefaultFundReallocation ?? settings?.suggestDefaultFundReallocation ?? false
 
+  const effectiveRequireFiscalDocumentForExpenses =
+    requireFiscalDocumentForExpenses ??
+    settings?.requireFiscalDocumentForExpenses ??
+    true
+
+  const effectiveRequireProofForIncomes =
+    requireProofForIncomes ??
+    settings?.requireProofForIncomes ??
+    false
+
   const selectedFundId = effectiveDefaultFundId
 
   const selectedFund = useMemo(() => {
@@ -61,6 +80,9 @@ export function FinancialSettingsCard() {
         suggestDefaultFundReallocation:
           canSuggestDefaultFundReallocation &&
           effectiveSuggestDefaultFundReallocation,
+        requireFiscalDocumentForExpenses:
+          effectiveRequireFiscalDocumentForExpenses,
+        requireProofForIncomes: effectiveRequireProofForIncomes,
       },
       {
         onSuccess: () => {
@@ -69,6 +91,8 @@ export function FinancialSettingsCard() {
           setDefaultFundId(undefined)
           setAllowNegativeFunds(undefined)
           setSuggestDefaultFundReallocation(undefined)
+          setRequireFiscalDocumentForExpenses(undefined)
+          setRequireProofForIncomes(undefined)
         },
         onError: (error) => {
           toast.error(
@@ -104,7 +128,10 @@ export function FinancialSettingsCard() {
     (settings?.defaultFund?.id ?? "") !== effectiveDefaultFundId ||
     settings?.allowNegativeFunds !== effectiveAllowNegativeFunds ||
     settings?.suggestDefaultFundReallocation !==
-    effectiveSuggestDefaultFundReallocation
+    effectiveSuggestDefaultFundReallocation ||
+    settings?.requireFiscalDocumentForExpenses !==
+    effectiveRequireFiscalDocumentForExpenses ||
+    settings?.requireProofForIncomes !== effectiveRequireProofForIncomes
 
   const canSuggestDefaultFundReallocation = !effectiveAllowNegativeFunds && Boolean(effectiveDefaultFundId)
 
@@ -231,6 +258,52 @@ export function FinancialSettingsCard() {
                   checked={canSuggestDefaultFundReallocation && effectiveSuggestDefaultFundReallocation}
                   disabled={!canAdmin || !canSuggestDefaultFundReallocation}
                   onCheckedChange={setSuggestDefaultFundReallocation}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4 rounded-lg border p-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Regras de documentação</p>
+                <p className="text-sm text-muted-foreground">
+                  Defina as regras gerais de conferência documental da organização.
+                  Categorias específicas ainda podem dispensar ou exigir documentos.
+                </p>
+              </div>
+
+              <div className="flex items-start justify-between gap-4 border-t pt-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">
+                    Despesas exigem documento fiscal por padrão
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Quando ativado, despesas liquidadas cobram documento fiscal/documental,
+                    exceto categorias configuradas como dispensadas.
+                  </p>
+                </div>
+
+                <Switch
+                  checked={effectiveRequireFiscalDocumentForExpenses}
+                  disabled={!canAdmin}
+                  onCheckedChange={setRequireFiscalDocumentForExpenses}
+                />
+              </div>
+
+              <div className="flex items-start justify-between gap-4 border-t pt-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">
+                    Receitas exigem comprovante por padrão
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Normalmente fica desligado. Ative se a organização quiser cobrar
+                    comprovante também para receitas recebidas.
+                  </p>
+                </div>
+
+                <Switch
+                  checked={effectiveRequireProofForIncomes}
+                  disabled={!canAdmin}
+                  onCheckedChange={setRequireProofForIncomes}
                 />
               </div>
             </div>

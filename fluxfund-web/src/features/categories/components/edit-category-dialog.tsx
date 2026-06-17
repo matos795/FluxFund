@@ -18,7 +18,7 @@ export function EditCategoryDialog({ category }: EditCategoryDialogProps) {
     const [open, setOpen] = useState(false)
 
     const updateCategoryMutation = useUpdateCategory()
-    
+
     const { data: categoryOptions = [] } = useCategoryOptions()
 
     function handleUpdateCategory(data: CategoryFormData) {
@@ -28,6 +28,8 @@ export function EditCategoryDialog({ category }: EditCategoryDialogProps) {
                 name: data.name,
                 type: data.type,
                 parentId: data.parentId ?? null,
+                requiresFiscalDocument: data.requiresFiscalDocument,
+                requiresPaymentProof: data.requiresPaymentProof,
             },
             {
                 onSuccess: () => {
@@ -73,7 +75,9 @@ export function EditCategoryDialog({ category }: EditCategoryDialogProps) {
                         defaultValues={{
                             name: category.name,
                             type: category.type,
-                            parentId: category.parent?.id ?? null
+                            parentId: category.parent?.id ?? null,
+                            requiresFiscalDocument: category.requiresFiscalDocument,
+                            requiresPaymentProof: category.requiresPaymentProof,
                         }}
                         submitLabel="Salvar Alterações"
                         isSubmitting={updateCategoryMutation.isPending}

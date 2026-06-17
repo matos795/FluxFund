@@ -8,6 +8,8 @@ import { categoryTypeLabels } from "../category-labels"
 import { Button } from "@/components/ui/button"
 import { CategoryCombobox } from "@/components/form/category-combobox"
 import type { CategoryOption } from "../category-types"
+import { Switch } from "@/components/ui/switch"
+import { FileCheck2, ReceiptText } from "lucide-react"
 
 
 type CategoryFormProps = {
@@ -35,11 +37,25 @@ export function CategoryForm({
             name: defaultValues?.name ?? "",
             type: defaultValues?.type ?? "EXPENSE",
             parentId: defaultValues?.parentId ?? null,
+            requiresFiscalDocument:
+                defaultValues?.requiresFiscalDocument ??
+                (defaultValues?.type === "INCOME" ? false : true),
+            requiresPaymentProof: defaultValues?.requiresPaymentProof ?? false,
         },
     })
 
     const selectedType = useWatch({ control, name: "type" })
     const selectedParentId = useWatch({ control, name: "parentId" })
+
+    const requiresFiscalDocument = useWatch({
+        control,
+        name: "requiresFiscalDocument",
+    })
+
+    const requiresPaymentProof = useWatch({
+        control,
+        name: "requiresPaymentProof",
+    })
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -60,11 +76,21 @@ export function CategoryForm({
                 <Select
                     value={selectedType}
                     onValueChange={(value) => {
-                        setValue("type", value as CategoryFormInput["type"], {
+                        const nextType = value as CategoryFormInput["type"]
+
+                        setValue("type", nextType, {
                             shouldValidate: true,
                         })
 
                         setValue("parentId", null, {
+                            shouldValidate: true,
+                        })
+
+                        setValue("requiresFiscalDocument", nextType === "EXPENSE", {
+                            shouldValidate: true,
+                        })
+
+                        setValue("requiresPaymentProof", false, {
                             shouldValidate: true,
                         })
                     }}
@@ -110,6 +136,68 @@ export function CategoryForm({
                 {errors.parentId && (
                     <p className="text-sm text-destructive">{errors.parentId.message}</p>
                 )}
+            </div>
+
+            <div className="space-y-3 rounded-xl border p-4">
+                <div>
+                    <h3 className="text-sm font-medium">Documentação exigida</h3>
+                    <p className="text-sm text-muted-foreground">
+                        Defina quais documentos esta categoria deve cobrar na conferência.
+                    </p>
+                </div>
+
+                <div className="flex items-start justify-between gap-4 rounded-lg bg-muted/40 p-3">
+                    <div className="flex gap-3">
+                        <div className="rounded-lg bg-background p-2">
+                            <FileCheck2 className="size-4 text-muted-foreground" />
+                        </div>
+
+                        <div className="space-y-1">
+                            <p className="text-sm font-medium">
+                                Exigir documento fiscal/documental
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                Use para nota fiscal, recibo, contrato ou documento equivalente.
+                            </p>
+                        </div>
+                    </div>
+
+                    <Switch
+                        checked={requiresFiscalDocument}
+                        onCheckedChange={(value) =>
+                            setValue("requiresFiscalDocument", value, {
+                                shouldValidate: true,
+                            })
+                        }
+                    />
+                </div>
+
+                <div className="flex items-start justify-between gap-4 rounded-lg bg-muted/40 p-3">
+                    <div className="flex gap-3">
+                        <div className="rounded-lg bg-background p-2">
+                            <ReceiptText className="size-4 text-muted-foreground" />
+                        </div>
+
+                        <div className="space-y-1">
+                            <p className="text-sm font-medium">
+                                Exigir comprovante de pagamento/repasse
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                Use para repasses, pagamentos ou casos em que o comprovante bancário
+                                é obrigatório.
+                            </p>
+                        </div>
+                    </div>
+
+                    <Switch
+                        checked={requiresPaymentProof}
+                        onCheckedChange={(value) =>
+                            setValue("requiresPaymentProof", value, {
+                                shouldValidate: true,
+                            })
+                        }
+                    />
+                </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-2">

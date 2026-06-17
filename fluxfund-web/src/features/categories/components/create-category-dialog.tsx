@@ -42,6 +42,8 @@ export function CreateCategoryDialog({
         name: data.name,
         type: data.type,
         parentId: data.parentId ?? null,
+        requiresFiscalDocument: data.requiresFiscalDocument,
+        requiresPaymentProof: data.requiresPaymentProof,
       },
       {
         onSuccess: (category) => {

@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { AlertCircle, CalendarDays, CheckCircle2, CircleDollarSign, FileCheck2, FileWarning, Paperclip } from "lucide-react"
+import { AlertCircle, CalendarDays, CheckCircle2, CircleDollarSign, FileCheck2, FileWarning } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,6 +29,9 @@ import { ClassifyFinancialTransactionDialog } from "./classify-financial-transac
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { needsFinancialTransactionClassification } from "../financial-transaction-rules"
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
+import { useOrganizationSettings } from "@/features/organization-settings/hooks/use-organization-settings"
+import type { OrganizationSettings } from "@/features/organization-settings/organization-settings-types"
+import { getTransactionDocumentationStatus } from "../transaction-documentation"
 
 type FinancialTransactionsTableProps = {
   financialTransactions: FinancialTransaction[]
@@ -49,6 +52,7 @@ export function FinancialTransactionsTable({
 }: FinancialTransactionsTableProps) {
 
   const { canFinanceWrite } = usePermissions()
+  const settingsQuery = useOrganizationSettings()
 
   const [transactionToView, setTransactionToView] =
     useState<FinancialTransaction | null>(null)
@@ -275,7 +279,10 @@ export function FinancialTransactionsTable({
                         </TableCell>
 
                         <TableCell>
-                          <AttachmentBadge transaction={transaction} />
+                          <AttachmentBadge
+                            transaction={transaction}
+                            settings={settingsQuery.data}
+                          />
                         </TableCell>
 
                         <TableCell onClick={(event) => event.stopPropagation()}>
@@ -388,14 +395,19 @@ function AllocationBadge({ status }: { status: AllocationStatus }) {
 
 function AttachmentBadge({
   transaction,
+  settings,
 }: {
   transaction: FinancialTransaction
+  settings?: OrganizationSettings
 }) {
   const attachmentCount = transaction.attachmentCount ?? 0
-  const fiscalCount = transaction.fiscalAttachmentCount ?? 0
-  const paymentProofCount = transaction.paymentProofAttachmentCount ?? 0
 
-  if (transaction.type === "TRANSFER") {
+  const documentation = getTransactionDocumentationStatus(
+    transaction,
+    settings,
+  )
+
+  if (documentation.status === "NOT_REQUIRED") {
     return (
       <Badge variant="outline" className="text-muted-foreground">
         -
@@ -403,45 +415,28 @@ function AttachmentBadge({
     )
   }
 
-  if (attachmentCount === 0) {
-    if (transaction.type === "EXPENSE" && transaction.status === "SETTLED") {
-      return (
-        <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
-          <FileWarning className="mr-1 size-3" />
-          Fiscal
-        </Badge>
-      )
-    }
-
-    return (
-      <Badge variant="outline" className="text-muted-foreground">
-        -
-      </Badge>
-    )
-  }
-
-  if (transaction.type === "EXPENSE" && fiscalCount === 0) {
+  if (documentation.status === "MISSING") {
     return (
       <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
         <FileWarning className="mr-1 size-3" />
-        {attachmentCount}
+        Docs
       </Badge>
     )
   }
 
-  if (fiscalCount > 0) {
+  if (documentation.status === "PARTIAL") {
     return (
-      <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-        <FileCheck2 className="mr-1 size-3" />
-        {attachmentCount}
+      <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
+        <FileWarning className="mr-1 size-3" />
+        Parcial
       </Badge>
     )
   }
 
   return (
-    <Badge variant="secondary">
-      <Paperclip className="mr-1 size-3" />
-      {paymentProofCount || attachmentCount}
+    <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+      <FileCheck2 className="mr-1 size-3" />
+      {attachmentCount}
     </Badge>
   )
 }
