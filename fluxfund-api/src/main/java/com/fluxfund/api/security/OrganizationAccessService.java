@@ -31,11 +31,9 @@ public class OrganizationAccessService {
         if (!EnumSet.of(
                 OrganizationRole.OWNER,
                 OrganizationRole.ADMIN,
-                OrganizationRole.FINANCE
-        ).contains(membership.getRole())) {
+                OrganizationRole.FINANCE).contains(membership.getRole())) {
             throw new ForbiddenException(
-                    "You do not have permission to modify financial data in this organization"
-            );
+                    "You do not have permission to modify financial data in this organization");
         }
     }
 
@@ -44,11 +42,18 @@ public class OrganizationAccessService {
 
         if (!EnumSet.of(
                 OrganizationRole.OWNER,
-                OrganizationRole.ADMIN
-        ).contains(membership.getRole())) {
+                OrganizationRole.ADMIN).contains(membership.getRole())) {
             throw new ForbiddenException(
-                    "You do not have administrative permission in this organization"
-            );
+                    "You do not have administrative permission in this organization");
+        }
+    }
+
+    public void requireOwnerAccess(UUID organizationId) {
+        OrganizationUser membership = requireMembership(organizationId);
+
+        if (membership.getRole() != OrganizationRole.OWNER) {
+            throw new ForbiddenException(
+                    "Only organization owners can perform this action");
         }
     }
 
@@ -58,10 +63,8 @@ public class OrganizationAccessService {
         return organizationUserRepository
                 .findByUser_IdAndOrganization_IdAndActiveTrueAndOrganization_ActiveTrue(
                         userId,
-                        organizationId
-                )
+                        organizationId)
                 .orElseThrow(() -> new ForbiddenException(
-                        "You do not have access to this organization"
-                ));
+                        "You do not have access to this organization"));
     }
 }

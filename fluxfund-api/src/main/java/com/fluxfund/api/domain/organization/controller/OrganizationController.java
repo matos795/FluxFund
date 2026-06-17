@@ -1,5 +1,6 @@
-package com.fluxfund.api.domain.organization;
+package com.fluxfund.api.domain.organization.controller;
 
+import com.fluxfund.api.domain.organization.OrganizationService;
 import com.fluxfund.api.domain.organization.dto.CreateOrganizationRequest;
 import com.fluxfund.api.domain.organization.dto.OrganizationResponse;
 import jakarta.validation.Valid;

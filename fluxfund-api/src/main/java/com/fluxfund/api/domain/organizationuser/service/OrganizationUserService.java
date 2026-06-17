@@ -107,8 +107,7 @@ public class OrganizationUserService {
         OrganizationUser newOrganizationUser = new OrganizationUser();
         newOrganizationUser.setId(new OrganizationUserId(
                 organizationId,
-                user.getId()
-        ));
+                user.getId()));
         newOrganizationUser.setOrganization(organization);
         newOrganizationUser.setUser(user);
         newOrganizationUser.setRole(request.role());
@@ -131,8 +130,14 @@ public class OrganizationUserService {
 
         preventSelfRoleChange(userId);
 
-        if (organizationUser.getRole() == OrganizationRole.OWNER
-                && request.role() != OrganizationRole.OWNER) {
+        boolean targetIsOwner = organizationUser.getRole() == OrganizationRole.OWNER;
+        boolean nextRoleIsOwner = request.role() == OrganizationRole.OWNER;
+
+        if (targetIsOwner || nextRoleIsOwner) {
+            organizationAccessService.requireOwnerAccess(organizationId);
+        }
+
+        if (targetIsOwner && !nextRoleIsOwner) {
             preventRemovingLastOwner(organizationId, userId);
         }
 
@@ -154,6 +159,10 @@ public class OrganizationUserService {
                 userId);
 
         preventSelfStatusChange(userId);
+
+        if (organizationUser.getRole() == OrganizationRole.OWNER) {
+            organizationAccessService.requireOwnerAccess(organizationId);
+        }
 
         if (!request.active()
                 && organizationUser.getRole() == OrganizationRole.OWNER) {
@@ -204,9 +213,8 @@ public class OrganizationUserService {
                 organizationId,
                 targetUserId);
 
-        boolean targetIsActiveOwner =
-                targetMembership.isActive()
-                        && targetMembership.getRole() == OrganizationRole.OWNER;
+        boolean targetIsActiveOwner = targetMembership.isActive()
+                && targetMembership.getRole() == OrganizationRole.OWNER;
 
         if (targetIsActiveOwner && activeOwners <= 1) {
             throw new BusinessException("Organization must have at least one active owner");

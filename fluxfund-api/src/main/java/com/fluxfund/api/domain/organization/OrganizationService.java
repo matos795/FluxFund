@@ -10,7 +10,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fluxfund.api.domain.organization.dto.CreateOrganizationRequest;
 import com.fluxfund.api.domain.organization.dto.OrganizationResponse;
+import com.fluxfund.api.domain.organization.dto.UpdateOrganizationProfileRequest;
 import com.fluxfund.api.domain.organization.mapper.OrganizationMapper;
+import com.fluxfund.api.security.OrganizationAccessService;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 public class OrganizationService {
 
     private final OrganizationRepository organizationRepository;
+    private final OrganizationAccessService organizationAccessService;
 
     public OrganizationResponse create(CreateOrganizationRequest request) {
         Organization organization = new Organization();
@@ -64,5 +67,32 @@ public class OrganizationService {
         }
 
         organizationRepository.deleteById(id);
+    }
+
+    @Transactional(readOnly = true)
+    public OrganizationResponse findCurrent(UUID organizationId) {
+        organizationAccessService.requireReadAccess(organizationId);
+
+        Organization organization = organizationRepository
+                .findByIdAndActiveTrue(organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+
+        return OrganizationMapper.toResponse(organization);
+    }
+
+    public OrganizationResponse updateCurrent(
+            UUID organizationId,
+            UpdateOrganizationProfileRequest request) {
+
+        organizationAccessService.requireAdminAccess(organizationId);
+
+        Organization organization = organizationRepository
+                .findByIdAndActiveTrue(organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+
+        organization.setName(request.name().trim());
+
+        return OrganizationMapper.toResponse(
+                organizationRepository.save(organization));
     }
 }
