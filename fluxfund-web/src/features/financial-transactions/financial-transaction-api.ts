@@ -224,3 +224,9 @@ export async function createAccountTransfer(
 
   return response.data
 }
+
+export async function cancelAccountTransfer(transactionId: string) {
+  await httpClient.delete(
+    `/api/v1/financial-transactions/${transactionId}/transfer`,
+  )
+}

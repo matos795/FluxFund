@@ -543,6 +543,49 @@ public class FinancialTransactionService {
                 FinancialTransactionMapper.toResponse(savedIn));
     }
 
+    @Transactional
+    public void cancelAccountTransfer(UUID organizationId, UUID transactionId) {
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
+
+        FinancialTransaction transaction = repository
+                .findByIdAndOrganizationId(transactionId, organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Financial transaction not found"));
+
+        if (transaction.getType() != FinancialTransactionType.TRANSFER) {
+            throw new BusinessException("Transaction is not an account transfer");
+        }
+
+        if (transaction.getTransferGroupId() == null) {
+            throw new BusinessException("Transfer group not found");
+        }
+
+        List<FinancialTransaction> transferTransactions = repository.findAllByOrganizationIdAndTransferGroupId(
+                organizationId,
+                transaction.getTransferGroupId());
+
+        if (transferTransactions.isEmpty()) {
+            throw new BusinessException("No transactions found for this transfer group");
+        }
+
+        for (FinancialTransaction transferTransaction : transferTransactions) {
+            if (transferTransaction.getStatus() == FinancialTransactionStatus.CANCELED) {
+                continue;
+            }
+
+            transferTransaction.setStatus(FinancialTransactionStatus.CANCELED);
+        }
+
+        repository.saveAll(transferTransactions);
+
+        auditLogService.record(
+                organizationId,
+                AuditEntityType.FINANCIAL_TRANSACTION,
+                transaction.getId(),
+                AuditAction.CANCEL,
+                "Account transfer canceled. transferGroupId=%s"
+                        .formatted(transaction.getTransferGroupId()));
+    }
+
     private TransactionAllocation buildAllocation(
             UUID organizationId,
             FinancialTransaction financialTransaction,

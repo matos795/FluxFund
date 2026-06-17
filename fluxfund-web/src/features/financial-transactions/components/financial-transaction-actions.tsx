@@ -21,6 +21,7 @@ import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { LinkCreditCardPaymentDialog } from "@/features/credit-card-statements/components/link-credit-card-payment-dialog"
 import { getApiErrorMessage } from "@/utils/api-error"
 import { needsFinancialTransactionClassification } from "../financial-transaction-rules"
+import { CancelAccountTransferDialog } from "./cancel-account-transfer-dialog"
 
 type FinancialTransactionActionsProps = {
   transaction: FinancialTransaction
@@ -31,6 +32,7 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
   const { canFinanceWrite } = usePermissions()
 
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
+  const [cancelTransferDialogOpen, setCancelTransferDialogOpen] = useState(false)
   const cancelFinancialTransactionMutation = useCancelFinancialTransaction()
 
   function handleCancelTransaction(event: React.MouseEvent) {
@@ -82,6 +84,11 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
     transaction.account.type !== "CREDIT_CARD" &&
     !transaction.category
 
+  const canCancelAccountTransfer =
+    transaction.type === "TRANSFER" &&
+    transaction.status !== "CANCELED" &&
+    Boolean(transaction.transferGroupId)
+
   return (
     <>
       <DropdownMenu>
@@ -125,8 +132,27 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
               Cancelar
             </DropdownMenuItem>
           )}
+
+          {canFinanceWrite && canCancelAccountTransfer && (
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onSelect={(event) => {
+                event.preventDefault()
+                setCancelTransferDialogOpen(true)
+              }}
+            >
+              <Trash2 className="mr-2 size-4" />
+              Cancelar transferência
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <CancelAccountTransferDialog
+        transaction={transaction}
+        open={cancelTransferDialogOpen}
+        onOpenChange={setCancelTransferDialogOpen}
+      />
 
       <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
         <AlertDialogContent>

@@ -227,4 +227,13 @@ public class FinancialTransactionController {
                 return ResponseEntity.status(HttpStatus.CREATED)
                                 .body(service.createAccountTransfer(organizationId, request));
         }
+
+        @DeleteMapping("/{id}/transfer")
+        public ResponseEntity<Void> cancelAccountTransfer(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID id) {
+
+                service.cancelAccountTransfer(organizationId, id);
+                return ResponseEntity.noContent().build();
+        }
 }
