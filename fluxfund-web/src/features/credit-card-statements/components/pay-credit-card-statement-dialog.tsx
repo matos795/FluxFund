@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { AlertTriangle, CheckCircle2, CreditCard } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { useForm, useWatch } from "react-hook-form"
 import { toast } from "sonner"
 
@@ -28,13 +28,22 @@ import { AppDialogBody, AppDialogContent, AppDialogFooter, AppDialogHeader } fro
 
 type PayCreditCardStatementDialogProps = {
   statement: CreditCardStatement
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  trigger?: ReactNode | null
 }
 
 export function PayCreditCardStatementDialog({
   statement,
+  open,
+  onOpenChange,
+  trigger,
 }: PayCreditCardStatementDialogProps) {
   const [acknowledgePendingReview, setAcknowledgePendingReview] = useState(false)
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+
+  const dialogOpen = open ?? internalOpen
+  const setDialogOpen = onOpenChange ?? setInternalOpen
   const payStatementMutation = usePayCreditCardStatement()
   const accountsQuery = useAccounts({ page: 0, size: 200 })
 
@@ -66,7 +75,7 @@ export function PayCreditCardStatementDialog({
     name: "paymentAccountId",
   })
 
-  const itemsQuery = useCreditCardStatementItems(statement.id, open)
+  const itemsQuery = useCreditCardStatementItems(statement.id, dialogOpen)
 
   const statementItems = useMemo(() => {
     return itemsQuery.data ?? []
@@ -118,7 +127,7 @@ export function PayCreditCardStatementDialog({
       setAcknowledgePendingReview(false)
     }
 
-    setOpen(value)
+    setDialogOpen(value)
   }
 
   function handlePayStatement(data: PayCreditCardStatementFormData) {
@@ -168,13 +177,17 @@ export function PayCreditCardStatementDialog({
     mustAcknowledgeReview
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline" disabled={!canPay}>
-          <CreditCard className="mr-2 size-4" />
-          Pagar
-        </Button>
-      </DialogTrigger>
+    <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
+      {trigger === undefined ? (
+        <DialogTrigger asChild>
+          <Button size="sm" variant="outline" disabled={!canPay}>
+            <CreditCard className="mr-2 size-4" />
+            Pagar
+          </Button>
+        </DialogTrigger>
+      ) : (
+        trigger
+      )}
 
       <AppDialogContent size="lg">
         <AppDialogHeader

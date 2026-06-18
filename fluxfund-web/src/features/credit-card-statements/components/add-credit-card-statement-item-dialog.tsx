@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Plus } from "lucide-react"
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { toast } from "sonner"
 
@@ -32,12 +32,23 @@ import { AppDialogBody, AppDialogContent, AppDialogFooter, AppDialogHeader } fro
 
 type AddCreditCardStatementItemDialogProps = {
   statement: CreditCardStatement
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  trigger?: ReactNode | null
 }
 
 export function AddCreditCardStatementItemDialog({
   statement,
+  open,
+  onOpenChange,
+  trigger,
 }: AddCreditCardStatementItemDialogProps) {
-  const [open, setOpen] = useState(false)
+
+  const [internalOpen, setInternalOpen] = useState(false)
+
+  const dialogOpen = open ?? internalOpen
+  const setDialogOpen = onOpenChange ?? setInternalOpen
+
   const addItemMutation = useAddCreditCardStatementItem()
 
   const {
@@ -89,7 +100,7 @@ export function AddCreditCardStatementItemDialog({
       reset()
     }
 
-    setOpen(value)
+    setDialogOpen(value)
   }
 
   function handleAddItem(data: CreditCardStatementItemFormData) {
@@ -146,13 +157,17 @@ export function AddCreditCardStatementItemDialog({
   const canAddItem = statement.status === "OPEN" || statement.status === "CLOSED"
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline" disabled={!canAddItem}>
-          <Plus className="mr-2 size-4" />
-          Item
-        </Button>
-      </DialogTrigger>
+    <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
+      {trigger === undefined ? (
+        <DialogTrigger asChild>
+          <Button size="sm" variant="outline" disabled={!canAddItem}>
+            <Plus className="mr-2 size-4" />
+            Item
+          </Button>
+        </DialogTrigger>
+      ) : (
+        trigger
+      )}
 
       <AppDialogContent size="xl">
         <AppDialogHeader

@@ -1,4 +1,4 @@
-import { MoreHorizontal, Trash2 } from "lucide-react"
+import { CreditCard, FileUp, MoreHorizontal, Plus, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -65,6 +65,14 @@ export function CreditCardStatementsTable({
   const { canFinanceWrite } = usePermissions()
   const [statementToCancel, setStatementToCancel] =
     useState<CreditCardStatement | null>(null)
+  const [statementToImport, setStatementToImport] =
+    useState<CreditCardStatement | null>(null)
+
+  const [statementToAddItem, setStatementToAddItem] =
+    useState<CreditCardStatement | null>(null)
+
+  const [statementToPay, setStatementToPay] =
+    useState<CreditCardStatement | null>(null)
 
   const cancelStatementMutation = useCancelCreditCardStatement()
 
@@ -97,6 +105,22 @@ export function CreditCardStatementsTable({
     )
   }
 
+  function canImportStatement(statement: CreditCardStatement) {
+    return statement.status === "OPEN" || statement.status === "CLOSED"
+  }
+
+  function canAddItemToStatement(statement: CreditCardStatement) {
+    return statement.status === "OPEN" || statement.status === "CLOSED"
+  }
+
+  function canPayStatement(statement: CreditCardStatement) {
+    return statement.status !== "PAID" && statement.status !== "CANCELED"
+  }
+
+  function canCancelStatement(statement: CreditCardStatement) {
+    return statement.status !== "PAID" && statement.status !== "CANCELED"
+  }
+
   return (
     <>
       <Card>
@@ -112,7 +136,7 @@ export function CreditCardStatementsTable({
                 <TableHead>Vencimento</TableHead>
                 <TableHead>Pagamento</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-[220px] text-right">Ações</TableHead>
+                <TableHead className="w-[120px] text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -160,14 +184,6 @@ export function CreditCardStatementsTable({
                       <ViewCreditCardStatementItemsDialog statement={statement} />
 
                       {canFinanceWrite && (
-                        <>
-                          <ImportCreditCardStatementDialog statement={statement} />
-                          <AddCreditCardStatementItemDialog statement={statement} />
-                          <PayCreditCardStatementDialog statement={statement} />
-                        </>
-                      )}
-
-                      {canFinanceWrite && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon">
@@ -176,10 +192,34 @@ export function CreditCardStatementsTable({
                             </Button>
                           </DropdownMenuTrigger>
 
-                          <DropdownMenuContent align="end">
+                          <DropdownMenuContent align="end" className="w-52">
+                            <DropdownMenuItem
+                              disabled={!canImportStatement(statement)}
+                              onClick={() => setStatementToImport(statement)}
+                            >
+                              <FileUp className="mr-2 size-4" />
+                              Importar fatura
+                            </DropdownMenuItem>
+
+                            <DropdownMenuItem
+                              disabled={!canAddItemToStatement(statement)}
+                              onClick={() => setStatementToAddItem(statement)}
+                            >
+                              <Plus className="mr-2 size-4" />
+                              Adicionar item
+                            </DropdownMenuItem>
+
+                            <DropdownMenuItem
+                              disabled={!canPayStatement(statement)}
+                              onClick={() => setStatementToPay(statement)}
+                            >
+                              <CreditCard className="mr-2 size-4" />
+                              Pagar fatura
+                            </DropdownMenuItem>
+
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
-                              disabled={statement.status === "PAID" || statement.status === "CANCELED"}
+                              disabled={!canCancelStatement(statement)}
                               onClick={() => setStatementToCancel(statement)}
                             >
                               <Trash2 className="mr-2 size-4" />
@@ -196,6 +236,45 @@ export function CreditCardStatementsTable({
           </Table>
         </CardContent>
       </Card>
+
+      {statementToImport && (
+        <ImportCreditCardStatementDialog
+          statement={statementToImport}
+          open={Boolean(statementToImport)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setStatementToImport(null)
+            }
+          }}
+          trigger={null}
+        />
+      )}
+
+      {statementToAddItem && (
+        <AddCreditCardStatementItemDialog
+          statement={statementToAddItem}
+          open={Boolean(statementToAddItem)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setStatementToAddItem(null)
+            }
+          }}
+          trigger={null}
+        />
+      )}
+
+      {statementToPay && (
+        <PayCreditCardStatementDialog
+          statement={statementToPay}
+          open={Boolean(statementToPay)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setStatementToPay(null)
+            }
+          }}
+          trigger={null}
+        />
+      )}
 
       <AlertDialog
         open={Boolean(statementToCancel)}
