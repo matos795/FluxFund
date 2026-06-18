@@ -93,6 +93,14 @@ public class FinancialTransaction extends BaseEntity {
     @Column(name = "document_number")
     private String documentNumber;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fiscal_document_policy", nullable = false)
+    @Builder.Default
+    private FiscalDocumentPolicy fiscalDocumentPolicy = FiscalDocumentPolicy.CATEGORY;
+
+    @Column(name = "fiscal_document_note", length = 500)
+    private String fiscalDocumentNote;
+
     @Column(name = "imported_at")
     private LocalDateTime importedAt;
 

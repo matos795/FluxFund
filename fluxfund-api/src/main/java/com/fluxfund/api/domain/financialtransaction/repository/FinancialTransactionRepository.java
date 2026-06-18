@@ -201,8 +201,14 @@ public interface FinancialTransactionRepository
               and t.status = 'SETTLED'
               and t.type = 'EXPENSE'
               and t.settlement_date between :startDate and :endDate
-              and c.requires_fiscal_document = true
-              and coalesce(os.require_fiscal_document_for_expenses, true) = true
+              and (
+                  t.fiscal_document_policy = 'REQUIRED'
+                  or (
+                      coalesce(t.fiscal_document_policy, 'CATEGORY') = 'CATEGORY'
+                      and c.requires_fiscal_document = true
+                      and coalesce(os.require_fiscal_document_for_expenses, true) = true
+                  )
+              )
               and not exists (
                   select 1
                   from attachment a
@@ -288,8 +294,14 @@ public interface FinancialTransactionRepository
               and t.status = 'SETTLED'
               and t.type = 'EXPENSE'
               and t.settlement_date between :startDate and :endDate
-              and c.requires_fiscal_document = true
-              and coalesce(os.require_fiscal_document_for_expenses, true) = true
+              and (
+                  t.fiscal_document_policy = 'REQUIRED'
+                  or (
+                      coalesce(t.fiscal_document_policy, 'CATEGORY') = 'CATEGORY'
+                      and c.requires_fiscal_document = true
+                      and coalesce(os.require_fiscal_document_for_expenses, true) = true
+                  )
+              )
               and not exists (
                   select 1
                   from attachment att
@@ -385,4 +397,61 @@ public interface FinancialTransactionRepository
     List<FinancialTransaction> findAllByOrganizationIdAndTransferGroupId(
             @Param("organizationId") UUID organizationId,
             @Param("transferGroupId") UUID transferGroupId);
+
+    @Query(value = """
+            select count(*)
+            from financial_transaction t
+            where t.organization_id = :organizationId
+              and t.status = 'SETTLED'
+              and t.type = 'EXPENSE'
+              and t.settlement_date between :startDate and :endDate
+              and t.fiscal_document_policy = 'MISSING'
+              and not exists (
+                  select 1
+                  from attachment a
+                  where a.financial_transaction_id = t.id
+                    and a.organization_id = :organizationId
+                    and a.type in ('INVOICE', 'RECEIPT', 'CONTRACT')
+              )
+            """, nativeQuery = true)
+    long countSettledExpensesWithMissingFiscalDocument(
+            @Param("organizationId") UUID organizationId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query(value = """
+            select
+                t.id as transactionId,
+                t.settlement_date as settlementDate,
+                t.description as description,
+                t.raw_description as rawDescription,
+                a.name as accountName,
+                c.name as categoryName,
+                abs(t.settled_amount) as amount
+            from financial_transaction t
+            join account a
+              on a.id = t.account_id
+            left join category c
+              on c.id = t.category_id
+             and c.organization_id = :organizationId
+            where t.organization_id = :organizationId
+              and t.status = 'SETTLED'
+              and t.type = 'EXPENSE'
+              and t.settlement_date between :startDate and :endDate
+              and t.fiscal_document_policy = 'MISSING'
+              and not exists (
+                  select 1
+                  from attachment att
+                  where att.financial_transaction_id = t.id
+                    and att.organization_id = :organizationId
+                    and att.type in ('INVOICE', 'RECEIPT', 'CONTRACT')
+              )
+            order by t.settlement_date desc, t.created_at desc
+            limit :limit
+            """, nativeQuery = true)
+    List<DashboardTransactionActionItemProjection> findMissingFiscalDocumentActionItems(
+            @Param("organizationId") UUID organizationId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("limit") int limit);
 }

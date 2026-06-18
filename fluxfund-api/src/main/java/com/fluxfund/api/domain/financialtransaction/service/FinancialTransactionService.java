@@ -32,6 +32,7 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
+import com.fluxfund.api.domain.financialtransaction.FiscalDocumentPolicy;
 import com.fluxfund.api.domain.financialtransaction.TransferDirection;
 import com.fluxfund.api.domain.financialtransaction.dto.ClassifyFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.CreateAccountTransferRequest;
@@ -77,6 +78,7 @@ public class FinancialTransactionService {
     private final OrganizationAccessService organizationAccessService;
     private final AuditLogService auditLogService;
     private final FundTransferRepository fundTransferRepository;
+    private final FinancialTransactionDocumentPolicyService documentPolicyService;
 
     public FinancialTransactionResponse create(UUID organizationId, CreateFinancialTransactionRequest request) {
         organizationAccessService.requireFinanceWriteAccess(organizationId);
@@ -100,6 +102,8 @@ public class FinancialTransactionService {
                 account, category);
 
         normalizeTransactionStatusAndAmounts(financialTransaction);
+
+        documentPolicyService.normalizeAndValidate(financialTransaction);
 
         addInitialAllocations(organizationId, financialTransaction, request.allocations());
 
@@ -217,6 +221,9 @@ public class FinancialTransactionService {
         FinancialTransactionMapper.updateEntity(financialTransaction, request, type, category);
 
         normalizeTransactionStatusAndAmounts(financialTransaction);
+
+        documentPolicyService.normalizeAndValidate(financialTransaction);
+
         validateTotalAllocatedAmount(financialTransaction);
 
         repository.save(financialTransaction);
@@ -314,7 +321,15 @@ public class FinancialTransactionService {
 
         financialTransaction.setDocumentNumber(request.documentNumber());
 
+        if (request.fiscalDocumentPolicy() != null) {
+            financialTransaction.setFiscalDocumentPolicy(request.fiscalDocumentPolicy());
+        }
+
+        financialTransaction.setFiscalDocumentNote(request.fiscalDocumentNote());
+
         normalizeTransactionStatusAndAmounts(financialTransaction);
+
+        documentPolicyService.normalizeAndValidate(financialTransaction);
 
         Map<UUID, BigDecimal> oldImpactByFund = toImpactByFund(
                 financialTransaction.getAllocations());
@@ -960,6 +975,9 @@ public class FinancialTransactionService {
 
         financialTransaction.setType(FinancialTransactionType.TRANSFER);
         financialTransaction.setCategory(null);
+
+        financialTransaction.setFiscalDocumentPolicy(FiscalDocumentPolicy.CATEGORY);
+        financialTransaction.setFiscalDocumentNote(null);
 
         financialTransaction.setTransferDirection(request.transferDirection());
         financialTransaction.setTransferCounterpartyAccount(counterpartyAccount);

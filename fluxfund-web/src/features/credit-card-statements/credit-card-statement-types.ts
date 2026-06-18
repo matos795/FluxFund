@@ -1,5 +1,5 @@
 import type { AccountSummary } from "../accounts/types"
-import type { FinancialTransaction } from "../financial-transactions/financial-transaction-types"
+import type { FinancialTransaction, FiscalDocumentPolicy } from "../financial-transactions/financial-transaction-types"
 
 export type CreditCardStatementStatus =
   | "OPEN"
@@ -36,6 +36,8 @@ export type CreateCreditCardItemRequest = {
   amount: number
   categoryId?: string | null
   documentNumber?: string | null
+  fiscalDocumentPolicy?: FiscalDocumentPolicy
+  fiscalDocumentNote?: string | null
   installmentNumber?: number | null
   installmentCount?: number | null
   allocations?: {

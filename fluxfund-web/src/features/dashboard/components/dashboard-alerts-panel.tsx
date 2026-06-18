@@ -1,4 +1,5 @@
 import {
+    FileQuestion,
     FileWarning,
     FolderKanban,
     ListTodo,
@@ -81,6 +82,14 @@ export function DashboardAlertsPanel({ alerts, isLoading = false }: DashboardAle
             to: "/transactions?type=EXPENSE&status=SETTLED",
             variant: "danger",
         },
+        {
+            title: "Documento ausente",
+            description: "Transações marcadas como documento fiscal não disponível.",
+            value: alerts?.missingFiscalDocumentCount ?? 0,
+            icon: FileQuestion,
+            to: "/transactions?type=EXPENSE&status=SETTLED",
+            variant: "warning",
+        },
     ]
 
     const totalAlerts = items.reduce((total, item) => total + item.value, 0)
@@ -112,7 +121,7 @@ export function DashboardAlertsPanel({ alerts, isLoading = false }: DashboardAle
                         </p>
                     </div>
                 ) : (
-                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
                         {items.map((item) => {
                             const Icon = item.icon
                             const content = (

@@ -14,6 +14,7 @@ import {
 import type { FinancialTransactionFormData } from "@/features/financial-transactions/financial-transaction-schema"
 import { FinancialTransactionForm } from "@/features/financial-transactions/components/financial-transaction-form"
 import { useCreateFinancialTransaction } from "@/features/financial-transactions/hooks/use-create-financial-transaction"
+import { normalizeFiscalDocumentNote } from "../financial-transaction-labels"
 
 export function CreateFinancialTransactionDialog() {
   const [open, setOpen] = useState(false)
@@ -37,6 +38,17 @@ export function CreateFinancialTransactionDialog() {
 
         description: data.description ?? "",
         documentNumber: data.documentNumber || null,
+
+        fiscalDocumentPolicy:
+          data.type === "EXPENSE" ? data.fiscalDocumentPolicy : "CATEGORY",
+
+        fiscalDocumentNote:
+          data.type === "EXPENSE"
+            ? normalizeFiscalDocumentNote(
+              data.fiscalDocumentPolicy,
+              data.fiscalDocumentNote,
+            )
+            : null,
 
         allocations: [],
       },

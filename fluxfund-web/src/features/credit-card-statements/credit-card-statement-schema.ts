@@ -15,6 +15,15 @@ export const creditCardStatementItemFormSchema = z
     amount: z.coerce.number().positive("Informe um valor maior que zero."),
     categoryId: z.string().uuid("Selecione uma categoria."),
     documentNumber: z.string().optional(),
+    fiscalDocumentPolicy: z
+      .enum(["CATEGORY", "REQUIRED", "WAIVED", "MISSING"])
+      .default("CATEGORY"),
+
+    fiscalDocumentNote: z
+      .string()
+      .max(500, "O motivo deve ter no máximo 500 caracteres.")
+      .optional()
+      .nullable(),
     installmentNumber: z.coerce.number().optional(),
     installmentCount: z.coerce.number().optional(),
     fundId: z.string().optional(),
@@ -23,6 +32,19 @@ export const creditCardStatementItemFormSchema = z
     allocationAmount: z.coerce.number().optional(),
   })
   .superRefine((data, ctx) => {
+
+    const requiresFiscalNote =
+      data.fiscalDocumentPolicy === "WAIVED" ||
+      data.fiscalDocumentPolicy === "MISSING"
+
+    if (requiresFiscalNote && !data.fiscalDocumentNote?.trim()) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["fiscalDocumentNote"],
+        message: "Informe o motivo.",
+      })
+    }
+
     const hasFund = Boolean(data.fundId)
     const hasAllocationAmount = data.allocationAmount !== undefined && data.allocationAmount > 0
 

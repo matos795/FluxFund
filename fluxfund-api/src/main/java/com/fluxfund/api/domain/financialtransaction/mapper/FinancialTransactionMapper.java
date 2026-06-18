@@ -7,6 +7,7 @@ import com.fluxfund.api.domain.category.mapper.CategoryMapper;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
+import com.fluxfund.api.domain.financialtransaction.FiscalDocumentPolicy;
 import com.fluxfund.api.domain.financialtransaction.dto.CreateFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.UpdateFinancialTransactionRequest;
@@ -32,6 +33,11 @@ public class FinancialTransactionMapper {
                 .settledAmount(request.settledAmount())
                 .description(request.description())
                 .documentNumber(request.documentNumber())
+                .fiscalDocumentPolicy(
+                        request.fiscalDocumentPolicy() != null
+                                ? request.fiscalDocumentPolicy()
+                                : FiscalDocumentPolicy.CATEGORY)
+                .fiscalDocumentNote(normalizeText(request.fiscalDocumentNote()))
                 .build();
     }
 
@@ -68,6 +74,8 @@ public class FinancialTransactionMapper {
                 financialTransaction.getDescription(),
                 financialTransaction.getRawDescription(),
                 financialTransaction.getDocumentNumber(),
+                financialTransaction.getFiscalDocumentPolicy(),
+                financialTransaction.getFiscalDocumentNote(),
                 financialTransaction.getAllocations().stream()
                         .map(TransactionAllocationMapper::toResponse).toList(),
                 financialTransaction.getImportedAt(),
@@ -107,5 +115,21 @@ public class FinancialTransactionMapper {
         }
 
         financialTransaction.setDocumentNumber(request.documentNumber());
+
+        if (request.fiscalDocumentPolicy() != null) {
+            financialTransaction.setFiscalDocumentPolicy(request.fiscalDocumentPolicy());
+        }
+
+        if (request.fiscalDocumentNote() != null) {
+            financialTransaction.setFiscalDocumentNote(normalizeText(request.fiscalDocumentNote()));
+        }
+    }
+
+    private static String normalizeText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return value.trim();
     }
 }

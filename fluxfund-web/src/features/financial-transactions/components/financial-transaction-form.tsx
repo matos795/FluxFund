@@ -25,6 +25,7 @@ import { useAccountOptions } from "@/features/accounts/hooks/use-account-options
 import { CurrencyInput } from "@/components/form/currency-input"
 import { CategoryComboboxWithCreate } from "@/features/categories/components/category-combobox-with-create"
 import { AccountComboboxWithCreate } from "@/features/accounts/components/account-combobox-with-create"
+import { FiscalDocumentPolicyField } from "./fiscal-document-policy-field"
 
 type FinancialTransactionFormProps = {
   onSubmit: (data: FinancialTransactionFormData) => void
@@ -65,6 +66,8 @@ export function FinancialTransactionForm({
       settledAmount: defaultValues?.settledAmount ?? undefined,
       description: defaultValues?.description ?? "",
       documentNumber: defaultValues?.documentNumber ?? "",
+      fiscalDocumentPolicy: defaultValues?.fiscalDocumentPolicy ?? "CATEGORY",
+      fiscalDocumentNote: defaultValues?.fiscalDocumentNote ?? "",
     },
   })
 
@@ -83,12 +86,24 @@ export function FinancialTransactionForm({
       settledAmount: defaultValues.settledAmount ?? undefined,
       description: defaultValues.description ?? "",
       documentNumber: defaultValues.documentNumber ?? "",
+      fiscalDocumentPolicy: defaultValues.fiscalDocumentPolicy ?? "CATEGORY",
+      fiscalDocumentNote: defaultValues.fiscalDocumentNote ?? "",
     })
   }, [defaultValues, reset])
 
   const selectedType = useWatch({ control, name: "type" })
   const selectedAccountId = useWatch({ control, name: "accountId" })
   const selectedCategoryId = useWatch({ control, name: "categoryId" })
+
+  const fiscalDocumentPolicy = useWatch({
+    control,
+    name: "fiscalDocumentPolicy",
+  })
+
+  const fiscalDocumentNote = useWatch({
+    control,
+    name: "fiscalDocumentNote",
+  })
 
   const accountsQuery = useAccountOptions()
 
@@ -120,17 +135,25 @@ export function FinancialTransactionForm({
           <Select
             value={selectedType}
             onValueChange={(value) => {
-              setValue(
-                "type",
-                value as FinancialTransactionFormInput["type"],
-                {
-                  shouldValidate: true,
-                },
-              )
+              const nextType = value as FinancialTransactionFormInput["type"]
+
+              setValue("type", nextType, {
+                shouldValidate: true,
+              })
 
               setValue("categoryId", "", {
                 shouldValidate: true,
               })
+
+              if (nextType !== "EXPENSE") {
+                setValue("fiscalDocumentPolicy", "CATEGORY", {
+                  shouldValidate: true,
+                })
+
+                setValue("fiscalDocumentNote", "", {
+                  shouldValidate: true,
+                })
+              }
             }}
           >
             <SelectTrigger>
@@ -178,6 +201,31 @@ export function FinancialTransactionForm({
             </p>
           )}
         </div>
+      )}
+
+      {selectedType === "EXPENSE" && (
+        <FiscalDocumentPolicyField
+          value={fiscalDocumentPolicy ?? "CATEGORY"}
+          note={fiscalDocumentNote ?? ""}
+          policyError={errors.fiscalDocumentPolicy?.message}
+          noteError={errors.fiscalDocumentNote?.message}
+          onValueChange={(value) => {
+            setValue("fiscalDocumentPolicy", value, {
+              shouldValidate: true,
+            })
+
+            if (value === "CATEGORY" || value === "REQUIRED") {
+              setValue("fiscalDocumentNote", "", {
+                shouldValidate: true,
+              })
+            }
+          }}
+          onNoteChange={(value) =>
+            setValue("fiscalDocumentNote", value, {
+              shouldValidate: true,
+            })
+          }
+        />
       )}
 
       <div className="grid gap-4 md:grid-cols-2">

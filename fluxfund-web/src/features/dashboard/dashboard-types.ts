@@ -43,6 +43,7 @@ export type DashboardAlerts = {
   unallocatedCount: number
   negativeFundsCount: number
   expensesWithoutFiscalDocumentCount: number
+  missingFiscalDocumentCount: number
 }
 
 export type DashboardTransactionActionItem = {
@@ -53,6 +54,7 @@ export type DashboardTransactionActionItem = {
   accountName: string
   categoryName: string | null
   amount: number
+  missingFiscalDocumentTransactions: DashboardTransactionActionItem[]
 }
 
 export type DashboardFundActionItem = {
@@ -65,5 +67,6 @@ export type DashboardActionItems = {
   unclassifiedTransactions: DashboardTransactionActionItem[]
   unallocatedTransactions: DashboardTransactionActionItem[]
   expensesWithoutFiscalDocument: DashboardTransactionActionItem[]
+  missingFiscalDocumentTransactions: DashboardTransactionActionItem[]
   negativeFunds: DashboardFundActionItem[]
 }

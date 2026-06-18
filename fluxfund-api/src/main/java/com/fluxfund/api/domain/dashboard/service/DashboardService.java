@@ -383,11 +383,18 @@ public class DashboardService {
                                                 resolvedStartDate,
                                                 resolvedEndDate);
 
+                long missingFiscalDocumentCount = financialTransactionRepository
+                                .countSettledExpensesWithMissingFiscalDocument(
+                                                organizationId,
+                                                resolvedStartDate,
+                                                resolvedEndDate);
+
                 return new DashboardAlertsResponse(
                                 summary.unclassifiedCount(),
                                 summary.unallocatedCount(),
                                 negativeFundsCount,
-                                expensesWithoutFiscalDocumentCount);
+                                expensesWithoutFiscalDocumentCount,
+                                missingFiscalDocumentCount);
         }
 
         public DashboardActionItemsResponse getActionItems(
@@ -435,6 +442,16 @@ public class DashboardService {
                                 .map(this::toTransactionActionItemResponse)
                                 .toList();
 
+                List<DashboardTransactionActionItemResponse> missingFiscalDocumentTransactions = financialTransactionRepository
+                                .findMissingFiscalDocumentActionItems(
+                                                organizationId,
+                                                resolvedStartDate,
+                                                resolvedEndDate,
+                                                resolvedLimit)
+                                .stream()
+                                .map(this::toTransactionActionItemResponse)
+                                .toList();
+
                 List<DashboardFundActionItemResponse> negativeFunds = fundRepository
                                 .findNegativeFundActionItems(organizationId, resolvedLimit)
                                 .stream()
@@ -445,6 +462,7 @@ public class DashboardService {
                                 unclassifiedTransactions,
                                 unallocatedTransactions,
                                 expensesWithoutFiscalDocument,
+                                missingFiscalDocumentTransactions,
                                 negativeFunds);
         }
 

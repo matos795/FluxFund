@@ -415,6 +415,23 @@ function AttachmentBadge({
     )
   }
 
+  if (documentation.status === "WAIVED") {
+    return (
+      <Badge variant="outline" className="text-muted-foreground">
+        Disp.
+      </Badge>
+    )
+  }
+
+  if (documentation.status === "MISSING_DECLARED") {
+    return (
+      <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100">
+        <FileWarning className="mr-1 size-3" />
+        Just.
+      </Badge>
+    )
+  }
+
   if (documentation.status === "MISSING") {
     return (
       <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">

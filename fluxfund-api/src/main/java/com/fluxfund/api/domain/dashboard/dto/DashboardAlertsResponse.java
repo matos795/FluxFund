@@ -4,6 +4,7 @@ public record DashboardAlertsResponse(
         long unclassifiedCount,
         long unallocatedCount,
         long negativeFundsCount,
-        long expensesWithoutFiscalDocumentCount
+        long expensesWithoutFiscalDocumentCount,
+        long missingFiscalDocumentCount
 ) {
 }

@@ -30,6 +30,8 @@ import {
 } from "../credit-card-statement-schema"
 import { useAddCreditCardStatementItem } from "../hooks/use-add-credit-card-statement-item"
 import { getApiErrorMessage } from "@/utils/api-error"
+import { normalizeFiscalDocumentNote } from "@/features/financial-transactions/financial-transaction-labels"
+import { FiscalDocumentPolicyField } from "@/features/financial-transactions/components/fiscal-document-policy-field"
 
 type AddCreditCardStatementItemDialogProps = {
   statement: CreditCardStatement
@@ -60,6 +62,8 @@ export function AddCreditCardStatementItemDialog({
       amount: 0,
       categoryId: "",
       documentNumber: "",
+      fiscalDocumentPolicy: "CATEGORY",
+      fiscalDocumentNote: "",
       installmentNumber: undefined,
       installmentCount: undefined,
       fundId: "",
@@ -72,6 +76,16 @@ export function AddCreditCardStatementItemDialog({
   const selectedCategoryId = useWatch({ control, name: "categoryId" })
   const selectedFundId = useWatch({ control, name: "fundId" })
   const selectedBeneficiaryId = useWatch({ control, name: "beneficiaryId" })
+
+  const fiscalDocumentPolicy = useWatch({
+    control,
+    name: "fiscalDocumentPolicy",
+  })
+
+  const fiscalDocumentNote = useWatch({
+    control,
+    name: "fiscalDocumentNote",
+  })
 
   function handleOpenChange(value: boolean) {
     if (!value) {
@@ -93,6 +107,11 @@ export function AddCreditCardStatementItemDialog({
           amount: data.amount,
           categoryId: data.categoryId || null,
           documentNumber: data.documentNumber || null,
+          fiscalDocumentPolicy: data.fiscalDocumentPolicy,
+          fiscalDocumentNote: normalizeFiscalDocumentNote(
+            data.fiscalDocumentPolicy,
+            data.fiscalDocumentNote,
+          ),
           installmentNumber:
             data.installmentNumber && data.installmentNumber > 0
               ? data.installmentNumber
@@ -209,6 +228,29 @@ export function AddCreditCardStatementItemDialog({
               </p>
             )}
           </div>
+
+          <FiscalDocumentPolicyField
+            value={fiscalDocumentPolicy ?? "CATEGORY"}
+            note={fiscalDocumentNote ?? ""}
+            policyError={errors.fiscalDocumentPolicy?.message}
+            noteError={errors.fiscalDocumentNote?.message}
+            onValueChange={(value) => {
+              setValue("fiscalDocumentPolicy", value, {
+                shouldValidate: true,
+              })
+
+              if (value === "CATEGORY" || value === "REQUIRED") {
+                setValue("fiscalDocumentNote", "", {
+                  shouldValidate: true,
+                })
+              }
+            }}
+            onNoteChange={(value) =>
+              setValue("fiscalDocumentNote", value, {
+                shouldValidate: true,
+              })
+            }
+          />
 
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">

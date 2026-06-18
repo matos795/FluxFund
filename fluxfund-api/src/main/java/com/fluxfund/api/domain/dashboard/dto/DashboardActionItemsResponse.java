@@ -6,6 +6,7 @@ public record DashboardActionItemsResponse(
         List<DashboardTransactionActionItemResponse> unclassifiedTransactions,
         List<DashboardTransactionActionItemResponse> unallocatedTransactions,
         List<DashboardTransactionActionItemResponse> expensesWithoutFiscalDocument,
+        List<DashboardTransactionActionItemResponse> missingFiscalDocumentTransactions,
         List<DashboardFundActionItemResponse> negativeFunds
 ) {
 }

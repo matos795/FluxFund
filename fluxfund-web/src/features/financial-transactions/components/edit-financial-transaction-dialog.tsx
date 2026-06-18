@@ -15,6 +15,7 @@ import type { FinancialTransaction } from "@/features/financial-transactions/fin
 import type { FinancialTransactionFormData } from "@/features/financial-transactions/financial-transaction-schema"
 import { FinancialTransactionForm } from "@/features/financial-transactions/components/financial-transaction-form"
 import { useUpdateFinancialTransaction } from "@/features/financial-transactions/hooks/use-update-financial-transaction"
+import { normalizeFiscalDocumentNote } from "../financial-transaction-labels"
 
 type EditFinancialTransactionDialogProps = {
   transaction: FinancialTransaction
@@ -46,6 +47,17 @@ export function EditFinancialTransactionDialog({
 
           description: data.description ?? "",
           documentNumber: data.documentNumber || null,
+
+          fiscalDocumentPolicy:
+            data.type === "EXPENSE" ? data.fiscalDocumentPolicy : "CATEGORY",
+
+          fiscalDocumentNote:
+            data.type === "EXPENSE"
+              ? normalizeFiscalDocumentNote(
+                data.fiscalDocumentPolicy,
+                data.fiscalDocumentNote,
+              )
+              : null,
         },
       },
       {

@@ -38,6 +38,8 @@ import { getApiErrorMessage } from "@/utils/api-error"
 import { SupportAgreementSuggestionCard } from "@/features/support-agreements/components/support-agreement-suggestion-card"
 import { useAccounts } from "@/features/accounts/hooks/use-accounts"
 import { EntityCombobox } from "@/components/form/entity-combobox"
+import { fiscalDocumentPolicyRequiresNote, normalizeFiscalDocumentNote } from "../financial-transaction-labels"
+import { FiscalDocumentPolicyField } from "./fiscal-document-policy-field"
 
 type AllocationFormItem = {
     fundId: string
@@ -73,6 +75,15 @@ export function ClassifyFinancialTransactionDialog({
     const [type, setType] = useState(transaction.type)
     const [categoryId, setCategoryId] = useState(transaction.category?.id ?? "")
     const [description, setDescription] = useState(transaction.description ?? "")
+
+    const [fiscalDocumentPolicy, setFiscalDocumentPolicy] = useState(
+        transaction.fiscalDocumentPolicy ?? "CATEGORY",
+    )
+
+    const [fiscalDocumentNote, setFiscalDocumentNote] = useState(
+        transaction.fiscalDocumentNote ?? "",
+    )
+
     const [settlementDate, setSettlementDate] = useState(
         transaction.settlementDate ?? "",
     )
@@ -285,6 +296,15 @@ export function ClassifyFinancialTransactionDialog({
             return
         }
 
+        if (
+            type === "EXPENSE" &&
+            fiscalDocumentPolicyRequiresNote(fiscalDocumentPolicy) &&
+            !fiscalDocumentNote.trim()
+        ) {
+            toast.error("Informe o motivo da regra documental.")
+            return
+        }
+
         const validAllocations = type === "TRANSFER"
             ? []
             : allocations
@@ -370,6 +390,15 @@ export function ClassifyFinancialTransactionDialog({
                     settledAmount: amountNumber,
                     description: description || undefined,
                     documentNumber: transaction.documentNumber ?? undefined,
+                    fiscalDocumentPolicy:
+                        type === "EXPENSE" ? fiscalDocumentPolicy : "CATEGORY",
+                    fiscalDocumentNote:
+                        type === "EXPENSE"
+                            ? normalizeFiscalDocumentNote(
+                                fiscalDocumentPolicy,
+                                fiscalDocumentNote,
+                            )
+                            : null,
                     transferDirection: type === "TRANSFER" ? transferDirection : null,
                     transferCounterpartyAccountId:
                         type === "TRANSFER" ? transferCounterpartyAccountId : null,
@@ -445,6 +474,8 @@ export function ClassifyFinancialTransactionDialog({
                     ),
                 ),
             )
+            setFiscalDocumentPolicy(transaction.fiscalDocumentPolicy ?? "CATEGORY")
+            setFiscalDocumentNote(transaction.fiscalDocumentNote ?? "")
             setAllocations([])
             setPendingAttachments([])
             setTransferDirection(
@@ -459,7 +490,7 @@ export function ClassifyFinancialTransactionDialog({
 
         const timeoutId = window.setTimeout(resetForm, 0)
         return () => window.clearTimeout(timeoutId)
-    }, [dialogOpen, transaction.id, transaction.type, transaction.category?.id, transaction.description, transaction.settlementDate, transaction.settledAmount, transaction.expectedAmount, transaction.transferDirection, transaction.transferCounterpartyAccount?.id])
+    }, [dialogOpen, transaction.id, transaction.type, transaction.category?.id, transaction.description, transaction.settlementDate, transaction.settledAmount, transaction.expectedAmount, transaction.fiscalDocumentPolicy, transaction.fiscalDocumentNote, transaction.transferDirection, transaction.transferCounterpartyAccount?.id])
 
     return (
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -506,6 +537,11 @@ export function ClassifyFinancialTransactionDialog({
 
                                     setType(nextType)
                                     setCategoryId("")
+
+                                    if (nextType !== "EXPENSE") {
+                                        setFiscalDocumentPolicy("CATEGORY")
+                                        setFiscalDocumentNote("")
+                                    }
 
                                     if (nextType === "TRANSFER") {
                                         setAllocations([])
@@ -627,187 +663,202 @@ export function ClassifyFinancialTransactionDialog({
                         </div>
                     )}
 
-                    <div className="space-y-3 rounded-xl border p-4">
-                            <div className="flex items-center justify-between gap-4">
-                                <div>
-                                    <h3 className="text-sm font-medium">Alocações</h3>
-                                    <p className="text-xs text-muted-foreground">
-                                        Se nenhuma alocação for informada, o sistema usará o fundo padrão.
-                                        Se houver alocação parcial, o restante continuará pendente para alocação.
-                                    </p>
-                                </div>
+                    {type === "EXPENSE" && (
+                        <FiscalDocumentPolicyField
+                            value={fiscalDocumentPolicy}
+                            note={fiscalDocumentNote}
+                            onValueChange={(value) => {
+                                setFiscalDocumentPolicy(value)
 
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleAddAllocation}
-                                >
-                                    <Plus className="mr-2 size-4" />
-                                    Adicionar
-                                </Button>
+                                if (value === "CATEGORY" || value === "REQUIRED") {
+                                    setFiscalDocumentNote("")
+                                }
+                            }}
+                            onNoteChange={setFiscalDocumentNote}
+                        />
+                    )}
+
+                    <div className="space-y-3 rounded-xl border p-4">
+                        <div className="flex items-center justify-between gap-4">
+                            <div>
+                                <h3 className="text-sm font-medium">Alocações</h3>
+                                <p className="text-xs text-muted-foreground">
+                                    Se nenhuma alocação for informada, o sistema usará o fundo padrão.
+                                    Se houver alocação parcial, o restante continuará pendente para alocação.
+                                </p>
                             </div>
 
-                            {allocations.length === 0 ? (
-                                <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                                    Se nenhuma alocação manual for informada, o sistema usará o fundo padrão da
-                                    organização. Se você informar uma alocação parcial, o restante continuará
-                                    pendente e poderá ser alocado depois.
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {allocations.map((allocation, index) => {
-                                        const suggestion = getDefaultFundReallocationSuggestion({
-                                            fundId: allocation.fundId,
-                                            amount: Number(allocation.amount || 0),
-                                            transactionType: type,
-                                            funds,
-                                            settings,
-                                        })
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={handleAddAllocation}
+                            >
+                                <Plus className="mr-2 size-4" />
+                                Adicionar
+                            </Button>
+                        </div>
 
-                                        return (
-                                            <div key={index} className="space-y-3">
-                                                <div className="grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-2 lg:grid-cols-[1fr_1fr_160px_140px_auto]">
-                                                    <div className="space-y-2">
-                                                        <Label>Fundo</Label>
-                                                        <FundComboboxWithCreate
-                                                            value={allocation.fundId}
-                                                            allowClear={false}
-                                                            onChange={(value) =>
-                                                                handleChangeAllocation(index, "fundId", value)
-                                                            }
-                                                        />
-                                                    </div>
+                        {allocations.length === 0 ? (
+                            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                                Se nenhuma alocação manual for informada, o sistema usará o fundo padrão da
+                                organização. Se você informar uma alocação parcial, o restante continuará
+                                pendente e poderá ser alocado depois.
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {allocations.map((allocation, index) => {
+                                    const suggestion = getDefaultFundReallocationSuggestion({
+                                        fundId: allocation.fundId,
+                                        amount: Number(allocation.amount || 0),
+                                        transactionType: type,
+                                        funds,
+                                        settings,
+                                    })
 
-                                                    <div className="space-y-2">
-                                                        <Label>Favorecido</Label>
-                                                        <BeneficiaryComboboxWithCreate
-                                                            value={allocation.beneficiaryId}
-                                                            allowClear
-                                                            clearLabel="Sem favorecido"
-                                                            onChange={(value) =>
-                                                                handleChangeAllocation(index, "beneficiaryId", value)
-                                                            }
-                                                        />
-                                                    </div>
-
-                                                    <div className="space-y-2">
-                                                        <Label>Competência</Label>
-                                                        <Input
-                                                            type="month"
-                                                            value={allocation.referenceMonth ? allocation.referenceMonth : ""}
-                                                            onChange={(event) =>
-                                                                handleChangeAllocation(
-                                                                    index,
-                                                                    "referenceMonth",
-                                                                    event.target.value,
-                                                                )
-                                                            }
-                                                        />
-                                                        <p className="text-xs text-muted-foreground">
-                                                            Para repasses de outro mês.
-                                                        </p>
-                                                    </div>
-
-                                                    <div className="space-y-2">
-                                                        <Label>Valor</Label>
-                                                        <CurrencyInput
-                                                            value={Number(allocation.amount || 0)}
-                                                            onValueChange={(value) =>
-                                                                handleChangeAllocation(index, "amount", String(value ?? 0))
-                                                            }
-                                                        />
-                                                    </div>
-
-                                                    <div className="flex items-end">
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={() => handleRemoveAllocation(index)}
-                                                        >
-                                                            <Trash2 className="size-4 text-destructive" />
-                                                        </Button>
-                                                    </div>
+                                    return (
+                                        <div key={index} className="space-y-3">
+                                            <div className="grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-2 lg:grid-cols-[1fr_1fr_160px_140px_auto]">
+                                                <div className="space-y-2">
+                                                    <Label>Fundo</Label>
+                                                    <FundComboboxWithCreate
+                                                        value={allocation.fundId}
+                                                        allowClear={false}
+                                                        onChange={(value) =>
+                                                            handleChangeAllocation(index, "fundId", value)
+                                                        }
+                                                    />
                                                 </div>
 
-                                                <SupportAgreementSuggestionCard
-                                                    beneficiaryId={allocation.beneficiaryId}
-                                                    transactionType={type}
-                                                    referenceMonth={allocation.referenceMonth}
-                                                    remainingAmount={Number(allocation.amount || 0)}
-                                                    onApply={(suggestion) => {
-                                                        handleChangeAllocation(index, "fundId", suggestion.fundId)
-                                                        handleChangeAllocation(index, "beneficiaryId", suggestion.beneficiaryId)
-                                                        handleChangeAllocation(index, "referenceMonth", suggestion.referenceMonth)
-                                                        handleChangeAllocation(index, "amount", String(suggestion.amount))
-                                                    }}
-                                                />
+                                                <div className="space-y-2">
+                                                    <Label>Favorecido</Label>
+                                                    <BeneficiaryComboboxWithCreate
+                                                        value={allocation.beneficiaryId}
+                                                        allowClear
+                                                        clearLabel="Sem favorecido"
+                                                        onChange={(value) =>
+                                                            handleChangeAllocation(index, "beneficiaryId", value)
+                                                        }
+                                                    />
+                                                </div>
 
-                                                {suggestion && (
-                                                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                                                        <div className="flex gap-2">
-                                                            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                                                <div className="space-y-2">
+                                                    <Label>Competência</Label>
+                                                    <Input
+                                                        type="month"
+                                                        value={allocation.referenceMonth ? allocation.referenceMonth : ""}
+                                                        onChange={(event) =>
+                                                            handleChangeAllocation(
+                                                                index,
+                                                                "referenceMonth",
+                                                                event.target.value,
+                                                            )
+                                                        }
+                                                    />
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Para repasses de outro mês.
+                                                    </p>
+                                                </div>
 
-                                                            <div className="space-y-2">
-                                                                <p className="font-medium">
-                                                                    O fundo selecionado não possui saldo suficiente.
-                                                                </p>
+                                                <div className="space-y-2">
+                                                    <Label>Valor</Label>
+                                                    <CurrencyInput
+                                                        value={Number(allocation.amount || 0)}
+                                                        onValueChange={(value) =>
+                                                            handleChangeAllocation(index, "amount", String(value ?? 0))
+                                                        }
+                                                    />
+                                                </div>
 
-                                                                <p>
-                                                                    Saldo disponível em{" "}
-                                                                    <strong>{suggestion.selectedFund.label}</strong>:{" "}
-                                                                    {formatCurrency(
-                                                                        Math.max(suggestion.selectedFund.currentBalance, 0),
-                                                                    )}.
-                                                                </p>
+                                                <div className="flex items-end">
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleRemoveAllocation(index)}
+                                                    >
+                                                        <Trash2 className="size-4 text-destructive" />
+                                                    </Button>
+                                                </div>
+                                            </div>
 
-                                                                <p>
-                                                                    Sugestão: alocar{" "}
-                                                                    <strong>{formatCurrency(suggestion.selectedFundAmount)}</strong>{" "}
-                                                                    em {suggestion.selectedFund.label} e{" "}
-                                                                    <strong>{formatCurrency(suggestion.defaultFundAmount)}</strong>{" "}
-                                                                    em {suggestion.defaultFund.label}.
-                                                                </p>
+                                            <SupportAgreementSuggestionCard
+                                                beneficiaryId={allocation.beneficiaryId}
+                                                transactionType={type}
+                                                referenceMonth={allocation.referenceMonth}
+                                                remainingAmount={Number(allocation.amount || 0)}
+                                                onApply={(suggestion) => {
+                                                    handleChangeAllocation(index, "fundId", suggestion.fundId)
+                                                    handleChangeAllocation(index, "beneficiaryId", suggestion.beneficiaryId)
+                                                    handleChangeAllocation(index, "referenceMonth", suggestion.referenceMonth)
+                                                    handleChangeAllocation(index, "amount", String(suggestion.amount))
+                                                }}
+                                            />
 
-                                                                <p className="text-xs">
-                                                                    Nada será salvo automaticamente. Clique em aplicar, revise e depois salve a classificação.
-                                                                </p>
+                                            {suggestion && (
+                                                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                                                    <div className="flex gap-2">
+                                                        <AlertTriangle className="mt-0.5 size-4 shrink-0" />
 
-                                                                <Button
-                                                                    type="button"
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    onClick={() => handleApplyReallocationSuggestion(index)}
-                                                                >
-                                                                    Aplicar sugestão
-                                                                </Button>
-                                                            </div>
+                                                        <div className="space-y-2">
+                                                            <p className="font-medium">
+                                                                O fundo selecionado não possui saldo suficiente.
+                                                            </p>
+
+                                                            <p>
+                                                                Saldo disponível em{" "}
+                                                                <strong>{suggestion.selectedFund.label}</strong>:{" "}
+                                                                {formatCurrency(
+                                                                    Math.max(suggestion.selectedFund.currentBalance, 0),
+                                                                )}.
+                                                            </p>
+
+                                                            <p>
+                                                                Sugestão: alocar{" "}
+                                                                <strong>{formatCurrency(suggestion.selectedFundAmount)}</strong>{" "}
+                                                                em {suggestion.selectedFund.label} e{" "}
+                                                                <strong>{formatCurrency(suggestion.defaultFundAmount)}</strong>{" "}
+                                                                em {suggestion.defaultFund.label}.
+                                                            </p>
+
+                                                            <p className="text-xs">
+                                                                Nada será salvo automaticamente. Clique em aplicar, revise e depois salve a classificação.
+                                                            </p>
+
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() => handleApplyReallocationSuggestion(index)}
+                                                            >
+                                                                Aplicar sugestão
+                                                            </Button>
                                                         </div>
                                                     </div>
-                                                )}
-                                            </div>
-                                        )
-                                    })}
-                                </div>
-                            )}
-
-                            <div className="flex flex-col gap-1 border-t pt-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-                                <span className="text-muted-foreground">
-                                    Total alocado: R$ {totalAllocated.toFixed(2)}
-                                </span>
-
-                                <span
-                                    className={
-                                        remainingAmount < 0
-                                            ? "font-medium text-destructive"
-                                            : "text-muted-foreground"
-                                    }
-                                >
-                                    Restante: R$ {remainingAmount.toFixed(2)}
-                                </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                })}
                             </div>
+                        )}
+
+                        <div className="flex flex-col gap-1 border-t pt-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                            <span className="text-muted-foreground">
+                                Total alocado: R$ {totalAllocated.toFixed(2)}
+                            </span>
+
+                            <span
+                                className={
+                                    remainingAmount < 0
+                                        ? "font-medium text-destructive"
+                                        : "text-muted-foreground"
+                                }
+                            >
+                                Restante: R$ {remainingAmount.toFixed(2)}
+                            </span>
                         </div>
+                    </div>
 
                     {type !== "TRANSFER" && (
                         <div className="space-y-3 rounded-xl border p-4">

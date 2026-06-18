@@ -28,9 +28,11 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
+import com.fluxfund.api.domain.financialtransaction.FiscalDocumentPolicy;
 import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionResponse;
 import com.fluxfund.api.domain.financialtransaction.mapper.FinancialTransactionMapper;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
+import com.fluxfund.api.domain.financialtransaction.service.FinancialTransactionDocumentPolicyService;
 import com.fluxfund.api.domain.financialtransaction.service.FinancialTransactionService;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.OrganizationRepository;
@@ -52,6 +54,7 @@ public class CreditCardStatementService {
     private final AccountRepository accountRepository;
     private final CategoryRepository categoryRepository;
     private final OrganizationAccessService organizationAccessService;
+    private final FinancialTransactionDocumentPolicyService documentPolicyService;
 
     public CreditCardStatementResponse create(UUID organizationId, CreateCreditCardStatementRequest request) {
 
@@ -183,6 +186,7 @@ public class CreditCardStatementService {
                 .type(FinancialTransactionType.EXPENSE)
                 .source(FinancialTransactionSource.CREDIT_CARD)
                 .status(FinancialTransactionStatus.PENDING)
+                .category(category)
                 .dueDate(statement.getDueDate())
                 .settlementDate(null)
                 .expectedAmount(request.amount())
@@ -192,9 +196,16 @@ public class CreditCardStatementService {
                 .description(request.description())
                 .rawDescription(request.description())
                 .documentNumber(request.documentNumber())
+                .fiscalDocumentPolicy(
+                        request.fiscalDocumentPolicy() != null
+                                ? request.fiscalDocumentPolicy()
+                                : FiscalDocumentPolicy.CATEGORY)
+                .fiscalDocumentNote(request.fiscalDocumentNote())
                 .installmentNumber(request.installmentNumber())
                 .installmentCount(request.installmentCount())
                 .build();
+
+        documentPolicyService.normalizeAndValidate(transaction);
 
         FinancialTransaction savedTransaction = financialTransactionRepository.save(transaction);
 

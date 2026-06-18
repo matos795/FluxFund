@@ -20,6 +20,12 @@ export type FinancialTransactionStatus =
   | "CANCELED"
   | "IMPORTED"
 
+export type FiscalDocumentPolicy =
+  | "CATEGORY"
+  | "REQUIRED"
+  | "WAIVED"
+  | "MISSING"
+
 export type TransferDirection = "IN" | "OUT"
 
 export type TransactionAllocation = {
@@ -61,6 +67,9 @@ export type FinancialTransaction = {
   rawDescription: string | null
   documentNumber: string | null
 
+  fiscalDocumentPolicy: FiscalDocumentPolicy
+  fiscalDocumentNote: string | null
+
   allocations: TransactionAllocation[]
 
   importedAt: string | null
@@ -100,6 +109,9 @@ export type CreateFinancialTransactionRequest = {
   description?: string | null
   documentNumber?: string | null
 
+  fiscalDocumentPolicy?: FiscalDocumentPolicy
+  fiscalDocumentNote?: string | null
+
   allocations?: []
 }
 
@@ -115,6 +127,9 @@ export type UpdateFinancialTransactionRequest = {
 
   description?: string | null
   documentNumber?: string | null
+
+  fiscalDocumentPolicy?: FiscalDocumentPolicy
+  fiscalDocumentNote?: string | null
 }
 
 export type CreateTransactionAllocationRequest = {
@@ -147,6 +162,8 @@ export type ClassifyFinancialTransactionRequest = {
   settledAmount?: number
   description?: string
   documentNumber?: string
+  fiscalDocumentPolicy?: FiscalDocumentPolicy
+  fiscalDocumentNote?: string | null
   transferDirection?: TransferDirection | null
   transferCounterpartyAccountId?: string | null
   allocations?: {

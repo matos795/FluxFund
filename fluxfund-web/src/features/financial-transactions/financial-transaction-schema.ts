@@ -24,6 +24,16 @@ export const financialTransactionFormSchema = z
       .optional(),
 
     documentNumber: z.string().optional(),
+
+    fiscalDocumentPolicy: z
+      .enum(["CATEGORY", "REQUIRED", "WAIVED", "MISSING"])
+      .default("CATEGORY"),
+
+    fiscalDocumentNote: z
+      .string()
+      .max(500, "O motivo deve ter no máximo 500 caracteres.")
+      .optional()
+      .nullable(),
   })
   .superRefine((data, ctx) => {
     const hasSettlementDate = Boolean(data.settlementDate)
@@ -53,6 +63,21 @@ export const financialTransactionFormSchema = z
         code: "custom",
         path: ["categoryId"],
         message: "Selecione uma categoria.",
+      })
+    }
+
+    const requiresNote =
+      data.type === "EXPENSE" &&
+      (
+        data.fiscalDocumentPolicy === "WAIVED" ||
+        data.fiscalDocumentPolicy === "MISSING"
+      )
+
+    if (requiresNote && !data.fiscalDocumentNote?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["fiscalDocumentNote"],
+        message: "Informe o motivo.",
       })
     }
   })

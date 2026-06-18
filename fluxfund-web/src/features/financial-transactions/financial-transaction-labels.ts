@@ -1,4 +1,4 @@
-import type { FinancialTransactionSource, FinancialTransactionStatus, FinancialTransactionType, TransferDirection } from "./financial-transaction-types"
+import type { FinancialTransactionSource, FinancialTransactionStatus, FinancialTransactionType, FiscalDocumentPolicy, TransferDirection } from "./financial-transaction-types"
 
 export const financialTransactionTypeLabels: Record<FinancialTransactionType, string> = {
   INCOME: "Receita",
@@ -23,4 +23,41 @@ export const financialTransactionSourceLabels: Record<FinancialTransactionSource
 export const transferDirectionLabels: Record<TransferDirection, string> = {
   IN: "Entrada",
   OUT: "Saída",
+}
+
+export const fiscalDocumentPolicyLabels: Record<FiscalDocumentPolicy, string> = {
+  CATEGORY: "Seguir regra da categoria",
+  REQUIRED: "Exigir nesta transação",
+  WAIVED: "Dispensar nesta transação",
+  MISSING: "Não possuo o documento",
+}
+
+export const fiscalDocumentPolicyDescriptions: Record<FiscalDocumentPolicy, string> = {
+  CATEGORY:
+    "Usa a configuração definida na categoria selecionada.",
+  REQUIRED:
+    "Use quando esta transação precisa de documento fiscal, mesmo que a categoria não exija.",
+  WAIVED:
+    "Use para exceções legítimas em que o documento fiscal não deve ser exigido.",
+  MISSING:
+    "Use quando o documento deveria existir, mas não está disponível.",
+}
+
+export function fiscalDocumentPolicyRequiresNote(
+  policy: FiscalDocumentPolicy,
+) {
+  return policy === "WAIVED" || policy === "MISSING"
+}
+
+export function normalizeFiscalDocumentNote(
+  policy: FiscalDocumentPolicy,
+  note?: string | null,
+) {
+  if (!fiscalDocumentPolicyRequiresNote(policy)) {
+    return null
+  }
+
+  const normalizedNote = note?.trim()
+
+  return normalizedNote ? normalizedNote : null
 }

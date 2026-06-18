@@ -22,6 +22,7 @@ import {
   financialTransactionSourceLabels,
   financialTransactionStatusLabels,
   financialTransactionTypeLabels,
+  fiscalDocumentPolicyLabels,
 } from "@/features/financial-transactions/financial-transaction-labels"
 import {
   getFinancialTransactionStatusBadgeClass,
@@ -215,6 +216,24 @@ export function ViewFinancialTransactionDialog({
                   label="Número do documento"
                   value={transaction.documentNumber ?? "-"}
                 />
+
+                {transaction.type === "EXPENSE" && (
+                  <>
+                    <DetailItem
+                      label="Regra do documento fiscal"
+                      value={
+                        fiscalDocumentPolicyLabels[
+                        transaction.fiscalDocumentPolicy ?? "CATEGORY"
+                        ]
+                      }
+                    />
+
+                    <DetailItem
+                      label="Motivo da regra fiscal"
+                      value={transaction.fiscalDocumentNote ?? "-"}
+                    />
+                  </>
+                )}
 
                 <DetailItem
                   label="Descrição interna"

@@ -1,5 +1,6 @@
 import {
     AlertTriangle,
+    FileQuestion,
     FileWarning,
     FolderKanban,
     ListTodo,
@@ -210,6 +211,9 @@ export function DashboardActionItemsPanel({
     const expensesWithoutFiscalDocument =
         actionItems?.expensesWithoutFiscalDocument ?? []
 
+    const missingFiscalDocumentTransactions =
+        actionItems?.missingFiscalDocumentTransactions ?? []
+
     const negativeFunds = actionItems?.negativeFunds ?? []
 
     return (
@@ -271,6 +275,24 @@ export function DashboardActionItemsPanel({
                             item={item}
                             action="attachments"
                             variant="danger"
+                        />
+                    )}
+                    compact
+                />
+
+                <DashboardActionListCard
+                    title="Documento ausente justificado"
+                    description="Transações em que o documento fiscal deveria existir, mas foi marcado como indisponível."
+                    emptyMessage="Nenhum documento ausente justificado no período."
+                    icon={FileQuestion}
+                    items={missingFiscalDocumentTransactions}
+                    viewAllTo="/transactions?type=EXPENSE&status=SETTLED"
+                    getItemKey={(item) => item.transactionId}
+                    renderItem={(item) => (
+                        <TransactionActionItem
+                            item={item}
+                            action="view"
+                            variant="warning"
                         />
                     )}
                     compact
