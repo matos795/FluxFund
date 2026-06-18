@@ -27,6 +27,7 @@ export function SupportAgreementForm({
   defaultValues,
   submitLabel = "Salvar compromisso",
   isSubmitting = false,
+  lockBeneficiary = false,
   onSubmit,
 }: SupportAgreementFormProps) {
   const {
@@ -57,8 +58,9 @@ export function SupportAgreementForm({
           render={({ field }) => (
             <BeneficiaryComboboxWithCreate
               value={field.value}
-              allowClear
+              allowClear={!lockBeneficiary}
               clearLabel="Sem favorecido"
+              disabled={lockBeneficiary}
               onChange={field.onChange}
             />
           )}

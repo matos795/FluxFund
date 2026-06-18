@@ -5,15 +5,12 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { useCreateSupportAgreement } from "../hooks/use-create-support-agreement"
 import type { SupportAgreementFormData } from "../support-agreement-schema"
 import { SupportAgreementForm } from "./support-agreement-form"
+import { AppDialogBody, AppDialogContent, AppDialogHeader } from "@/components/layout/app-dialog"
 
 type CreateSupportAgreementDialogProps = {
   beneficiaryId?: string
@@ -66,26 +63,29 @@ export function CreateSupportAgreementDialog({
         )}
       </DialogTrigger>
 
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Novo compromisso de sustento</DialogTitle>
-          <DialogDescription>
-            {beneficiaryName
+      <AppDialogContent size="lg">
+        <AppDialogHeader
+          icon={<Plus className="size-4 text-muted-foreground" />}
+          title="Novo compromisso de sustento"
+          description={
+            beneficiaryName
               ? `Cadastre um compromisso para ${beneficiaryName}.`
-              : "Cadastre um compromisso fixo entre a organização, um favorecido e um fundo."}
-          </DialogDescription>
-        </DialogHeader>
-
-        <SupportAgreementForm
-          defaultValues={{
-            beneficiaryId: beneficiaryId ?? "",
-            active: true,
-          }}
-          lockBeneficiary={Boolean(beneficiaryId)}
-          isSubmitting={createSupportAgreementMutation.isPending}
-          onSubmit={handleCreate}
+              : "Cadastre um compromisso fixo entre a organização, um favorecido e um fundo."
+          }
         />
-      </DialogContent>
+
+        <AppDialogBody>
+          <SupportAgreementForm
+            defaultValues={{
+              beneficiaryId: beneficiaryId ?? "",
+              active: true,
+            }}
+            lockBeneficiary={Boolean(beneficiaryId)}
+            isSubmitting={createSupportAgreementMutation.isPending}
+            onSubmit={handleCreate}
+          />
+        </AppDialogBody>
+      </AppDialogContent>
     </Dialog>
   )
 }

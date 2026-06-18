@@ -4,16 +4,13 @@ import { toast } from "sonner"
 
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog"
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { useUpdateSupportAgreement } from "../hooks/use-update-support-agreement"
 import type { SupportAgreement } from "../support-agreement-types"
 import type { SupportAgreementFormData } from "../support-agreement-schema"
 import { SupportAgreementForm } from "./support-agreement-form"
+import { AppDialogBody, AppDialogContent, AppDialogHeader } from "@/components/layout/app-dialog"
 
 type EditSupportAgreementDialogProps = {
   agreement: SupportAgreement
@@ -65,29 +62,30 @@ export function EditSupportAgreementDialog({
       </DropdownMenuItem>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Editar compromisso</DialogTitle>
-            <DialogDescription>
-              Atualize as informações do compromisso de sustento.
-            </DialogDescription>
-          </DialogHeader>
-
-          <SupportAgreementForm
-            defaultValues={{
-              beneficiaryId: agreement.beneficiary.id,
-              fundId: agreement.fund.id,
-              amount: agreement.amount,
-              startDate: agreement.startDate,
-              endDate: agreement.endDate ?? "",
-              active: agreement.active,
-              description: agreement.description ?? "",
-            }}
-            submitLabel="Salvar alterações"
-            isSubmitting={updateSupportAgreementMutation.isPending}
-            onSubmit={handleUpdate}
+        <AppDialogContent size="lg">
+          <AppDialogHeader
+            icon={<Pencil className="size-4 text-muted-foreground" />}
+            title="Editar compromisso"
+            description="Atualize as informações do compromisso de sustento."
           />
-        </DialogContent>
+
+          <AppDialogBody>
+            <SupportAgreementForm
+              defaultValues={{
+                beneficiaryId: agreement.beneficiary.id,
+                fundId: agreement.fund.id,
+                amount: agreement.amount,
+                startDate: agreement.startDate,
+                endDate: agreement.endDate ?? "",
+                active: agreement.active,
+                description: agreement.description ?? "",
+              }}
+              submitLabel="Salvar alterações"
+              isSubmitting={updateSupportAgreementMutation.isPending}
+              onSubmit={handleUpdate}
+            />
+          </AppDialogBody>
+        </AppDialogContent>
       </Dialog>
     </>
   )
