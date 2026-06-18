@@ -2,16 +2,6 @@ import { CreditCard, FileUp, MoreHorizontal, Plus, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -38,6 +28,7 @@ import { AddCreditCardStatementItemDialog } from "./add-credit-card-statement-it
 import { PayCreditCardStatementDialog } from "./pay-credit-card-statement-dialog"
 import { ViewCreditCardStatementItemsDialog } from "./view-credit-card-statement-items-dialog"
 import { ImportCreditCardStatementDialog } from "./import-credit-card-statement-dialog"
+import { ConfirmActionDialog } from "@/components/layout/confirm-action-dialog"
 
 type CreditCardStatementsTableProps = {
   statements: CreditCardStatement[]
@@ -276,36 +267,28 @@ export function CreditCardStatementsTable({
         />
       )}
 
-      <AlertDialog
+      <ConfirmActionDialog
         open={Boolean(statementToCancel)}
         onOpenChange={(open) => {
           if (!open) {
             setStatementToCancel(null)
           }
         }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cancelar fatura?</AlertDialogTitle>
-            <AlertDialogDescription>
-              A fatura <strong>{statementToCancel?.name}</strong> será cancelada. Se o backend estiver com a regra recomendada, os itens dessa fatura também serão cancelados.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={cancelStatementMutation.isPending}>
-              Voltar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={cancelStatementMutation.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={handleCancelStatement}
-            >
-              {cancelStatementMutation.isPending ? "Cancelando..." : "Cancelar fatura"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        title="Cancelar fatura?"
+        description={
+          <>
+            A fatura <strong>{statementToCancel?.name}</strong> será cancelada. Se
+            o backend estiver com a regra recomendada, os itens dessa fatura também
+            serão cancelados.
+          </>
+        }
+        confirmLabel="Cancelar fatura"
+        pendingLabel="Cancelando..."
+        cancelLabel="Voltar"
+        isPending={cancelStatementMutation.isPending}
+        isDestructive
+        onConfirm={handleCancelStatement}
+      />
     </>
   )
 }

@@ -1,5 +1,5 @@
 import { useState } from "react"
-import type { MouseEvent } from "react"
+
 import {
   CheckCircle2,
   Eye,
@@ -11,16 +11,6 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -38,6 +28,7 @@ import { needsFinancialTransactionClassification } from "../financial-transactio
 import { useCancelFinancialTransaction } from "../hooks/use-cancel-financial-transaction"
 import { CancelAccountTransferDialog } from "./cancel-account-transfer-dialog"
 import { TransactionWorkspaceDialog } from "./transaction-workspace-dialog"
+import { ConfirmActionDialog } from "@/components/layout/confirm-action-dialog"
 
 type FinancialTransactionActionsProps = {
   transaction: FinancialTransaction
@@ -97,9 +88,7 @@ export function FinancialTransactionActions({
     transaction.status !== "CANCELED" &&
     Boolean(transaction.transferGroupId)
 
-  function handleCancelTransaction(event: MouseEvent) {
-    event.preventDefault()
-
+  function handleCancelTransaction() {
     cancelFinancialTransactionMutation.mutate(transaction.id, {
       onSuccess: () => {
         toast.success("Transação cancelada com sucesso.")
@@ -232,45 +221,33 @@ export function FinancialTransactionActions({
         onOpenChange={setCancelTransferDialogOpen}
       />
 
-      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cancelar transação?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Essa ação não poderá ser desfeita. A transação{" "}
-              <strong>
-                {transaction.description?.trim() ||
-                  transaction.rawDescription?.trim() ||
-                  "esta transação"}
-              </strong>{" "}
-              será cancelada.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          {cancelFinancialTransactionMutation.isError && (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-              Não foi possível cancelar a transação. Verifique se ela não possui
-              alocações vinculadas.
-            </div>
-          )}
-
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={cancelFinancialTransactionMutation.isPending}>
-              Cancelar
-            </AlertDialogCancel>
-
-            <AlertDialogAction
-              onClick={handleCancelTransaction}
-              disabled={cancelFinancialTransactionMutation.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {cancelFinancialTransactionMutation.isPending
-                ? "Cancelando..."
-                : "Cancelar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmActionDialog
+        open={cancelDialogOpen}
+        onOpenChange={setCancelDialogOpen}
+        title="Cancelar transação?"
+        description={
+          <>
+            Essa ação não poderá ser desfeita. A transação{" "}
+            <strong>
+              {transaction.description?.trim() ||
+                transaction.rawDescription?.trim() ||
+                "esta transação"}
+            </strong>{" "}
+            será cancelada.
+          </>
+        }
+        confirmLabel="Cancelar"
+        pendingLabel="Cancelando..."
+        cancelLabel="Voltar"
+        isPending={cancelFinancialTransactionMutation.isPending}
+        isDestructive
+        errorMessage={
+          cancelFinancialTransactionMutation.isError
+            ? "Não foi possível cancelar a transação. Verifique se ela não possui alocações vinculadas."
+            : null
+        }
+        onConfirm={handleCancelTransaction}
+      />
     </>
   )
 }

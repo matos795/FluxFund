@@ -6,8 +6,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Button } from "@/components/ui/button"
 import { MoreHorizontal, Trash2 } from "lucide-react"
 import { EditFundDialog } from "./edit-fund-dialog"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
+import { ConfirmActionDialog } from "@/components/layout/confirm-action-dialog"
 
 type FundActionsProps = {
     fund: Fund
@@ -16,7 +16,7 @@ type FundActionsProps = {
 export function FundActions({ fund }: FundActionsProps) {
 
     const { canFinanceWrite } = usePermissions()
-    
+
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
     const deleteFundMutation = useDeleteFund()
@@ -58,38 +58,27 @@ export function FundActions({ fund }: FundActionsProps) {
                 </DropdownMenuContent>
             </DropdownMenu>
 
-            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Desativar fundo?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Essa ação não poderá ser desfeita. O fundo{" "}
-                            <strong>{fund.name}</strong> será desativado.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-
-                    {deleteFundMutation.isError && (
-                        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-                            Não foi possível desativar o fundo. Verifique se ele não possui
-                            transações vinculadas.
-                        </div>
-                    )}
-
-                    <AlertDialogFooter>
-                        <AlertDialogCancel disabled={deleteFundMutation.isPending}>
-                            Cancelar
-                        </AlertDialogCancel>
-
-                        <AlertDialogAction
-                            onClick={handleDeleteFund}
-                            disabled={deleteFundMutation.isPending}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                            {deleteFundMutation.isPending ? "Desativando..." : "Desativar"}
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+            <ConfirmActionDialog
+                open={deleteDialogOpen}
+                onOpenChange={setDeleteDialogOpen}
+                title="Desativar fundo?"
+                description={
+                    <>
+                        Essa ação não poderá ser desfeita. O fundo{" "}
+                        <strong>{fund.name}</strong> será desativado.
+                    </>
+                }
+                confirmLabel="Desativar"
+                pendingLabel="Desativando..."
+                isPending={deleteFundMutation.isPending}
+                isDestructive
+                errorMessage={
+                    deleteFundMutation.isError
+                        ? "Não foi possível desativar o fundo. Verifique se ele não possui transações vinculadas."
+                        : null
+                }
+                onConfirm={handleDeleteFund}
+            />
         </>
     )
 }

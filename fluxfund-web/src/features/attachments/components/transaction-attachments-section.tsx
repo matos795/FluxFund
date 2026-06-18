@@ -2,16 +2,6 @@ import { Download, FileText, Paperclip, Trash2, Upload } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -33,6 +23,7 @@ import { downloadAttachment } from "../attachment-api"
 import { downloadFile } from "@/utils/download-file"
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import axios from "axios"
+import { ConfirmActionDialog } from "@/components/layout/confirm-action-dialog"
 
 const attachmentTypes: AttachmentType[] = [
     "PROOF_OF_PAYMENT",
@@ -279,41 +270,29 @@ export function TransactionAttachmentsSection({
                 </div>
             )}
 
-            <AlertDialog
+            <ConfirmActionDialog
                 open={Boolean(attachmentToDelete)}
                 onOpenChange={(open) => {
                     if (!open) {
                         setAttachmentToDelete(null)
                     }
                 }}
-            >
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Remover anexo?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            O anexo{" "}
-                            <strong>
-                                {attachmentToDelete?.originalFilename ?? "selecionado"}
-                            </strong>{" "}
-                            será removido desta transação.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-
-                    <AlertDialogFooter>
-                        <AlertDialogCancel disabled={deleteAttachmentMutation.isPending}>
-                            Cancelar
-                        </AlertDialogCancel>
-
-                        <AlertDialogAction
-                            onClick={handleDeleteAttachment}
-                            disabled={deleteAttachmentMutation.isPending}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                            {deleteAttachmentMutation.isPending ? "Removendo..." : "Remover"}
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+                title="Remover anexo?"
+                description={
+                    <>
+                        O anexo{" "}
+                        <strong>
+                            {attachmentToDelete?.originalFilename ?? "selecionado"}
+                        </strong>{" "}
+                        será removido desta transação.
+                    </>
+                }
+                confirmLabel="Remover"
+                pendingLabel="Removendo..."
+                isPending={deleteAttachmentMutation.isPending}
+                isDestructive
+                onConfirm={handleDeleteAttachment}
+            />
         </section>
     )
 }

@@ -4,16 +4,6 @@ import { useState } from "react"
 import { useDeleteAccount } from "@/features/accounts/hooks/use-delete-account"
 import type { Account } from "@/features/accounts/types"
 
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import {
     DropdownMenu,
@@ -25,6 +15,7 @@ import { EditAccountDialog } from "./edit-account-dialog"
 import { toast } from "sonner"
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { getApiErrorMessage } from "@/utils/api-error"
+import { ConfirmActionDialog } from "@/components/layout/confirm-action-dialog"
 
 type AccountActionsProps = {
     account: Account
@@ -77,38 +68,27 @@ export function AccountActions({ account }: AccountActionsProps) {
                 </DropdownMenuContent>
             </DropdownMenu>
 
-            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Desativar conta?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Essa ação não poderá ser desfeita. A conta{" "}
-                            <strong>{account.name}</strong> será desativada.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-
-                    {deleteAccountMutation.isError && (
-                        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-                            Não foi possível desativar a conta. Verifique se ela não possui
-                            transações vinculadas.
-                        </div>
-                    )}
-
-                    <AlertDialogFooter>
-                        <AlertDialogCancel disabled={deleteAccountMutation.isPending}>
-                            Cancelar
-                        </AlertDialogCancel>
-
-                        <AlertDialogAction
-                            onClick={handleDeleteAccount}
-                            disabled={deleteAccountMutation.isPending}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                            {deleteAccountMutation.isPending ? "Desativando..." : "Desativar"}
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+            <ConfirmActionDialog
+                open={deleteDialogOpen}
+                onOpenChange={setDeleteDialogOpen}
+                title="Desativar conta?"
+                description={
+                    <>
+                        Essa ação não poderá ser desfeita. A conta{" "}
+                        <strong>{account.name}</strong> será desativada.
+                    </>
+                }
+                confirmLabel="Desativar"
+                pendingLabel="Desativando..."
+                isPending={deleteAccountMutation.isPending}
+                isDestructive
+                errorMessage={
+                    deleteAccountMutation.isError
+                        ? "Não foi possível desativar a conta. Verifique se ela não possui transações vinculadas."
+                        : null
+                }
+                onConfirm={handleDeleteAccount}
+            />
         </>
     )
 }
