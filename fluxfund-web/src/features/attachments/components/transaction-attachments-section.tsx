@@ -24,6 +24,7 @@ import { downloadFile } from "@/utils/download-file"
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import axios from "axios"
 import { ConfirmActionDialog } from "@/components/layout/confirm-action-dialog"
+import { getAttachmentAcceptAttribute, getAttachmentRulesDescription, validateAttachmentFile } from "../attachment-validation"
 
 const attachmentTypes: AttachmentType[] = [
     "PROOF_OF_PAYMENT",
@@ -80,6 +81,25 @@ export function TransactionAttachmentsSection({
 
     function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
         const selectedFile = event.target.files?.[0] ?? null
+
+        if (!selectedFile) {
+            setFile(null)
+            return
+        }
+
+        const validationError = validateAttachmentFile(selectedFile)
+
+        if (validationError) {
+            toast.error(validationError)
+            setFile(null)
+
+            if (fileInputRef.current) {
+                fileInputRef.current.value = ""
+            }
+
+            return
+        }
+
         setFile(selectedFile)
     }
 
@@ -183,13 +203,11 @@ export function TransactionAttachmentsSection({
                             id={`attachment-file-${transactionId}`}
                             type="file"
                             onChange={handleFileChange}
-                            accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                            accept={getAttachmentAcceptAttribute()}
                         />
-                        {file && (
-                            <p className="text-xs text-amber-700">
-                                Arquivo selecionado aguardando envio. Clique em "Enviar" para salvá-lo.
-                            </p>
-                        )}
+                        <p className="text-xs text-muted-foreground">
+                            {getAttachmentRulesDescription()}
+                        </p>
                     </div>
 
                     <div className="flex items-end">

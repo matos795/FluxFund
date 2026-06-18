@@ -32,6 +32,7 @@ import { useAccounts } from "@/features/accounts/hooks/use-accounts"
 import { EntityCombobox } from "@/components/form/entity-combobox"
 import { fiscalDocumentPolicyRequiresNote, normalizeFiscalDocumentNote } from "../financial-transaction-labels"
 import { FiscalDocumentPolicyField } from "./fiscal-document-policy-field"
+import { getAttachmentAcceptAttribute, getAttachmentRulesDescription, validateAttachmentFile } from "@/features/attachments/attachment-validation"
 
 type AllocationFormItem = {
     fundId: string
@@ -232,6 +233,15 @@ export function TransactionClassifyPanel({
         id: string,
         file: File | null,
     ) {
+        if (file) {
+            const validationError = validateAttachmentFile(file)
+
+            if (validationError) {
+                toast.error(validationError)
+                return
+            }
+        }
+
         setPendingAttachments((current) =>
             current.map((attachment) =>
                 attachment.id === id
@@ -913,7 +923,7 @@ export function TransactionClassifyPanel({
 
                                         <Input
                                             type="file"
-                                            accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                                            accept={getAttachmentAcceptAttribute()}
                                             onChange={(event) =>
                                                 handleChangePendingAttachmentFile(
                                                     attachment.id,
@@ -923,8 +933,8 @@ export function TransactionClassifyPanel({
                                         />
 
                                         {attachment.file && (
-                                            <p className="truncate text-xs text-amber-700">
-                                                {attachment.file.name} será enviado ao salvar a classificação.
+                                            <p className="text-xs text-muted-foreground">
+                                                {getAttachmentRulesDescription()}
                                             </p>
                                         )}
                                     </div>
@@ -952,7 +962,7 @@ export function TransactionClassifyPanel({
                 <Button
                     type="button"
                     variant="outline"
-                    onClick={() => {}}
+                    onClick={() => { }}
                 >
                     Cancelar
                 </Button>
