@@ -8,10 +8,6 @@ import { CurrencyInput } from "@/components/form/currency-input"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -32,6 +28,7 @@ import { useAddCreditCardStatementItem } from "../hooks/use-add-credit-card-stat
 import { getApiErrorMessage } from "@/utils/api-error"
 import { normalizeFiscalDocumentNote } from "@/features/financial-transactions/financial-transaction-labels"
 import { FiscalDocumentPolicyField } from "@/features/financial-transactions/components/fiscal-document-policy-field"
+import { AppDialogBody, AppDialogContent, AppDialogFooter, AppDialogHeader } from "@/components/layout/app-dialog"
 
 type AddCreditCardStatementItemDialogProps = {
   statement: CreditCardStatement
@@ -157,205 +154,207 @@ export function AddCreditCardStatementItemDialog({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Adicionar item à fatura</DialogTitle>
-          <DialogDescription>
-            O item será criado como uma despesa de cartão e aparecerá também na tela de transações.
-          </DialogDescription>
-        </DialogHeader>
+      <AppDialogContent size="xl">
+        <AppDialogHeader
+          icon={<Plus className="size-4 text-muted-foreground" />}
+          title="Adicionar item à fatura"
+          description="O item será criado como uma despesa de cartão e aparecerá também na tela de transações."
+        />
 
-        <form onSubmit={handleSubmit(handleAddItem)} className="space-y-5">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="purchaseDate">Data da compra</Label>
-              <Input id="purchaseDate" type="date" {...register("purchaseDate")} />
-              {errors.purchaseDate && (
-                <p className="text-sm text-destructive">
-                  {errors.purchaseDate.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="amount">Valor</Label>
-              <Controller
-                name="amount"
-                control={control}
-                render={({ field }) => (
-                  <CurrencyInput
-                    id="amount"
-                    value={field.value as number | null | undefined}
-                    onValueChange={field.onChange}
-                  />
-                )}
-              />
-              {errors.amount && (
-                <p className="text-sm text-destructive">{errors.amount.message}</p>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">Descrição</Label>
-            <Textarea
-              id="description"
-              placeholder="Ex: Combustível, hospedagem, compra de material..."
-              {...register("description")}
-            />
-            {errors.description && (
-              <p className="text-sm text-destructive">
-                {errors.description.message}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label>Categoria</Label>
-            <CategoryComboboxWithCreate
-              value={selectedCategoryId ?? ""}
-              type="EXPENSE"
-              placeholder="Selecione a categoria"
-              searchPlaceholder="Buscar categoria..."
-              emptyMessage="Nenhuma categoria de despesa encontrada."
-              onChange={(value) =>
-                setValue("categoryId", value, { shouldValidate: true })
-              }
-            />
-            {errors.categoryId && (
-              <p className="text-sm text-destructive">
-                {errors.categoryId.message}
-              </p>
-            )}
-          </div>
-
-          <FiscalDocumentPolicyField
-            value={fiscalDocumentPolicy ?? "CATEGORY"}
-            note={fiscalDocumentNote ?? ""}
-            policyError={errors.fiscalDocumentPolicy?.message}
-            noteError={errors.fiscalDocumentNote?.message}
-            onValueChange={(value) => {
-              setValue("fiscalDocumentPolicy", value, {
-                shouldValidate: true,
-              })
-
-              if (value === "CATEGORY" || value === "REQUIRED") {
-                setValue("fiscalDocumentNote", "", {
-                  shouldValidate: true,
-                })
-              }
-            }}
-            onNoteChange={(value) =>
-              setValue("fiscalDocumentNote", value, {
-                shouldValidate: true,
-              })
-            }
-          />
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="documentNumber">Documento</Label>
-              <Input
-                id="documentNumber"
-                placeholder="Opcional"
-                {...register("documentNumber")}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="installmentNumber">Parcela</Label>
-              <Input
-                id="installmentNumber"
-                type="number"
-                min={1}
-                placeholder="Ex: 1"
-                {...register("installmentNumber")}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="installmentCount">Total parcelas</Label>
-              <Input
-                id="installmentCount"
-                type="number"
-                min={1}
-                placeholder="Ex: 3"
-                {...register("installmentCount")}
-              />
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-3">
-            <div>
-              <h3 className="text-sm font-medium">Alocação inicial</h3>
-              <p className="text-xs text-muted-foreground">
-                Opcional. Você também pode alocar depois pela tela de transações.
-              </p>
-            </div>
-
+        <form onSubmit={handleSubmit(handleAddItem)} className="contents">
+          <AppDialogBody className="space-y-5">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label>Fundo</Label>
-                <FundComboboxWithCreate
-                  value={selectedFundId ?? ""}
-                  allowClear
-                  clearLabel="Sem alocação agora"
-                  onChange={(value) =>
-                    setValue("fundId", value, { shouldValidate: true })
-                  }
-                />
-                {errors.fundId && (
-                  <p className="text-sm text-destructive">{errors.fundId.message}</p>
+                <Label htmlFor="purchaseDate">Data da compra</Label>
+                <Input id="purchaseDate" type="date" {...register("purchaseDate")} />
+                {errors.purchaseDate && (
+                  <p className="text-sm text-destructive">
+                    {errors.purchaseDate.message}
+                  </p>
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label>Favorecido</Label>
-                <BeneficiaryComboboxWithCreate
-                  value={selectedBeneficiaryId ?? ""}
-                  allowClear
-                  clearLabel="Sem favorecido"
-                  onChange={(value) =>
-                    setValue("beneficiaryId", value, { shouldValidate: true })
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="referenceMonth">Competência</Label>
-                <Input id="referenceMonth" type="month" {...register("referenceMonth")} />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="allocationAmount">Valor alocado</Label>
+                <Label htmlFor="amount">Valor</Label>
                 <Controller
-                  name="allocationAmount"
+                  name="amount"
                   control={control}
                   render={({ field }) => (
                     <CurrencyInput
-                      id="allocationAmount"
+                      id="amount"
                       value={field.value as number | null | undefined}
                       onValueChange={field.onChange}
                     />
                   )}
                 />
-                {errors.allocationAmount && (
-                  <p className="text-sm text-destructive">
-                    {errors.allocationAmount.message}
-                  </p>
+                {errors.amount && (
+                  <p className="text-sm text-destructive">{errors.amount.message}</p>
                 )}
               </div>
             </div>
-          </div>
 
-          <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
+            <div className="space-y-2">
+              <Label htmlFor="description">Descrição</Label>
+              <Textarea
+                id="description"
+                placeholder="Ex: Combustível, hospedagem, compra de material..."
+                {...register("description")}
+              />
+              {errors.description && (
+                <p className="text-sm text-destructive">
+                  {errors.description.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Categoria</Label>
+              <CategoryComboboxWithCreate
+                value={selectedCategoryId ?? ""}
+                type="EXPENSE"
+                placeholder="Selecione a categoria"
+                searchPlaceholder="Buscar categoria..."
+                emptyMessage="Nenhuma categoria de despesa encontrada."
+                onChange={(value) =>
+                  setValue("categoryId", value, { shouldValidate: true })
+                }
+              />
+              {errors.categoryId && (
+                <p className="text-sm text-destructive">
+                  {errors.categoryId.message}
+                </p>
+              )}
+            </div>
+
+            <FiscalDocumentPolicyField
+              value={fiscalDocumentPolicy ?? "CATEGORY"}
+              note={fiscalDocumentNote ?? ""}
+              policyError={errors.fiscalDocumentPolicy?.message}
+              noteError={errors.fiscalDocumentNote?.message}
+              onValueChange={(value) => {
+                setValue("fiscalDocumentPolicy", value, {
+                  shouldValidate: true,
+                })
+
+                if (value === "CATEGORY" || value === "REQUIRED") {
+                  setValue("fiscalDocumentNote", "", {
+                    shouldValidate: true,
+                  })
+                }
+              }}
+              onNoteChange={(value) =>
+                setValue("fiscalDocumentNote", value, {
+                  shouldValidate: true,
+                })
+              }
+            />
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="documentNumber">Documento</Label>
+                <Input
+                  id="documentNumber"
+                  placeholder="Opcional"
+                  {...register("documentNumber")}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="installmentNumber">Parcela</Label>
+                <Input
+                  id="installmentNumber"
+                  type="number"
+                  min={1}
+                  placeholder="Ex: 1"
+                  {...register("installmentNumber")}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="installmentCount">Total parcelas</Label>
+                <Input
+                  id="installmentCount"
+                  type="number"
+                  min={1}
+                  placeholder="Ex: 3"
+                  {...register("installmentCount")}
+                />
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-3">
+              <div>
+                <h3 className="text-sm font-medium">Alocação inicial</h3>
+                <p className="text-xs text-muted-foreground">
+                  Opcional. Você também pode alocar depois pela tela de transações.
+                </p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Fundo</Label>
+                  <FundComboboxWithCreate
+                    value={selectedFundId ?? ""}
+                    allowClear
+                    clearLabel="Sem alocação agora"
+                    onChange={(value) =>
+                      setValue("fundId", value, { shouldValidate: true })
+                    }
+                  />
+                  {errors.fundId && (
+                    <p className="text-sm text-destructive">{errors.fundId.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Favorecido</Label>
+                  <BeneficiaryComboboxWithCreate
+                    value={selectedBeneficiaryId ?? ""}
+                    allowClear
+                    clearLabel="Sem favorecido"
+                    onChange={(value) =>
+                      setValue("beneficiaryId", value, { shouldValidate: true })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="referenceMonth">Competência</Label>
+                  <Input id="referenceMonth" type="month" {...register("referenceMonth")} />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="allocationAmount">Valor alocado</Label>
+                  <Controller
+                    name="allocationAmount"
+                    control={control}
+                    render={({ field }) => (
+                      <CurrencyInput
+                        id="allocationAmount"
+                        value={field.value as number | null | undefined}
+                        onValueChange={field.onChange}
+                      />
+                    )}
+                  />
+                  {errors.allocationAmount && (
+                    <p className="text-sm text-destructive">
+                      {errors.allocationAmount.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+          </AppDialogBody>
+
+          <AppDialogFooter>
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               disabled={addItemMutation.isPending}
               onClick={() => handleOpenChange(false)}
             >
@@ -365,9 +364,9 @@ export function AddCreditCardStatementItemDialog({
             <Button type="submit" disabled={addItemMutation.isPending}>
               {addItemMutation.isPending ? "Adicionando..." : "Adicionar item"}
             </Button>
-          </div>
+          </AppDialogFooter>
         </form>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   )
 }
