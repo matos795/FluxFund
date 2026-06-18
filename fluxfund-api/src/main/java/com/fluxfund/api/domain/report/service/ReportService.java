@@ -15,8 +15,12 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fluxfund.api.domain.creditcardstatement.repository.CreditCardStatementRepository;
+import com.fluxfund.api.domain.dashboard.dto.DashboardTransactionActionItemProjection;
+import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
+import com.fluxfund.api.domain.fund.repository.FundRepository;
 import com.fluxfund.api.domain.fundtransfer.repository.FundTransferRepository;
 import com.fluxfund.api.domain.organization.OrganizationRepository;
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityAccountBreakdownResponse;
@@ -28,6 +32,12 @@ import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportRes
 import com.fluxfund.api.domain.report.dto.category.CategoryResultReportResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundReportItemResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundReportResponse;
+import com.fluxfund.api.domain.report.dto.pending.PendingCreditCardStatementResponse;
+import com.fluxfund.api.domain.report.dto.pending.PendingFundResponse;
+import com.fluxfund.api.domain.report.dto.pending.PendingItemsReportResponse;
+import com.fluxfund.api.domain.report.dto.pending.PendingTransactionItemResponse;
+import com.fluxfund.api.domain.report.projection.PendingCreditCardStatementProjection;
+import com.fluxfund.api.domain.report.projection.PendingDocumentTransactionProjection;
 import com.fluxfund.api.domain.supportagreement.SupportAgreement;
 import com.fluxfund.api.domain.supportagreement.repository.SupportAgreementRepository;
 import com.fluxfund.api.domain.transactionallocation.repository.TransactionAllocationRepository;
@@ -48,6 +58,8 @@ public class ReportService {
         private final SupportAgreementRepository supportAgreementRepository;
         private final OrganizationAccessService organizationAccessService;
         private final FundTransferRepository fundTransferRepository;
+        private final FundRepository fundRepository;
+        private final CreditCardStatementRepository creditCardStatementRepository;
 
         public CategoryResultReportResponse getCategoryResultReport(
                         UUID organizationId,
@@ -517,6 +529,94 @@ public class ReportService {
                                 items);
         }
 
+        public PendingItemsReportResponse getPendingItemsReport(
+                        UUID organizationId,
+                        Integer limit) {
+
+                organizationAccessService.requireReadAccess(organizationId);
+
+                validateOrganizationExists(organizationId);
+
+                int resolvedLimit = limit != null
+                                ? Math.max(5, Math.min(limit, 50))
+                                : 10;
+
+                long unclassifiedCount = financialTransactionRepository
+                                .countUnclassifiedByOrganizationId(
+                                                organizationId,
+                                                FinancialTransactionStatus.CANCELED,
+                                                FinancialTransactionType.TRANSFER);
+
+                long unallocatedCount = financialTransactionRepository
+                                .countUnallocatedByOrganizationId(
+                                                organizationId,
+                                                FinancialTransactionStatus.SETTLED,
+                                                FinancialTransactionType.TRANSFER);
+
+                long missingDocumentsCount = financialTransactionRepository
+                                .countPendingDocumentItems(organizationId);
+
+                long pendingCreditCardStatementsCount = creditCardStatementRepository
+                                .countPendingCreditCardStatements(organizationId);
+
+                long negativeFundsCount = fundRepository
+                                .countNegativeFunds(organizationId);
+
+                List<PendingTransactionItemResponse> unclassifiedTransactions = financialTransactionRepository
+                                .findUnclassifiedActionItems(organizationId, resolvedLimit)
+                                .stream()
+                                .map(item -> toPendingTransactionItemResponse(
+                                                item,
+                                                "Transação sem categoria"))
+                                .toList();
+
+                List<PendingTransactionItemResponse> unallocatedTransactions = financialTransactionRepository
+                                .findUnallocatedActionItems(organizationId, resolvedLimit)
+                                .stream()
+                                .map(item -> toPendingTransactionItemResponse(
+                                                item,
+                                                "Transação liquidada com alocação pendente"))
+                                .toList();
+
+                List<PendingTransactionItemResponse> missingDocumentTransactions = financialTransactionRepository
+                                .findPendingDocumentItems(organizationId, resolvedLimit)
+                                .stream()
+                                .map(this::toPendingTransactionItemResponse)
+                                .toList();
+
+                List<PendingCreditCardStatementResponse> pendingCreditCardStatements = creditCardStatementRepository
+                                .findPendingCreditCardStatementItems(
+                                                organizationId,
+                                                resolvedLimit)
+                                .stream()
+                                .map(this::toPendingCreditCardStatementResponse)
+                                .toList();
+
+                List<PendingFundResponse> negativeFunds = fundRepository
+                                .findNegativeFundActionItems(
+                                                organizationId,
+                                                resolvedLimit)
+                                .stream()
+                                .map(item -> new PendingFundResponse(
+                                                item.getFundId(),
+                                                item.getFundName(),
+                                                item.getCurrentBalance(),
+                                                "Fundo com saldo negativo"))
+                                .toList();
+
+                return new PendingItemsReportResponse(
+                                unclassifiedCount,
+                                unallocatedCount,
+                                missingDocumentsCount,
+                                pendingCreditCardStatementsCount,
+                                negativeFundsCount,
+                                unclassifiedTransactions,
+                                unallocatedTransactions,
+                                missingDocumentTransactions,
+                                pendingCreditCardStatements,
+                                negativeFunds);
+        }
+
         private void validateOrganizationExists(UUID organizationId) {
                 if (!organizationRepository.existsById(organizationId)) {
                         throw new ResourceNotFoundException("Organization not found");
@@ -589,5 +689,52 @@ public class ReportService {
                                 organizationId,
                                 startDate,
                                 endDate);
+        }
+
+        private PendingTransactionItemResponse toPendingTransactionItemResponse(
+                        DashboardTransactionActionItemProjection item,
+                        String reason) {
+
+                return new PendingTransactionItemResponse(
+                                item.getTransactionId(),
+                                item.getSettlementDate(),
+                                item.getDescription(),
+                                item.getRawDescription(),
+                                item.getAccountName(),
+                                item.getCategoryName(),
+                                item.getAmount() != null ? item.getAmount() : BigDecimal.ZERO,
+                                reason);
+        }
+
+        private PendingTransactionItemResponse toPendingTransactionItemResponse(
+                        PendingDocumentTransactionProjection item) {
+
+                return new PendingTransactionItemResponse(
+                                item.getTransactionId(),
+                                item.getSettlementDate(),
+                                item.getDescription(),
+                                item.getRawDescription(),
+                                item.getAccountName(),
+                                item.getCategoryName(),
+                                item.getAmount() != null ? item.getAmount() : BigDecimal.ZERO,
+                                item.getReason());
+        }
+
+        private PendingCreditCardStatementResponse toPendingCreditCardStatementResponse(
+                        PendingCreditCardStatementProjection item) {
+
+                return new PendingCreditCardStatementResponse(
+                                item.getId(),
+                                item.getName(),
+                                item.getAccountName(),
+                                item.getStatus(),
+                                item.getDueDate(),
+                                item.getTotalAmount() != null
+                                                ? item.getTotalAmount()
+                                                : BigDecimal.ZERO,
+                                item.getPendingItemsCount() != null
+                                                ? item.getPendingItemsCount()
+                                                : 0,
+                                item.getReason());
         }
 }

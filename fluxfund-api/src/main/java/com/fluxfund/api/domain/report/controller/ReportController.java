@@ -18,6 +18,7 @@ import com.fluxfund.api.domain.report.dto.accountability.AccountabilityByAccount
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportResponse;
 import com.fluxfund.api.domain.report.dto.category.CategoryResultReportResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundReportResponse;
+import com.fluxfund.api.domain.report.dto.pending.PendingItemsReportResponse;
 import com.fluxfund.api.domain.report.export.AccountabilityExcelExportService;
 import com.fluxfund.api.domain.report.service.ReportService;
 
@@ -96,5 +97,14 @@ public class ReportController {
                                                                 .build()
                                                                 .toString())
                                 .body(file);
+        }
+
+        @GetMapping("/pending-items")
+        public ResponseEntity<PendingItemsReportResponse> getPendingItemsReport(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @RequestParam(required = false, defaultValue = "10") Integer limit) {
+
+                return ResponseEntity.ok(
+                                service.getPendingItemsReport(organizationId, limit));
         }
 }

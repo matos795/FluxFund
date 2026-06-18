@@ -1,5 +1,5 @@
 import { httpClient } from "@/api/http-client"
-import type { AccountabilityByAccountReport, AccountabilityReport, CategoryResultReport, FundReport } from "./reports-types"
+import type { AccountabilityByAccountReport, AccountabilityReport, CategoryResultReport, FundReport, PendingItemsReport } from "./reports-types"
 
 type GetCategoryResultReportParams = {
   startDate?: string
@@ -68,6 +68,19 @@ export const reportsApi = {
       {
         params,
         responseType: "blob",
+      },
+    )
+
+    return response.data
+  },
+
+  async getPendingItems({ limit = 10 }: { limit?: number } = {}) {
+    const response = await httpClient.get<PendingItemsReport>(
+      "/api/v1/reports/pending-items",
+      {
+        params: {
+          limit,
+        },
       },
     )
 

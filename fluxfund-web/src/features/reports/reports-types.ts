@@ -107,3 +107,46 @@ export type AccountabilityByAccountReport = {
   beneficiariesWithPendingBalance: number
   items: AccountabilityByAccountReportItem[]
 }
+
+export type PendingTransactionItem = {
+  id: string
+  date: string | null
+  description: string | null
+  rawDescription: string | null
+  accountName: string
+  categoryName: string | null
+  amount: number
+  reason: string
+}
+
+export type PendingCreditCardStatementItem = {
+  id: string
+  name: string
+  accountName: string
+  status: string
+  dueDate: string | null
+  totalAmount: number
+  pendingItemsCount: number
+  reason: string
+}
+
+export type PendingFundItem = {
+  id: string
+  name: string
+  currentBalance: number
+  reason: string
+}
+
+export type PendingItemsReport = {
+  unclassifiedCount: number
+  unallocatedCount: number
+  missingDocumentsCount: number
+  pendingCreditCardStatementsCount: number
+  negativeFundsCount: number
+
+  unclassifiedTransactions: PendingTransactionItem[]
+  unallocatedTransactions: PendingTransactionItem[]
+  missingDocumentTransactions: PendingTransactionItem[]
+  pendingCreditCardStatements: PendingCreditCardStatementItem[]
+  negativeFunds: PendingFundItem[]
+}

@@ -20,6 +20,7 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.report.dto.category.CategoryResultItemResponse;
+import com.fluxfund.api.domain.report.projection.PendingDocumentTransactionProjection;
 
 public interface FinancialTransactionRepository
         extends JpaRepository<FinancialTransaction, UUID>,
@@ -454,4 +455,207 @@ public interface FinancialTransactionRepository
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate,
             @Param("limit") int limit);
+
+    @Query(value = """
+            select
+                t.id as transactionId,
+                t.settlement_date as settlementDate,
+                t.description as description,
+                t.raw_description as rawDescription,
+                a.name as accountName,
+                c.name as categoryName,
+                abs(coalesce(t.settled_amount, t.expected_amount, 0)) as amount,
+                case
+                    when t.type = 'EXPENSE'
+                     and t.fiscal_document_policy = 'MISSING'
+                     and not exists (
+                        select 1
+                        from attachment att
+                        where att.financial_transaction_id = t.id
+                          and att.organization_id = :organizationId
+                          and att.type <> 'PROOF_OF_PAYMENT'
+                     )
+                    then 'Documento fiscal marcado como ausente'
+
+                    when t.type = 'EXPENSE'
+                     and (
+                        t.fiscal_document_policy = 'REQUIRED'
+                        or (
+                            coalesce(t.fiscal_document_policy, 'CATEGORY') = 'CATEGORY'
+                            and coalesce(c.requires_fiscal_document, true) = true
+                            and coalesce(os.require_fiscal_document_for_expenses, true) = true
+                        )
+                     )
+                     and not exists (
+                        select 1
+                        from attachment att
+                        where att.financial_transaction_id = t.id
+                          and att.organization_id = :organizationId
+                          and att.type <> 'PROOF_OF_PAYMENT'
+                     )
+                    then 'Documento fiscal obrigatório ausente'
+
+                    when coalesce(c.requires_payment_proof, false) = true
+                     and not exists (
+                        select 1
+                        from attachment att
+                        where att.financial_transaction_id = t.id
+                          and att.organization_id = :organizationId
+                          and att.type = 'PROOF_OF_PAYMENT'
+                     )
+                    then 'Comprovante de pagamento obrigatório ausente'
+
+                    when t.type = 'INCOME'
+                     and coalesce(os.require_proof_for_incomes, false) = true
+                     and not exists (
+                        select 1
+                        from attachment att
+                        where att.financial_transaction_id = t.id
+                          and att.organization_id = :organizationId
+                     )
+                    then 'Comprovante de receita obrigatório ausente'
+
+                    else 'Documento obrigatório ausente'
+                end as reason
+            from financial_transaction t
+            join account a on a.id = t.account_id
+            left join category c
+              on c.id = t.category_id
+             and c.organization_id = :organizationId
+            left join organization_settings os
+              on os.organization_id = t.organization_id
+            where t.organization_id = :organizationId
+              and t.status = 'SETTLED'
+              and t.type in ('INCOME', 'EXPENSE')
+              and t.category_id is not null
+              and (
+                    (
+                        t.type = 'EXPENSE'
+                        and t.fiscal_document_policy = 'MISSING'
+                        and not exists (
+                            select 1
+                            from attachment att
+                            where att.financial_transaction_id = t.id
+                              and att.organization_id = :organizationId
+                              and att.type <> 'PROOF_OF_PAYMENT'
+                        )
+                    )
+                    or
+                    (
+                        t.type = 'EXPENSE'
+                        and (
+                            t.fiscal_document_policy = 'REQUIRED'
+                            or (
+                                coalesce(t.fiscal_document_policy, 'CATEGORY') = 'CATEGORY'
+                                and coalesce(c.requires_fiscal_document, true) = true
+                                and coalesce(os.require_fiscal_document_for_expenses, true) = true
+                            )
+                        )
+                        and not exists (
+                            select 1
+                            from attachment att
+                            where att.financial_transaction_id = t.id
+                              and att.organization_id = :organizationId
+                              and att.type <> 'PROOF_OF_PAYMENT'
+                        )
+                    )
+                    or
+                    (
+                        coalesce(c.requires_payment_proof, false) = true
+                        and not exists (
+                            select 1
+                            from attachment att
+                            where att.financial_transaction_id = t.id
+                              and att.organization_id = :organizationId
+                              and att.type = 'PROOF_OF_PAYMENT'
+                        )
+                    )
+                    or
+                    (
+                        t.type = 'INCOME'
+                        and coalesce(os.require_proof_for_incomes, false) = true
+                        and not exists (
+                            select 1
+                            from attachment att
+                            where att.financial_transaction_id = t.id
+                              and att.organization_id = :organizationId
+                        )
+                    )
+              )
+            order by t.settlement_date desc nulls last, t.created_at desc
+            limit :limit
+            """, nativeQuery = true)
+    List<PendingDocumentTransactionProjection> findPendingDocumentItems(
+            @Param("organizationId") UUID organizationId,
+            @Param("limit") int limit);
+
+    @Query(value = """
+            select count(*)
+            from financial_transaction t
+            left join category c
+              on c.id = t.category_id
+             and c.organization_id = :organizationId
+            left join organization_settings os
+              on os.organization_id = t.organization_id
+            where t.organization_id = :organizationId
+              and t.status = 'SETTLED'
+              and t.type in ('INCOME', 'EXPENSE')
+              and t.category_id is not null
+              and (
+                    (
+                        t.type = 'EXPENSE'
+                        and t.fiscal_document_policy = 'MISSING'
+                        and not exists (
+                            select 1
+                            from attachment att
+                            where att.financial_transaction_id = t.id
+                              and att.organization_id = :organizationId
+                              and att.type <> 'PROOF_OF_PAYMENT'
+                        )
+                    )
+                    or
+                    (
+                        t.type = 'EXPENSE'
+                        and (
+                            t.fiscal_document_policy = 'REQUIRED'
+                            or (
+                                coalesce(t.fiscal_document_policy, 'CATEGORY') = 'CATEGORY'
+                                and coalesce(c.requires_fiscal_document, true) = true
+                                and coalesce(os.require_fiscal_document_for_expenses, true) = true
+                            )
+                        )
+                        and not exists (
+                            select 1
+                            from attachment att
+                            where att.financial_transaction_id = t.id
+                              and att.organization_id = :organizationId
+                              and att.type <> 'PROOF_OF_PAYMENT'
+                        )
+                    )
+                    or
+                    (
+                        coalesce(c.requires_payment_proof, false) = true
+                        and not exists (
+                            select 1
+                            from attachment att
+                            where att.financial_transaction_id = t.id
+                              and att.organization_id = :organizationId
+                              and att.type = 'PROOF_OF_PAYMENT'
+                        )
+                    )
+                    or
+                    (
+                        t.type = 'INCOME'
+                        and coalesce(os.require_proof_for_incomes, false) = true
+                        and not exists (
+                            select 1
+                            from attachment att
+                            where att.financial_transaction_id = t.id
+                              and att.organization_id = :organizationId
+                        )
+                    )
+              )
+            """, nativeQuery = true)
+    long countPendingDocumentItems(
+            @Param("organizationId") UUID organizationId);
 }

@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { ArrowRight, BarChart3, Clock, FolderTree, HandCoins, Landmark } from "lucide-react"
+import { ArrowRight, BarChart3, FolderTree, HandCoins, Landmark, ListChecks } from "lucide-react"
 import { Link } from "react-router-dom"
 
 const reports = [
@@ -36,12 +36,12 @@ const reports = [
     to: null,
   },
   {
-    title: "Pendências Financeiras",
+    title: "Pendências operacionais",
     description:
-      "Liste transações a classificar, a alocar ou ainda não baixadas.",
-    icon: Clock,
-    status: "soon",
-    to: null,
+      "Central diária com transações a classificar, alocar, documentos ausentes, faturas pendentes e fundos negativos.",
+    icon: ListChecks,
+    status: "available",
+    to: "/reports/pending-items",
   },
   {
     title: "Prestação de Contas / Sustento",

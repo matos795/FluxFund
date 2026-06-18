@@ -18,6 +18,7 @@ import { SupportAgreementsPage } from "@/pages/support-agreements-page"
 import { TransactionsPage } from "@/pages/transactions-page"
 import { ProtectedRoute } from "@/routes/protected-route"
 import { CreditCardStatementsPage } from "@/pages/credit-card-statements-page"
+import { PendingItemsReportPage } from "@/pages/results/pending-items-report-page"
 
 export function AppRoutes() {
   return (
@@ -46,6 +47,10 @@ export function AppRoutes() {
           <Route
             path="/reports/accountability"
             element={<AccountabilityReportPage />}
+          />
+          <Route
+            path="/reports/pending-items"
+            element={<PendingItemsReportPage />}
           />
           <Route path="/credit-card-statements" element={<CreditCardStatementsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
