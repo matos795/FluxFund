@@ -30,10 +30,10 @@ const reports = [
   {
     title: "Fluxo de Caixa",
     description:
-      "Veja entradas e saídas por conta real, banco ou caixa físico.",
+      "Veja entradas, saídas, transferências e saldo calculado por conta real.",
     icon: Landmark,
-    status: "soon",
-    to: null,
+    status: "available",
+    to: "/reports/account-cash-flow",
   },
   {
     title: "Pendências operacionais",

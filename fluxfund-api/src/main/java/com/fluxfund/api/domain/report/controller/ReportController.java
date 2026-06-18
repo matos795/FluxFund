@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityByAccountReportResponse;
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportResponse;
+import com.fluxfund.api.domain.report.dto.accountcashflow.AccountCashFlowReportResponse;
 import com.fluxfund.api.domain.report.dto.category.CategoryResultReportResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundReportResponse;
 import com.fluxfund.api.domain.report.dto.pending.PendingItemsReportResponse;
@@ -106,5 +107,18 @@ public class ReportController {
 
                 return ResponseEntity.ok(
                                 service.getPendingItemsReport(organizationId, limit));
+        }
+
+        @GetMapping("/account-cash-flow")
+        public ResponseEntity<AccountCashFlowReportResponse> getAccountCashFlowReport(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @RequestParam(required = false) LocalDate startDate,
+                        @RequestParam(required = false) LocalDate endDate) {
+
+                return ResponseEntity.ok(
+                                service.getAccountCashFlowReport(
+                                                organizationId,
+                                                startDate,
+                                                endDate));
         }
 }

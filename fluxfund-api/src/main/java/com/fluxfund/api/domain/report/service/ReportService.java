@@ -15,6 +15,8 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fluxfund.api.domain.account.AccountType;
+import com.fluxfund.api.domain.account.repository.AccountRepository;
 import com.fluxfund.api.domain.creditcardstatement.repository.CreditCardStatementRepository;
 import com.fluxfund.api.domain.dashboard.dto.DashboardTransactionActionItemProjection;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
@@ -29,6 +31,8 @@ import com.fluxfund.api.domain.report.dto.accountability.AccountabilityByAccount
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityByAccountReportResponse;
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportItemResponse;
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportResponse;
+import com.fluxfund.api.domain.report.dto.accountcashflow.AccountCashFlowItemResponse;
+import com.fluxfund.api.domain.report.dto.accountcashflow.AccountCashFlowReportResponse;
 import com.fluxfund.api.domain.report.dto.category.CategoryResultReportResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundReportItemResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundReportResponse;
@@ -36,6 +40,7 @@ import com.fluxfund.api.domain.report.dto.pending.PendingCreditCardStatementResp
 import com.fluxfund.api.domain.report.dto.pending.PendingFundResponse;
 import com.fluxfund.api.domain.report.dto.pending.PendingItemsReportResponse;
 import com.fluxfund.api.domain.report.dto.pending.PendingTransactionItemResponse;
+import com.fluxfund.api.domain.report.projection.AccountCashFlowProjection;
 import com.fluxfund.api.domain.report.projection.PendingCreditCardStatementProjection;
 import com.fluxfund.api.domain.report.projection.PendingDocumentTransactionProjection;
 import com.fluxfund.api.domain.supportagreement.SupportAgreement;
@@ -60,6 +65,7 @@ public class ReportService {
         private final FundTransferRepository fundTransferRepository;
         private final FundRepository fundRepository;
         private final CreditCardStatementRepository creditCardStatementRepository;
+        private final AccountRepository accountRepository;
 
         public CategoryResultReportResponse getCategoryResultReport(
                         UUID organizationId,
@@ -617,6 +623,75 @@ public class ReportService {
                                 negativeFunds);
         }
 
+        public AccountCashFlowReportResponse getAccountCashFlowReport(
+                        UUID organizationId,
+                        LocalDate startDate,
+                        LocalDate endDate) {
+
+                organizationAccessService.requireReadAccess(organizationId);
+
+                validateOrganizationExists(organizationId);
+
+                LocalDate resolvedStartDate = startDate != null
+                                ? startDate
+                                : LocalDate.now().withDayOfMonth(1);
+
+                LocalDate resolvedEndDate = endDate != null
+                                ? endDate
+                                : LocalDate.now();
+
+                if (resolvedEndDate.isBefore(resolvedStartDate)) {
+                        throw new BusinessException("End date cannot be before start date");
+                }
+
+                List<AccountCashFlowItemResponse> items = accountRepository
+                                .findAccountCashFlowReport(
+                                                organizationId,
+                                                resolvedStartDate,
+                                                resolvedEndDate)
+                                .stream()
+                                .map(this::toAccountCashFlowItemResponse)
+                                .toList();
+
+                BigDecimal openingBalanceTotal = items.stream()
+                                .map(AccountCashFlowItemResponse::openingBalance)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal incomeTotal = items.stream()
+                                .map(AccountCashFlowItemResponse::incomeAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal expenseTotal = items.stream()
+                                .map(AccountCashFlowItemResponse::expenseAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal transferTotal = items.stream()
+                                .map(AccountCashFlowItemResponse::transferAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal netTotal = incomeTotal.subtract(expenseTotal);
+
+                BigDecimal closingBalanceTotal = items.stream()
+                                .map(AccountCashFlowItemResponse::closingBalance)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                long transactionCount = items.stream()
+                                .mapToLong(AccountCashFlowItemResponse::transactionCount)
+                                .sum();
+
+                return new AccountCashFlowReportResponse(
+                                resolvedStartDate,
+                                resolvedEndDate,
+                                openingBalanceTotal,
+                                incomeTotal,
+                                expenseTotal,
+                                transferTotal,
+                                netTotal,
+                                closingBalanceTotal,
+                                transactionCount,
+                                items);
+        }
+
         private void validateOrganizationExists(UUID organizationId) {
                 if (!organizationRepository.existsById(organizationId)) {
                         throw new ResourceNotFoundException("Organization not found");
@@ -736,5 +811,58 @@ public class ReportService {
                                                 ? item.getPendingItemsCount()
                                                 : 0,
                                 item.getReason());
+        }
+
+        private AccountCashFlowItemResponse toAccountCashFlowItemResponse(
+                        AccountCashFlowProjection projection) {
+
+                BigDecimal initialBalance = projection.getInitialBalance() != null
+                                ? projection.getInitialBalance()
+                                : BigDecimal.ZERO;
+
+                BigDecimal incomeBefore = projection.getIncomeBefore() != null
+                                ? projection.getIncomeBefore()
+                                : BigDecimal.ZERO;
+
+                BigDecimal expenseBefore = projection.getExpenseBefore() != null
+                                ? projection.getExpenseBefore()
+                                : BigDecimal.ZERO;
+
+                BigDecimal incomeAmount = projection.getIncomeAmount() != null
+                                ? projection.getIncomeAmount()
+                                : BigDecimal.ZERO;
+
+                BigDecimal expenseAmount = projection.getExpenseAmount() != null
+                                ? projection.getExpenseAmount()
+                                : BigDecimal.ZERO;
+
+                BigDecimal transferAmount = projection.getTransferAmount() != null
+                                ? projection.getTransferAmount()
+                                : BigDecimal.ZERO;
+
+                BigDecimal openingBalance = initialBalance
+                                .add(incomeBefore)
+                                .subtract(expenseBefore);
+
+                BigDecimal netAmount = incomeAmount.subtract(expenseAmount);
+
+                BigDecimal closingBalance = openingBalance.add(netAmount);
+
+                long transactionCount = projection.getTransactionCount() != null
+                                ? projection.getTransactionCount()
+                                : 0;
+
+                return new AccountCashFlowItemResponse(
+                                projection.getAccountId(),
+                                projection.getAccountName(),
+                                AccountType.valueOf(projection.getAccountType()),
+                                projection.getBankName(),
+                                openingBalance,
+                                incomeAmount,
+                                expenseAmount,
+                                transferAmount,
+                                netAmount,
+                                closingBalance,
+                                transactionCount);
         }
 }

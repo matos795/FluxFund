@@ -150,3 +150,30 @@ export type PendingItemsReport = {
   pendingCreditCardStatements: PendingCreditCardStatementItem[]
   negativeFunds: PendingFundItem[]
 }
+
+export type AccountCashFlowItem = {
+  accountId: string
+  accountName: string
+  accountType: "BANK" | "CASH" | "DIGITAL_WALLET" | "CREDIT_CARD"
+  bankName: string | null
+  openingBalance: number
+  incomeAmount: number
+  expenseAmount: number
+  transferAmount: number
+  netAmount: number
+  closingBalance: number
+  transactionCount: number
+}
+
+export type AccountCashFlowReport = {
+  startDate: string
+  endDate: string
+  openingBalanceTotal: number
+  incomeTotal: number
+  expenseTotal: number
+  transferTotal: number
+  netTotal: number
+  closingBalanceTotal: number
+  transactionCount: number
+  items: AccountCashFlowItem[]
+}

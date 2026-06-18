@@ -1,5 +1,5 @@
 import { httpClient } from "@/api/http-client"
-import type { AccountabilityByAccountReport, AccountabilityReport, CategoryResultReport, FundReport, PendingItemsReport } from "./reports-types"
+import type { AccountabilityByAccountReport, AccountabilityReport, AccountCashFlowReport, CategoryResultReport, FundReport, PendingItemsReport } from "./reports-types"
 
 type GetCategoryResultReportParams = {
   startDate?: string
@@ -12,6 +12,11 @@ type GetFundReportParams = {
 }
 
 type GetAccountabilityReportParams = {
+  startDate?: string
+  endDate?: string
+}
+
+type GetAccountCashFlowReportParams = {
   startDate?: string
   endDate?: string
 }
@@ -81,6 +86,17 @@ export const reportsApi = {
         params: {
           limit,
         },
+      },
+    )
+
+    return response.data
+  },
+
+  async getAccountCashFlow(params: GetAccountCashFlowReportParams) {
+    const response = await httpClient.get<AccountCashFlowReport>(
+      "/api/v1/reports/account-cash-flow",
+      {
+        params,
       },
     )
 
