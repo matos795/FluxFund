@@ -1,9 +1,12 @@
 package com.fluxfund.api.domain.category.mapper;
 
+import java.util.List;
+
 import com.fluxfund.api.domain.category.Category;
 import com.fluxfund.api.domain.category.CategoryType;
 import com.fluxfund.api.domain.category.dto.CategoryResponse;
 import com.fluxfund.api.domain.category.dto.CategorySummaryResponse;
+import com.fluxfund.api.domain.category.dto.CategoryTreeResponse;
 import com.fluxfund.api.domain.category.dto.CreateCategoryRequest;
 import com.fluxfund.api.domain.category.dto.UpdateCategoryRequest;
 import com.fluxfund.api.domain.organization.Organization;
@@ -81,5 +84,23 @@ public class CategoryMapper {
         if (request.requiresPaymentProof() != null) {
             category.setRequiresPaymentProof(request.requiresPaymentProof());
         }
+    }
+
+    public static CategoryTreeResponse toTreeResponse(
+            Category category,
+            List<CategoryTreeResponse> children) {
+
+        return new CategoryTreeResponse(
+                category.getId(),
+                category.getOrganization().getId(),
+                category.getName(),
+                category.getType(),
+                category.getParent() != null ? toSummary(category.getParent()) : null,
+                category.isActive(),
+                category.isRequiresFiscalDocument(),
+                category.isRequiresPaymentProof(),
+                category.getCreatedAt(),
+                category.getUpdatedAt(),
+                children);
     }
 }

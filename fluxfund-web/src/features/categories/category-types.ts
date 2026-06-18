@@ -47,3 +47,7 @@ export type CategoryOption = {
   parentName: string | null
   level: number
 }
+
+export type CategoryTreeNode = Category & {
+  children: CategoryTreeNode[]
+}

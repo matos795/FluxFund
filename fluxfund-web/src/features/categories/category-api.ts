@@ -1,5 +1,5 @@
 import type { PageResponse } from "@/types/page-response"
-import type { Category, CategoryOption, CategoryType, CreateCategoryRequest, UpdateCategoryRequest } from "./category-types"
+import type { Category, CategoryOption, CategoryTreeNode, CategoryType, CreateCategoryRequest, UpdateCategoryRequest } from "./category-types"
 import { httpClient } from "@/api/http-client"
 
 type GetCategoriesParams = {
@@ -42,6 +42,28 @@ export async function getCategoryOptions(type?: CategoryType) {
     "/api/v1/categories/options",
     {
       params: type ? { type } : undefined,
+    },
+  )
+
+  return response.data
+}
+
+type GetCategoryTreeParams = {
+  type?: CategoryType
+  includeInactive?: boolean
+}
+
+export async function getCategoryTree({
+  type,
+  includeInactive = false,
+}: GetCategoryTreeParams = {}) {
+  const response = await httpClient.get<CategoryTreeNode[]>(
+    "/api/v1/categories/tree",
+    {
+      params: {
+        type,
+        includeInactive,
+      },
     },
   )
 

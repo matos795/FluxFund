@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.fluxfund.api.domain.category.CategoryType;
 import com.fluxfund.api.domain.category.dto.CategoryOptionResponse;
 import com.fluxfund.api.domain.category.dto.CategoryResponse;
+import com.fluxfund.api.domain.category.dto.CategoryTreeResponse;
 import com.fluxfund.api.domain.category.dto.CreateCategoryRequest;
 import com.fluxfund.api.domain.category.dto.UpdateCategoryRequest;
 import com.fluxfund.api.domain.category.service.CategoryService;
@@ -57,6 +58,14 @@ public class CategoryController {
             @PathVariable UUID id,
             @RequestHeader(ORGANIZATION_ID) UUID organizationId) {
         return service.findById(id, organizationId);
+    }
+
+    @GetMapping("/tree")
+    public List<CategoryTreeResponse> findTree(
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+            @RequestParam(required = false) CategoryType type,
+            @RequestParam(defaultValue = "false") boolean includeInactive) {
+        return service.findTree(organizationId, type, includeInactive);
     }
 
     @PutMapping("/{id}")

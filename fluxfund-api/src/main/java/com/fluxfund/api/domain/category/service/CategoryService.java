@@ -1,7 +1,14 @@
 package com.fluxfund.api.domain.category.service;
 
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,6 +19,7 @@ import com.fluxfund.api.domain.category.Category;
 import com.fluxfund.api.domain.category.CategoryType;
 import com.fluxfund.api.domain.category.dto.CategoryOptionResponse;
 import com.fluxfund.api.domain.category.dto.CategoryResponse;
+import com.fluxfund.api.domain.category.dto.CategoryTreeResponse;
 import com.fluxfund.api.domain.category.dto.CreateCategoryRequest;
 import com.fluxfund.api.domain.category.dto.UpdateCategoryRequest;
 import com.fluxfund.api.domain.category.mapper.CategoryMapper;
@@ -45,6 +53,11 @@ public class CategoryService {
                         parent = categoryRepository
                                         .findByIdAndOrganizationIdAndActiveTrue(request.parentId(), organizationId)
                                         .orElseThrow(() -> new ResourceNotFoundException("Parent category not found"));
+                }
+
+                if (parent != null && parent.getParent() != null) {
+                        throw new BusinessException(
+                                        "Parent category cannot be a subcategory");
                 }
 
                 if (parent != null && parent.getType() != request.type()) {
@@ -104,6 +117,15 @@ public class CategoryService {
                                         .orElseThrow(() -> new ResourceNotFoundException("Parent category not found"));
                 }
 
+                if (parent != null) {
+                        validateParentDoesNotCreateCycle(category, parent);
+                }
+
+                if (parent != null && parent.getParent() != null) {
+                        throw new BusinessException(
+                                        "Parent category cannot be a subcategory");
+                }
+
                 CategoryType finalType = request.type() != null
                                 ? request.type()
                                 : category.getType();
@@ -160,6 +182,43 @@ public class CategoryService {
                                 .toList();
         }
 
+        @Transactional(readOnly = true)
+        public List<CategoryTreeResponse> findTree(
+                        UUID organizationId,
+                        CategoryType type,
+                        boolean includeInactive) {
+
+                organizationAccessService.requireReadAccess(organizationId);
+
+                List<Category> categories = findCategoriesForTree(
+                                organizationId,
+                                type,
+                                includeInactive);
+
+                Map<UUID, Category> categoriesById = categories.stream()
+                                .collect(Collectors.toMap(Category::getId, Function.identity()));
+
+                Map<UUID, List<Category>> childrenByParentId = categories.stream()
+                                .filter(category -> category.getParent() != null)
+                                .filter(category -> categoriesById.containsKey(category.getParent().getId()))
+                                .collect(Collectors.groupingBy(category -> category.getParent().getId()));
+
+                Comparator<Category> categoryComparator = categoryComparator();
+
+                childrenByParentId.values()
+                                .forEach(children -> children.sort(categoryComparator));
+
+                return categories.stream()
+                                .filter(category -> category.getParent() == null ||
+                                                !categoriesById.containsKey(category.getParent().getId()))
+                                .sorted(categoryComparator)
+                                .map(category -> toTreeResponse(
+                                                category,
+                                                childrenByParentId,
+                                                new HashSet<>()))
+                                .toList();
+        }
+
         private CategoryOptionResponse toOptionResponse(Category category) {
                 Category parent = category.getParent();
 
@@ -175,5 +234,75 @@ public class CategoryService {
                                 parent != null ? parent.getId() : null,
                                 parent != null ? parent.getName() : null,
                                 parent != null ? 1 : 0);
+        }
+
+        private List<Category> findCategoriesForTree(
+                        UUID organizationId,
+                        CategoryType type,
+                        boolean includeInactive) {
+
+                if (includeInactive && type != null) {
+                        return categoryRepository.findByOrganizationIdAndType(
+                                        organizationId,
+                                        type);
+                }
+
+                if (includeInactive) {
+                        return categoryRepository.findByOrganizationId(organizationId);
+                }
+
+                if (type != null) {
+                        return categoryRepository.findByOrganizationIdAndActiveTrueAndType(
+                                        organizationId,
+                                        type);
+                }
+
+                return categoryRepository.findByOrganizationIdAndActiveTrue(
+                                organizationId);
+        }
+
+        private CategoryTreeResponse toTreeResponse(
+                        Category category,
+                        Map<UUID, List<Category>> childrenByParentId,
+                        Set<UUID> visited) {
+
+                if (!visited.add(category.getId())) {
+                        return CategoryMapper.toTreeResponse(category, List.of());
+                }
+
+                List<CategoryTreeResponse> children = childrenByParentId
+                                .getOrDefault(category.getId(), List.of())
+                                .stream()
+                                .filter(child -> !visited.contains(child.getId()))
+                                .map(child -> toTreeResponse(
+                                                child,
+                                                childrenByParentId,
+                                                new HashSet<>(visited)))
+                                .toList();
+
+                return CategoryMapper.toTreeResponse(category, children);
+        }
+
+        private Comparator<Category> categoryComparator() {
+                return Comparator
+                                .comparing(Category::getType)
+                                .thenComparing(
+                                                category -> category.getName().toLowerCase(Locale.ROOT));
+        }
+
+        private void validateParentDoesNotCreateCycle(
+                        Category category,
+                        Category parent) {
+
+                Category current = parent;
+
+                while (current != null) {
+                        if (current.getId().equals(category.getId())) {
+                                throw new BusinessException(
+                                                "Category cannot be moved under one of its own children");
+                        }
+
+                        current = current.getParent();
+                }
         }
 }
