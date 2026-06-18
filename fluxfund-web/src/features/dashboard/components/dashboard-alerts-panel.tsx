@@ -74,8 +74,8 @@ export function DashboardAlertsPanel({ alerts, isLoading = false }: DashboardAle
             variant: "danger",
         },
         {
-            title: "Sem documento fiscal",
-            description: "Despesas baixadas sem nota, recibo ou contrato.",
+            title: "Documentação pendente",
+            description: "Transações com documentação exigida pela categoria.",
             value: alerts?.expensesWithoutFiscalDocumentCount ?? 0,
             icon: FileWarning,
             to: "/transactions?type=EXPENSE&status=SETTLED",
@@ -118,8 +118,8 @@ export function DashboardAlertsPanel({ alerts, isLoading = false }: DashboardAle
                             const content = (
                                 <div
                                     className={`h-full rounded-lg border p-4 transition ${item.value > 0
-                                            ? variantClasses[item.variant]
-                                            : variantClasses.neutral
+                                        ? variantClasses[item.variant]
+                                        : variantClasses.neutral
                                         } ${item.to ? "hover:brightness-95" : ""}`}
                                 >
                                     <div className="flex items-start justify-between gap-3">

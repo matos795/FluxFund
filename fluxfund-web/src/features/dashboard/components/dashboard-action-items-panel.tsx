@@ -259,11 +259,11 @@ export function DashboardActionItemsPanel({
                 />
 
                 <DashboardActionListCard
-                    title="Sem documento fiscal"
-                    description="Despesas baixadas sem nota, recibo ou contrato."
+                    title="Documentação pendente"
+                    description="Transações que ainda precisam dos documentos exigidos pela categoria."
+                    emptyMessage="Nenhuma pendência documental no período."
                     icon={FileWarning}
                     items={expensesWithoutFiscalDocument}
-                    emptyMessage="Nenhuma despesa sem documento fiscal no período."
                     viewAllTo="/transactions?type=EXPENSE&status=SETTLED"
                     getItemKey={(item) => item.transactionId}
                     renderItem={(item) => (

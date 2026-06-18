@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
+import { invalidateFinancialData } from "@/features/financial-transactions/hooks/invalidate-financial-data"
 import { updateOrganizationSettings } from "../organization-settings-api"
 import type { UpdateOrganizationSettingsRequest } from "../organization-settings-types"
 
@@ -15,19 +16,9 @@ export function useUpdateOrganizationSettings() {
         queryKey: ["organization-settings"],
       })
 
-      queryClient.invalidateQueries({
-        queryKey: ["financial-transactions"],
-      })
-
-      queryClient.invalidateQueries({
-        queryKey: ["funds"],
-      })
-
       queryClient.invalidateQueries({ queryKey: ["fund-options"] })
 
-      queryClient.invalidateQueries({
-        queryKey: ["dashboard-summary"],
-      })
+      invalidateFinancialData(queryClient)
     },
   })
 }

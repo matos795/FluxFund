@@ -1,4 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+
+import { invalidateFinancialData } from "@/features/financial-transactions/hooks/invalidate-financial-data"
 import { deleteAttachment } from "../attachment-api"
 
 export function useDeleteAttachment(transactionId: string) {
@@ -11,9 +13,7 @@ export function useDeleteAttachment(transactionId: string) {
         queryKey: ["transaction-attachments", transactionId],
       })
 
-      queryClient.invalidateQueries({
-        queryKey: ["financial-transactions"],
-      })
+      invalidateFinancialData(queryClient)
     },
   })
 }
