@@ -21,7 +21,7 @@ export function CategoriesPage() {
     isFetching,
   } = useCategoryTree({
     type: selectedType,
-    includeInactive: true,
+    includeInactive: false,
   })
 
   return (
