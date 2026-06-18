@@ -1,11 +1,13 @@
 import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, } from "@/components/ui/dialog"
+import { Dialog, DialogTrigger, } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { useCreateBeneficiary } from "../hooks/use-create-beneficiary"
 import type { BeneficiaryFormData } from "../beneficiary-schema"
 import { BeneficiaryForm } from "./beneficiary-form"
+import { AppDialogBody, AppDialogContent, AppDialogHeader } from "@/components/layout/app-dialog"
+import { HandCoins } from "lucide-react"
 
 type CreateBeneficiaryDialogProps = {
   open?: boolean
@@ -66,16 +68,20 @@ export function CreateBeneficiaryDialog({
             <Button>Novo favorecido</Button>
           </DialogTrigger>
         )}
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Novo favorecido</DialogTitle>
-            <DialogDescription>
-              Cadastre uma pessoa, fornecedor, funcionário ou responsável vinculado às movimentações financeiras.
-            </DialogDescription>
-          </DialogHeader>
+        <AppDialogContent size="md">
+          <AppDialogHeader
+            icon={<HandCoins className="size-4 text-muted-foreground" />}
+            title="Novo favorecido"
+            description="Cadastre pessoas, ministérios, fornecedores ou entidades que recebem recursos."
+          />
 
-          <BeneficiaryForm onSubmit={handleCreateBeneficiary} isSubmitting={createBeneficiaryMutation.isPending} />
-        </DialogContent>
+          <AppDialogBody>
+            <BeneficiaryForm
+              onSubmit={handleCreateBeneficiary}
+              isSubmitting={createBeneficiaryMutation.isPending}
+            />
+          </AppDialogBody>
+        </AppDialogContent>
       </Dialog>
     </>
   )

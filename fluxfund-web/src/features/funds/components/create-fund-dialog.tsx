@@ -1,11 +1,13 @@
 import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, } from "@/components/ui/dialog"
+import { Dialog, DialogTrigger, } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { useCreateFund } from "../hooks/use-create-fund"
 import type { FundFormData } from "../fund-schema"
 import { FundForm } from "./fund-form"
+import { AppDialogBody, AppDialogContent, AppDialogHeader } from "@/components/layout/app-dialog"
+import { FolderKanban } from "lucide-react"
 
 type CreateFundDialogProps = {
   open?: boolean
@@ -59,16 +61,20 @@ export function CreateFundDialog({ open: controlledOpen, onOpenChange, onCreated
             <Button>Novo fundo</Button>
           </DialogTrigger>
         )}
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Novo fundo</DialogTitle>
-            <DialogDescription>
-              Cadastre uma destinação interna para controlar recursos de projetos, áreas ou finalidades específicas.
-            </DialogDescription>
-          </DialogHeader>
+        <AppDialogContent size="md">
+          <AppDialogHeader
+            icon={<FolderKanban className="size-4 text-muted-foreground" />}
+            title="Novo fundo"
+            description="Cadastre um fundo para controlar saldos destinados a finalidades específicas."
+          />
 
-          <FundForm onSubmit={handleCreateFund} isSubmitting={createFundMutation.isPending} />
-        </DialogContent>
+          <AppDialogBody>
+            <FundForm
+              onSubmit={handleCreateFund}
+              isSubmitting={createFundMutation.isPending}
+            />
+          </AppDialogBody>
+        </AppDialogContent>
       </Dialog>
     </>
   )

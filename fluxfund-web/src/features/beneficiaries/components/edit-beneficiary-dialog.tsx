@@ -1,12 +1,8 @@
-import { Pencil } from "lucide-react"
+import { HandCoins, Pencil } from "lucide-react"
 import { useState } from "react"
 
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog"
 import {
   DropdownMenuItem,
@@ -16,6 +12,7 @@ import type { Beneficiary } from "../beneficiary-types"
 import { useUpdateBeneficiary } from "../hooks/use-update-beneficiary"
 import type { BeneficiaryFormData } from "../beneficiary-schema"
 import { BeneficiaryForm } from "./beneficiary-form"
+import { AppDialogBody, AppDialogContent, AppDialogHeader } from "@/components/layout/app-dialog"
 
 type EditBeneficiaryDialogProps = {
   beneficiary: Beneficiary
@@ -61,33 +58,34 @@ export function EditBeneficiaryDialog({ beneficiary }: EditBeneficiaryDialogProp
       </DropdownMenuItem>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Editar favorecido</DialogTitle>
-            <DialogDescription>
-              Altere os dados do favorecido selecionado.
-            </DialogDescription>
-          </DialogHeader>
-
-          {updateBeneficiaryMutation.isError && (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-              Não foi possível atualizar o favorecido. Verifique os dados e tente novamente.
-            </div>
-          )}
-
-          <BeneficiaryForm
-            defaultValues={{
-              name: beneficiary.name,
-              type: beneficiary.type,
-              document: beneficiary.document ?? "",
-              email: beneficiary.email ?? "",
-              phone: beneficiary.phone ?? "",
-            }}
-            submitLabel="Salvar alterações"
-            onSubmit={handleUpdateBeneficiary}
-            isSubmitting={updateBeneficiaryMutation.isPending}
+        <AppDialogContent size="md">
+          <AppDialogHeader
+            icon={<HandCoins className="size-4 text-muted-foreground" />}
+            title="Editar favorecido"
+            description="Altere os dados do favorecido selecionado."
           />
-        </DialogContent>
+
+          <AppDialogBody>
+            {updateBeneficiaryMutation.isError && (
+              <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                Erro ao atualizar favorecido. Verifique os dados e tente novamente.
+              </div>
+            )}
+
+            <BeneficiaryForm
+              defaultValues={{
+                name: beneficiary.name,
+                type: beneficiary.type,
+                document: beneficiary.document ?? "",
+                email: beneficiary.email ?? "",
+                phone: beneficiary.phone ?? "",
+              }}
+              submitLabel="Salvar alterações"
+              onSubmit={handleUpdateBeneficiary}
+              isSubmitting={updateBeneficiaryMutation.isPending}
+            />
+          </AppDialogBody>
+        </AppDialogContent>
       </Dialog>
     </>
   )

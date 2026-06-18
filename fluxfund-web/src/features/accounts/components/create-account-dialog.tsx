@@ -4,10 +4,12 @@ import type { AccountFormData } from "@/features/accounts/account-schema"
 import { AccountForm } from "@/features/accounts/components/account-form"
 
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, } from "@/components/ui/dialog"
+import { Dialog, DialogTrigger, } from "@/components/ui/dialog"
 import { useCreateAccount } from "../hooks/use-create-account"
 import { toast } from "sonner"
 import { getApiErrorMessage } from "@/utils/api-error"
+import { AppDialogBody, AppDialogContent, AppDialogHeader } from "@/components/layout/app-dialog"
+import { Landmark } from "lucide-react"
 
 type CreateAccountDialogProps = {
   open?: boolean
@@ -71,16 +73,20 @@ export function CreateAccountDialog({
             <Button>Nova conta</Button>
           </DialogTrigger>
         )}
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Nova conta</DialogTitle>
-            <DialogDescription>
-              Cadastre uma conta bancária, caixa físico, carteira ou conta digital.
-            </DialogDescription>
-          </DialogHeader>
+        <AppDialogContent size="md">
+          <AppDialogHeader
+            icon={<Landmark className="size-4 text-muted-foreground" />}
+            title="Nova conta"
+            description="Cadastre uma conta bancária, caixa ou cartão para controlar os lançamentos."
+          />
 
-          <AccountForm onSubmit={handleCreateAccount} isSubmitting={createAccountMutation.isPending} />
-        </DialogContent>
+          <AppDialogBody>
+            <AccountForm
+              onSubmit={handleCreateAccount}
+              isSubmitting={createAccountMutation.isPending}
+            />
+          </AppDialogBody>
+        </AppDialogContent>
       </Dialog>
     </>
   )

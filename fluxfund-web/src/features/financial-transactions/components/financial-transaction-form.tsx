@@ -33,6 +33,7 @@ type FinancialTransactionFormProps = {
   defaultValues?: Partial<FinancialTransactionFormInput>
   submitLabel?: string
   disableAccountField?: boolean
+  showFiscalDocumentPolicy?: boolean
 }
 
 export function FinancialTransactionForm({
@@ -41,6 +42,7 @@ export function FinancialTransactionForm({
   defaultValues,
   submitLabel = "Salvar transação",
   disableAccountField,
+  showFiscalDocumentPolicy = true,
 }: FinancialTransactionFormProps) {
   const {
     register,
@@ -203,7 +205,7 @@ export function FinancialTransactionForm({
         </div>
       )}
 
-      {selectedType === "EXPENSE" && (
+      {showFiscalDocumentPolicy && selectedType === "EXPENSE" && (
         <FiscalDocumentPolicyField
           value={fiscalDocumentPolicy ?? "CATEGORY"}
           note={fiscalDocumentNote ?? ""}

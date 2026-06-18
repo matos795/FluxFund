@@ -6,18 +6,17 @@ import { FinancialTransactionsTable } from "@/features/financial-transactions/co
 import { useFinancialTransactions } from "@/features/financial-transactions/hooks/use-financial-transactions"
 import { CreateFinancialTransactionDialog } from "@/features/financial-transactions/components/create-financial-transaction-dialog"
 import { FinancialTransactionFilters } from "@/features/financial-transactions/components/financial-transaction-filters"
-import { ImportOfxDialog } from "@/features/financial-transactions/components/import-ofx-dialog"
 import { useSearchParams } from "react-router-dom"
 import { ExportSettledFinancialTransactionsDialog } from "@/features/financial-transactions/components/export-settled-financial-transactions-dialog"
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { useCategoryOptions } from "@/features/categories/hooks/use-category-options"
 import { useAccountOptions } from "@/features/accounts/hooks/use-account-options"
 import { useFinancialTransaction } from "@/features/financial-transactions/hooks/use-financial-transaction"
-import { ImportCsvDialog } from "@/features/financial-transactions/components/import-csv-dialog"
 import { CreateAccountTransferDialog } from "@/features/financial-transactions/components/create-account-transfer-dialog"
 import type { TransactionWorkspaceTab } from "@/features/financial-transactions/transaction-workspace-types"
 import { needsFinancialTransactionClassification } from "@/features/financial-transactions/financial-transaction-rules"
 import { TransactionWorkspaceDialog } from "@/features/financial-transactions/components/transaction-workspace-dialog"
+import { ImportFinancialTransactionsDialog } from "@/features/financial-transactions/components/import-financial-transactions-dialog"
 
 export function TransactionsPage() {
 
@@ -180,8 +179,7 @@ export function TransactionsPage() {
         <div className="flex flex-wrap gap-2">
           {canFinanceWrite && (
             <>
-              <ImportOfxDialog />
-              <ImportCsvDialog />
+              <ImportFinancialTransactionsDialog />
               <CreateAccountTransferDialog />
               <CreateFinancialTransactionDialog />
             </>
