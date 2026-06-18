@@ -7,10 +7,6 @@ import { EntityCombobox } from "@/components/form/entity-combobox"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -23,6 +19,8 @@ import {
 } from "../credit-card-statement-schema"
 import { useCreateCreditCardStatement } from "../hooks/use-create-credit-card-statement"
 import { buildCreditCardStatementName, getDefaultClosingDate, getDefaultDueDate } from "../credit-card-statement-date-utils"
+import { AppDialogBody, AppDialogContent, AppDialogHeader } from "@/components/layout/app-dialog"
+import { CalendarDays } from "lucide-react"
 
 type CreateCreditCardStatementDialogProps = {
   open?: boolean
@@ -157,104 +155,105 @@ export function CreateCreditCardStatementDialog({
         </DialogTrigger>
       )}
 
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Nova fatura de cartão</DialogTitle>
-          <DialogDescription>
-            Crie a fatura para agrupar os itens do cartão. Cada item será uma despesa classificável.
-          </DialogDescription>
-        </DialogHeader>
+      <AppDialogContent size="md">
+        <AppDialogHeader
+          icon={<CalendarDays className="size-4 text-muted-foreground" />}
+          title="Nova fatura de cartão"
+          description="Crie a fatura para agrupar os itens do cartão. Cada item será uma despesa classificável."
+        />
 
-        <form onSubmit={handleSubmit(handleCreateStatement)} className="space-y-4">
-          <div className="space-y-2">
-            <Label>Cartão</Label>
-            <EntityCombobox
-              value={selectedCreditCardAccountId}
-              options={creditCardAccounts.map((account) => ({
-                value: account.id,
-                label: account.bankName
-                  ? `${account.name} · ${account.bankName}`
-                  : account.name,
-              }))}
-              placeholder="Selecione o cartão"
-              searchPlaceholder="Buscar cartão..."
-              emptyMessage="Nenhuma conta do tipo cartão de crédito encontrada. Cadastre em Contas primeiro."
-              allowClear={false}
-              onChange={(value) =>
-                setValue("creditCardAccountId", value, {
-                  shouldValidate: true,
-                })
-              }
-            />
-            {errors.creditCardAccountId && (
-              <p className="text-sm text-destructive">
-                {errors.creditCardAccountId.message}
+        <AppDialogBody>
+          <form onSubmit={handleSubmit(handleCreateStatement)} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Cartão</Label>
+              <EntityCombobox
+                value={selectedCreditCardAccountId}
+                options={creditCardAccounts.map((account) => ({
+                  value: account.id,
+                  label: account.bankName
+                    ? `${account.name} · ${account.bankName}`
+                    : account.name,
+                }))}
+                placeholder="Selecione o cartão"
+                searchPlaceholder="Buscar cartão..."
+                emptyMessage="Nenhuma conta do tipo cartão de crédito encontrada. Cadastre em Contas primeiro."
+                allowClear={false}
+                onChange={(value) =>
+                  setValue("creditCardAccountId", value, {
+                    shouldValidate: true,
+                  })
+                }
+              />
+              {errors.creditCardAccountId && (
+                <p className="text-sm text-destructive">
+                  {errors.creditCardAccountId.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="referenceMonth">Mês da fatura</Label>
+              <Input
+                id="referenceMonth"
+                type="month"
+                {...register("referenceMonth")}
+              />
+              <p className="text-xs text-muted-foreground">
+                Use o mês de referência da fatura. O sistema pode sugerir nome, fechamento e vencimento.
               </p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="referenceMonth">Mês da fatura</Label>
-            <Input
-              id="referenceMonth"
-              type="month"
-              {...register("referenceMonth")}
-            />
-            <p className="text-xs text-muted-foreground">
-              Use o mês de referência da fatura. O sistema pode sugerir nome, fechamento e vencimento.
-            </p>
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!selectedReferenceMonth || !selectedCreditCardAccountId}
-            onClick={handleApplySuggestion}
-          >
-            Sugerir nome e datas
-          </Button>
-
-          <div className="space-y-2">
-            <Label htmlFor="name">Nome da fatura</Label>
-            <Input
-              id="name"
-              placeholder="Ex: Fatura Bradesco Junho/2026"
-              {...register("name")}
-            />
-            {errors.name && (
-              <p className="text-sm text-destructive">{errors.name.message}</p>
-            )}
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="closingDate">Fechamento</Label>
-              <Input id="closingDate" type="date" {...register("closingDate")} />
-              {errors.closingDate && (
-                <p className="text-sm text-destructive">
-                  {errors.closingDate.message}
-                </p>
-              )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="dueDate">Vencimento</Label>
-              <Input id="dueDate" type="date" {...register("dueDate")} />
-              {errors.dueDate && (
-                <p className="text-sm text-destructive">
-                  {errors.dueDate.message}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 border-t pt-4">
-            <Button type="submit" disabled={createStatementMutation.isPending}>
-              {createStatementMutation.isPending ? "Criando..." : "Criar fatura"}
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!selectedReferenceMonth || !selectedCreditCardAccountId}
+              onClick={handleApplySuggestion}
+            >
+              Sugerir nome e datas
             </Button>
-          </div>
-        </form>
-      </DialogContent>
+
+            <div className="space-y-2">
+              <Label htmlFor="name">Nome da fatura</Label>
+              <Input
+                id="name"
+                placeholder="Ex: Fatura Bradesco Junho/2026"
+                {...register("name")}
+              />
+              {errors.name && (
+                <p className="text-sm text-destructive">{errors.name.message}</p>
+              )}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="closingDate">Fechamento</Label>
+                <Input id="closingDate" type="date" {...register("closingDate")} />
+                {errors.closingDate && (
+                  <p className="text-sm text-destructive">
+                    {errors.closingDate.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="dueDate">Vencimento</Label>
+                <Input id="dueDate" type="date" {...register("dueDate")} />
+                {errors.dueDate && (
+                  <p className="text-sm text-destructive">
+                    {errors.dueDate.message}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t pt-4">
+              <Button type="submit" disabled={createStatementMutation.isPending}>
+                {createStatementMutation.isPending ? "Criando..." : "Criar fatura"}
+              </Button>
+            </div>
+          </form>
+        </AppDialogBody>
+      </AppDialogContent>
     </Dialog>
   )
 }

@@ -6,10 +6,6 @@ import { EntityCombobox } from "@/components/form/entity-combobox"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
@@ -18,6 +14,7 @@ import { formatCurrency, formatDate } from "@/utils/formatters"
 import { useCreditCardStatements } from "../hooks/use-credit-card-statements"
 import { usePayCreditCardStatement } from "../hooks/use-pay-credit-card-statement"
 import { getApiErrorMessage } from "@/utils/api-error"
+import { AppDialogBody, AppDialogContent, AppDialogFooter, AppDialogHeader } from "@/components/layout/app-dialog"
 
 type LinkCreditCardPaymentDialogProps = {
   transaction: FinancialTransaction
@@ -147,15 +144,14 @@ export function LinkCreditCardPaymentDialog({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Vincular pagamento à fatura</DialogTitle>
-          <DialogDescription>
-            Use esta ação quando uma transação OFX representa o pagamento de uma fatura de cartão. O backend deve transformar essa transação em transferência para não duplicar a despesa.
-          </DialogDescription>
-        </DialogHeader>
+      <AppDialogContent size="lg">
+        <AppDialogHeader
+          icon={<Link2 className="size-4 text-muted-foreground" />}
+          title="Vincular pagamento de fatura"
+          description="Vincule esta transação bancária ao pagamento de uma fatura de cartão. O backend deve transformar essa transação em transferência para não duplicar a despesa."
+        />
 
-        <div className="space-y-4">
+        <AppDialogBody className="space-y-4">
           <div className="rounded-lg border bg-muted/40 p-3 text-sm">
             <p className="font-medium">{description}</p>
             <p className="text-muted-foreground">
@@ -203,29 +199,29 @@ export function LinkCreditCardPaymentDialog({
               </Button>
             </div>
           )}
+        </AppDialogBody>
 
-          <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={payStatementMutation.isPending}
-              onClick={() => setOpen(false)}
-            >
-              Cancelar
-            </Button>
+        <AppDialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={payStatementMutation.isPending}
+            onClick={() => setOpen(false)}
+          >
+            Cancelar
+          </Button>
 
-            <Button
-              type="button"
-              disabled={payStatementMutation.isPending}
-              onClick={handleLink}
-            >
-              {payStatementMutation.isPending
-                ? "Vinculando..."
-                : "Vincular pagamento"}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
+          <Button
+            type="button"
+            disabled={payStatementMutation.isPending}
+            onClick={handleLink}
+          >
+            {payStatementMutation.isPending
+              ? "Vinculando..."
+              : "Vincular pagamento"}
+          </Button>
+        </AppDialogFooter>
+      </AppDialogContent>
     </Dialog>
   )
 }

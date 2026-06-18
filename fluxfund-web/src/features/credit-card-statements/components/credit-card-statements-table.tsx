@@ -36,9 +36,8 @@ import type { CreditCardStatement } from "../credit-card-statement-types"
 import { useCancelCreditCardStatement } from "../hooks/use-cancel-credit-card-statement"
 import { AddCreditCardStatementItemDialog } from "./add-credit-card-statement-item-dialog"
 import { PayCreditCardStatementDialog } from "./pay-credit-card-statement-dialog"
-import { ImportCreditCardStatementOfxDialog } from "./import-credit-card-statement-ofx-dialog"
 import { ViewCreditCardStatementItemsDialog } from "./view-credit-card-statement-items-dialog"
-import { ImportCreditCardStatementFileDialog } from "./import-credit-card-statement-file-dialog"
+import { ImportCreditCardStatementDialog } from "./import-credit-card-statement-dialog"
 
 type CreditCardStatementsTableProps = {
   statements: CreditCardStatement[]
@@ -162,8 +161,7 @@ export function CreditCardStatementsTable({
 
                       {canFinanceWrite && (
                         <>
-                          <ImportCreditCardStatementFileDialog statement={statement} />
-                          <ImportCreditCardStatementOfxDialog statement={statement} />
+                          <ImportCreditCardStatementDialog statement={statement} />
                           <AddCreditCardStatementItemDialog statement={statement} />
                           <PayCreditCardStatementDialog statement={statement} />
                         </>
