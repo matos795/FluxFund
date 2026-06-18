@@ -5,16 +5,13 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { downloadFile } from "@/utils/download-file"
 import { useExportSettledFinancialTransactionsExcel } from "../hooks/use-export-settled-financial-transactions-excel"
+import { AppDialogBody, AppDialogContent, AppDialogFooter, AppDialogHeader } from "@/components/layout/app-dialog"
 
 function getTodayDateInputValue() {
   return new Date().toISOString().slice(0, 10)
@@ -67,36 +64,37 @@ export function ExportSettledFinancialTransactionsDialog() {
         </Button>
       </DialogTrigger>
 
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Exportar movimento financeiro</DialogTitle>
-          <DialogDescription>
-            Gere um Excel com contas recebidas, contas pagas, resumo e todas as
-            transações baixadas no período.
-          </DialogDescription>
-        </DialogHeader>
+      <AppDialogContent size="sm">
+        <AppDialogHeader
+          icon={<FileSpreadsheet className="size-4 text-muted-foreground" />}
+          title="Exportar movimento financeiro"
+          description="Gere um Excel com contas recebidas, contas pagas, resumo e todas as transações baixadas no período."
+        />
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Data inicial</Label>
-            <Input
-              type="date"
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-            />
+        <AppDialogBody className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Data inicial</Label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(event) => setStartDate(event.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Data final</Label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(event) => setEndDate(event.target.value)}
+              />
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Data final</Label>
-            <Input
-              type="date"
-              value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
-            />
-          </div>
-        </div>
+        </AppDialogBody>
 
-        <div className="flex justify-end gap-2">
+        <AppDialogFooter>
           <Button
             type="button"
             variant="outline"
@@ -114,8 +112,8 @@ export function ExportSettledFinancialTransactionsDialog() {
               ? "Exportando..."
               : "Exportar Excel"}
           </Button>
-        </div>
-      </DialogContent>
+        </AppDialogFooter>
+      </AppDialogContent>
     </Dialog>
   )
 }

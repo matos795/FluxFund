@@ -4,15 +4,12 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
     Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
 } from "@/components/ui/dialog"
 import type { FinancialTransaction } from "../financial-transaction-types"
 import { useCancelAccountTransfer } from "../hooks/use-cancel-account-transfer"
 import { getApiErrorMessage } from "@/utils/api-error"
 import { formatCurrency } from "@/utils/formatters"
+import { AppDialogBody, AppDialogContent, AppDialogFooter, AppDialogHeader } from "@/components/layout/app-dialog"
 
 type CancelAccountTransferDialogProps = {
     transaction: FinancialTransaction
@@ -53,41 +50,43 @@ export function CancelAccountTransferDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Cancelar transferência?</DialogTitle>
-                    <DialogDescription>
-                        Esta ação cancelará todas as pontas da transferência vinculadas ao
-                        mesmo grupo. Isso preserva o histórico sem apagar registros.
-                    </DialogDescription>
-                </DialogHeader>
+            <AppDialogContent size="sm">
+                <AppDialogHeader
+                    icon={<AlertTriangle className="size-4 text-destructive" />}
+                    title="Cancelar transferência?"
+                    description="Esta ação cancelará todas as pontas da transferência vinculadas ao mesmo grupo. Isso preserva o histórico sem apagar registros."
+                />
 
-                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm">
-                    <div className="flex gap-2">
-                        <AlertTriangle className="mt-0.5 size-4 text-destructive" />
+                <AppDialogBody className="space-y-4">
 
-                        <div className="space-y-1">
-                            <p className="font-medium">Transferência entre contas</p>
+                    <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm">
+                        <div className="flex gap-2">
+                            <AlertTriangle className="mt-0.5 size-4 text-destructive" />
 
-                            <p className="text-muted-foreground">
-                                Conta atual: {transaction.account.name}
-                            </p>
+                            <div className="space-y-1">
+                                <p className="font-medium">Transferência entre contas</p>
 
-                            <p className="text-muted-foreground">
-                                Conta contraparte: {counterpartyName}
-                            </p>
+                                <p className="text-muted-foreground">
+                                    Conta atual: {transaction.account.name}
+                                </p>
 
-                            <p className="text-muted-foreground">
-                                Valor: {formatCurrency(amount)}
-                            </p>
+                                <p className="text-muted-foreground">
+                                    Conta contraparte: {counterpartyName}
+                                </p>
+
+                                <p className="text-muted-foreground">
+                                    Valor: {formatCurrency(amount)}
+                                </p>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
+                </AppDialogBody>
+
+                <AppDialogFooter>
                     <Button
                         type="button"
-                        variant="ghost"
+                        variant="outline"
                         disabled={cancelTransferMutation.isPending}
                         onClick={() => onOpenChange(false)}
                     >
@@ -104,8 +103,8 @@ export function CancelAccountTransferDialog({
                             ? "Cancelando..."
                             : "Cancelar transferência"}
                     </Button>
-                </div>
-            </DialogContent>
+                </AppDialogFooter>
+            </AppDialogContent>
         </Dialog>
     )
 }

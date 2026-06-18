@@ -8,10 +8,6 @@ import { CurrencyInput } from "@/components/form/currency-input"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -25,6 +21,7 @@ import {
   type AccountTransferFormInput,
 } from "../account-transfer-schema"
 import { useCreateAccountTransfer } from "../hooks/use-create-account-transfer"
+import { AppDialogBody, AppDialogContent, AppDialogFooter, AppDialogHeader } from "@/components/layout/app-dialog"
 
 type CreateAccountTransferDialogProps = {
   open?: boolean
@@ -124,131 +121,131 @@ export function CreateAccountTransferDialog({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Nova transferência entre contas</DialogTitle>
-          <DialogDescription>
-            Registre uma movimentação real entre duas contas. O sistema criará
-            uma saída na origem e uma entrada no destino, sem gerar receita ou
-            despesa nos relatórios.
-          </DialogDescription>
-        </DialogHeader>
+      <AppDialogContent size="lg">
+        <AppDialogHeader
+          icon={<ArrowRightLeft className="size-4 text-muted-foreground" />}
+          title="Nova transferência entre contas"
+          description="Registre uma movimentação real entre duas contas. O sistema criará uma saída na origem e uma entrada no destino, sem gerar receita ou despesa nos relatórios."
+        />
 
         <form
-          className="space-y-4"
+          className="contents"
           onSubmit={handleSubmit(handleCreateTransfer)}
         >
-          <div className="grid gap-4 md:grid-cols-2">
-            <Controller
-              control={control}
-              name="sourceAccountId"
-              render={({ field }) => (
-                <div className="space-y-2">
-                  <Label>Conta origem</Label>
-                  <EntityCombobox
-                    value={field.value ?? ""}
-                    options={sourceAccountOptions}
-                    placeholder="Selecione a origem"
-                    searchPlaceholder="Buscar conta..."
-                    emptyMessage="Nenhuma conta encontrada."
-                    allowClear={false}
-                    onChange={field.onChange}
-                  />
-                  {errors.sourceAccountId && (
-                    <p className="text-sm text-destructive">
-                      {errors.sourceAccountId.message}
-                    </p>
-                  )}
-                </div>
-              )}
-            />
-
-            <Controller
-              control={control}
-              name="destinationAccountId"
-              render={({ field }) => (
-                <div className="space-y-2">
-                  <Label>Conta destino</Label>
-                  <EntityCombobox
-                    value={field.value ?? ""}
-                    options={destinationAccountOptions}
-                    placeholder="Selecione o destino"
-                    searchPlaceholder="Buscar conta..."
-                    emptyMessage="Nenhuma conta encontrada."
-                    allowClear={false}
-                    disabled={!selectedSourceAccountId}
-                    onChange={field.onChange}
-                  />
-                  {errors.destinationAccountId && (
-                    <p className="text-sm text-destructive">
-                      {errors.destinationAccountId.message}
-                    </p>
-                  )}
-                </div>
-              )}
-            />
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="transferDate">Data da transferência</Label>
-              <Input
-                id="transferDate"
-                type="date"
-                {...register("transferDate")}
+          <AppDialogBody className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Controller
+                control={control}
+                name="sourceAccountId"
+                render={({ field }) => (
+                  <div className="space-y-2">
+                    <Label>Conta origem</Label>
+                    <EntityCombobox
+                      value={field.value ?? ""}
+                      options={sourceAccountOptions}
+                      placeholder="Selecione a origem"
+                      searchPlaceholder="Buscar conta..."
+                      emptyMessage="Nenhuma conta encontrada."
+                      allowClear={false}
+                      onChange={field.onChange}
+                    />
+                    {errors.sourceAccountId && (
+                      <p className="text-sm text-destructive">
+                        {errors.sourceAccountId.message}
+                      </p>
+                    )}
+                  </div>
+                )}
               />
-              {errors.transferDate && (
+
+              <Controller
+                control={control}
+                name="destinationAccountId"
+                render={({ field }) => (
+                  <div className="space-y-2">
+                    <Label>Conta destino</Label>
+                    <EntityCombobox
+                      value={field.value ?? ""}
+                      options={destinationAccountOptions}
+                      placeholder="Selecione o destino"
+                      searchPlaceholder="Buscar conta..."
+                      emptyMessage="Nenhuma conta encontrada."
+                      allowClear={false}
+                      disabled={!selectedSourceAccountId}
+                      onChange={field.onChange}
+                    />
+                    {errors.destinationAccountId && (
+                      <p className="text-sm text-destructive">
+                        {errors.destinationAccountId.message}
+                      </p>
+                    )}
+                  </div>
+                )}
+              />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="transferDate">Data da transferência</Label>
+                <Input
+                  id="transferDate"
+                  type="date"
+                  {...register("transferDate")}
+                />
+                {errors.transferDate && (
+                  <p className="text-sm text-destructive">
+                    {errors.transferDate.message}
+                  </p>
+                )}
+              </div>
+
+              <Controller
+                control={control}
+                name="amount"
+                render={({ field }) => (
+                  <div className="space-y-2">
+                    <Label htmlFor="amount">Valor</Label>
+                    <CurrencyInput
+                      id="amount"
+                      value={field.value as number | null | undefined}
+                      onValueChange={field.onChange}
+                    />
+                    {errors.amount && (
+                      <p className="text-sm text-destructive">
+                        {errors.amount.message}
+                      </p>
+                    )}
+                  </div>
+                )}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Descrição</Label>
+              <Textarea
+                id="description"
+                placeholder="Ex: Transferência Bradesco para Sicredi"
+                {...register("description")}
+              />
+              {errors.description && (
                 <p className="text-sm text-destructive">
-                  {errors.transferDate.message}
+                  {errors.description.message}
                 </p>
               )}
             </div>
 
-            <Controller
-              control={control}
-              name="amount"
-              render={({ field }) => (
-                <div className="space-y-2">
-                  <Label htmlFor="amount">Valor</Label>
-                  <CurrencyInput
-                    id="amount"
-                    value={field.value as number | null | undefined}
-                    onValueChange={field.onChange}
-                  />
-                  {errors.amount && (
-                    <p className="text-sm text-destructive">
-                      {errors.amount.message}
-                    </p>
-                  )}
-                </div>
-              )}
-            />
-          </div>
+            <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
+              Essa transferência não terá categoria nem alocação, porque não é
+              receita nem despesa. Ela representa apenas dinheiro saindo de uma
+              conta e entrando em outra.
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Descrição</Label>
-            <Textarea
-              id="description"
-              placeholder="Ex: Transferência Bradesco para Sicredi"
-              {...register("description")}
-            />
-            {errors.description && (
-              <p className="text-sm text-destructive">
-                {errors.description.message}
-              </p>
-            )}
-          </div>
+          </AppDialogBody>
 
-          <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
-            Essa transferência não terá categoria nem alocação, porque não é
-            receita nem despesa. Ela representa apenas dinheiro saindo de uma
-            conta e entrando em outra.
-          </div>
-
-          <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
+          <AppDialogFooter>
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               disabled={createAccountTransferMutation.isPending}
               onClick={() => handleOpenChange(false)}
             >
@@ -263,9 +260,9 @@ export function CreateAccountTransferDialog({
                 ? "Criando..."
                 : "Criar transferência"}
             </Button>
-          </div>
+          </AppDialogFooter>
         </form>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   )
 }
