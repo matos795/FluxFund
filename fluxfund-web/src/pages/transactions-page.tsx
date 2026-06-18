@@ -13,12 +13,11 @@ import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { useCategoryOptions } from "@/features/categories/hooks/use-category-options"
 import { useAccountOptions } from "@/features/accounts/hooks/use-account-options"
 import { useFinancialTransaction } from "@/features/financial-transactions/hooks/use-financial-transaction"
-import { ViewFinancialTransactionDialog } from "@/features/financial-transactions/components/view-financial-transaction-dialog"
-import { ClassifyFinancialTransactionDialog } from "@/features/financial-transactions/components/classify-financial-transaction-dialog"
-import { ManageTransactionAllocationsDialog } from "@/features/financial-transactions/components/manage-transaction-allocations-dialog"
-import { FinancialTransactionAttachmentsDialog } from "@/features/attachments/components/financial-transaction-attachments-dialog"
 import { ImportCsvDialog } from "@/features/financial-transactions/components/import-csv-dialog"
 import { CreateAccountTransferDialog } from "@/features/financial-transactions/components/create-account-transfer-dialog"
+import type { TransactionWorkspaceTab } from "@/features/financial-transactions/transaction-workspace-types"
+import { needsFinancialTransactionClassification } from "@/features/financial-transactions/financial-transaction-rules"
+import { TransactionWorkspaceDialog } from "@/features/financial-transactions/components/transaction-workspace-dialog"
 
 export function TransactionsPage() {
 
@@ -39,6 +38,15 @@ export function TransactionsPage() {
 
   const safeResolvedAction =
     canFinanceWrite ? resolvedAction : "view"
+
+  const directWorkspaceTab: TransactionWorkspaceTab =
+    safeResolvedAction === "classify"
+      ? "classify"
+      : safeResolvedAction === "allocate"
+        ? "allocations"
+        : safeResolvedAction === "attachments"
+          ? "attachments"
+          : "overview"
 
   const directDialogKey = useMemo(() => {
     if (!actionTransactionId) {
@@ -73,6 +81,9 @@ export function TransactionsPage() {
   )
 
   const [directDialogOpen, setDirectDialogOpen] = useState(false)
+  const [directWorkspaceTabState, setDirectWorkspaceTabState] =
+    useState<TransactionWorkspaceTab>(directWorkspaceTab)
+
   const [openedDirectDialogKey, setOpenedDirectDialogKey] = useState<
     string | null
   >(null)
@@ -112,6 +123,7 @@ export function TransactionsPage() {
     }
 
     const timeoutId = window.setTimeout(() => {
+      setDirectWorkspaceTabState(directWorkspaceTab)
       setDirectDialogOpen(true)
       setOpenedDirectDialogKey(directDialogKey)
     }, 0)
@@ -119,7 +131,12 @@ export function TransactionsPage() {
     return () => {
       window.clearTimeout(timeoutId)
     }
-  }, [directTransaction, directDialogKey, openedDirectDialogKey])
+  }, [
+    directTransaction,
+    directDialogKey,
+    openedDirectDialogKey,
+    directWorkspaceTab,
+  ])
 
   function handleClearFilters() {
     setType("")
@@ -307,39 +324,37 @@ export function TransactionsPage() {
         </>
       )}
 
-      {directTransaction && safeResolvedAction === "view" && (
-        <ViewFinancialTransactionDialog
+      {directTransaction && (
+        <TransactionWorkspaceDialog
           transaction={directTransaction}
           open={directDialogOpen}
           onOpenChange={handleDirectDialogOpenChange}
-          trigger={null}
-        />
-      )}
-
-      {directTransaction && canFinanceWrite && safeResolvedAction === "classify" && (
-        <ClassifyFinancialTransactionDialog
-          transaction={directTransaction}
-          open={directDialogOpen}
-          onOpenChange={handleDirectDialogOpenChange}
-          trigger={null}
-        />
-      )}
-
-      {directTransaction && canFinanceWrite && safeResolvedAction === "allocate" && (
-        <ManageTransactionAllocationsDialog
-          transaction={directTransaction}
-          open={directDialogOpen}
-          onOpenChange={handleDirectDialogOpenChange}
-          trigger={null}
-        />
-      )}
-
-      {directTransaction && canFinanceWrite && safeResolvedAction === "attachments" && (
-        <FinancialTransactionAttachmentsDialog
-          transaction={directTransaction}
-          open={directDialogOpen}
-          onOpenChange={handleDirectDialogOpenChange}
-          trigger={null}
+          activeTab={directWorkspaceTabState}
+          onTabChange={setDirectWorkspaceTabState}
+          canEdit={
+            canFinanceWrite &&
+            directTransaction.status !== "CANCELED" &&
+            directTransaction.status !== "IMPORTED" &&
+            directTransaction.type !== "TRANSFER" &&
+            !needsFinancialTransactionClassification(directTransaction)
+          }
+          canManageAllocations={
+            canFinanceWrite &&
+            directTransaction.status === "SETTLED" &&
+            directTransaction.type !== "TRANSFER" &&
+            !needsFinancialTransactionClassification(directTransaction)
+          }
+          canManageAttachments={
+            canFinanceWrite &&
+            directTransaction.status !== "CANCELED" &&
+            directTransaction.status !== "IMPORTED" &&
+            directTransaction.type !== "TRANSFER" &&
+            !needsFinancialTransactionClassification(directTransaction)
+          }
+          canClassify={
+            canFinanceWrite &&
+            needsFinancialTransactionClassification(directTransaction)
+          }
         />
       )}
     </div>

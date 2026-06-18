@@ -5,16 +5,13 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog"
 
 import type { FinancialTransactionFormData } from "@/features/financial-transactions/financial-transaction-schema"
 import { FinancialTransactionForm } from "@/features/financial-transactions/components/financial-transaction-form"
 import { useCreateFinancialTransaction } from "@/features/financial-transactions/hooks/use-create-financial-transaction"
 import { normalizeFiscalDocumentNote } from "../financial-transaction-labels"
+import { AppDialogBody, AppDialogContent, AppDialogHeader } from "@/components/layout/app-dialog"
 
 export function CreateFinancialTransactionDialog() {
   const [open, setOpen] = useState(false)
@@ -72,20 +69,20 @@ export function CreateFinancialTransactionDialog() {
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Nova transação</DialogTitle>
-            <DialogDescription>
-              Cadastre uma transação manual com os dados principais. As
-              alocações em fundos serão feitas depois.
-            </DialogDescription>
-          </DialogHeader>
-
-          <FinancialTransactionForm
-            onSubmit={handleCreateFinancialTransaction}
-            isSubmitting={createFinancialTransactionMutation.isPending}
+        <AppDialogContent size="lg">
+          <AppDialogHeader
+            icon={<Plus className="size-4 text-muted-foreground" />}
+            title="Nova transação"
+            description="Cadastre uma transação manual com os dados principais. As alocações em fundos serão feitas depois."
           />
-        </DialogContent>
+
+          <AppDialogBody>
+            <FinancialTransactionForm
+              onSubmit={handleCreateFinancialTransaction}
+              isSubmitting={createFinancialTransactionMutation.isPending}
+            />
+          </AppDialogBody>
+        </AppDialogContent>
       </Dialog>
     </>
   )

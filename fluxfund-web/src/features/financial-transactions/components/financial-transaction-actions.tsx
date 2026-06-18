@@ -1,5 +1,26 @@
-import { MoreHorizontal, Trash2 } from "lucide-react"
+import { useState } from "react"
+import type { MouseEvent } from "react"
+import {
+  CheckCircle2,
+  Eye,
+  MoreHorizontal,
+  Paperclip,
+  Pencil,
+  Trash2,
+  WalletCards,
+} from "lucide-react"
+import { toast } from "sonner"
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -7,52 +28,40 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import type { FinancialTransaction } from "../financial-transaction-types"
-import { EditFinancialTransactionDialog } from "./edit-financial-transaction-dialog"
-import { ManageTransactionAllocationsDialog } from "./manage-transaction-allocations-dialog"
-import { useCancelFinancialTransaction } from "../hooks/use-cancel-financial-transaction"
-import { toast } from "sonner"
-import { useState } from "react"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { ViewFinancialTransactionDialog } from "./view-financial-transaction-dialog"
-import { ClassifyFinancialTransactionDialog } from "./classify-financial-transaction-dialog"
-import { FinancialTransactionAttachmentsDialog } from "@/features/attachments/components/financial-transaction-attachments-dialog"
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { LinkCreditCardPaymentDialog } from "@/features/credit-card-statements/components/link-credit-card-payment-dialog"
 import { getApiErrorMessage } from "@/utils/api-error"
+
+import type { FinancialTransaction } from "../financial-transaction-types"
+import type { TransactionWorkspaceTab } from "../transaction-workspace-types"
 import { needsFinancialTransactionClassification } from "../financial-transaction-rules"
+import { useCancelFinancialTransaction } from "../hooks/use-cancel-financial-transaction"
 import { CancelAccountTransferDialog } from "./cancel-account-transfer-dialog"
+import { TransactionWorkspaceDialog } from "./transaction-workspace-dialog"
 
 type FinancialTransactionActionsProps = {
   transaction: FinancialTransaction
 }
 
-export function FinancialTransactionActions({ transaction, }: FinancialTransactionActionsProps) {
-
+export function FinancialTransactionActions({
+  transaction,
+}: FinancialTransactionActionsProps) {
   const { canFinanceWrite } = usePermissions()
+
+  const [workspaceOpen, setWorkspaceOpen] = useState(false)
+
+  const [workspaceTab, setWorkspaceTab] =
+    useState<TransactionWorkspaceTab>("overview")
+
+  function openWorkspace(tab: TransactionWorkspaceTab) {
+    setWorkspaceTab(tab)
+    setWorkspaceOpen(true)
+  }
 
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [cancelTransferDialogOpen, setCancelTransferDialogOpen] = useState(false)
+
   const cancelFinancialTransactionMutation = useCancelFinancialTransaction()
-
-  function handleCancelTransaction(event: React.MouseEvent) {
-    event.preventDefault()
-
-    cancelFinancialTransactionMutation.mutate(transaction.id, {
-      onSuccess: () => {
-        toast.success("Transação cancelada com sucesso.")
-        setCancelDialogOpen(false)
-      },
-      onError: (error) => {
-        toast.error(
-          getApiErrorMessage(
-            error,
-            "Não foi possível cancelar a transação. Verifique se ela não possui alocações vinculadas.",
-          ),
-        )
-      },
-    })
-  }
 
   const needsClassification = needsFinancialTransactionClassification(transaction)
 
@@ -74,8 +83,7 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
     !needsClassification
 
   const canCancel =
-    transaction.status !== "CANCELED" &&
-    transaction.type !== "TRANSFER"
+    transaction.status !== "CANCELED" && transaction.type !== "TRANSFER"
 
   const canLinkCreditCardPayment =
     (transaction.source === "OFX" || transaction.source === "CSV") &&
@@ -89,6 +97,25 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
     transaction.status !== "CANCELED" &&
     Boolean(transaction.transferGroupId)
 
+  function handleCancelTransaction(event: MouseEvent) {
+    event.preventDefault()
+
+    cancelFinancialTransactionMutation.mutate(transaction.id, {
+      onSuccess: () => {
+        toast.success("Transação cancelada com sucesso.")
+        setCancelDialogOpen(false)
+      },
+      onError: (error) => {
+        toast.error(
+          getApiErrorMessage(
+            error,
+            "Não foi possível cancelar a transação. Verifique se ela não possui alocações vinculadas.",
+          ),
+        )
+      },
+    })
+  }
+
   return (
     <>
       <DropdownMenu>
@@ -100,27 +127,66 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
         </DropdownMenuTrigger>
 
         <DropdownMenuContent align="end">
-
-          <ViewFinancialTransactionDialog transaction={transaction} />
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault()
+              openWorkspace("overview")
+            }}
+          >
+            <Eye className="mr-2 size-4" />
+            Detalhes
+          </DropdownMenuItem>
 
           {canFinanceWrite && canEdit && (
-            <EditFinancialTransactionDialog transaction={transaction} />
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault()
+                openWorkspace("edit")
+              }}
+            >
+              <Pencil className="mr-2 size-4" />
+              Editar
+            </DropdownMenuItem>
           )}
 
           {canFinanceWrite && canManageAllocations && (
-            <ManageTransactionAllocationsDialog transaction={transaction} />
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault()
+                openWorkspace("allocations")
+              }}
+            >
+              <WalletCards className="mr-2 size-4" />
+              Alocações
+            </DropdownMenuItem>
+          )}
+
+          {canFinanceWrite && canManageAttachments && (
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault()
+                openWorkspace("attachments")
+              }}
+            >
+              <Paperclip className="mr-2 size-4" />
+              Anexos
+            </DropdownMenuItem>
+          )}
+
+          {canFinanceWrite && needsClassification && (
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault()
+                openWorkspace("classify")
+              }}
+            >
+              <CheckCircle2 className="mr-2 size-4" />
+              Classificar
+            </DropdownMenuItem>
           )}
 
           {canFinanceWrite && canLinkCreditCardPayment && (
             <LinkCreditCardPaymentDialog transaction={transaction} />
-          )}
-
-          {canFinanceWrite && needsClassification && (
-            <ClassifyFinancialTransactionDialog transaction={transaction} />
-          )}
-
-          {canFinanceWrite && canManageAttachments && (
-            <FinancialTransactionAttachmentsDialog transaction={transaction} />
           )}
 
           {canFinanceWrite && canCancel && (
@@ -147,6 +213,18 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <TransactionWorkspaceDialog
+        transaction={transaction}
+        open={workspaceOpen}
+        onOpenChange={setWorkspaceOpen}
+        activeTab={workspaceTab}
+        onTabChange={setWorkspaceTab}
+        canEdit={canFinanceWrite && canEdit}
+        canManageAllocations={canFinanceWrite && canManageAllocations}
+        canManageAttachments={canFinanceWrite && canManageAttachments}
+        canClassify={canFinanceWrite && needsClassification}
+      />
 
       <CancelAccountTransferDialog
         transaction={transaction}
@@ -186,7 +264,9 @@ export function FinancialTransactionActions({ transaction, }: FinancialTransacti
               disabled={cancelFinancialTransactionMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {cancelFinancialTransactionMutation.isPending ? "Cancelando..." : "Cancelar"}
+              {cancelFinancialTransactionMutation.isPending
+                ? "Cancelando..."
+                : "Cancelar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

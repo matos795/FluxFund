@@ -24,14 +24,14 @@ import {
   getFinancialTransactionTypeBadgeClass,
 } from "../financial-transaction-badge-styles"
 import { FinancialTransactionActions } from "./financial-transaction-actions"
-import { ViewFinancialTransactionDialog } from "./view-financial-transaction-dialog"
-import { ClassifyFinancialTransactionDialog } from "./classify-financial-transaction-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { needsFinancialTransactionClassification } from "../financial-transaction-rules"
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { useOrganizationSettings } from "@/features/organization-settings/hooks/use-organization-settings"
 import type { OrganizationSettings } from "@/features/organization-settings/organization-settings-types"
 import { getTransactionDocumentationStatus } from "../transaction-documentation"
+import type { TransactionWorkspaceTab } from "../transaction-workspace-types"
+import { TransactionWorkspaceDialog } from "./transaction-workspace-dialog"
 
 type FinancialTransactionsTableProps = {
   financialTransactions: FinancialTransaction[]
@@ -54,22 +54,30 @@ export function FinancialTransactionsTable({
   const { canFinanceWrite } = usePermissions()
   const settingsQuery = useOrganizationSettings()
 
-  const [transactionToView, setTransactionToView] =
+  const [workspaceTransaction, setWorkspaceTransaction] =
     useState<FinancialTransaction | null>(null)
 
-  const [transactionToClassify, setTransactionToClassify] =
-    useState<FinancialTransaction | null>(null)
+  const [workspaceTab, setWorkspaceTab] =
+    useState<TransactionWorkspaceTab>("overview")
+
+  function openWorkspace(
+    transaction: FinancialTransaction,
+    tab: TransactionWorkspaceTab = "overview",
+  ) {
+    setWorkspaceTransaction(transaction)
+    setWorkspaceTab(tab)
+  }
 
   function handleRowClick(transaction: FinancialTransaction) {
     if (
       canFinanceWrite &&
       needsFinancialTransactionClassification(transaction)
     ) {
-      setTransactionToClassify(transaction)
+      openWorkspace(transaction, "classify")
       return
     }
 
-    setTransactionToView(transaction)
+    openWorkspace(transaction, "overview")
   }
 
   return (
@@ -298,25 +306,39 @@ export function FinancialTransactionsTable({
         </CardContent>
       </Card>
 
-      {transactionToView && (
-        <ViewFinancialTransactionDialog
-          transaction={transactionToView}
-          open={Boolean(transactionToView)}
+      {workspaceTransaction && (
+        <TransactionWorkspaceDialog
+          transaction={workspaceTransaction}
+          open={Boolean(workspaceTransaction)}
           onOpenChange={(open) => {
-            if (!open) setTransactionToView(null)
+            if (!open) setWorkspaceTransaction(null)
           }}
-          trigger={null}
-        />
-      )}
-
-      {transactionToClassify && (
-        <ClassifyFinancialTransactionDialog
-          transaction={transactionToClassify}
-          open={Boolean(transactionToClassify)}
-          onOpenChange={(open) => {
-            if (!open) setTransactionToClassify(null)
-          }}
-          trigger={null}
+          activeTab={workspaceTab}
+          onTabChange={setWorkspaceTab}
+          canEdit={
+            canFinanceWrite &&
+            workspaceTransaction.status !== "CANCELED" &&
+            workspaceTransaction.status !== "IMPORTED" &&
+            workspaceTransaction.type !== "TRANSFER" &&
+            !needsFinancialTransactionClassification(workspaceTransaction)
+          }
+          canManageAllocations={
+            canFinanceWrite &&
+            workspaceTransaction.status === "SETTLED" &&
+            workspaceTransaction.type !== "TRANSFER" &&
+            !needsFinancialTransactionClassification(workspaceTransaction)
+          }
+          canManageAttachments={
+            canFinanceWrite &&
+            workspaceTransaction.status !== "CANCELED" &&
+            workspaceTransaction.status !== "IMPORTED" &&
+            workspaceTransaction.type !== "TRANSFER" &&
+            !needsFinancialTransactionClassification(workspaceTransaction)
+          }
+          canClassify={
+            canFinanceWrite &&
+            needsFinancialTransactionClassification(workspaceTransaction)
+          }
         />
       )}
     </>
