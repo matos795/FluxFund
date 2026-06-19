@@ -46,13 +46,23 @@ import { useAccountCashFlowReport } from "@/features/reports/hooks/use-account-c
 import type { AccountCashFlowItem } from "@/features/reports/reports-types"
 import { getFirstDayOfCurrentMonth, getTodayDate } from "@/utils/date-getters"
 import { formatCurrency, formatDate } from "@/utils/formatters"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const accountTypeLabels: Record<AccountCashFlowItem["accountType"], string> = {
-    BANK: "Banco",
+    BANK_ACCOUNT: "Banco",
     CASH: "Caixa",
     DIGITAL_WALLET: "Conta digital",
     CREDIT_CARD: "Cartão",
+    OTHER: "Outro",
 }
+
+type PeriodPreset =
+    | "current-month"
+    | "current-quarter"
+    | "current-year"
+    | "last-30-days"
+    | "last-90-days"
+    | "custom"
 
 type ChartAccountItem = AccountCashFlowItem & {
     label: string
@@ -70,6 +80,70 @@ type CurrencyTooltipProps = {
     active?: boolean
     label?: string
     payload?: TooltipPayloadItem[]
+}
+
+function toDateInputValue(date: Date) {
+    return date.toISOString().slice(0, 10)
+}
+
+function getStartOfCurrentQuarter() {
+    const today = new Date()
+    const month = today.getMonth()
+    const quarterStartMonth = Math.floor(month / 3) * 3
+
+    return toDateInputValue(new Date(today.getFullYear(), quarterStartMonth, 1))
+}
+
+function getStartOfCurrentYear() {
+    const today = new Date()
+
+    return toDateInputValue(new Date(today.getFullYear(), 0, 1))
+}
+
+function getDateDaysAgo(days: number) {
+    const date = new Date()
+    date.setDate(date.getDate() - days)
+
+    return toDateInputValue(date)
+}
+
+function resolvePeriodPreset(preset: PeriodPreset) {
+    const today = getTodayDate()
+
+    switch (preset) {
+        case "current-month":
+            return {
+                startDate: getFirstDayOfCurrentMonth(),
+                endDate: today,
+            }
+
+        case "current-quarter":
+            return {
+                startDate: getStartOfCurrentQuarter(),
+                endDate: today,
+            }
+
+        case "current-year":
+            return {
+                startDate: getStartOfCurrentYear(),
+                endDate: today,
+            }
+
+        case "last-30-days":
+            return {
+                startDate: getDateDaysAgo(30),
+                endDate: today,
+            }
+
+        case "last-90-days":
+            return {
+                startDate: getDateDaysAgo(90),
+                endDate: today,
+            }
+
+        case "custom":
+            return null
+    }
 }
 
 function filterAccounts(items: AccountCashFlowItem[], search: string) {
@@ -152,9 +226,25 @@ function CurrencyTooltip({ active, payload, label }: CurrencyTooltipProps) {
 }
 
 export function AccountCashFlowReportPage() {
-    const [startDate, setStartDate] = useState(getFirstDayOfCurrentMonth)
-    const [endDate, setEndDate] = useState(getTodayDate)
+    const [periodPreset, setPeriodPreset] =
+        useState<PeriodPreset>("current-month")
+
+    const [startDate, setStartDate] = useState(() => getFirstDayOfCurrentMonth())
+    const [endDate, setEndDate] = useState(() => getTodayDate())
     const [search, setSearch] = useState("")
+
+    function handlePeriodPresetChange(nextPreset: PeriodPreset) {
+        setPeriodPreset(nextPreset)
+
+        const resolvedPeriod = resolvePeriodPreset(nextPreset)
+
+        if (!resolvedPeriod) {
+            return
+        }
+
+        setStartDate(resolvedPeriod.startDate)
+        setEndDate(resolvedPeriod.endDate)
+    }
 
     const {
         data: report,
@@ -197,7 +287,7 @@ export function AccountCashFlowReportPage() {
     const balanceChartData = useMemo<ChartAccountItem[]>(
         () =>
             [...accountsWithAnyValue]
-                .sort((a, b) => Math.abs(b.closingBalance) - Math.abs(a.closingBalance))
+                .sort((a, b) => Math.abs(b.currentBalance) - Math.abs(a.currentBalance))
                 .slice(0, 8)
                 .map((item) => ({
                     ...item,
@@ -226,19 +316,19 @@ export function AccountCashFlowReportPage() {
     const biggestBalanceAccount = useMemo(
         () =>
             [...(report?.items ?? [])].sort(
-                (a, b) => b.closingBalance - a.closingBalance,
+                (a, b) => b.currentBalance - a.currentBalance,
             )[0],
         [report?.items],
     )
 
     const negativeAccounts = useMemo(
-        () => (report?.items ?? []).filter((item) => item.closingBalance < 0),
+        () => (report?.items ?? []).filter((item) => item.currentBalance < 0),
         [report?.items],
     )
 
     if (isLoading) {
         return (
-            <div className="space-y-6">
+            <div className="space-y-4">
                 <Button asChild variant="ghost" className="px-0">
                     <Link to="/reports">
                         <ArrowLeft className="mr-2 size-4" />
@@ -255,7 +345,7 @@ export function AccountCashFlowReportPage() {
 
     if (isError || !report) {
         return (
-            <div className="space-y-6">
+            <div className="space-y-4">
                 <Button asChild variant="ghost" className="px-0">
                     <Link to="/reports">
                         <ArrowLeft className="mr-2 size-4" />
@@ -273,7 +363,7 @@ export function AccountCashFlowReportPage() {
     const netIsPositive = report.netTotal >= 0
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <Button asChild variant="ghost" className="px-0">
                 <Link to="/reports">
                     <ArrowLeft className="mr-2 size-4" />
@@ -281,18 +371,106 @@ export function AccountCashFlowReportPage() {
                 </Link>
             </Button>
 
-            <PageHeader
-                title="Fluxo de Caixa por Conta"
-                description={`Visão do dinheiro real por conta entre ${formatDate(
-                    report.startDate,
-                )} e ${formatDate(report.endDate)}.`}
-            />
+            <div className="space-y-3">
+                <PageHeader
+                    title="Fluxo de Caixa por Conta"
+                    description={`Visão do dinheiro real por conta entre ${formatDate(
+                        report.startDate,
+                    )} e ${formatDate(report.endDate)}.`}
+                />
 
-            <section className="grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">
+                <section className="rounded-xl border bg-card p-3">
+                    <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr_1fr_2fr_auto] lg:items-end">
+
+                        <div className="space-y-2">
+                            <label htmlFor="periodPreset" className="text-sm font-medium">
+                                Período
+                            </label>
+
+                            <Select
+                                value={periodPreset}
+                                onValueChange={(value) =>
+                                    handlePeriodPresetChange(value as PeriodPreset)
+                                }
+                            >
+                                <SelectTrigger id="periodPreset">
+                                    <SelectValue placeholder="Selecione o período" />
+                                </SelectTrigger>
+
+                                <SelectContent>
+                                    <SelectItem value="current-month">Mês atual</SelectItem>
+                                    <SelectItem value="current-quarter">Trimestre atual</SelectItem>
+                                    <SelectItem value="current-year">Ano atual</SelectItem>
+                                    <SelectItem value="last-30-days">Últimos 30 dias</SelectItem>
+                                    <SelectItem value="last-90-days">Últimos 90 dias</SelectItem>
+                                    <SelectItem value="custom">Personalizado</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label htmlFor="startDate" className="text-sm font-medium">
+                                Data inicial
+                            </label>
+
+                            <Input
+                                id="startDate"
+                                type="date"
+                                value={startDate}
+                                onChange={(event) => {
+                                    setPeriodPreset("custom")
+                                    setStartDate(event.target.value)
+                                }}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label htmlFor="endDate" className="text-sm font-medium">
+                                Data final
+                            </label>
+
+                            <Input
+                                id="endDate"
+                                type="date"
+                                value={endDate}
+                                onChange={(event) => {
+                                    setPeriodPreset("custom")
+                                    setEndDate(event.target.value)
+                                }}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label htmlFor="accountSearch" className="text-sm font-medium">
+                                Buscar conta
+                            </label>
+
+                            <div className="relative">
+                                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+
+                                <Input
+                                    id="accountSearch"
+                                    type="search"
+                                    value={search}
+                                    onChange={(event) => setSearch(event.target.value)}
+                                    placeholder="Banco, conta, caixa..."
+                                    className="pl-9"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
+                            {filteredAccounts.length} conta(s)
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <section className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.9fr)]">
                 <Card className="overflow-hidden">
                     <CardContent className="p-0">
                         <div className="bg-gradient-to-br from-primary/10 via-background to-muted/60 p-6">
-                            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                            <div className="flex min-w-0 flex-col gap-6 2xl:flex-row 2xl:items-end 2xl:justify-between">
                                 <div className="space-y-2">
                                     <Badge variant={netIsPositive ? "default" : "destructive"}>
                                         {getPositiveOrNegativeLabel(report.netTotal)}
@@ -300,25 +478,29 @@ export function AccountCashFlowReportPage() {
 
                                     <div>
                                         <p className="text-sm text-muted-foreground">
-                                            Saldo final calculado
+                                            Saldo atual das contas
                                         </p>
 
-                                        <p className="mt-1 text-4xl font-bold tracking-tight md:text-5xl">
-                                            {formatCurrency(report.closingBalanceTotal)}
+                                        <p className="mt-1 break-words text-3xl font-bold tracking-tight sm:text-4xl 2xl:text-5xl">
+                                            {formatCurrency(report.currentBalanceTotal)}
                                         </p>
                                     </div>
 
                                     <p className="max-w-2xl text-sm text-muted-foreground">
-                                        O saldo final considera o saldo inicial do período mais
-                                        receitas liquidadas menos despesas liquidadas. Transferências
-                                        aparecem como movimentação neutra.
+                                        Este saldo atual é independente do filtro de período. O filtro abaixo
+                                        controla apenas entradas, saídas, resultado e saldo no fim do período.
                                     </p>
                                 </div>
 
-                                <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[420px]">
+                                <div className="grid gap-3 sm:grid-cols-2 2xl:w-[420px] 2xl:shrink-0">
                                     <HeroMiniMetric
-                                        label="Saldo inicial"
+                                        label="Início do período"
                                         value={report.openingBalanceTotal}
+                                    />
+
+                                    <HeroMiniMetric
+                                        label="Fim do período"
+                                        value={report.closingBalanceTotal}
                                     />
 
                                     <HeroMiniMetric
@@ -364,7 +546,7 @@ export function AccountCashFlowReportPage() {
                         <InsightRow
                             label="Maior saldo final"
                             account={biggestBalanceAccount}
-                            value={biggestBalanceAccount?.closingBalance ?? 0}
+                            value={biggestBalanceAccount?.currentBalance ?? 0}
                             icon={Landmark}
                         />
 
@@ -386,9 +568,16 @@ export function AccountCashFlowReportPage() {
                 </Card>
             </section>
 
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
                 <MetricCard
-                    title="Saldo inicial"
+                    title="Saldo atual"
+                    value={report.currentBalanceTotal}
+                    description="Independente do filtro"
+                    icon={Landmark}
+                />
+
+                <MetricCard
+                    title="Início do período"
                     value={report.openingBalanceTotal}
                     description="Antes da data inicial"
                     icon={Wallet}
@@ -437,9 +626,12 @@ export function AccountCashFlowReportPage() {
                         {movementChartData.length === 0 ? (
                             <EmptyChartState />
                         ) : (
-                            <div className="h-80">
+                            <div className="h-72">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={movementChartData}>
+                                    <BarChart
+                                        data={movementChartData}
+                                        barCategoryGap="35%"
+                                    >
                                         <CartesianGrid vertical={false} strokeDasharray="3 3" />
                                         <XAxis
                                             dataKey="label"
@@ -460,12 +652,14 @@ export function AccountCashFlowReportPage() {
                                             name="Entradas"
                                             fill="hsl(var(--chart-1))"
                                             radius={[4, 4, 0, 0]}
+                                            maxBarSize={24}
                                         />
                                         <Bar
                                             dataKey="expenseAmount"
                                             name="Saídas"
                                             fill="hsl(var(--chart-2))"
                                             radius={[4, 4, 0, 0]}
+                                            maxBarSize={24}
                                         />
                                     </BarChart>
                                 </ResponsiveContainer>
@@ -476,9 +670,9 @@ export function AccountCashFlowReportPage() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Saldo final por conta</CardTitle>
+                        <CardTitle>Saldo atual por conta</CardTitle>
                         <CardDescription>
-                            Ranking das contas com maior saldo calculado ao fim do período.
+                            Ranking das contas com maior saldo atual calculado.
                         </CardDescription>
                     </CardHeader>
 
@@ -486,12 +680,13 @@ export function AccountCashFlowReportPage() {
                         {balanceChartData.length === 0 ? (
                             <EmptyChartState />
                         ) : (
-                            <div className="h-80">
+                            <div className="h-72">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart
                                         data={balanceChartData}
                                         layout="vertical"
                                         margin={{ left: 16 }}
+                                        barCategoryGap="35%"
                                     >
                                         <CartesianGrid horizontal={false} strokeDasharray="3 3" />
                                         <XAxis
@@ -512,10 +707,11 @@ export function AccountCashFlowReportPage() {
                                         <Tooltip content={<CurrencyTooltip />} />
                                         <ReferenceLine x={0} stroke="hsl(var(--border))" />
                                         <Bar
-                                            dataKey="closingBalance"
-                                            name="Saldo final"
+                                            dataKey="currentBalance"
+                                            name="Saldo atual"
                                             fill="hsl(var(--chart-3))"
                                             radius={[0, 4, 4, 0]}
+                                            maxBarSize={24}
                                         />
                                     </BarChart>
                                 </ResponsiveContainer>
@@ -523,59 +719,6 @@ export function AccountCashFlowReportPage() {
                         )}
                     </CardContent>
                 </Card>
-            </section>
-
-            <section className="rounded-xl border bg-card p-4">
-                <div className="grid gap-4 lg:grid-cols-[1fr_1fr_2fr_auto] lg:items-end">
-                    <div className="space-y-2">
-                        <label htmlFor="startDate" className="text-sm font-medium">
-                            Data inicial
-                        </label>
-
-                        <Input
-                            id="startDate"
-                            type="date"
-                            value={startDate}
-                            onChange={(event) => setStartDate(event.target.value)}
-                        />
-                    </div>
-
-                    <div className="space-y-2">
-                        <label htmlFor="endDate" className="text-sm font-medium">
-                            Data final
-                        </label>
-
-                        <Input
-                            id="endDate"
-                            type="date"
-                            value={endDate}
-                            onChange={(event) => setEndDate(event.target.value)}
-                        />
-                    </div>
-
-                    <div className="space-y-2">
-                        <label htmlFor="accountSearch" className="text-sm font-medium">
-                            Buscar conta
-                        </label>
-
-                        <div className="relative">
-                            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-
-                            <Input
-                                id="accountSearch"
-                                type="search"
-                                value={search}
-                                onChange={(event) => setSearch(event.target.value)}
-                                placeholder="Banco, conta, caixa..."
-                                className="pl-9"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
-                        {filteredAccounts.length} conta(s)
-                    </div>
-                </div>
             </section>
 
             <Card>
@@ -595,86 +738,99 @@ export function AccountCashFlowReportPage() {
                             </p>
                         </div>
                     ) : (
-                        <div className="rounded-md border">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Conta</TableHead>
-                                        <TableHead>Tipo</TableHead>
-                                        <TableHead className="text-right">Saldo inicial</TableHead>
-                                        <TableHead className="text-right">Entradas</TableHead>
-                                        <TableHead className="text-right">Saídas</TableHead>
-                                        <TableHead className="text-right">Transferências</TableHead>
-                                        <TableHead className="text-right">Resultado</TableHead>
-                                        <TableHead className="text-right">Saldo final</TableHead>
-                                        <TableHead className="text-right">Mov.</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-
-                                <TableBody>
-                                    {filteredAccounts.map((item) => (
-                                        <TableRow key={item.accountId}>
-                                            <TableCell>
-                                                <div className="font-medium">{item.accountName}</div>
-
-                                                {item.bankName && (
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {item.bankName}
-                                                    </div>
-                                                )}
-                                            </TableCell>
-
-                                            <TableCell>
-                                                <Badge variant="secondary">
-                                                    {accountTypeLabels[item.accountType]}
-                                                </Badge>
-                                            </TableCell>
-
-                                            <TableCell className="text-right">
-                                                {formatCurrency(item.openingBalance)}
-                                            </TableCell>
-
-                                            <TableCell className="text-right">
-                                                {formatCurrency(item.incomeAmount)}
-                                            </TableCell>
-
-                                            <TableCell className="text-right">
-                                                {formatCurrency(item.expenseAmount)}
-                                            </TableCell>
-
-                                            <TableCell className="text-right">
-                                                {formatCurrency(item.transferAmount)}
-                                            </TableCell>
-
-                                            <TableCell className="text-right">
-                                                <span
-                                                    className={
-                                                        item.netAmount < 0 ? "text-destructive" : undefined
-                                                    }
-                                                >
-                                                    {formatCurrency(item.netAmount)}
-                                                </span>
-                                            </TableCell>
-
-                                            <TableCell className="text-right font-medium">
-                                                <span
-                                                    className={
-                                                        item.closingBalance < 0
-                                                            ? "text-destructive"
-                                                            : undefined
-                                                    }
-                                                >
-                                                    {formatCurrency(item.closingBalance)}
-                                                </span>
-                                            </TableCell>
-
-                                            <TableCell className="text-right">
-                                                {item.transactionCount}
-                                            </TableCell>
+                        <div className="overflow-hidden rounded-md border">
+                            <div className="w-full overflow-x-auto">
+                                <Table className="min-w-[1150px]">
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Conta</TableHead>
+                                            <TableHead>Tipo</TableHead>
+                                            <TableHead className="text-right">Saldo inicial</TableHead>
+                                            <TableHead className="text-right">Entradas</TableHead>
+                                            <TableHead className="text-right">Saídas</TableHead>
+                                            <TableHead className="text-right">Transferências</TableHead>
+                                            <TableHead className="text-right">Resultado</TableHead>
+                                            <TableHead className="text-right">Fim do período</TableHead>
+                                            <TableHead className="text-right">Saldo atual</TableHead>
+                                            <TableHead className="text-right">Mov.</TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                    </TableHeader>
+
+                                    <TableBody>
+                                        {filteredAccounts.map((item) => (
+                                            <TableRow key={item.accountId}>
+                                                <TableCell>
+                                                    <div className="font-medium">{item.accountName}</div>
+
+                                                    {item.bankName && (
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {item.bankName}
+                                                        </div>
+                                                    )}
+                                                </TableCell>
+
+                                                <TableCell>
+                                                    <Badge variant="secondary">
+                                                        {accountTypeLabels[item.accountType]}
+                                                    </Badge>
+                                                </TableCell>
+
+                                                <TableCell className="text-right">
+                                                    {formatCurrency(item.openingBalance)}
+                                                </TableCell>
+
+                                                <TableCell className="text-right">
+                                                    {formatCurrency(item.incomeAmount)}
+                                                </TableCell>
+
+                                                <TableCell className="text-right">
+                                                    {formatCurrency(item.expenseAmount)}
+                                                </TableCell>
+
+                                                <TableCell className="text-right">
+                                                    {formatCurrency(item.transferAmount)}
+                                                </TableCell>
+
+                                                <TableCell className="text-right">
+                                                    <span
+                                                        className={
+                                                            item.netAmount < 0 ? "text-destructive" : undefined
+                                                        }
+                                                    >
+                                                        {formatCurrency(item.netAmount)}
+                                                    </span>
+                                                </TableCell>
+
+                                                <TableCell className="text-right font-medium">
+                                                    <span
+                                                        className={
+                                                            item.closingBalance < 0
+                                                                ? "text-destructive"
+                                                                : undefined
+                                                        }
+                                                    >
+                                                        {formatCurrency(item.closingBalance)}
+                                                    </span>
+                                                </TableCell>
+
+                                                <TableCell className="text-right font-semibold">
+                                                    <span
+                                                        className={
+                                                            item.currentBalance < 0 ? "text-destructive" : undefined
+                                                        }
+                                                    >
+                                                        {formatCurrency(item.currentBalance)}
+                                                    </span>
+                                                </TableCell>
+
+                                                <TableCell className="text-right">
+                                                    {item.transactionCount}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         </div>
                     )}
 
@@ -685,7 +841,7 @@ export function AccountCashFlowReportPage() {
                     </div>
                 </CardContent>
             </Card>
-        </div>
+        </div >
     )
 }
 
@@ -736,15 +892,15 @@ function MetricCard({
 }: MetricCardProps) {
     return (
         <Card>
-            <CardContent className="flex items-center justify-between gap-4 p-4">
-                <div>
+            <CardContent className="flex min-w-0 items-center justify-between gap-4 p-4">
+                <div className="min-w-0">
                     <p className="text-sm text-muted-foreground">{title}</p>
 
                     <p
                         className={
                             variant === "negative"
-                                ? "text-2xl font-semibold text-destructive"
-                                : "text-2xl font-semibold"
+                                ? "break-words text-xl font-semibold leading-tight text-destructive 2xl:text-2xl"
+                                : "break-words text-xl font-semibold leading-tight 2xl:text-2xl"
                         }
                     >
                         {formatCurrency(value)}
@@ -753,7 +909,7 @@ function MetricCard({
                     <p className="text-xs text-muted-foreground">{description}</p>
                 </div>
 
-                <div className="rounded-lg bg-muted p-2">
+                <div className="shrink-0 rounded-lg bg-muted p-2">
                     <Icon className="size-5 text-muted-foreground" />
                 </div>
             </CardContent>
@@ -796,7 +952,7 @@ function InsightRow({
 
 function EmptyChartState() {
     return (
-        <div className="flex h-80 items-center justify-center rounded-lg border border-dashed">
+        <div className="flex h-72 items-center justify-center rounded-lg border border-dashed">
             <p className="text-sm text-muted-foreground">
                 Sem dados suficientes para exibir gráfico neste período.
             </p>

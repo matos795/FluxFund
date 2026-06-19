@@ -25,5 +25,9 @@ public interface AccountCashFlowProjection {
 
     BigDecimal getTransferAmount();
 
+    BigDecimal getIncomeUntilToday();
+
+    BigDecimal getExpenseUntilToday();
+
     Long getTransactionCount();
 }

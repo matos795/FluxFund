@@ -154,7 +154,12 @@ export type PendingItemsReport = {
 export type AccountCashFlowItem = {
   accountId: string
   accountName: string
-  accountType: "BANK" | "CASH" | "DIGITAL_WALLET" | "CREDIT_CARD"
+  accountType:
+    | "BANK_ACCOUNT"
+    | "CASH"
+    | "DIGITAL_WALLET"
+    | "CREDIT_CARD"
+    | "OTHER"
   bankName: string | null
   openingBalance: number
   incomeAmount: number
@@ -162,6 +167,7 @@ export type AccountCashFlowItem = {
   transferAmount: number
   netAmount: number
   closingBalance: number
+  currentBalance: number
   transactionCount: number
 }
 
@@ -174,6 +180,7 @@ export type AccountCashFlowReport = {
   transferTotal: number
   netTotal: number
   closingBalanceTotal: number
+  currentBalanceTotal: number
   transactionCount: number
   items: AccountCashFlowItem[]
 }

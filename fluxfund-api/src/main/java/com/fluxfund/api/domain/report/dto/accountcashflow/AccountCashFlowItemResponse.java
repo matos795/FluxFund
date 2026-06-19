@@ -16,6 +16,7 @@ public record AccountCashFlowItemResponse(
         BigDecimal transferAmount,
         BigDecimal netAmount,
         BigDecimal closingBalance,
+        BigDecimal currentBalance,
         long transactionCount
 ) {
 }

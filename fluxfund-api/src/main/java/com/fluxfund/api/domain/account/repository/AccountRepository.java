@@ -35,87 +35,107 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
   List<Account> findByOrganizationIdAndActiveTrueOrderByNameAsc(UUID organizationId);
 
   @Query(value = """
-      select
-          a.id as accountId,
-          a.name as accountName,
-          a.type as accountType,
-          a.bank_name as bankName,
-          coalesce(a.initial_balance, 0) as initialBalance,
+            select
+                a.id as accountId,
+                a.name as accountName,
+                a.type as accountType,
+                a.bank_name as bankName,
+                coalesce(a.initial_balance, 0) as initialBalance,
 
-          coalesce(sum(
-              case
-                  when t.status = 'SETTLED'
-                   and t.type = 'INCOME'
-                   and t.settlement_date < :startDate
-                  then abs(coalesce(t.settled_amount, 0))
-                  else 0
-              end
-          ), 0) as incomeBefore,
+                coalesce(sum(
+                    case
+                        when t.status = 'SETTLED'
+                         and t.type = 'INCOME'
+                         and t.settlement_date < :startDate
+                        then abs(coalesce(t.settled_amount, 0))
+                        else 0
+                    end
+                ), 0) as incomeBefore,
 
-          coalesce(sum(
-              case
-                  when t.status = 'SETTLED'
-                   and t.type = 'EXPENSE'
-                   and t.settlement_date < :startDate
-                  then abs(coalesce(t.settled_amount, 0))
-                  else 0
-              end
-          ), 0) as expenseBefore,
+                coalesce(sum(
+                    case
+                        when t.status = 'SETTLED'
+                         and t.type = 'EXPENSE'
+                         and t.settlement_date < :startDate
+                        then abs(coalesce(t.settled_amount, 0))
+                        else 0
+                    end
+                ), 0) as expenseBefore,
 
-          coalesce(sum(
-              case
-                  when t.status = 'SETTLED'
-                   and t.type = 'INCOME'
-                   and t.settlement_date between :startDate and :endDate
-                  then abs(coalesce(t.settled_amount, 0))
-                  else 0
-              end
-          ), 0) as incomeAmount,
+                coalesce(sum(
+                    case
+                        when t.status = 'SETTLED'
+                         and t.type = 'INCOME'
+                         and t.settlement_date between :startDate and :endDate
+                        then abs(coalesce(t.settled_amount, 0))
+                        else 0
+                    end
+                ), 0) as incomeAmount,
 
-          coalesce(sum(
-              case
-                  when t.status = 'SETTLED'
-                   and t.type = 'EXPENSE'
-                   and t.settlement_date between :startDate and :endDate
-                  then abs(coalesce(t.settled_amount, 0))
-                  else 0
-              end
-          ), 0) as expenseAmount,
+                coalesce(sum(
+                    case
+                        when t.status = 'SETTLED'
+                         and t.type = 'EXPENSE'
+                         and t.settlement_date between :startDate and :endDate
+                        then abs(coalesce(t.settled_amount, 0))
+                        else 0
+                    end
+                ), 0) as expenseAmount,
 
-          coalesce(sum(
-              case
-                  when t.status = 'SETTLED'
-                   and t.type = 'TRANSFER'
-                   and t.settlement_date between :startDate and :endDate
-                  then abs(coalesce(t.settled_amount, 0))
-                  else 0
-              end
-          ), 0) as transferAmount,
+                coalesce(sum(
+                    case
+                        when t.status = 'SETTLED'
+                         and t.type = 'TRANSFER'
+                         and t.settlement_date between :startDate and :endDate
+                        then abs(coalesce(t.settled_amount, 0))
+                        else 0
+                    end
+                ), 0) as transferAmount,
 
-          cast(coalesce(sum(
-              case
-                  when t.status = 'SETTLED'
-                   and t.settlement_date between :startDate and :endDate
-                  then 1
-                  else 0
-              end
-          ), 0) as bigint) as transactionCount
+                coalesce(sum(
+          case
+              when t.status = 'SETTLED'
+               and t.type = 'INCOME'
+               and t.settlement_date <= current_date
+              then abs(coalesce(t.settled_amount, 0))
+              else 0
+          end
+      ), 0) as incomeUntilToday,
 
-      from account a
-      left join financial_transaction t
-        on t.account_id = a.id
-       and t.organization_id = :organizationId
-      where a.organization_id = :organizationId
-        and a.active = true
-        and a.type <> 'CREDIT_CARD'
-      group by
-          a.id,
-          a.name,
-          a.type,
-          a.bank_name,
-          a.initial_balance
-      order by a.name asc
-      """, nativeQuery = true)
+      coalesce(sum(
+          case
+              when t.status = 'SETTLED'
+               and t.type = 'EXPENSE'
+               and t.settlement_date <= current_date
+              then abs(coalesce(t.settled_amount, 0))
+              else 0
+          end
+      ), 0) as expenseUntilToday,
+
+                cast(coalesce(sum(
+                    case
+                        when t.status = 'SETTLED'
+                         and t.settlement_date between :startDate and :endDate
+                        then 1
+                        else 0
+                    end
+                ), 0) as bigint) as transactionCount
+
+            from account a
+            left join financial_transaction t
+              on t.account_id = a.id
+             and t.organization_id = :organizationId
+            where a.organization_id = :organizationId
+              and a.active = true
+              and a.type <> 'CREDIT_CARD'
+            group by
+                a.id,
+                a.name,
+                a.type,
+                a.bank_name,
+                a.initial_balance
+            order by a.name asc
+            """, nativeQuery = true)
   List<AccountCashFlowProjection> findAccountCashFlowReport(
       @Param("organizationId") UUID organizationId,
       @Param("startDate") LocalDate startDate,

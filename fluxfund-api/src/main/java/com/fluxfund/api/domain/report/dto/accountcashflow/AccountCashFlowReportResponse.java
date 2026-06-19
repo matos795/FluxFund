@@ -13,6 +13,7 @@ public record AccountCashFlowReportResponse(
         BigDecimal transferTotal,
         BigDecimal netTotal,
         BigDecimal closingBalanceTotal,
+        BigDecimal currentBalanceTotal,
         long transactionCount,
         List<AccountCashFlowItemResponse> items
 ) {

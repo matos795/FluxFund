@@ -675,6 +675,10 @@ public class ReportService {
                                 .map(AccountCashFlowItemResponse::closingBalance)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+                BigDecimal currentBalanceTotal = items.stream()
+                                .map(AccountCashFlowItemResponse::currentBalance)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
                 long transactionCount = items.stream()
                                 .mapToLong(AccountCashFlowItemResponse::transactionCount)
                                 .sum();
@@ -688,6 +692,7 @@ public class ReportService {
                                 transferTotal,
                                 netTotal,
                                 closingBalanceTotal,
+                                currentBalanceTotal,
                                 transactionCount,
                                 items);
         }
@@ -840,11 +845,23 @@ public class ReportService {
                                 ? projection.getTransferAmount()
                                 : BigDecimal.ZERO;
 
+                BigDecimal incomeUntilToday = projection.getIncomeUntilToday() != null
+                                ? projection.getIncomeUntilToday()
+                                : BigDecimal.ZERO;
+
+                BigDecimal expenseUntilToday = projection.getExpenseUntilToday() != null
+                                ? projection.getExpenseUntilToday()
+                                : BigDecimal.ZERO;
+
                 BigDecimal openingBalance = initialBalance
                                 .add(incomeBefore)
                                 .subtract(expenseBefore);
 
                 BigDecimal netAmount = incomeAmount.subtract(expenseAmount);
+
+                BigDecimal currentBalance = initialBalance
+                                .add(incomeUntilToday)
+                                .subtract(expenseUntilToday);
 
                 BigDecimal closingBalance = openingBalance.add(netAmount);
 
@@ -863,6 +880,7 @@ public class ReportService {
                                 transferAmount,
                                 netAmount,
                                 closingBalance,
+                                currentBalance,
                                 transactionCount);
         }
 }
