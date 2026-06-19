@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { AlertTriangle, Paperclip, Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -33,6 +33,7 @@ import { EntityCombobox } from "@/components/form/entity-combobox"
 import { fiscalDocumentPolicyRequiresNote, normalizeFiscalDocumentNote } from "../financial-transaction-labels"
 import { FiscalDocumentPolicyField } from "./fiscal-document-policy-field"
 import { getAttachmentAcceptAttribute, getAttachmentRulesDescription, validateAttachmentFile } from "@/features/attachments/attachment-validation"
+import { useClassificationSuggestion } from "../hooks/use-classification-suggestion"
 
 type AllocationFormItem = {
     fundId: string
@@ -100,6 +101,20 @@ export function TransactionClassifyPanel({
 
     const { data: funds = [] } = useFundOptions()
     const { data: settings } = useOrganizationSettings()
+
+    const autoFillEnabled = Boolean(settings?.autoFillClassificationSuggestions)
+
+    const classificationSuggestionQuery = useClassificationSuggestion(
+        transaction.id,
+        {
+            enabled:
+                dialogOpen &&
+                autoFillEnabled &&
+                !transaction.category,
+        },
+    )
+
+    const appliedSuggestionKeyRef = useRef<string | null>(null)
 
     const accountsQuery = useAccounts({ page: 0, size: 200 })
 
@@ -490,6 +505,60 @@ export function TransactionClassifyPanel({
         return () => window.clearTimeout(timeoutId)
     }, [dialogOpen, transaction.id, transaction.type, transaction.category?.id, transaction.description, transaction.settlementDate, transaction.settledAmount, transaction.expectedAmount, transaction.fiscalDocumentPolicy, transaction.fiscalDocumentNote, transaction.transferDirection, transaction.transferCounterpartyAccount?.id])
 
+    useEffect(() => {
+        if (!dialogOpen || !autoFillEnabled) {
+            return
+        }
+
+        const suggestion = classificationSuggestionQuery.data
+
+        if (!suggestion?.available || !suggestion.type || !suggestion.category) {
+            return
+        }
+
+        const suggestionKey = `${transaction.id}:${suggestion.basedOnTransactionId}`
+
+        if (appliedSuggestionKeyRef.current === suggestionKey) {
+            return
+        }
+
+        appliedSuggestionKeyRef.current = suggestionKey
+
+        const timeoutId = window.setTimeout(() => {
+            setType(suggestion.type!)
+            setCategoryId(suggestion.category!.id)
+
+            if (!description.trim() && suggestion.description) {
+                setDescription(suggestion.description)
+            }
+
+            setAllocations(
+                suggestion.allocations.map((allocation) => ({
+                    fundId: allocation.fund.id,
+                    beneficiaryId: allocation.beneficiary?.id ?? "",
+                    referenceMonth: allocation.referenceMonth
+                        ? allocation.referenceMonth.slice(0, 7)
+                        : "",
+                    amount: String(Math.abs(Number(allocation.amount))),
+                })),
+            )
+
+            toast.info("Sugestão aplicada com base no histórico. Revise antes de salvar.")
+        }, 0)
+
+        return () => window.clearTimeout(timeoutId)
+    }, [
+        autoFillEnabled,
+        classificationSuggestionQuery.data,
+        description,
+        dialogOpen,
+        transaction.id,
+    ])
+
+    useEffect(() => {
+        appliedSuggestionKeyRef.current = null
+    }, [transaction.id])
+
     return (
         <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="rounded-lg border bg-muted/30 p-4">
@@ -762,6 +831,7 @@ export function TransactionClassifyPanel({
                                         transactionType={type}
                                         referenceMonth={allocation.referenceMonth}
                                         remainingAmount={Number(allocation.amount || 0)}
+                                        autoApply={autoFillEnabled}
                                         onApply={(suggestion) => {
                                             handleChangeAllocation(index, "fundId", suggestion.fundId)
                                             handleChangeAllocation(index, "beneficiaryId", suggestion.beneficiaryId)

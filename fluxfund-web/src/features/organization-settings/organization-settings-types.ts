@@ -8,6 +8,7 @@ export type OrganizationSettings = {
   suggestDefaultFundReallocation: boolean
   requireFiscalDocumentForExpenses: boolean
   requireProofForIncomes: boolean
+  autoFillClassificationSuggestions: boolean
   createdAt: string
   updatedAt: string | null
 }
@@ -18,4 +19,5 @@ export type UpdateOrganizationSettingsRequest = {
   suggestDefaultFundReallocation: boolean
   requireFiscalDocumentForExpenses: boolean
   requireProofForIncomes: boolean
+  autoFillClassificationSuggestions: boolean
 }

@@ -44,4 +44,7 @@ public class OrganizationSettings extends BaseEntity {
 
         @Column(name = "require_proof_for_incomes", nullable = false)
         private boolean requireProofForIncomes = false;
+
+        @Column(name = "auto_fill_classification_suggestions", nullable = false)
+        private boolean autoFillClassificationSuggestions = true;
 }

@@ -21,6 +21,7 @@ public class OrganizationSettingsMapper {
                 settings.isAllowNegativeFunds(),
                 settings.isSuggestDefaultFundReallocation(),
                 settings.isRequireFiscalDocumentForExpenses(),
-                settings.isRequireProofForIncomes());
+                settings.isRequireProofForIncomes(),
+                settings.isAutoFillClassificationSuggestions());
     }
 }

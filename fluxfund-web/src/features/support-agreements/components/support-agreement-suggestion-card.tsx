@@ -1,4 +1,6 @@
+import { useCallback, useEffect, useRef } from "react"
 import { HandCoins } from "lucide-react"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { formatCurrency } from "@/utils/formatters"
@@ -10,6 +12,7 @@ type SupportAgreementSuggestionCardProps = {
   transactionType: FinancialTransactionType
   referenceMonth?: string | null
   remainingAmount?: number
+  autoApply?: boolean
   onApply: (data: {
     fundId: string
     beneficiaryId: string
@@ -24,6 +27,7 @@ export function SupportAgreementSuggestionCard({
   referenceMonth,
   remainingAmount,
   onApply,
+  autoApply = false,
 }: SupportAgreementSuggestionCardProps) {
   const shouldSearch = transactionType === "EXPENSE" && Boolean(beneficiaryId)
 
@@ -36,6 +40,74 @@ export function SupportAgreementSuggestionCard({
     },
     { enabled: shouldSearch },
   )
+
+  const autoAppliedKeyRef = useRef<string | null>(null)
+
+  const buildSuggestion = useCallback(
+    (agreement: (typeof suggestions)[number]) => {
+      const availableAmount = Math.max(
+        Number(remainingAmount ?? agreement.amount),
+        0,
+      )
+
+      const suggestedAmount =
+        availableAmount > 0
+          ? Math.min(Number(agreement.amount), availableAmount)
+          : Number(agreement.amount)
+
+      return {
+        fundId: agreement.fund.id,
+        beneficiaryId: agreement.beneficiary.id,
+        referenceMonth: referenceMonth ?? "",
+        amount: suggestedAmount,
+      }
+    },
+    [referenceMonth, remainingAmount],
+  )
+
+  useEffect(() => {
+    if (
+      !autoApply ||
+      !shouldSearch ||
+      isLoading ||
+      suggestions.length !== 1
+    ) {
+      return
+    }
+
+    const agreement = suggestions[0]
+
+    if (!agreement) {
+      return
+    }
+
+    const autoApplyKey = `${beneficiaryId}:${referenceDate ?? ""}:${agreement.id}`
+
+    if (autoAppliedKeyRef.current === autoApplyKey) {
+      return
+    }
+
+    autoAppliedKeyRef.current = autoApplyKey
+
+    const timeoutId = window.setTimeout(() => {
+      onApply(buildSuggestion(agreement))
+
+      toast.info(
+        "Compromisso ativo aplicado automaticamente. Revise antes de salvar.",
+      )
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [
+    autoApply,
+    beneficiaryId,
+    buildSuggestion,
+    isLoading,
+    onApply,
+    referenceDate,
+    shouldSearch,
+    suggestions,
+  ])
 
   if (!shouldSearch || isLoading || suggestions.length === 0) {
     return null
@@ -57,15 +129,8 @@ export function SupportAgreementSuggestionCard({
 
           <div className="space-y-2">
             {suggestions.map((agreement) => {
-              const availableAmount = Math.max(
-                Number(remainingAmount ?? agreement.amount),
-                0,
-              )
-
-              const suggestedAmount =
-                availableAmount > 0
-                  ? Math.min(Number(agreement.amount), availableAmount)
-                  : Number(agreement.amount)
+              const suggestion = buildSuggestion(agreement)
+              const suggestedAmount = suggestion.amount
 
               return (
                 <div
@@ -90,14 +155,7 @@ export function SupportAgreementSuggestionCard({
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() =>
-                      onApply({
-                        fundId: agreement.fund.id,
-                        beneficiaryId: agreement.beneficiary.id,
-                        referenceMonth: referenceMonth ?? "",
-                        amount: suggestedAmount,
-                      })
-                    }
+                    onClick={() => onApply(suggestion)}
                   >
                     Usar compromisso
                   </Button>

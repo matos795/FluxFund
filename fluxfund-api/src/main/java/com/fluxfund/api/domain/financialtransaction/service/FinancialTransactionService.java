@@ -1,6 +1,7 @@
 package com.fluxfund.api.domain.financialtransaction.service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -12,6 +13,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,8 +27,10 @@ import com.fluxfund.api.domain.audit.AuditAction;
 import com.fluxfund.api.domain.audit.AuditEntityType;
 import com.fluxfund.api.domain.audit.service.AuditLogService;
 import com.fluxfund.api.domain.beneficiary.Beneficiary;
+import com.fluxfund.api.domain.beneficiary.mapper.BeneficiaryMapper;
 import com.fluxfund.api.domain.beneficiary.repository.BeneficiaryRepository;
 import com.fluxfund.api.domain.category.Category;
+import com.fluxfund.api.domain.category.mapper.CategoryMapper;
 import com.fluxfund.api.domain.category.repository.CategoryRepository;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
@@ -34,15 +38,18 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.FiscalDocumentPolicy;
 import com.fluxfund.api.domain.financialtransaction.TransferDirection;
+import com.fluxfund.api.domain.financialtransaction.dto.ClassificationSuggestionAllocationResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.ClassifyFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.CreateAccountTransferRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.CreateFinancialTransactionRequest;
+import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionClassificationSuggestionResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.UpdateFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.mapper.FinancialTransactionMapper;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
 import com.fluxfund.api.domain.financialtransaction.specification.FinancialTransactionSpecification;
 import com.fluxfund.api.domain.fund.Fund;
+import com.fluxfund.api.domain.fund.mapper.FundMapper;
 import com.fluxfund.api.domain.fund.repository.FundRepository;
 import com.fluxfund.api.domain.fundtransfer.repository.FundTransferRepository;
 import com.fluxfund.api.domain.organization.Organization;
@@ -603,6 +610,58 @@ public class FinancialTransactionService {
                         .formatted(transaction.getTransferGroupId()));
     }
 
+    @Transactional(readOnly = true)
+    public FinancialTransactionClassificationSuggestionResponse getClassificationSuggestion(
+            UUID organizationId,
+            UUID id) {
+        organizationAccessService.requireReadAccess(organizationId);
+
+        FinancialTransaction currentTransaction = findFinancialTransactionById(
+                organizationId,
+                id);
+
+        if (currentTransaction.getStatus() == FinancialTransactionStatus.CANCELED) {
+            return FinancialTransactionClassificationSuggestionResponse.unavailable();
+        }
+
+        if (currentTransaction.getCategory() != null) {
+            return FinancialTransactionClassificationSuggestionResponse.unavailable();
+        }
+
+        String rawDescription = normalizeSuggestionText(
+                currentTransaction.getRawDescription());
+
+        if (rawDescription == null) {
+            return FinancialTransactionClassificationSuggestionResponse.unavailable();
+        }
+
+        List<FinancialTransaction> candidates = repository.findClassificationSuggestionCandidates(
+                organizationId,
+                currentTransaction.getId(),
+                rawDescription,
+                PageRequest.of(0, 1));
+
+        if (candidates.isEmpty()) {
+            return FinancialTransactionClassificationSuggestionResponse.unavailable();
+        }
+
+        FinancialTransaction baseTransaction = candidates.get(0);
+
+        BigDecimal currentAmount = getSuggestionAmount(currentTransaction);
+
+        List<ClassificationSuggestionAllocationResponse> suggestedAllocations = buildSuggestedAllocations(
+                baseTransaction, currentAmount);
+
+        return new FinancialTransactionClassificationSuggestionResponse(
+                true,
+                "HISTORY",
+                baseTransaction.getId(),
+                baseTransaction.getType(),
+                CategoryMapper.toSummary(baseTransaction.getCategory()),
+                baseTransaction.getDescription(),
+                suggestedAllocations);
+    }
+
     private TransactionAllocation buildAllocation(
             UUID organizationId,
             FinancialTransaction financialTransaction,
@@ -1030,5 +1089,104 @@ public class FinancialTransactionService {
                 "Financial transaction classified as transfer");
 
         return FinancialTransactionMapper.toResponse(savedTransaction);
+    }
+
+    private String normalizeSuggestionText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return value.trim().replaceAll("\\s+", " ");
+    }
+
+    private BigDecimal getSuggestionAmount(FinancialTransaction transaction) {
+        BigDecimal amount = transaction.getSettledAmount() != null
+                ? transaction.getSettledAmount()
+                : transaction.getExpectedAmount();
+
+        return amount.abs();
+    }
+
+    private List<ClassificationSuggestionAllocationResponse> buildSuggestedAllocations(
+            FinancialTransaction baseTransaction,
+            BigDecimal currentAmount) {
+
+        if (baseTransaction.getAllocations() == null
+                || baseTransaction.getAllocations().isEmpty()
+                || currentAmount == null
+                || currentAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return List.of();
+        }
+
+        List<TransactionAllocation> baseAllocations = baseTransaction.getAllocations()
+                .stream()
+                .filter(allocation -> allocation.getFund() != null)
+                .toList();
+
+        if (baseAllocations.isEmpty()) {
+            return List.of();
+        }
+
+        if (baseAllocations.size() == 1) {
+            TransactionAllocation allocation = baseAllocations.get(0);
+
+            return List.of(
+                    new ClassificationSuggestionAllocationResponse(
+                            FundMapper.toSummaryResponse(allocation.getFund()),
+                            allocation.getBeneficiary() != null
+                                    ? BeneficiaryMapper.toSummaryResponse(allocation.getBeneficiary())
+                                    : null,
+                            currentAmount,
+                            allocation.getReferenceMonth(),
+                            "HISTORY"));
+        }
+
+        BigDecimal previousTotal = baseAllocations.stream()
+                .map(TransactionAllocation::getAmount)
+                .map(BigDecimal::abs)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (previousTotal.compareTo(BigDecimal.ZERO) <= 0) {
+            return List.of();
+        }
+
+        List<ClassificationSuggestionAllocationResponse> suggestions = new java.util.ArrayList<>();
+
+        BigDecimal remainingAmount = currentAmount;
+
+        for (int index = 0; index < baseAllocations.size(); index++) {
+            TransactionAllocation allocation = baseAllocations.get(index);
+
+            BigDecimal suggestedAmount;
+
+            boolean isLast = index == baseAllocations.size() - 1;
+
+            if (isLast) {
+                suggestedAmount = remainingAmount;
+            } else {
+                suggestedAmount = allocation.getAmount()
+                        .abs()
+                        .multiply(currentAmount)
+                        .divide(previousTotal, 2, RoundingMode.HALF_UP);
+
+                remainingAmount = remainingAmount.subtract(suggestedAmount);
+            }
+
+            if (suggestedAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+
+            suggestions.add(
+                    new ClassificationSuggestionAllocationResponse(
+                            FundMapper.toSummaryResponse(allocation.getFund()),
+                            allocation.getBeneficiary() != null
+                                    ? BeneficiaryMapper.toSummaryResponse(allocation.getBeneficiary())
+                                    : null,
+                            suggestedAmount,
+                            allocation.getReferenceMonth(),
+                            "HISTORY"));
+        }
+
+        return suggestions;
     }
 }

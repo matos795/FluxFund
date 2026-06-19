@@ -180,3 +180,21 @@ export type ImportCsvResponse = {
   failed: number
   errors: string[]
 }
+
+export type ClassificationSuggestionAllocation = {
+  fund: FundSummary
+  beneficiary: BeneficiarySummary | null
+  amount: number
+  referenceMonth: string | null
+  source: "HISTORY" | "SUPPORT_AGREEMENT"
+}
+
+export type FinancialTransactionClassificationSuggestion = {
+  available: boolean
+  source: "HISTORY" | null
+  basedOnTransactionId: string | null
+  type: "INCOME" | "EXPENSE" | "TRANSFER" | null
+  category: CategorySummary | null
+  description: string | null
+  allocations: ClassificationSuggestionAllocation[]
+}

@@ -42,6 +42,11 @@ export function FinancialSettingsCard() {
     setSuggestDefaultFundReallocation,
   ] = useState<boolean | undefined>()
 
+  const [
+    autoFillClassificationSuggestions,
+    setAutoFillClassificationSuggestions,
+  ] = useState<boolean | undefined>()
+
   const settingsQuery = useOrganizationSettings()
   const updateSettingsMutation = useUpdateOrganizationSettings()
 
@@ -66,6 +71,11 @@ export function FinancialSettingsCard() {
     settings?.requireProofForIncomes ??
     false
 
+  const effectiveAutoFillClassificationSuggestions =
+    autoFillClassificationSuggestions ??
+    settings?.autoFillClassificationSuggestions ??
+    true
+
   const selectedFundId = effectiveDefaultFundId
 
   const selectedFund = useMemo(() => {
@@ -83,6 +93,8 @@ export function FinancialSettingsCard() {
         requireFiscalDocumentForExpenses:
           effectiveRequireFiscalDocumentForExpenses,
         requireProofForIncomes: effectiveRequireProofForIncomes,
+        autoFillClassificationSuggestions:
+          effectiveAutoFillClassificationSuggestions,
       },
       {
         onSuccess: () => {
@@ -93,6 +105,7 @@ export function FinancialSettingsCard() {
           setSuggestDefaultFundReallocation(undefined)
           setRequireFiscalDocumentForExpenses(undefined)
           setRequireProofForIncomes(undefined)
+          setAutoFillClassificationSuggestions(undefined)
         },
         onError: (error) => {
           toast.error(
@@ -131,7 +144,9 @@ export function FinancialSettingsCard() {
     effectiveSuggestDefaultFundReallocation ||
     settings?.requireFiscalDocumentForExpenses !==
     effectiveRequireFiscalDocumentForExpenses ||
-    settings?.requireProofForIncomes !== effectiveRequireProofForIncomes
+    settings?.requireProofForIncomes !== effectiveRequireProofForIncomes ||
+    settings?.autoFillClassificationSuggestions !==
+    effectiveAutoFillClassificationSuggestions
 
   const canSuggestDefaultFundReallocation = !effectiveAllowNegativeFunds && Boolean(effectiveDefaultFundId)
 
@@ -258,6 +273,28 @@ export function FinancialSettingsCard() {
                   checked={canSuggestDefaultFundReallocation && effectiveSuggestDefaultFundReallocation}
                   disabled={!canAdmin || !canSuggestDefaultFundReallocation}
                   onCheckedChange={setSuggestDefaultFundReallocation}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4 rounded-lg border p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">
+                    Preencher classificação automaticamente
+                  </p>
+
+                  <p className="text-sm text-muted-foreground">
+                    Quando ativado, ao abrir uma transação para classificar, o sistema
+                    procura histórico parecido e preenche tipo, categoria, fundo e
+                    favorecido. Nada é salvo automaticamente.
+                  </p>
+                </div>
+
+                <Switch
+                  checked={effectiveAutoFillClassificationSuggestions}
+                  disabled={!canAdmin}
+                  onCheckedChange={setAutoFillClassificationSuggestions}
                 />
               </div>
             </div>

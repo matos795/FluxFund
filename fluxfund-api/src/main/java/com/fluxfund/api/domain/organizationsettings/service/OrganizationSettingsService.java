@@ -85,6 +85,11 @@ public class OrganizationSettingsService {
                     request.requireProofForIncomes());
         }
 
+        if (request.autoFillClassificationSuggestions() != null) {
+            settings.setAutoFillClassificationSuggestions(
+                    request.autoFillClassificationSuggestions());
+        }
+
         repository.save(settings);
 
         auditLogService.record(

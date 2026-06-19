@@ -1,0 +1,2 @@
+ALTER TABLE organization_settings
+ADD COLUMN auto_fill_classification_suggestions BOOLEAN NOT NULL DEFAULT TRUE;

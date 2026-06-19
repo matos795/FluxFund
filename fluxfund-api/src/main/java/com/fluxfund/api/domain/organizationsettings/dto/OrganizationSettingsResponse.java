@@ -14,6 +14,7 @@ public record OrganizationSettingsResponse(
                 Boolean allowNegativeFunds,
                 Boolean suggestDefaultFundReallocation,
                 Boolean requireFiscalDocumentForExpenses,
-                Boolean requireProofForIncomes
+                Boolean requireProofForIncomes,
+                Boolean autoFillClassificationSuggestions
         ) {
 }

@@ -30,6 +30,7 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.dto.ClassifyFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.CreateAccountTransferRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.CreateFinancialTransactionRequest;
+import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionClassificationSuggestionResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.ImportOfxResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.UpdateFinancialTransactionRequest;
@@ -97,6 +98,15 @@ public class FinancialTransactionController {
                                                 onlyUnallocated,
                                                 fundId,
                                                 pageable));
+        }
+
+        @GetMapping("/{id}/classification-suggestion")
+        public ResponseEntity<FinancialTransactionClassificationSuggestionResponse> getClassificationSuggestion(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID id) {
+
+                return ResponseEntity.ok(
+                                service.getClassificationSuggestion(organizationId, id));
         }
 
         @GetMapping("/{id}")
