@@ -102,7 +102,8 @@ export function TransactionClassifyPanel({
     const { data: funds = [] } = useFundOptions()
     const { data: settings } = useOrganizationSettings()
 
-    const autoFillEnabled = Boolean(settings?.autoFillClassificationSuggestions)
+    const autoFillEnabled =
+    settings?.autoFillClassificationSuggestions ?? true
 
     const classificationSuggestionQuery = useClassificationSuggestion(
         transaction.id,
