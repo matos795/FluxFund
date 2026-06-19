@@ -660,7 +660,7 @@ public interface FinancialTransactionRepository
             @Param("organizationId") UUID organizationId);
 
     @Query("""
-            select t
+            select distinct t
             from FinancialTransaction t
             where t.organization.id = :organizationId
               and t.id <> :transactionId

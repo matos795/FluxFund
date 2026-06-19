@@ -641,6 +641,13 @@ public class FinancialTransactionService {
                 rawDescription,
                 PageRequest.of(0, 1));
 
+        System.out.println("=== CLASSIFICATION SUGGESTION DEBUG ===");
+        System.out.println("Current transaction id: " + currentTransaction.getId());
+        System.out.println("Current category: " + currentTransaction.getCategory());
+        System.out.println("Current rawDescription: [" + currentTransaction.getRawDescription() + "]");
+        System.out.println("Normalized rawDescription: [" + rawDescription + "]");
+        System.out.println("Candidates found: " + candidates.size());
+
         if (candidates.isEmpty()) {
             return FinancialTransactionClassificationSuggestionResponse.unavailable();
         }
@@ -1096,7 +1103,7 @@ public class FinancialTransactionService {
             return null;
         }
 
-        return value.trim().replaceAll("\\s+", " ");
+        return value.trim();
     }
 
     private BigDecimal getSuggestionAmount(FinancialTransaction transaction) {
