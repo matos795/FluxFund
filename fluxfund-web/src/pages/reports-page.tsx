@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { ArrowRight, BarChart3, FolderTree, HandCoins, Landmark, ListChecks } from "lucide-react"
+import { ArrowRight, BarChart3, FolderTree, HandCoins, Landmark, ListChecks, ShieldCheck } from "lucide-react"
 import { Link } from "react-router-dom"
 
 const reports = [
@@ -50,6 +50,14 @@ const reports = [
     icon: HandCoins,
     status: "available",
     to: "/reports/accountability",
+  },
+  {
+    title: "Auditoria",
+    description:
+      "Veja quem realizou ações críticas como criação, edição, classificação, anexos e cancelamentos.",
+    icon: ShieldCheck,
+    status: "available",
+    to: "/reports/audit-logs",
   }
 ]
 

@@ -20,6 +20,7 @@ import { ProtectedRoute } from "@/routes/protected-route"
 import { CreditCardStatementsPage } from "@/pages/credit-card-statements-page"
 import { PendingItemsReportPage } from "@/pages/results/pending-items-report-page"
 import { AccountCashFlowReportPage } from "@/pages/results/account-cash-flow-report-page"
+import { AuditLogReportPage } from "@/pages/results/audit-log-report-page"
 
 export function AppRoutes() {
   return (
@@ -56,6 +57,10 @@ export function AppRoutes() {
           <Route
             path="/reports/account-cash-flow"
             element={<AccountCashFlowReportPage />}
+          />
+          <Route
+            path="/reports/audit-logs"
+            element={<AuditLogReportPage />}
           />
           <Route path="/credit-card-statements" element={<CreditCardStatementsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
