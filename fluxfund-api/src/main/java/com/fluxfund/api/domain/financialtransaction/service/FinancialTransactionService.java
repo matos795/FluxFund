@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -638,21 +639,17 @@ public class FinancialTransactionService {
         List<FinancialTransaction> candidates = repository.findClassificationSuggestionCandidates(
                 organizationId,
                 currentTransaction.getId(),
-                rawDescription,
-                PageRequest.of(0, 1));
+                PageRequest.of(0, 50));
 
-        System.out.println("=== CLASSIFICATION SUGGESTION DEBUG ===");
-        System.out.println("Current transaction id: " + currentTransaction.getId());
-        System.out.println("Current category: " + currentTransaction.getCategory());
-        System.out.println("Current rawDescription: [" + currentTransaction.getRawDescription() + "]");
-        System.out.println("Normalized rawDescription: [" + rawDescription + "]");
-        System.out.println("Candidates found: " + candidates.size());
+        FinancialTransaction baseTransaction = candidates.stream()
+                .filter(candidate -> rawDescription.equals(
+                        normalizeSuggestionText(candidate.getRawDescription())))
+                .findFirst()
+                .orElse(null);
 
-        if (candidates.isEmpty()) {
+        if (baseTransaction == null) {
             return FinancialTransactionClassificationSuggestionResponse.unavailable();
         }
-
-        FinancialTransaction baseTransaction = candidates.get(0);
 
         BigDecimal currentAmount = getSuggestionAmount(currentTransaction);
 
@@ -1103,7 +1100,11 @@ public class FinancialTransactionService {
             return null;
         }
 
-        return value.trim();
+        return value
+                .toUpperCase(Locale.ROOT)
+                .trim()
+                .replaceFirst("\\s+\\d{1,2}[/.-]\\d{1,2}(?:[/.-]\\d{2,4})?\\s*$", "")
+                .replaceAll("\\s+", " ");
     }
 
     private BigDecimal getSuggestionAmount(FinancialTransaction transaction) {
