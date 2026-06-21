@@ -1,121 +1,67 @@
 # FluxFund API
 
-Sistema SaaS de gestão financeira desenvolvido com **Java 21 + Spring Boot + PostgreSQL + Flyway**.
+Sistema SaaS de gestão financeira para organizações que precisam controlar movimentação bancária, destinação interna de recursos, prestação de contas e documentação de despesas.
 
-O FluxFund nasceu para substituir controles financeiros baseados em planilhas e sistemas legados, mantendo as regras reais do negócio, mas com uma arquitetura mais limpa, auditável e preparada para múltiplas organizações.
+**Stack:** Java 21, Spring Boot, Spring Data JPA, PostgreSQL, Flyway, Spring Security/JWT, Apache POI e armazenamento de anexos por referência.
 
-> Documento atualizado em **28/05/2026** para registrar o domínio implementado, as regras de negócio descobertas durante o desenvolvimento e o roadmap até uso interno seguro e futura comercialização SaaS.
-
----
-
-Objetivos do sistema:
-
-- controlar receitas, despesas e futuramente transferências entre contas;
-- importar movimentações via OFX e permitir classificação posterior;
-- controlar dinheiro real por `Account` e destinação interna por `Fund`;
-- alocar valores por fundos e favorecidos;
-- controlar compromissos fixos de sustento sem confundi-los com ofertas recebidas;
-- guardar comprovantes e documentos fiscais vinculados às transações;
-- produzir relatórios e exportações Excel confiáveis para conferência externa;
-- evoluir para autenticação, isolamento multi-tenant real, permissões, auditoria e comercialização como SaaS.
+> Documento atualizado em **20/06/2026**. O FluxFund está em fase de piloto interno controlado, com login, multi-tenant, auditoria e os principais fluxos financeiros já implementados.
 
 ---
 
-# Objetivos do Sistema
+## Proposta do produto
 
-O sistema deve permitir:
+O FluxFund não trata apenas entradas e saídas. Ele separa três visões que precisam coexistir sem se confundir:
 
-* gestão de organizações/empresas;
-* usuários vinculados a organizações;
-* contas bancárias, caixas físicos e carteiras;
-* importação OFX;
-* classificação de lançamentos financeiros;
-* controle de receitas, despesas e transferências;
-* categorias financeiras hierárquicas;
-* fundos/projetos/orçamentos internos;
-* favorecidos/destinatários/responsáveis;
-* alocação parcial de valores em fundos e favorecidos;
-* dashboard financeiro;
-* relatórios financeiros e prestação de contas;
-* anexos como comprovantes, notas fiscais, recibos e contratos;
-* autenticação, multi-tenant real, permissões e auditoria.
+```text
+Account = onde o dinheiro existe de fato.
+Fund = para qual finalidade interna o dinheiro foi destinado.
+Beneficiary = para quem o valor foi destinado ou repassado.
+```
+
+O foco atual é atender organizações que precisam de controle financeiro e prestação de contas — por exemplo igrejas, projetos missionários, associações, ONGs e pequenas empresas que trabalham com fundos, repasses e documentação.
 
 ---
 
-# Estado Atual do Projeto
+# Estado atual
 
-## Implementado e validado no fluxo funcional
+## Funcionalidades implementadas
 
 | Área | Estado | Observação |
 |---|---|---|
-| Accounts | Implementado | Contas bancárias/caixas representam dinheiro real. |
-| Categories | Implementado | Categorias financeiras com suporte a hierarquia. |
-| Funds | Implementado | Fundos/projetos representam destinação interna. |
-| Beneficiaries | Implementado | Favorecidos/destinatários/responsáveis. |
-| Financial Transactions | Implementado | Criação, edição, cancelamento lógico, filtros e visualização. |
-| Importação OFX | Implementado | OFX gera `FinancialTransaction` diretamente. |
-| Classificação | Implementado | Transações sem categoria seguem fluxo específico de classificação. |
-| Transaction Allocations | Implementado | Alocação por fundo e favorecido, incluindo gestão posterior. |
-| Attachments | Implementado | Upload, listagem, download e remoção de arquivos vinculados à transação. |
-| Organization Settings | Implementado | Configuração do Fundo Padrão/Caixa Base. |
-| Support Agreements | Implementado | Compromissos fixos de sustento por favorecido e fundo, com ativação/desativação. |
-| Dashboard | Implementado | Métricas e atalhos para pendências. |
-| Resultado por Categoria | Implementado | Relatório hierárquico. |
-| Fundos/Projetos | Implementado | Relatório de saldos e movimentação por fundo. |
-| Prestação/Sustento | Implementado | Agrupamento por favorecido, fundos e visão por banco/account. |
-| Exportação Excel da Prestação | Implementado | Arquivo estilizado com resumo, fundos e detalhamento por banco. |
-| Exportação Excel de Movimento | Implementado | Contas recebidas, contas pagas e todas as transações baixadas. |
+| Autenticação JWT | Implementado | Login, sessão, logout e proteção das rotas. |
+| Organização ativa / multi-tenant | Implementado | Requests usam `X-Organization-Id`; backend valida vínculo do usuário com a organização. |
+| Roles | Implementado | Papéis `OWNER`, `ADMIN`, `FINANCE` e `VIEWER`, com autorização no backend. |
+| Accounts | Implementado | Conta bancária, caixa, carteira, conta digital e cartão de crédito. |
+| Categories | Implementado | Categorias de receita/despesa, hierarquia e regras de documentação. |
+| Funds | Implementado | Fundos/projetos internos, saldo calculado e prevenção configurável de saldo negativo. |
+| Beneficiaries | Implementado | Favorecidos usados em alocações, repasses e compromissos. |
+| Financial Transactions | Implementado | Criação, edição, classificação, baixa, cancelamento lógico, filtros e exportação. |
+| OFX bancário | Implementado | Importação com deduplicação por identificador externo/FITID quando disponível. |
+| CSV | Implementado | Fluxos de importação suportados para bancos/contas com formatos já tratados no projeto. |
+| Cartão de crédito | Implementado | Faturas, itens, importação, classificação, anexos e pagamento pela conta pagadora. |
+| Transferências entre contas | Implementado | Registro e cancelamento de transferências sem impactar resultado operacional. |
+| Alocações | Implementado | Divisão por fundo e favorecido, inclusive posterior à classificação. |
+| Attachments | Implementado | Upload, listagem, download e exclusão de comprovantes e documentos fiscais. |
+| Compromissos | Implementado | `SupportAgreement` por favorecido/fundo, com vigência e ativação/desativação. |
+| Dashboard | Implementado | Métricas, pendências, saldos e gráficos de movimentação. |
+| Relatórios | Implementado | Resultado por categoria, fundos, prestação/sustento, fluxo de caixa por conta e auditoria. |
+| Exportações Excel | Implementado | Prestação/sustento e movimento financeiro liquidado. |
+| Auditoria | Implementado | Histórico de ações críticas, filtros e tela de consulta restrita a administração. |
+| Sugestões de classificação | Implementado | Preenchimento assistido por histórico e por compromisso ativo. |
 
-## Últimos refinamentos concluídos antes do login
-
-Estes itens foram concluídos no refinamento final da tela principal:
-
-- atualização automática da coluna de documentos/anexos após upload ou remoção;
-- bloqueio do salvamento em `Classificar` quando existe arquivo selecionado, mas ainda não enviado;
-- indicador visual de documentação fiscal na tabela de transações;
-- layout compacto da `TransactionsPage`, com filtros avançados recolhíveis, exportação em dialog e clique na linha para abrir a ação principal.
-
-## Próximo grande bloco
+## Situação operacional
 
 ```text
-Autenticação JWT + organização ativa + permissões + remoção do TEMP_ORGANIZATION_ID
+Pronto para piloto interno: sim.
+Pronto para uso assistido com dados reais: sim.
+Pronto para comercialização como SaaS: ainda não.
 ```
 
----
-
-# Stack Tecnológica
-
-## Backend
-
-- Java 21
-- Spring Boot
-- Spring Data JPA
-- Spring Validation
-- Spring Security — próxima etapa com JWT
-- Flyway
-- PostgreSQL
-- SpringDoc OpenAPI / Swagger
-- Lombok
-- Apache POI para exportações `.xlsx`
-
-## Ferramentas
-
-- Git + GitHub
-- VS Code / IDE Java
-- pgAdmin
-- Swagger UI
+O sistema deve ser usado em piloto, com backup e revisão periódica dos relatórios. O objetivo do piloto é validar fluxos reais, encontrar exceções e priorizar melhorias pelo uso, não pela imaginação.
 
 ---
 
-# Conceitos Centrais do Domínio
-
-O FluxFund separa conceitos que não devem ser misturados.
-
-## Organization
-
-Representa uma empresa/cliente dentro da plataforma. Todas as entidades financeiras relevantes pertencem a uma organização.
-
-Na fase atual, `organizationId` ainda é enviado explicitamente. Na fase de autenticação, o backend deverá validar a organização ativa de acordo com o usuário logado.
+# Conceitos centrais
 
 ## Account
 
@@ -123,720 +69,456 @@ Representa dinheiro real.
 
 Exemplos:
 
-* Conta bancária
-* Caixa físico
-* Carteira
-* Conta digital
+- conta bancária;
+- caixa físico;
+- carteira;
+- conta digital;
+- cartão de crédito.
 
-O saldo de uma `Account` representa saldo financeiro real. Movimentações entre accounts são transferências, não receita/despesa.
-
-Regra fundamental:
-
-```text
-Account = onde o dinheiro existe de fato.
-Fund = para que o dinheiro foi destinado internamente.
-```
-
-Uma transferência entre accounts não é receita nem despesa operacional.
-
----
+Transferências entre contas são movimentações patrimoniais, não receitas ou despesas operacionais.
 
 ## Fund
 
-Representa uma **destinação interna**, projeto, orçamento ou centro de responsabilidade.
-
-Exemplos:
-
-- Projeto Piauí;
-- Projeto Guiné;
-- Livraria;
-- Caixa Base.
-
-Um `Fund` **não representa conta bancária** e não altera o saldo real de uma account. Ele serve para controle interno, prestação de contas, orçamento e relatórios.
-
-Regra de saldo do fundo:
+Representa uma destinação interna, projeto, orçamento ou centro de responsabilidade.
 
 ```text
-saldo atual do fund = initialBalance + soma(transaction_allocation.amount)
+saldo atual = saldo inicial + soma das alocações
 ```
 
-Funds podem ficar positivos ou negativos.
-
----
+Fund não representa banco nem altera saldo bancário real.
 
 ## Category
 
-Representa a natureza/classificação financeira da transação.
-
-Exemplos:
-
-- Oferta destinada;
-- Combustível;
-- Livraria;
-- Repasse missionário;
-- Administrativo.
-
-Categorias possuem tipo:
+Representa a natureza da transação.
 
 ```text
-INCOME ou EXPENSE
+INCOME
+EXPENSE
+TRANSFER
 ```
 
-Categorias podem ter hierarquia via `parent_id`, formando um plano de contas.
-
-Regra:
-
-```text
-Categoria filha deve ter o mesmo tipo da categoria pai.
-```
-
-Essa regra deve ser validada no backend.
-
----
+Categorias de receita e despesa podem ter hierarquia. Categoria filha deve manter o mesmo tipo da categoria pai.
 
 ## Beneficiary
 
-Representa favorecidos/destinatários financeiros.
+Representa favorecido, fornecedor, missionário, funcionário ou responsável ligado a uma alocação.
 
-Exemplos:
-
-- missionário;
-- fornecedor;
-- funcionário;
-- estagiário;
-- responsável por projeto.
-
-`Beneficiary` não deve ser confundido com `Category` nem com `Fund`.
-
-Nem todo beneficiário possui lógica de sustento. Para missionários ou outros beneficiários com pagamento fixo, a obrigação recorrente é representada por `SupportAgreement`, não por campo fixo em `Beneficiary`.
+Um compromisso mensal não pertence diretamente ao beneficiário: ele é representado por `SupportAgreement`.
 
 ---
 
 # FinancialTransaction
 
-Representa o lançamento financeiro oficial do sistema.
+Representa o lançamento financeiro oficial.
 
-Pode ser:
-
-- criado manualmente;
-- importado via OFX.
-
-Fluxo atual:
+Principais campos:
 
 ```text
-OFX -> FinancialTransaction
+account
+category
+type
+source
+status
+externalId
+rawDescription
+description
+settlementDate
+expectedAmount
+settledAmount
+attachments
+allocations
+importedAt
 ```
 
-A antiga ideia de `BankTransaction` deixou de ser o fluxo principal.
-
-## Campos relevantes
-
-- `account`;
-- `category`;
-- `type`;
-- `source`;
-- `status`;
-- `externalId`;
-- `rawDescription`;
-- `description`;
-- `dueDate`;
-- `settlementDate`;
-- `expectedAmount`;
-- `settledAmount`;
-- `interestAmount`;
-- `discountAmount`;
-- `importedAt`.
-
-## Descrição original e descrição editável
-
-Para lançamentos de OFX:
+## Descrição original e editável
 
 ```text
-rawDescription = texto original recebido do banco
+rawDescription = texto recebido do banco/importador.
+description = texto editável e amigável ao usuário.
 ```
 
-A `description` é opcional e editável pelo usuário.
-
-Regra de UI/relatórios:
-
-```text
-Mostrar description quando preenchida.
-Preservar rawDescription para auditoria e conferência da origem.
-```
-
----
-
-# Tipos e Status da Transação
-
-## Tipos
-
-| Tipo | Significado |
-|---|---|
-| `INCOME` | Receita/entrada financeira. |
-| `EXPENSE` | Despesa/saída financeira. |
-| `TRANSFER` | Movimentação entre accounts; não compõe receita/despesa operacional. |
+A aplicação nunca deve substituir `rawDescription`, pois ele é necessário para conferência, auditoria, deduplicação e sugestões futuras.
 
 ## Status
 
 | Status | Significado |
 |---|---|
-| `IMPORTED` | Importada via OFX e ainda pendente de conferência/classificação, se usado no modelo atual. |
 | `PENDING` | Lançamento pendente. |
 | `SETTLED` | Lançamento liquidado/pago/recebido. |
-| `CANCELED` | Cancelamento lógico, preservando histórico. |
+| `CANCELED` | Cancelado logicamente; permanece no histórico. |
 
-## Origem
+## Regras de pendência
 
-| Source | Significado |
+```text
+A classificar:
+category == null
+AND status != CANCELED
+
+A alocar:
+status == SETTLED
+AND category != null
+AND type != TRANSFER
+AND ainda existe valor não alocado
+```
+
+---
+
+# Importações e deduplicação
+
+## OFX
+
+Fluxo:
+
+```text
+OFX -> FinancialTransaction
+```
+
+O importador deve impedir duplicação do mesmo lançamento mesmo quando o usuário envia arquivos com períodos sobrepostos.
+
+Regra principal:
+
+```text
+organization_id + account_id + external_id/FITID
+```
+
+Quando o identificador do banco estiver disponível, ele é a referência mais confiável para deduplicação. O comportamento esperado é:
+
+```text
+Importar Maio
+↓
+Importar Maio novamente
+→ transações de Maio ignoradas como duplicadas
+
+Importar Maio + Junho
+→ Maio ignorado
+→ apenas Junho importado
+```
+
+## Limites conhecidos
+
+- Arquivos OFX com múltiplos extratos/contas precisam de tratamento explícito; não devem ignorar silenciosamente contas adicionais.
+- OFX bancário não deve ser usado como fluxo normal de importação para contas do tipo `CREDIT_CARD`.
+- Toda importação deve gerar um registro de auditoria resumido do arquivo/processo, não centenas de logs repetidos.
+
+---
+
+# Sugestões de classificação
+
+## Objetivo
+
+Reduzir cliques repetitivos sem salvar nada sem confirmação.
+
+```text
+Abrir Classificar
+→ buscar histórico compatível
+→ preencher tipo, categoria e alocações
+→ usuário revisa
+→ usuário salva
+```
+
+A configuração por organização é:
+
+```text
+autoFillClassificationSuggestions
+```
+
+Quando desligada, a sugestão não preenche o formulário.
+
+## Histórico por rawDescription
+
+A chave de comparação é derivada de `rawDescription`, mas a descrição original continua intacta.
+
+Exemplo Bradesco:
+
+```text
+PIX RECEBIDO REM: PRIMEIRA IGREJA BATIS 25/05
+PIX RECEBIDO REM: PRIMEIRA IGREJA BATIS 25/06
+```
+
+Para sugestão, a data ao final é removida, produzindo:
+
+```text
+PIX RECEBIDO REM: PRIMEIRA IGREJA BATIS
+```
+
+A normalização deve remover apenas data no final da frase, evitando apagar números relevantes no meio da descrição.
+
+## Limitação atual importante
+
+Histórico idêntico pode ter classificações diferentes:
+
+```text
+PIX ALEX -> sustento
+PIX ALEX -> reembolso
+```
+
+Por isso, a sugestão é assistida e exige revisão. Evolução planejada:
+
+```text
+Histórico consistente -> aplicar automaticamente.
+Histórico conflitante -> não preencher automaticamente; mostrar opções para escolha.
+```
+
+Outra evolução importante é persistir uma `suggestion_key` e consultar por:
+
+```text
+organization + account + suggestion_key
+```
+
+em vez de depender de uma janela limitada de transações recentes.
+
+## Sugestão por compromisso
+
+Em uma despesa, ao selecionar favorecido com `SupportAgreement` ativo, o sistema pode sugerir:
+
+```text
+fund
+beneficiary
+referenceMonth
+amount limitado ao valor restante da transação
+```
+
+Nada é salvo automaticamente.
+
+---
+
+# Organização Settings
+
+Principais opções atuais:
+
+```text
+defaultFundId
+allowNegativeFunds
+suggestDefaultFundReallocation
+requireFiscalDocumentForExpenses
+requireProofForIncomes
+autoFillClassificationSuggestions
+```
+
+## Fundo padrão
+
+```text
+Sem alocação manual + fundo padrão configurado
+→ backend pode alocar integralmente ao fundo padrão.
+
+Alocação manual parcial
+→ restante permanece pendente.
+```
+
+O sistema não deve esconder pendência enviando saldo restante ao fundo padrão sem ação explícita.
+
+---
+
+# Cartão de crédito
+
+O fluxo de cartão é separado da importação bancária normal.
+
+Principais elementos:
+
+```text
+CreditCardStatement
+CreditCardStatementItem
+```
+
+Regras principais:
+
+- itens da fatura podem ser classificados e documentados individualmente;
+- a fatura é paga por uma account que não seja cartão;
+- pagamento de fatura não deve ser tratado como despesa operacional duplicada;
+- conta de cartão não deve receber importação OFX bancária comum.
+
+---
+
+# Auditoria
+
+A tabela `audit_log` registra ações críticas e permite consulta administrativa.
+
+Prioridades já registradas:
+
+```text
+FINANCIAL_TRANSACTION
+TRANSACTION_ALLOCATION
+ATTACHMENT
+SUPPORT_AGREEMENT
+ORGANIZATION_SETTINGS
+OFX/CSV import
+TRANSFER
+CREDIT_CARD_STATEMENT
+```
+
+A tela de auditoria deve ser acessível a `OWNER` e `ADMIN`.
+
+O log é a trilha completa; campos diretos como `created_by`, `updated_by`, `canceled_by` e `uploaded_by` continuam úteis como resumo rápido nas entidades.
+
+---
+
+# Relatórios implementados
+
+| Relatório | Finalidade |
 |---|---|
-| `MANUAL` | Criado manualmente. |
-| `OFX` | Importado via arquivo OFX. |
+| Dashboard | Visão executiva de receitas, despesas, resultado, saldos e pendências. |
+| Resultado por categoria | Demonstração por plano de contas e hierarquia. |
+| Fundos e projetos | Saldos, entradas e saídas de destinação interna. |
+| Prestação / sustento | Compromisso + recursos destinados - repasses. |
+| Fluxo de caixa por conta | Saldo inicial, entradas, saídas, saldo final e evolução por conta. |
+| Auditoria | Ações críticas por usuário, entidade, ação e período. |
 
----
+## Excel
 
-# Regras Financeiras Gerais
-
-## Juros e desconto
-
-```text
-settledAmount > expectedAmount -> diferença pode ser interestAmount
-settledAmount < expectedAmount -> diferença pode ser discountAmount
-```
-
-## Liquidação
+Implementados:
 
 ```text
-settlementDate != null -> SETTLED
-settlementDate == null -> PENDING
-```
-
-## Cancelamento lógico
-
-Transações financeiras não devem ser apagadas fisicamente do histórico.
-
-```text
-DELETE/cancelamento -> status = CANCELED
-```
-
-Listagens comuns não exibem canceladas por padrão; elas devem aparecer apenas quando filtradas explicitamente.
-
----
-
-# TransactionAllocation
-
-Responsável por dividir uma transação oficial entre fundos e, opcionalmente, favorecidos.
-
-Exemplo de receita:
-
-```text
-R$ 1.000 recebidos:
-- R$ 700 -> Fund Projeto Piauí -> Beneficiary Missionário João
-- R$ 300 -> Fund Livraria -> Beneficiary NULL
-```
-
-## Regra de sinal
-
-```text
-INCOME  -> allocation.amount positivo
-EXPENSE -> allocation.amount negativo
-```
-
-A alocação não altera saldo bancário real; ela altera a leitura interna de fundos e prestação de contas.
-
-## A classificar
-
-```text
-category is null
-status != CANCELED
-```
-
-Enquanto estiver sem categoria, a ação principal deve ser classificar, sem disponibilizar livremente todos os fluxos operacionais.
-
-## A alocar
-
-```text
-status = SETTLED
-category is not null
-type != TRANSFER
-abs(settledAmount) > soma(abs(allocations.amount))
-```
-
-Uma transação sem categoria não deve aparecer simultaneamente como “a alocar”.
-
----
-
-# Organization Settings e Fundo Padrão / Caixa Base
-
-Implementado para permitir que cada organização defina um fundo padrão, sem hardcode.
-
-Estrutura conceitual:
-
-```text
-organization_settings.default_fund_id
-```
-
-Regra implementada/decidida:
-
-```text
-Se uma transação for classificada sem nenhuma alocação manual
- e existir fundo padrão configurado,
- então o backend cria a alocação automática no fundo padrão.
-```
-
-Regra importante de controle:
-
-```text
-Se o usuário fizer alocação parcial manual,
- o restante NÃO é enviado automaticamente ao fundo padrão.
- Ele continua pendente e pode ser resolvido por ação explícita
- “Alocar restante no fundo padrão”.
-```
-
-Isso evita esconder pendências em um sistema financeiro.
-
----
-
-# SupportAgreement — Compromissos Fixos de Sustento
-
-Implementado para representar obrigações fixas da organização com beneficiários.
-
-Exemplo:
-
-```text
-Missionário João / Projeto Piauí / R$ 1.000 por mês
-```
-
-## Regra conceitual
-
-O compromisso fixo funciona como sustento/salário garantido. Ofertas destinadas são adicionais, não substituem o compromisso.
-
-```text
-commitmentAmount  = compromissos fixos válidos no período
-allocatedAmount   = ofertas/destinações recebidas
-transferredAmount = repasses/utilizações realizados
-payableAmount     = commitmentAmount + allocatedAmount
-pendingAmount     = payableAmount - transferredAmount
-```
-
-Exemplo:
-
-```text
-Compromisso fixo:     R$ 1.000
-Oferta destinada:     R$   300
-Total devido:         R$ 1.300
-Repassado:            R$   500
-A repassar:           R$   800
-```
-
-## Vigência
-
-O compromisso possui:
-
-- favorecido;
-- fundo;
-- valor mensal;
-- data inicial;
-- data final opcional;
-- status ativo/inativo;
-- descrição.
-
-Para relatório em período com mais de um mês, o valor mensal é multiplicado pelos meses cobertos pela vigência no período.
-
-## Ativação e desativação
-
-- desativação é lógica;
-- existe ação para reativar compromisso;
-- não deve existir mais de um compromisso ativo para o mesmo `beneficiary + fund` quando essa duplicidade representaria cobrança dupla indevida.
-
----
-
-# Attachments — Anexos Financeiros
-
-Implementado para associar documentos a transações financeiras.
-
-## Tipos suportados
-
-```text
-RECEIPT
-INVOICE
-PROOF_OF_PAYMENT
-CONTRACT
-OTHER
-```
-
-## Regra de storage
-
-O PostgreSQL armazena metadados e referência; o arquivo não deve ser gravado diretamente como blob no banco.
-
-```text
-organizations/{organizationId}/transactions/{transactionId}/{arquivo}
-```
-
-Em desenvolvimento, storage local é aceitável. Para produção/SaaS, migrar para storage seguro como S3/R2 ou equivalente.
-
-## Uso operacional
-
-- detalhes exibem anexos em leitura;
-- classificação permite enviar anexos;
-- ação específica de anexos permite gerenciar documentos em transações classificadas/liquidadas;
-- contas pagas devem permitir identificar presença de comprovante de pagamento e de documento fiscal.
-
-## Regra de documento pendente na classificação
-
-Checklist de refinamento final:
-
-```text
-Sem arquivo selecionado -> pode salvar classificação.
-Arquivo selecionado e enviado -> pode salvar classificação.
-Arquivo selecionado mas não enviado -> bloquear salvar e avisar o usuário.
+Prestação/Sustento
+Movimento Financeiro Liquidado
 ```
 
 ---
 
-# Relatórios Implementados
+# Próxima grande feature — Dossiê de Fechamento
 
-## Dashboard Summary
+## Objetivo
+
+Montar uma pasta digital/impressa de fechamento por período e conta, reunindo extrato bancário oficial, transações e documentos vinculados.
+
+Nome de produto recomendado:
 
 ```text
-GET /api/v1/dashboard/summary
+Dossiê de Fechamento
+ou
+Pasta de Auditoria
 ```
 
-Exibe métricas de receitas, despesas, resultado, saldos e pendências de classificação/alocação.
+## Estrutura esperada do PDF
 
-## Resultado por Categoria
+Por conta:
 
 ```text
-GET /api/v1/reports/category-result
+1. Capa da conta e período
+2. Extrato bancário oficial em PDF
+3. Resumo financeiro
+4. Índice/lista de transações
+5. Dossiês de despesas
 ```
 
-Demonstra receitas/despesas por plano de contas hierárquico.
-
-## Fundos e Projetos
+Por despesa:
 
 ```text
-GET /api/v1/reports/funds
+Página-resumo da despesa
+→ comprovante de pagamento
+→ documento fiscal / nota / recibo
+→ demais anexos
 ```
 
-Calcula por fundo:
+## Fluxo da tela
 
 ```text
-initialBalance
-incomeAllocated
-expenseAllocated
-periodBalance
-currentBalance
-allocationCount
+Relatórios -> Dossiê de Fechamento
+
+Selecionar:
+- período;
+- uma ou várias contas;
+- incluir contas sem movimento;
+- receitas, despesas e/ou transferências;
+- ordem de organização;
+- modelo de geração.
 ```
 
-## Prestação de Contas / Sustento
+Antes de gerar, o sistema deve mostrar pendências:
 
 ```text
-GET /api/v1/reports/accountability
-GET /api/v1/reports/accountability/by-account
+Conta Bradesco:
+- extrato PDF: OK/Faltando;
+- número de transações;
+- despesas sem comprovante;
+- despesas sem documento fiscal.
 ```
 
-Estrutura de leitura do frontend:
+O usuário pode corrigir pendências ou gerar mesmo assim com aviso registrado.
+
+## Primeira versão planejada
 
 ```text
-Beneficiário
-  -> resumo geral
-  -> fundos/projetos expansíveis
-      -> bancos/accounts expansíveis
+1. Upload de extrato bancário PDF por conta e período.
+2. Validação de pendências por transação.
+3. Geração de PDF com capa, extrato, lista de lançamentos e anexos.
+4. Ordem configurável por conta e por data.
 ```
 
-Regra total do beneficiário/fundo:
+A feature deve ser configurável para não prender o produto ao processo de uma única empresa:
 
 ```text
-A repassar = compromisso fixo + ofertas destinadas - repasses realizados
-```
-
-Regra do detalhamento por banco:
-
-```text
-Banco mostra movimentações reais de ofertas e repasses vinculadas à account.
-Compromisso fixo não é atribuído automaticamente a um banco específico.
-```
-
-## Exportações Excel implementadas
-
-### Prestação / Sustento
-
-```text
-GET /api/v1/reports/accountability/export.xlsx
-```
-
-Arquivo estilizado com abas:
-
-- Resumo por favorecido;
-- Fundos por favorecido;
-- Detalhamento por banco.
-
-### Movimento Financeiro Baixado
-
-```text
-GET /api/v1/financial-transactions/export/settled.xlsx
-```
-
-Arquivo estilizado com abas:
-
-- Resumo;
-- Contas Recebidas;
-- Contas Pagas;
-- Todas as Transações.
-
-A exportação de contas pagas deve sinalizar a existência de comprovante de pagamento e anexo fiscal/documental para auxiliar conferência.
-
----
-
-# API REST — Recursos Principais
-
-## Financial Transactions
-
-```text
-POST   /api/v1/financial-transactions
-GET    /api/v1/financial-transactions
-GET    /api/v1/financial-transactions/{id}
-PUT    /api/v1/financial-transactions/{id}
-DELETE /api/v1/financial-transactions/{id}
-GET    /api/v1/financial-transactions/export/settled.xlsx
-```
-
-Filtros relevantes:
-
-```text
-organizationId
-type
-status
-source
-accountId
-categoryId
-fundId
-description
-settlementDateFrom
-settlementDateTo
-onlyUnclassified
-onlyUnallocated
-```
-
-## Attachments
-
-A rota efetiva segue o contexto da transação:
-
-```text
-POST   /api/v1/financial-transactions/{transactionId}/attachments
-GET    /api/v1/financial-transactions/{transactionId}/attachments
-GET    /api/v1/financial-transactions/{transactionId}/attachments/{attachmentId}/download
-DELETE /api/v1/financial-transactions/{transactionId}/attachments/{attachmentId}
-```
-
-## Organization Settings
-
-```text
-GET /api/v1/organization-settings
-PUT /api/v1/organization-settings
-```
-
-## Support Agreements
-
-```text
-POST   /api/v1/support-agreements
-GET    /api/v1/support-agreements
-GET    /api/v1/support-agreements/{id}
-PUT    /api/v1/support-agreements/{id}
-DELETE /api/v1/support-agreements/{id}
-PATCH  /api/v1/support-agreements/{id}/activate
-```
-
-## Reports
-
-```text
-GET /api/v1/dashboard/summary
-GET /api/v1/reports/category-result
-GET /api/v1/reports/funds
-GET /api/v1/reports/accountability
-GET /api/v1/reports/accountability/by-account
-GET /api/v1/reports/accountability/export.xlsx
+Incluir contas sem movimento
+Exigir extrato PDF
+Exigir comprovante de despesa
+Exigir documento fiscal
+Incluir receitas/despesas/transferências
+Capa por conta
+Termo de conferência/assinatura
 ```
 
 ---
 
-# Arquitetura Multi-Tenant Atual e Próxima Etapa
+# Segurança, operação e piloto
 
-Todas as entidades principais possuem `organization_id`.
+## Antes de uso oficial contínuo
 
-## Fase atual
+- manter backup manual do PostgreSQL no Railway;
+- testar restauração do backup;
+- assegurar backup/recuperação dos anexos;
+- validar arquivos por tipo e tamanho;
+- manter secrets fora do repositório;
+- revisar logs de deploy;
+- testar regras financeiras e relatórios com dados reais.
+
+## Deploy atual
+
+O projeto está publicado no Railway. Fluxo padrão:
 
 ```text
-Frontend ainda utiliza TEMP_ORGANIZATION_ID / organizationId enviado explicitamente.
+commit
+→ git push
+→ Railway faz build/deploy automático
+→ validar deployment como Success
+→ testar a versão publicada
 ```
 
-## Próxima fase obrigatória
-
-```text
-Usuário faz login
--> backend autentica com JWT
--> frontend armazena sessão/token
--> usuário seleciona organização ativa
--> requests enviam contexto da organização ativa
--> backend valida membership em organization_user
--> services deixam de confiar em organizationId arbitrário
--> TEMP_ORGANIZATION_ID é removido do frontend
-```
+Docker não é necessário para continuar usando o Railway hoje. Ele é uma habilidade importante para portabilidade e infraestrutura futura, mas não bloqueia o piloto.
 
 ---
 
-# Segurança, Roles e Auditoria
+# Roadmap priorizado
 
-## Roles previstas
+## Agora — piloto e estabilização
 
-```text
-OWNER
-ADMIN
-FINANCE
-VIEWER
-```
+- operar com dados reais;
+- registrar bugs e pontos confusos;
+- confirmar backup e restore;
+- validar importações, relatórios, anexos, cartão e transferências;
+- evitar iniciar funcionalidades grandes sem uma necessidade real confirmada.
 
-Matriz inicial recomendada:
+## Próximo bloco planejado
 
-| Operação | OWNER | ADMIN | FINANCE | VIEWER |
-|---|---:|---:|---:|---:|
-| Consultar dashboard/relatórios | Sim | Sim | Sim | Sim |
-| Exportar relatórios | Sim | Sim | Sim | Sim, conforme política |
-| Criar/classificar transações | Sim | Sim | Sim | Não |
-| Gerenciar alocações e anexos | Sim | Sim | Sim | Não |
-| Gerenciar compromissos | Sim | Sim | Conforme decisão | Não |
-| Gerenciar configurações | Sim | Sim | Não | Não |
-| Gerenciar usuários/roles | Sim | Sim | Não | Não |
+- Dossiê de Fechamento / Pasta de Auditoria;
+- upload de extrato PDF por conta/período;
+- geração de PDF com anexos;
+- alerta de documentação pendente.
 
-## Auditoria necessária após login
+## Depois do piloto
 
-Adicionar rastreabilidade de usuário em operações críticas:
+- melhorar sugestão por histórico conflitante;
+- persistir `suggestion_key`;
+- testes automatizados dos fluxos críticos;
+- ajustes de auditoria de importação;
+- validações adicionais de `SupportAgreement`;
+- backups automatizados e storage externo.
 
-```text
-created_by
-updated_by
-canceled_by
-canceled_at
-uploaded_by
-activated_by / deactivated_by quando relevante
-```
+## Preparação para venda
 
-Prioridades:
-
-- `financial_transaction`;
-- `transaction_allocation`;
-- `attachment`;
-- `support_agreement`;
-- `organization_settings`.
-
----
-
-# Banco de Dados e Migrations
-
-O projeto utiliza PostgreSQL e Flyway.
-
-```properties
-spring.jpa.hibernate.ddl-auto=validate
-```
-
-Regra obrigatória:
-
-```text
-Nunca alterar migration antiga já commitada.
-Toda mudança estrutural deve gerar uma nova migration.
-```
-
----
-
-# Roadmap para Implementação Real
-
-## Fase 0 — Fechar UX atual antes do login
-
-- validar sincronização visual dos anexos na tabela;
-- validar bloqueio de upload pendente na classificação;
-- confirmar exportações Excel com dados de teste reais;
-- atualizar documentação e gerar novos zips de backup.
-
-## Fase 1 — Login JWT e sessão autenticada — próximo passo
-
-Backend:
-
-- senha criptografada com `PasswordEncoder`;
-- `/api/v1/auth/login`;
-- geração e validação de JWT;
-- filtro de autenticação;
-- `/api/v1/auth/me`;
-- proteger endpoints financeiros.
-
-Frontend:
-
-- página `/login`;
-- controle de sessão;
-- interceptor Axios com `Authorization: Bearer ...`;
-- rotas privadas;
-- logout.
-
-## Fase 2 — Multi-tenant real e organização ativa
-
-- listar organizações do usuário;
-- seletor de organização ativa;
-- validar membership no backend;
-- enviar organização ativa via contexto/header definido;
-- remover `TEMP_ORGANIZATION_ID`.
-
-## Fase 3 — Permissões e usuários
-
-- aplicar roles nas operações;
-- tela de usuários da organização;
-- convite/criação de usuários;
-- alteração de roles;
-- bloquear ações e rotas conforme permissão.
-
-## Fase 4 — Auditoria e operação segura
-
-- campos de auditoria por usuário;
-- histórico/log de alterações críticas;
-- backup automático do PostgreSQL;
-- backup e restauração de anexos;
-- validação de tamanho/tipo de upload;
-- storage externo seguro em ambiente real.
-
-## Fase 5 — Relatórios e exportações complementares
-
-- Excel do relatório de Fundos;
-- Excel do Resultado por Categoria;
-- relatório Movimentação por Beneficiário;
-- fluxo confiável de transferência entre accounts;
-- PDF formal da Prestação de Contas;
-- CSV somente se houver necessidade de integração ou importação externa.
-
-## Fase 6 — Experiência e análise
-
-- gráficos e indicadores executivos;
-- configurações adicionais da organização;
-- logo/nome em relatórios exportados;
-- exigência configurável de documentos fiscais;
-- notificações de pendências.
-
-## Fase 7 — Preparação para venda como SaaS
-
-- onboarding de organizações;
-- convites, recuperação e troca de senha;
-- separação segura de dados por tenant;
-- HTTPS, secrets e configuração por ambiente;
-- armazenamento de arquivos em nuvem;
-- monitoramento/logs/alertas;
-- testes automatizados críticos;
-- política de privacidade e retenção de documentos;
-- exportação completa de dados da organização;
-- planos, limites e cobrança apenas após maturidade operacional.
-
----
-
-# Próxima Decisão de Desenvolvimento
-
-A partir deste ponto, evitar novas features cosméticas antes da autenticação.
-
-```text
-Próximo passo recomendado: implementar Login JWT no backend e, em seguida, no frontend.
-```
+- onboarding de clientes;
+- recuperação/troca de senha;
+- convites e gestão de usuários;
+- política de privacidade e retenção;
+- exportação completa dos dados do cliente;
+- monitoramento, alertas e backups automáticos;
+- termos de uso e contrato de prestação de serviço revisados por profissional jurídico;
+- planos e cobrança após maturidade operacional.
