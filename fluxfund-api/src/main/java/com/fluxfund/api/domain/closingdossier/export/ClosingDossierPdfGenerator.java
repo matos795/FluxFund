@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Locale;
 
 import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.multipdf.PDFMergerUtility;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -374,19 +375,19 @@ public class ClosingDossierPdfGenerator {
             String storageKey,
             String filename) throws IOException {
 
+        writer.closeCurrentPage();
+
         try (PDDocument source = Loader.loadPDF(storageService.read(storageKey))) {
-            for (PDPage page : source.getPages()) {
-                destination.importPage(page);
-            }
+            PDFMergerUtility merger = new PDFMergerUtility();
+            merger.appendDocument(destination, source);
+
         } catch (IOException | RuntimeException exception) {
             writer.startPage();
             writer.writeSectionTitle("Arquivo não incorporado");
             writer.writeParagraph(
                     "Não foi possível incorporar o arquivo: " + filename);
-
             writer.writeParagraph(
                     "Verifique se o PDF está disponível, não possui senha e não está corrompido.");
-
             writer.closeCurrentPage();
         }
     }
