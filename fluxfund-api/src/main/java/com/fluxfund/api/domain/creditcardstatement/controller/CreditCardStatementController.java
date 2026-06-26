@@ -1,10 +1,13 @@
 package com.fluxfund.api.domain.creditcardstatement.controller;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -14,10 +17,13 @@ import org.springframework.web.multipart.MultipartFile;
 import com.fluxfund.api.domain.creditcardstatement.CreditCardStatementStatus;
 import com.fluxfund.api.domain.creditcardstatement.dto.CreateCreditCardItemRequest;
 import com.fluxfund.api.domain.creditcardstatement.dto.CreateCreditCardStatementRequest;
+import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementDocumentFile;
+import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementDocumentResponse;
 import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementImportResponse;
 import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementResponse;
 import com.fluxfund.api.domain.creditcardstatement.dto.PayCreditCardStatementRequest;
 import com.fluxfund.api.domain.creditcardstatement.dto.UpdateCreditCardStatementRequest;
+import com.fluxfund.api.domain.creditcardstatement.service.CreditCardStatementDocumentService;
 import com.fluxfund.api.domain.creditcardstatement.service.CreditCardStatementOfxImportService;
 import com.fluxfund.api.domain.creditcardstatement.service.CreditCardStatementService;
 import com.fluxfund.api.domain.creditcardstatement.service.CreditCardStatementSpreadsheetImportService;
@@ -37,6 +43,7 @@ public class CreditCardStatementController {
     private final CreditCardStatementService service;
     private final CreditCardStatementOfxImportService ofxImportService;
     private final CreditCardStatementSpreadsheetImportService spreadsheetImportService;
+    private final CreditCardStatementDocumentService documentService;
 
     @PostMapping
     public ResponseEntity<CreditCardStatementResponse> create(
@@ -134,5 +141,51 @@ public class CreditCardStatementController {
                         id,
                         profile,
                         file));
+    }
+
+    @PostMapping(value = "/{id}/document", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CreditCardStatementDocumentResponse> uploadDocument(
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+            @PathVariable UUID id,
+            @RequestParam("file") MultipartFile file) {
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(documentService.upload(
+                        organizationId,
+                        id,
+                        file));
+    }
+
+    @GetMapping("/{id}/document/download")
+    public ResponseEntity<byte[]> downloadDocument(
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+            @PathVariable UUID id) {
+
+        CreditCardStatementDocumentFile file = documentService.download(
+                organizationId,
+                id);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(file.contentType()))
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment()
+                                .filename(
+                                        file.filename(),
+                                        StandardCharsets.UTF_8)
+                                .build()
+                                .toString())
+                .header("X-Content-Type-Options", "nosniff")
+                .body(file.content());
+    }
+
+    @DeleteMapping("/{id}/document")
+    public ResponseEntity<Void> deleteDocument(
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+            @PathVariable UUID id) {
+
+        documentService.delete(organizationId, id);
+
+        return ResponseEntity.noContent().build();
     }
 }
