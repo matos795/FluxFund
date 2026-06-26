@@ -7,5 +7,6 @@ public enum AuditEntityType {
     SUPPORT_AGREEMENT,
     ORGANIZATION_SETTINGS,
     OFX_IMPORT,
-    FUND
+    FUND,
+    BANK_STATEMENT_DOCUMENT
 }
