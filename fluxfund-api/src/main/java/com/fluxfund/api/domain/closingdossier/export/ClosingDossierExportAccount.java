@@ -2,6 +2,8 @@ package com.fluxfund.api.domain.closingdossier.export;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import com.fluxfund.api.domain.account.Account;
@@ -15,7 +17,10 @@ public record ClosingDossierExportAccount(
         ClosingDossierAccountPreviewResponse preview,
         List<BankStatementDocument> bankStatementDocuments,
         List<FinancialTransaction> transactions,
-        Map<UUID, List<Attachment>> attachmentsByTransactionId
+        Map<UUID, List<Attachment>> attachmentsByTransactionId,
+        Map<UUID, ClosingDossierCreditCardStatement>
+                creditCardStatementsByPaymentTransactionId,
+        Set<UUID> creditCardStatementItemIds
 ) {
 
     public List<Attachment> getAttachments(
@@ -24,5 +29,21 @@ public record ClosingDossierExportAccount(
         return attachmentsByTransactionId.getOrDefault(
                 transaction.getId(),
                 List.of());
+    }
+
+    public Optional<ClosingDossierCreditCardStatement>
+            findCreditCardStatementForPayment(
+                    FinancialTransaction transaction) {
+
+        return Optional.ofNullable(
+                creditCardStatementsByPaymentTransactionId.get(
+                        transaction.getId()));
+    }
+
+    public boolean isCreditCardStatementItem(
+            FinancialTransaction transaction) {
+
+        return creditCardStatementItemIds.contains(
+                transaction.getId());
     }
 }

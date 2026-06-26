@@ -3,6 +3,7 @@ package com.fluxfund.api.domain.closingdossier.service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -21,9 +22,14 @@ import com.fluxfund.api.domain.bankstatementdocument.repository.BankStatementDoc
 import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierAccountPreviewResponse;
 import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierPreviewRequest;
 import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierPreviewResponse;
+import com.fluxfund.api.domain.closingdossier.export.ClosingDossierCreditCardStatement;
 import com.fluxfund.api.domain.closingdossier.export.ClosingDossierExportAccount;
 import com.fluxfund.api.domain.closingdossier.export.ClosingDossierPdfGenerator;
+import com.fluxfund.api.domain.creditcardstatement.CreditCardStatement;
+import com.fluxfund.api.domain.creditcardstatement.CreditCardStatementStatus;
+import com.fluxfund.api.domain.creditcardstatement.repository.CreditCardStatementRepository;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
+import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
 import com.fluxfund.api.domain.organization.Organization;
@@ -38,166 +44,260 @@ import lombok.RequiredArgsConstructor;
 @Transactional
 public class ClosingDossierExportService {
 
-    private final ClosingDossierService closingDossierService;
-    private final ClosingDossierPdfGenerator pdfGenerator;
+        private final ClosingDossierService closingDossierService;
+        private final ClosingDossierPdfGenerator pdfGenerator;
 
-    private final OrganizationRepository organizationRepository;
-    private final AccountRepository accountRepository;
-    private final FinancialTransactionRepository financialTransactionRepository;
-    private final AttachmentRepository attachmentRepository;
-    private final BankStatementDocumentRepository bankStatementDocumentRepository;
-    private final AuditLogService auditLogService;
+        private final OrganizationRepository organizationRepository;
+        private final AccountRepository accountRepository;
+        private final FinancialTransactionRepository financialTransactionRepository;
+        private final AttachmentRepository attachmentRepository;
+        private final BankStatementDocumentRepository bankStatementDocumentRepository;
+        private final AuditLogService auditLogService;
+        private final CreditCardStatementRepository creditCardStatementRepository;
 
-    public byte[] export(
-            UUID organizationId,
-            ClosingDossierPreviewRequest request) {
+        public byte[] export(
+                        UUID organizationId,
+                        ClosingDossierPreviewRequest request) {
 
-        ClosingDossierPreviewResponse preview =
-                closingDossierService.preview(organizationId, request);
+                ClosingDossierPreviewResponse preview = closingDossierService.preview(organizationId, request);
 
-        Organization organization = organizationRepository
-                .findByIdAndActiveTrue(organizationId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Organization not found"));
+                Organization organization = organizationRepository
+                                .findByIdAndActiveTrue(organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
-        List<Account> accounts = accountRepository
-                .findAllByIdInAndOrganizationIdAndActiveTrue(
-                        request.accountIds(),
-                        organizationId);
+                List<Account> accounts = accountRepository
+                                .findAllByIdInAndOrganizationIdAndActiveTrue(
+                                                request.accountIds(),
+                                                organizationId);
 
-        Map<UUID, Account> accountsById = accounts.stream()
-                .collect(Collectors.toMap(Account::getId, account -> account));
+                Map<UUID, Account> accountsById = accounts.stream()
+                                .collect(Collectors.toMap(Account::getId, account -> account));
 
-        List<FinancialTransaction> transactions =
-                financialTransactionRepository.findSettledForClosingDossier(
-                        organizationId,
-                        request.accountIds(),
-                        request.periodStartDate(),
-                        request.periodEndDate(),
-                        resolveSelectedTypes(request));
-
-        Map<UUID, List<FinancialTransaction>> transactionsByAccountId =
-                transactions.stream()
-                        .collect(Collectors.groupingBy(
-                                transaction ->
-                                        transaction.getAccount().getId()));
-
-        Map<UUID, List<BankStatementDocument>> statementsByAccountId =
-                bankStatementDocumentRepository
-                        .findAllForAccountsAndOverlappingPeriod(
+                List<FinancialTransaction> transactions = financialTransactionRepository.findSettledForClosingDossier(
                                 organizationId,
                                 request.accountIds(),
                                 request.periodStartDate(),
-                                request.periodEndDate())
-                        .stream()
-                        .collect(Collectors.groupingBy(
-                                statement -> statement.getAccount().getId()));
+                                request.periodEndDate(),
+                                resolveSelectedTypes(request));
 
-        Map<UUID, List<Attachment>> attachmentsByTransactionId =
-                loadAttachmentsByTransactionId(
-                        organizationId,
-                        transactions);
+                Map<UUID, List<FinancialTransaction>> transactionsByAccountId = transactions.stream()
+                                .collect(Collectors.groupingBy(
+                                                transaction -> transaction.getAccount().getId()));
 
-        List<ClosingDossierExportAccount> exportAccounts =
-                new ArrayList<>();
+                Map<UUID, List<BankStatementDocument>> statementsByAccountId = bankStatementDocumentRepository
+                                .findAllForAccountsAndOverlappingPeriod(
+                                                organizationId,
+                                                request.accountIds(),
+                                                request.periodStartDate(),
+                                                request.periodEndDate())
+                                .stream()
+                                .collect(Collectors.groupingBy(
+                                                statement -> statement.getAccount().getId()));
 
-        for (ClosingDossierAccountPreviewResponse accountPreview
-                : preview.accounts()) {
+                List<CreditCardStatement> creditCardStatements = loadCreditCardStatementsForDossier(
+                                organizationId,
+                                transactions);
 
-            if (!accountPreview.includedInDossier()) {
-                continue;
-            }
+                List<FinancialTransaction> creditCardStatementItems = loadCreditCardStatementItems(
+                                organizationId,
+                                creditCardStatements);
 
-            Account account = accountsById.get(accountPreview.accountId());
+                List<FinancialTransaction> transactionsWithDocuments = new ArrayList<>(transactions);
 
-            if (account == null) {
-                continue;
-            }
+                transactionsWithDocuments.addAll(creditCardStatementItems);
 
-            exportAccounts.add(new ClosingDossierExportAccount(
-                    account,
-                    accountPreview,
-                    statementsByAccountId.getOrDefault(
-                            account.getId(),
-                            List.of()),
-                    transactionsByAccountId.getOrDefault(
-                            account.getId(),
-                            List.of()),
-                    attachmentsByTransactionId));
+                Map<UUID, List<Attachment>> attachmentsByTransactionId = loadAttachmentsByTransactionId(
+                                organizationId,
+                                transactionsWithDocuments);
+
+                Map<UUID, ClosingDossierCreditCardStatement> creditCardStatementsByPaymentTransactionId = buildCreditCardStatementsByPaymentTransactionId(
+                                creditCardStatements,
+                                creditCardStatementItems,
+                                attachmentsByTransactionId);
+
+                Set<UUID> creditCardStatementItemIds = creditCardStatementItems.stream()
+                                .map(FinancialTransaction::getId)
+                                .collect(Collectors.toSet());
+
+                List<ClosingDossierExportAccount> exportAccounts = new ArrayList<>();
+
+                for (ClosingDossierAccountPreviewResponse accountPreview : preview.accounts()) {
+
+                        if (!accountPreview.includedInDossier()) {
+                                continue;
+                        }
+
+                        Account account = accountsById.get(accountPreview.accountId());
+
+                        if (account == null) {
+                                continue;
+                        }
+
+                        List<FinancialTransaction> accountTransactions = transactionsByAccountId.getOrDefault(
+                                        account.getId(),
+                                        List.of());
+
+                        Map<UUID, ClosingDossierCreditCardStatement> accountCreditCardStatements = accountTransactions
+                                        .stream()
+                                        .map(FinancialTransaction::getId)
+                                        .filter(
+                                                        creditCardStatementsByPaymentTransactionId::containsKey)
+                                        .collect(Collectors.toMap(
+                                                        transactionId -> transactionId,
+                                                        creditCardStatementsByPaymentTransactionId::get));
+
+                        Set<UUID> accountCreditCardStatementItemIds = accountTransactions.stream()
+                                        .map(FinancialTransaction::getId)
+                                        .filter(creditCardStatementItemIds::contains)
+                                        .collect(Collectors.toSet());
+
+                        exportAccounts.add(new ClosingDossierExportAccount(
+                                        account,
+                                        accountPreview,
+                                        statementsByAccountId.getOrDefault(
+                                                        account.getId(),
+                                                        List.of()),
+                                        accountTransactions,
+                                        attachmentsByTransactionId,
+                                        accountCreditCardStatements,
+                                        accountCreditCardStatementItemIds));
+                }
+
+                if (exportAccounts.isEmpty()) {
+                        throw new BusinessException(
+                                        "There are no accounts to include in the closing dossier");
+                }
+
+                byte[] pdf = pdfGenerator.generate(
+                                organization,
+                                request,
+                                preview,
+                                exportAccounts);
+
+                auditLogService.record(
+                                organizationId,
+                                AuditEntityType.CLOSING_DOSSIER,
+                                UUID.randomUUID(),
+                                AuditAction.GENERATE_CLOSING_DOSSIER,
+                                "Closing dossier generated from "
+                                                + request.periodStartDate()
+                                                + " to "
+                                                + request.periodEndDate()
+                                                + " for "
+                                                + exportAccounts.size()
+                                                + " account(s)");
+
+                return pdf;
         }
 
-        if (exportAccounts.isEmpty()) {
-            throw new BusinessException(
-                    "There are no accounts to include in the closing dossier");
+        private Map<UUID, List<Attachment>> loadAttachmentsByTransactionId(
+                        UUID organizationId,
+                        List<FinancialTransaction> transactions) {
+
+                List<UUID> transactionIds = transactions.stream()
+                                .map(FinancialTransaction::getId)
+                                .distinct()
+                                .toList();
+
+                if (transactionIds.isEmpty()) {
+                        return Map.of();
+                }
+
+                return attachmentRepository
+                                .findAllByTransactionIdsForExport(
+                                                organizationId,
+                                                transactionIds)
+                                .stream()
+                                .collect(Collectors.groupingBy(
+                                                attachment -> attachment.getFinancialTransaction().getId()));
         }
 
-        byte[] pdf = pdfGenerator.generate(
-                organization,
-                request,
-                preview,
-                exportAccounts);
+        private List<FinancialTransactionType> resolveSelectedTypes(
+                        ClosingDossierPreviewRequest request) {
 
-        auditLogService.record(
-                organizationId,
-                AuditEntityType.CLOSING_DOSSIER,
-                UUID.randomUUID(),
-                AuditAction.GENERATE_CLOSING_DOSSIER,
-                "Closing dossier generated from "
-                        + request.periodStartDate()
-                        + " to "
-                        + request.periodEndDate()
-                        + " for "
-                        + exportAccounts.size()
-                        + " account(s)");
+                List<FinancialTransactionType> types = new ArrayList<>();
 
-        return pdf;
-    }
+                if (Boolean.TRUE.equals(request.includeIncomes())) {
+                        types.add(FinancialTransactionType.INCOME);
+                }
 
-    private Map<UUID, List<Attachment>> loadAttachmentsByTransactionId(
-            UUID organizationId,
-            List<FinancialTransaction> transactions) {
+                if (request.includeExpenses() == null
+                                || Boolean.TRUE.equals(request.includeExpenses())) {
+                        types.add(FinancialTransactionType.EXPENSE);
+                }
 
-        List<UUID> transactionIds = transactions.stream()
-                .map(FinancialTransaction::getId)
-                .toList();
+                if (Boolean.TRUE.equals(request.includeTransfers())) {
+                        types.add(FinancialTransactionType.TRANSFER);
+                }
 
-        if (transactionIds.isEmpty()) {
-            return Map.of();
+                if (types.isEmpty()) {
+                        throw new BusinessException(
+                                        "Select at least one transaction type for the closing dossier");
+                }
+
+                return types;
         }
 
-        return attachmentRepository
-                .findAllByTransactionIdsForExport(
-                        organizationId,
-                        transactionIds)
-                .stream()
-                .collect(Collectors.groupingBy(
-                        attachment ->
-                                attachment.getFinancialTransaction().getId()));
-    }
+        private List<CreditCardStatement> loadCreditCardStatementsForDossier(
+                        UUID organizationId,
+                        List<FinancialTransaction> transactions) {
 
-    private List<FinancialTransactionType> resolveSelectedTypes(
-            ClosingDossierPreviewRequest request) {
+                List<UUID> paymentTransactionIds = transactions.stream()
+                                .map(FinancialTransaction::getId)
+                                .toList();
 
-        List<FinancialTransactionType> types = new ArrayList<>();
+                if (paymentTransactionIds.isEmpty()) {
+                        return List.of();
+                }
 
-        if (Boolean.TRUE.equals(request.includeIncomes())) {
-            types.add(FinancialTransactionType.INCOME);
+                return creditCardStatementRepository
+                                .findPaidForClosingDossier(
+                                                organizationId,
+                                                CreditCardStatementStatus.PAID,
+                                                paymentTransactionIds);
         }
 
-        if (request.includeExpenses() == null
-                || Boolean.TRUE.equals(request.includeExpenses())) {
-            types.add(FinancialTransactionType.EXPENSE);
+        private List<FinancialTransaction> loadCreditCardStatementItems(
+                        UUID organizationId,
+                        List<CreditCardStatement> statements) {
+
+                List<UUID> statementIds = statements.stream()
+                                .map(CreditCardStatement::getId)
+                                .toList();
+
+                if (statementIds.isEmpty()) {
+                        return List.of();
+                }
+
+                return financialTransactionRepository
+                                .findCreditCardStatementItemsForClosingDossier(
+                                                organizationId,
+                                                statementIds,
+                                                FinancialTransactionStatus.CANCELED);
         }
 
-        if (Boolean.TRUE.equals(request.includeTransfers())) {
-            types.add(FinancialTransactionType.TRANSFER);
-        }
+        private Map<UUID, ClosingDossierCreditCardStatement> buildCreditCardStatementsByPaymentTransactionId(
+                        List<CreditCardStatement> statements,
+                        List<FinancialTransaction> items,
+                        Map<UUID, List<Attachment>> attachmentsByTransactionId) {
 
-        if (types.isEmpty()) {
-            throw new BusinessException(
-                    "Select at least one transaction type for the closing dossier");
-        }
+                Map<UUID, List<FinancialTransaction>> itemsByStatementId = items.stream()
+                                .collect(Collectors.groupingBy(
+                                                item -> item.getCreditCardStatement().getId()));
 
-        return types;
-    }
+                return statements.stream()
+                                .collect(Collectors.toMap(
+                                                statement -> statement.getPaymentTransaction().getId(),
+                                                statement -> new ClosingDossierCreditCardStatement(
+                                                                statement,
+                                                                itemsByStatementId.getOrDefault(
+                                                                                statement.getId(),
+                                                                                List.of()),
+                                                                attachmentsByTransactionId),
+                                                (first, second) -> {
+                                                        throw new BusinessException(
+                                                                        "More than one credit card statement is linked "
+                                                                                        + "to the same payment transaction");
+                                                }));
+        }
 }

@@ -95,4 +95,18 @@ public interface CreditCardStatementRepository extends JpaRepository<CreditCardS
                         """, nativeQuery = true)
         long countPendingCreditCardStatements(
                         @Param("organizationId") UUID organizationId);
+
+                        @Query("""
+        select distinct statement
+        from CreditCardStatement statement
+        join fetch statement.creditCardAccount
+        join fetch statement.paymentTransaction
+        where statement.organization.id = :organizationId
+          and statement.status = :status
+          and statement.paymentTransaction.id in :paymentTransactionIds
+        """)
+List<CreditCardStatement> findPaidForClosingDossier(
+        @Param("organizationId") UUID organizationId,
+        @Param("status") CreditCardStatementStatus status,
+        @Param("paymentTransactionIds") List<UUID> paymentTransactionIds);
 }

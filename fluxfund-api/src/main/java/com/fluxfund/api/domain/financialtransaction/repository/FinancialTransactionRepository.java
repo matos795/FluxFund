@@ -695,4 +695,20 @@ public interface FinancialTransactionRepository
                         @Param("periodStartDate") LocalDate periodStartDate,
                         @Param("periodEndDate") LocalDate periodEndDate,
                         @Param("types") List<FinancialTransactionType> types);
+
+                        @Query("""
+        select item
+        from FinancialTransaction item
+        join fetch item.creditCardStatement statement
+        left join fetch item.account
+        left join fetch item.category
+        where item.organization.id = :organizationId
+          and statement.id in :statementIds
+          and item.status <> :canceledStatus
+        order by statement.name asc, item.dueDate asc, item.createdAt asc
+        """)
+List<FinancialTransaction> findCreditCardStatementItemsForClosingDossier(
+        @Param("organizationId") UUID organizationId,
+        @Param("statementIds") List<UUID> statementIds,
+        @Param("canceledStatus") FinancialTransactionStatus canceledStatus);
 }
