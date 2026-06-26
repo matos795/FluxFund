@@ -9,5 +9,6 @@ public enum AuditEntityType {
     OFX_IMPORT,
     FUND,
     BANK_STATEMENT_DOCUMENT,
+    CREDIT_CARD_STATEMENT,
     CLOSING_DOSSIER
 }

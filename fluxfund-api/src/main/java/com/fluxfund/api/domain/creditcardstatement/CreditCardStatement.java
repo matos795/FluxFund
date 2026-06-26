@@ -1,6 +1,7 @@
 package com.fluxfund.api.domain.creditcardstatement;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 
 import com.fluxfund.api.domain.account.Account;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
@@ -57,4 +58,19 @@ public class CreditCardStatement extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "payment_transaction_id")
     private FinancialTransaction paymentTransaction;
+
+    @Column(name = "statement_pdf_original_filename")
+    private String statementPdfOriginalFilename;
+
+    @Column(name = "statement_pdf_content_type")
+    private String statementPdfContentType;
+
+    @Column(name = "statement_pdf_size_bytes")
+    private Long statementPdfSizeBytes;
+
+    @Column(name = "statement_pdf_storage_key")
+    private String statementPdfStorageKey;
+
+    @Column(name = "statement_pdf_uploaded_at")
+    private OffsetDateTime statementPdfUploadedAt;
 }

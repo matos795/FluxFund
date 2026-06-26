@@ -25,6 +25,8 @@ public record CreditCardStatementResponse(
 
         CreditCardStatementStatus status,
 
+        CreditCardStatementDocumentResponse statementDocument,
+
         BigDecimal totalAmount,
         long itemCount,
 
