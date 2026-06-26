@@ -114,6 +114,24 @@ public class ClosingDossierPdfGenerator {
         writer.closeCurrentPage();
     }
 
+    private List<FinancialTransaction> getCashTransactions(
+            ClosingDossierExportAccount accountData) {
+
+        return accountData.transactions().stream()
+                .filter(transaction -> !accountData.isCreditCardStatementItem(transaction))
+                .toList();
+    }
+
+    private BigDecimal sumTransactionsByType(
+            List<FinancialTransaction> transactions,
+            FinancialTransactionType type) {
+
+        return transactions.stream()
+                .filter(transaction -> transaction.getType() == type)
+                .map(this::getTransactionAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
     private void writeAccountSection(
             PDDocument document,
             PdfWriter writer,
@@ -123,6 +141,25 @@ public class ClosingDossierPdfGenerator {
         var account = accountData.account();
         var preview = accountData.preview();
 
+        List<FinancialTransaction> cashTransactions = getCashTransactions(accountData);
+
+        BigDecimal incomeTotal = sumTransactionsByType(
+                cashTransactions,
+                FinancialTransactionType.INCOME);
+
+        BigDecimal expenseTotal = sumTransactionsByType(
+                cashTransactions,
+                FinancialTransactionType.EXPENSE);
+
+        BigDecimal transferTotal = sumTransactionsByType(
+                cashTransactions,
+                FinancialTransactionType.TRANSFER);
+
+        long paidCreditCardStatements = cashTransactions.stream()
+                .filter(transaction -> accountData.findCreditCardStatementForPayment(transaction)
+                        .isPresent())
+                .count();
+
         writer.startCoverPage(
                 "CONTA",
                 account.getName(),
@@ -130,10 +167,13 @@ public class ClosingDossierPdfGenerator {
                         "Período: " + formatPeriod(
                                 request.periodStartDate(),
                                 request.periodEndDate()),
-                        "Movimentações: " + preview.transactionCount(),
-                        "Receitas: " + formatCurrency(preview.incomeTotal()),
-                        "Despesas: " + formatCurrency(preview.expenseTotal()),
-                        "Transferências: " + formatCurrency(preview.transferTotal()),
+                        "Movimentações bancárias: "
+                                + cashTransactions.size(),
+                        "Receitas: " + formatCurrency(incomeTotal),
+                        "Despesas diretas: " + formatCurrency(expenseTotal),
+                        "Transferências: " + formatCurrency(transferTotal),
+                        "Faturas pagas no período: "
+                                + paidCreditCardStatements,
                         "Extrato oficial: "
                                 + (preview.hasBankStatement()
                                         ? "Disponível"
@@ -147,18 +187,28 @@ public class ClosingDossierPdfGenerator {
 
         appendBankStatements(document, writer, accountData);
 
-        writeTransactionList(writer, accountData.transactions());
+        writeTransactionList(writer, accountData);
 
-        for (FinancialTransaction transaction : accountData.transactions()) {
-            if (transaction.getType() != FinancialTransactionType.EXPENSE) {
+        for (FinancialTransaction transaction : cashTransactions) {
+            var creditCardStatement = accountData.findCreditCardStatementForPayment(transaction);
+
+            if (creditCardStatement.isPresent()) {
+                writeCreditCardStatementSection(
+                        document,
+                        writer,
+                        transaction,
+                        creditCardStatement.get());
+
                 continue;
             }
 
-            writeExpenseSection(
-                    document,
-                    writer,
-                    transaction,
-                    accountData.getAttachments(transaction));
+            if (transaction.getType() == FinancialTransactionType.EXPENSE) {
+                writeExpenseSection(
+                        document,
+                        writer,
+                        transaction,
+                        accountData.getAttachments(transaction));
+            }
         }
     }
 
@@ -182,10 +232,12 @@ public class ClosingDossierPdfGenerator {
 
     private void writeTransactionList(
             PdfWriter writer,
-            List<FinancialTransaction> transactions) throws IOException {
+            ClosingDossierExportAccount accountData) throws IOException {
+
+        List<FinancialTransaction> transactions = getCashTransactions(accountData);
 
         writer.startPage();
-        writer.writeSectionTitle("Lista de transações");
+        writer.writeSectionTitle("Lista de movimentações bancárias");
 
         if (transactions.isEmpty()) {
             writer.writeParagraph(
@@ -195,17 +247,154 @@ public class ClosingDossierPdfGenerator {
         }
 
         for (FinancialTransaction transaction : transactions) {
-            String description = getTransactionDescription(transaction);
+            var creditCardStatement = accountData.findCreditCardStatementForPayment(transaction);
+
+            String description = creditCardStatement
+                    .map(statement -> "Pagamento da fatura: "
+                            + statement.statement().getName())
+                    .orElseGet(() -> getTransactionDescription(transaction));
 
             writer.writeSmallLine(
                     formatDate(transaction.getSettlementDate())
                             + " | "
                             + getTransactionTypeLabel(transaction.getType())
                             + " | "
-                            + formatCurrency(getTransactionAmount(transaction)));
+                            + formatCurrency(
+                                    getTransactionAmount(transaction)));
 
             writer.writeParagraph(description);
+
+            if (creditCardStatement.isPresent()) {
+                ClosingDossierCreditCardStatement creditCardDossier = creditCardStatement.get();
+
+                writer.writeSmallLine(
+                        "Cartão: "
+                                + creditCardDossier.statement()
+                                        .getCreditCardAccount()
+                                        .getName()
+                                + " | Itens: "
+                                + creditCardDossier.items().size());
+            }
+
             writer.writeDivider();
+        }
+
+        writer.closeCurrentPage();
+    }
+
+    private void writeCreditCardStatementSection(
+            PDDocument document,
+            PdfWriter writer,
+            FinancialTransaction paymentTransaction,
+            ClosingDossierCreditCardStatement creditCardStatement)
+            throws IOException {
+
+        var statement = creditCardStatement.statement();
+
+        writer.startPage();
+        writer.writeSectionTitle("Pagamento de fatura");
+
+        writer.writeMetric(
+                "Cartão",
+                statement.getCreditCardAccount().getName());
+
+        writer.writeMetric(
+                "Fatura",
+                statement.getName());
+
+        writer.writeMetric(
+                "Vencimento",
+                formatDate(statement.getDueDate()));
+
+        writer.writeMetric(
+                "Data do pagamento",
+                formatDate(paymentTransaction.getSettlementDate()));
+
+        writer.writeMetric(
+                "Valor pago",
+                formatCurrency(getTransactionAmount(paymentTransaction)));
+
+        writer.writeMetric(
+                "Itens da fatura",
+                String.valueOf(creditCardStatement.items().size()));
+
+        boolean hasStatementPdf = statement.getStatementPdfStorageKey() != null
+                && !statement.getStatementPdfStorageKey().isBlank();
+
+        if (hasStatementPdf) {
+            writer.writeParagraph(
+                    "PDF oficial da fatura incluído a seguir: "
+                            + statement.getStatementPdfOriginalFilename());
+        } else {
+            writer.writeParagraph(
+                    "PDF oficial da fatura não foi enviado.");
+        }
+
+        writer.closeCurrentPage();
+
+        if (hasStatementPdf) {
+            appendPdfFromStorage(
+                    document,
+                    writer,
+                    statement.getStatementPdfStorageKey(),
+                    statement.getStatementPdfOriginalFilename());
+        }
+
+        writeCreditCardStatementItemsList(
+                writer,
+                creditCardStatement);
+
+        for (FinancialTransaction item : creditCardStatement.items()) {
+            writeExpenseSection(
+                    document,
+                    writer,
+                    item,
+                    creditCardStatement.getAttachments(item),
+                    "Item da fatura");
+        }
+    }
+
+    private void writeCreditCardStatementItemsList(
+            PdfWriter writer,
+            ClosingDossierCreditCardStatement creditCardStatement)
+            throws IOException {
+
+        writer.startPage();
+        writer.writeSectionTitle("Itens da fatura");
+
+        if (creditCardStatement.items().isEmpty()) {
+            writer.writeParagraph(
+                    "Nenhum item foi encontrado para esta fatura.");
+            writer.closeCurrentPage();
+            return;
+        }
+
+        int itemNumber = 1;
+
+        for (FinancialTransaction item : creditCardStatement.items()) {
+            String categoryName = item.getCategory() != null
+                    ? item.getCategory().getName()
+                    : "Sem categoria";
+
+            int documentCount = creditCardStatement.getAttachments(item).size();
+
+            writer.writeSmallLine(
+                    itemNumber
+                            + ". "
+                            + formatCurrency(getTransactionAmount(item))
+                            + " | "
+                            + categoryName);
+
+            writer.writeParagraph(getTransactionDescription(item));
+
+            writer.writeSmallLine(
+                    documentCount == 1
+                            ? "1 documento vinculado"
+                            : documentCount + " documentos vinculados");
+
+            writer.writeDivider();
+
+            itemNumber++;
         }
 
         writer.closeCurrentPage();
@@ -217,10 +406,25 @@ public class ClosingDossierPdfGenerator {
             FinancialTransaction transaction,
             List<Attachment> attachments) throws IOException {
 
+        writeExpenseSection(
+                document,
+                writer,
+                transaction,
+                attachments,
+                "Despesa");
+    }
+
+    private void writeExpenseSection(
+            PDDocument document,
+            PdfWriter writer,
+            FinancialTransaction transaction,
+            List<Attachment> attachments,
+            String sectionTitle) throws IOException {
+
         List<Attachment> sortedAttachments = sortAttachments(attachments);
 
         writer.startPage();
-        writer.writeSectionTitle("Despesa");
+        writer.writeSectionTitle(sectionTitle);
 
         writer.writeMetric(
                 "Data",
@@ -250,14 +454,13 @@ public class ClosingDossierPdfGenerator {
 
         if (sortedAttachments.isEmpty()) {
             writer.writeParagraph(
-                    "Nenhum documento foi vinculado a esta despesa.");
+                    "Nenhum documento foi vinculado a este item.");
 
             writer.closeCurrentPage();
             return;
         }
 
-        writer.writeParagraph(
-                "Documentos incluídos a seguir:");
+        writer.writeParagraph("Documentos incluídos a seguir:");
 
         for (Attachment attachment : sortedAttachments) {
             writer.writeParagraph(
