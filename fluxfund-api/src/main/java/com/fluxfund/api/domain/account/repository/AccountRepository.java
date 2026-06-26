@@ -140,4 +140,8 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
       @Param("organizationId") UUID organizationId,
       @Param("startDate") LocalDate startDate,
       @Param("endDate") LocalDate endDate);
+
+      List<Account> findAllByIdInAndOrganizationIdAndActiveTrue(
+        List<UUID> accountIds,
+        UUID organizationId);
 }

@@ -2,7 +2,6 @@ package com.fluxfund.api.domain.bankstatementdocument;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.util.UUID;
 
 import com.fluxfund.api.domain.account.Account;
 import com.fluxfund.api.domain.organization.Organization;
