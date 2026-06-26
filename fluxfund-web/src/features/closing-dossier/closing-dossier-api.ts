@@ -56,3 +56,17 @@ export async function downloadBankStatementDocument(documentId: string) {
 
   return response.data
 }
+
+export async function exportClosingDossierPdf(
+  data: ClosingDossierPreviewRequest,
+) {
+  const response = await httpClient.post<Blob>(
+    "/api/v1/reports/closing-dossier/export.pdf",
+    data,
+    {
+      responseType: "blob",
+    },
+  )
+
+  return response.data
+}

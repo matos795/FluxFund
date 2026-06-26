@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.text.Normalizer;
 import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -38,11 +39,9 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ClosingDossierPdfGenerator {
 
-    private static final DateTimeFormatter DATE_FORMATTER =
-            DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    private static final NumberFormat CURRENCY_FORMATTER =
-            NumberFormat.getCurrencyInstance(new Locale("pt", "BR"));
+    private static final NumberFormat CURRENCY_FORMATTER = NumberFormat.getCurrencyInstance(new Locale("pt", "BR"));
 
     private final LocalFileStorageService storageService;
 
@@ -486,14 +485,11 @@ public class ClosingDossierPdfGenerator {
         private static final float TOP_MARGIN = 58f;
         private static final float BOTTOM_MARGIN = 52f;
 
-        private static final float CONTENT_WIDTH =
-                PAGE_WIDTH - LEFT_MARGIN - RIGHT_MARGIN;
+        private static final float CONTENT_WIDTH = PAGE_WIDTH - LEFT_MARGIN - RIGHT_MARGIN;
 
-        private static final Color PRIMARY_COLOR =
-                new Color(15, 118, 110);
+        private static final Color PRIMARY_COLOR = new Color(15, 118, 110);
 
-        private static final Color MUTED_COLOR =
-                new Color(245, 245, 245);
+        private static final Color MUTED_COLOR = new Color(245, 245, 245);
 
         private final PDDocument document;
         private final PDFont regularFont;
@@ -793,7 +789,7 @@ public class ClosingDossierPdfGenerator {
                 return "-";
             }
 
-            return value
+            return Normalizer.normalize(value, Normalizer.Form.NFC)
                     .replace("\r", " ")
                     .replace("\n", " ")
                     .replace("\t", " ")
