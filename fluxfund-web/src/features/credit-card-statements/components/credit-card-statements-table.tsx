@@ -29,6 +29,7 @@ import { PayCreditCardStatementDialog } from "./pay-credit-card-statement-dialog
 import { ViewCreditCardStatementItemsDialog } from "./view-credit-card-statement-items-dialog"
 import { ImportCreditCardStatementDialog } from "./import-credit-card-statement-dialog"
 import { ConfirmActionDialog } from "@/components/layout/confirm-action-dialog"
+import { CreditCardStatementDocumentDialog } from "./credit-card-statement-document-dialog"
 
 type CreditCardStatementsTableProps = {
   statements: CreditCardStatement[]
@@ -127,7 +128,7 @@ export function CreditCardStatementsTable({
                 <TableHead>Vencimento</TableHead>
                 <TableHead>Pagamento</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-[120px] text-right">Ações</TableHead>
+                <TableHead className="w-[220px] text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -172,6 +173,13 @@ export function CreditCardStatementsTable({
 
                   <TableCell>
                     <div className="flex justify-end gap-2">
+                      <CreditCardStatementDocumentDialog
+                        statement={statement}
+                        canManageDocuments={
+                          canFinanceWrite && statement.status !== "CANCELED"
+                        }
+                      />
+
                       <ViewCreditCardStatementItemsDialog statement={statement} />
 
                       {canFinanceWrite && (

@@ -4,6 +4,7 @@ import type {
   CreateCreditCardItemRequest,
   CreateCreditCardStatementRequest,
   CreditCardStatement,
+  CreditCardStatementDocument,
   CreditCardStatementImportResponse,
   CreditCardStatementStatus,
   PayCreditCardStatementRequest,
@@ -76,6 +77,51 @@ export async function payCreditCardStatement(
 
 export async function cancelCreditCardStatement(statementId: string) {
   await httpClient.delete(`/api/v1/credit-card-statements/${statementId}`)
+}
+
+export async function uploadCreditCardStatementDocument({
+  statementId,
+  file,
+}: {
+  statementId: string
+  file: File
+}) {
+  const formData = new FormData()
+
+  formData.append("file", file)
+
+  const response = await httpClient.post<CreditCardStatementDocument>(
+    `/api/v1/credit-card-statements/${statementId}/document`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    },
+  )
+
+  return response.data
+}
+
+export async function downloadCreditCardStatementDocument(
+  statementId: string,
+) {
+  const response = await httpClient.get<Blob>(
+    `/api/v1/credit-card-statements/${statementId}/document/download`,
+    {
+      responseType: "blob",
+    },
+  )
+
+  return response.data
+}
+
+export async function deleteCreditCardStatementDocument(
+  statementId: string,
+) {
+  await httpClient.delete(
+    `/api/v1/credit-card-statements/${statementId}/document`,
+  )
 }
 
 export async function importCreditCardStatementOfx({

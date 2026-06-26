@@ -7,6 +7,13 @@ export type CreditCardStatementStatus =
   | "PAID"
   | "CANCELED"
 
+export type CreditCardStatementDocument = {
+  originalFilename: string
+  contentType: string
+  sizeBytes: number
+  uploadedAt: string
+}
+
 export type CreditCardStatement = {
   id: string
   creditCardAccount: AccountSummary
@@ -17,6 +24,7 @@ export type CreditCardStatement = {
   dueDate: string
   paymentDate: string | null
   status: CreditCardStatementStatus
+  statementDocument: CreditCardStatementDocument | null
   totalAmount: number
   itemCount: number
   createdAt: string
