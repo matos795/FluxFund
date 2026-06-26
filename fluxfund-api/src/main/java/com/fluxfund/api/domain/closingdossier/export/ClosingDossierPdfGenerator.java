@@ -22,6 +22,7 @@ import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.springframework.stereotype.Service;
 
 import com.fluxfund.api.domain.attachment.Attachment;
@@ -298,8 +299,13 @@ public class ClosingDossierPdfGenerator {
             return;
         }
 
+        if (isSupportedImage(attachment)) {
+            appendImageFromStorage(writer, attachment);
+            return;
+        }
+
         writer.startPage();
-        writer.writeSectionTitle("Arquivo ainda não incorporado");
+        writer.writeSectionTitle("Arquivo não incorporado");
 
         writer.writeParagraph(
                 "Arquivo: " + attachment.getOriginalFilename());
@@ -308,7 +314,7 @@ public class ClosingDossierPdfGenerator {
                 "Tipo: " + getAttachmentTypeLabel(attachment.getType()));
 
         writer.writeParagraph(
-                "Arquivos de imagem serão incorporados automaticamente na próxima evolução do Dossiê.");
+                "O formato deste arquivo ainda não é suportado no Dossiê.");
 
         writer.closeCurrentPage();
     }
@@ -336,6 +342,34 @@ public class ClosingDossierPdfGenerator {
         }
     }
 
+    private void appendImageFromStorage(
+            PdfWriter writer,
+            Attachment attachment) throws IOException {
+
+        try {
+            byte[] imageBytes = storageService.read(
+                    attachment.getStorageKey());
+
+            writer.writeImagePage(
+                    imageBytes,
+                    getAttachmentTypeLabel(attachment.getType()),
+                    attachment.getOriginalFilename());
+
+        } catch (IOException | RuntimeException exception) {
+            writer.startPage();
+            writer.writeSectionTitle("Imagem não incorporada");
+
+            writer.writeParagraph(
+                    "Não foi possível incorporar a imagem: "
+                            + attachment.getOriginalFilename());
+
+            writer.writeParagraph(
+                    "Verifique se o arquivo não está corrompido.");
+
+            writer.closeCurrentPage();
+        }
+    }
+
     private boolean isPdf(Attachment attachment) {
         if ("application/pdf".equalsIgnoreCase(attachment.getContentType())) {
             return true;
@@ -344,6 +378,22 @@ public class ClosingDossierPdfGenerator {
         return attachment.getOriginalFilename()
                 .toLowerCase(Locale.ROOT)
                 .endsWith(".pdf");
+    }
+
+    private boolean isSupportedImage(Attachment attachment) {
+        String contentType = attachment.getContentType();
+
+        if ("image/png".equalsIgnoreCase(contentType)
+                || "image/jpeg".equalsIgnoreCase(contentType)) {
+            return true;
+        }
+
+        String filename = attachment.getOriginalFilename()
+                .toLowerCase(Locale.ROOT);
+
+        return filename.endsWith(".png")
+                || filename.endsWith(".jpg")
+                || filename.endsWith(".jpeg");
     }
 
     private int getAttachmentOrder(Attachment attachment) {
@@ -449,6 +499,59 @@ public class ClosingDossierPdfGenerator {
                     Standard14Fonts.FontName.HELVETICA);
             this.boldFont = new PDType1Font(
                     Standard14Fonts.FontName.HELVETICA_BOLD);
+        }
+
+        void writeImagePage(
+                byte[] imageBytes,
+                String attachmentType,
+                String originalFilename) throws IOException {
+
+            PDImageXObject image = PDImageXObject.createFromByteArray(
+                    document,
+                    imageBytes,
+                    originalFilename);
+
+            startPage();
+
+            writeSectionTitle(attachmentType);
+            writeParagraph("Arquivo: " + originalFilename);
+
+            float imageAreaTop = cursorY;
+            float imageAreaBottom = BOTTOM_MARGIN;
+
+            float maxWidth = CONTENT_WIDTH;
+            float maxHeight = imageAreaTop - imageAreaBottom;
+
+            float originalWidth = image.getWidth();
+            float originalHeight = image.getHeight();
+
+            if (originalWidth <= 0 || originalHeight <= 0) {
+                throw new IOException("Invalid image dimensions");
+            }
+
+            float scale = Math.min(
+                    maxWidth / originalWidth,
+                    maxHeight / originalHeight);
+
+            // Nunca aumenta uma imagem pequena.
+            scale = Math.min(scale, 1f);
+
+            float imageWidth = originalWidth * scale;
+            float imageHeight = originalHeight * scale;
+
+            float imageX = LEFT_MARGIN + (CONTENT_WIDTH - imageWidth) / 2f;
+
+            float imageY = imageAreaBottom
+                    + (maxHeight - imageHeight) / 2f;
+
+            contentStream.drawImage(
+                    image,
+                    imageX,
+                    imageY,
+                    imageWidth,
+                    imageHeight);
+
+            closeCurrentPage();
         }
 
         void startPage() throws IOException {
