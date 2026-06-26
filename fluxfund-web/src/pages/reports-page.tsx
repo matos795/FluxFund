@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { ArrowRight, BarChart3, FolderTree, HandCoins, Landmark, ListChecks, ShieldCheck } from "lucide-react"
+import { ArrowRight, BarChart3, FolderArchive, FolderTree, HandCoins, Landmark, ListChecks, ShieldCheck } from "lucide-react"
 import { Link } from "react-router-dom"
 
 const reports = [
@@ -34,6 +34,14 @@ const reports = [
     icon: Landmark,
     status: "available",
     to: "/reports/account-cash-flow",
+  },
+  {
+    title: "Dossiê de Fechamento",
+    description:
+      "Monte uma pasta de auditoria com extratos oficiais, movimentações e pendências documentais por conta.",
+    icon: FolderArchive,
+    status: "available",
+    to: "/reports/closing-dossier",
   },
   {
     title: "Pendências operacionais",
