@@ -8,6 +8,9 @@ target/
 storage/
 target/
 *.backup
+.dump
+.zip
+storage-backup
 
 ### STS ###
 .apt_generated
