@@ -130,6 +130,9 @@ public class ClosingDossierPdfGenerator {
                                 request.periodStartDate(),
                                 request.periodEndDate()),
                         "Movimentações: " + preview.transactionCount(),
+                        "Receitas: " + formatCurrency(preview.incomeTotal()),
+                        "Despesas: " + formatCurrency(preview.expenseTotal()),
+                        "Transferências: " + formatCurrency(preview.transferTotal()),
                         "Extrato oficial: "
                                 + (preview.hasBankStatement()
                                         ? "Disponível"
@@ -142,8 +145,6 @@ public class ClosingDossierPdfGenerator {
         writer.closeCurrentPage();
 
         appendBankStatements(document, writer, accountData);
-
-        writeFinancialSummary(writer, accountData);
 
         writeTransactionList(writer, accountData.transactions());
 
@@ -166,69 +167,16 @@ public class ClosingDossierPdfGenerator {
             ClosingDossierExportAccount accountData) throws IOException {
 
         if (accountData.bankStatementDocuments().isEmpty()) {
-            writer.startPage();
-            writer.writeSectionTitle("Extrato bancário oficial");
-            writer.writeParagraph(
-                    "Nenhum extrato PDF foi enviado para esta conta no período selecionado.");
-            writer.closeCurrentPage();
             return;
         }
 
         for (var statement : accountData.bankStatementDocuments()) {
-            writer.startCoverPage(
-                    "EXTRATO OFICIAL",
-                    statement.getOriginalFilename(),
-                    List.of(
-                            "Conta: " + accountData.account().getName(),
-                            "Período do extrato: " + formatPeriod(
-                                    statement.getPeriodStartDate(),
-                                    statement.getPeriodEndDate()),
-                            "Arquivo incorporado a seguir."));
-
-            writer.closeCurrentPage();
-
             appendPdfFromStorage(
                     document,
                     writer,
                     statement.getStorageKey(),
                     statement.getOriginalFilename());
         }
-    }
-
-    private void writeFinancialSummary(
-            PdfWriter writer,
-            ClosingDossierExportAccount accountData) throws IOException {
-
-        var preview = accountData.preview();
-
-        writer.startPage();
-        writer.writeSectionTitle("Resumo financeiro");
-
-        writer.writeMetric(
-                "Receitas",
-                formatCurrency(preview.incomeTotal()));
-
-        writer.writeMetric(
-                "Despesas",
-                formatCurrency(preview.expenseTotal()));
-
-        writer.writeMetric(
-                "Transferências",
-                formatCurrency(preview.transferTotal()));
-
-        writer.writeMetric(
-                "Movimentações",
-                String.valueOf(preview.transactionCount()));
-
-        writer.writeParagraph(
-                "Pendências de comprovante: "
-                        + preview.paymentProofIssues().size());
-
-        writer.writeParagraph(
-                "Pendências de documento fiscal: "
-                        + preview.fiscalDocumentIssues().size());
-
-        writer.closeCurrentPage();
     }
 
     private void writeTransactionList(
@@ -268,6 +216,8 @@ public class ClosingDossierPdfGenerator {
             FinancialTransaction transaction,
             List<Attachment> attachments) throws IOException {
 
+        List<Attachment> sortedAttachments = sortAttachments(attachments);
+
         writer.startPage();
         writer.writeSectionTitle("Despesa");
 
@@ -297,50 +247,46 @@ public class ClosingDossierPdfGenerator {
                     "Descrição original: " + transaction.getRawDescription());
         }
 
-        if (attachments.isEmpty()) {
+        if (sortedAttachments.isEmpty()) {
             writer.writeParagraph(
                     "Nenhum documento foi vinculado a esta despesa.");
+
             writer.closeCurrentPage();
             return;
         }
 
         writer.writeParagraph(
-                "Documentos vinculados: " + attachments.size());
+                "Documentos incluídos a seguir:");
+
+        for (Attachment attachment : sortedAttachments) {
+            writer.writeParagraph(
+                    "- "
+                            + getAttachmentTypeLabel(attachment.getType())
+                            + ": "
+                            + attachment.getOriginalFilename());
+        }
 
         writer.closeCurrentPage();
 
-        List<Attachment> sortedAttachments = attachments.stream()
+        for (Attachment attachment : sortedAttachments) {
+            appendAttachment(document, writer, attachment);
+        }
+    }
+
+    private List<Attachment> sortAttachments(
+            List<Attachment> attachments) {
+
+        return attachments.stream()
                 .sorted(Comparator
                         .comparingInt(this::getAttachmentOrder)
                         .thenComparing(Attachment::getUploadedAt))
                 .toList();
-
-        for (Attachment attachment : sortedAttachments) {
-            appendAttachment(
-                    document,
-                    writer,
-                    transaction,
-                    attachment);
-        }
     }
 
     private void appendAttachment(
             PDDocument document,
             PdfWriter writer,
-            FinancialTransaction transaction,
             Attachment attachment) throws IOException {
-
-        writer.startCoverPage(
-                getAttachmentTypeLabel(attachment.getType()),
-                attachment.getOriginalFilename(),
-                List.of(
-                        "Despesa: " + getTransactionDescription(transaction),
-                        "Data: " + formatDate(transaction.getSettlementDate()),
-                        "Valor: " + formatCurrency(
-                                getTransactionAmount(transaction)),
-                        "Tipo: " + getAttachmentTypeLabel(attachment.getType())));
-
-        writer.closeCurrentPage();
 
         if (isPdf(attachment)) {
             appendPdfFromStorage(
@@ -348,23 +294,21 @@ public class ClosingDossierPdfGenerator {
                     writer,
                     attachment.getStorageKey(),
                     attachment.getOriginalFilename());
+
             return;
         }
 
         writer.startPage();
-        writer.writeSectionTitle("Arquivo referenciado");
+        writer.writeSectionTitle("Arquivo ainda não incorporado");
 
         writer.writeParagraph(
-                "Este arquivo não foi incorporado ao PDF final neste MVP.");
-
-        writer.writeParagraph(
-                "Nome: " + attachment.getOriginalFilename());
+                "Arquivo: " + attachment.getOriginalFilename());
 
         writer.writeParagraph(
                 "Tipo: " + getAttachmentTypeLabel(attachment.getType()));
 
         writer.writeParagraph(
-                "Arquivos de imagem continuam disponíveis na tela da transação.");
+                "Arquivos de imagem serão incorporados automaticamente na próxima evolução do Dossiê.");
 
         writer.closeCurrentPage();
     }
