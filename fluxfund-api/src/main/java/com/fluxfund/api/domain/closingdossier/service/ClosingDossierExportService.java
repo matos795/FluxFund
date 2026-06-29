@@ -19,12 +19,15 @@ import com.fluxfund.api.domain.audit.AuditEntityType;
 import com.fluxfund.api.domain.audit.service.AuditLogService;
 import com.fluxfund.api.domain.bankstatementdocument.BankStatementDocument;
 import com.fluxfund.api.domain.bankstatementdocument.repository.BankStatementDocumentRepository;
+import com.fluxfund.api.domain.closingdossier.ClosingDossierExtraDocument;
 import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierAccountPreviewResponse;
 import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierPreviewRequest;
 import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierPreviewResponse;
 import com.fluxfund.api.domain.closingdossier.export.ClosingDossierCreditCardStatement;
 import com.fluxfund.api.domain.closingdossier.export.ClosingDossierExportAccount;
+import com.fluxfund.api.domain.closingdossier.export.ClosingDossierExportExtraDocument;
 import com.fluxfund.api.domain.closingdossier.export.ClosingDossierPdfGenerator;
+import com.fluxfund.api.domain.closingdossier.repository.ClosingDossierExtraDocumentRepository;
 import com.fluxfund.api.domain.creditcardstatement.CreditCardStatement;
 import com.fluxfund.api.domain.creditcardstatement.CreditCardStatementStatus;
 import com.fluxfund.api.domain.creditcardstatement.repository.CreditCardStatementRepository;
@@ -54,6 +57,7 @@ public class ClosingDossierExportService {
         private final BankStatementDocumentRepository bankStatementDocumentRepository;
         private final AuditLogService auditLogService;
         private final CreditCardStatementRepository creditCardStatementRepository;
+        private final ClosingDossierExtraDocumentRepository closingDossierExtraDocumentRepository;
 
         public byte[] export(
                         UUID organizationId,
@@ -168,11 +172,21 @@ public class ClosingDossierExportService {
                                         "There are no accounts to include in the closing dossier");
                 }
 
+                List<ClosingDossierExportExtraDocument> extraDocuments = closingDossierExtraDocumentRepository
+                                .findAllByOrganizationIdAndPeriodStartDateAndPeriodEndDateOrderBySortOrderAscUploadedAtAsc(
+                                                organizationId,
+                                                request.periodStartDate(),
+                                                request.periodEndDate())
+                                .stream()
+                                .map(this::toExportExtraDocument)
+                                .toList();
+
                 byte[] pdf = pdfGenerator.generate(
                                 organization,
                                 request,
                                 preview,
-                                exportAccounts);
+                                exportAccounts,
+                                extraDocuments);
 
                 auditLogService.record(
                                 organizationId,
@@ -210,6 +224,18 @@ public class ClosingDossierExportService {
                                 .stream()
                                 .collect(Collectors.groupingBy(
                                                 attachment -> attachment.getFinancialTransaction().getId()));
+        }
+
+        private ClosingDossierExportExtraDocument toExportExtraDocument(
+                        ClosingDossierExtraDocument document) {
+
+                return new ClosingDossierExportExtraDocument(
+                                document.getId(),
+                                document.getDocumentType(),
+                                document.getTitle(),
+                                document.getOriginalFilename(),
+                                document.getStorageKey(),
+                                document.getSortOrder());
         }
 
         private List<FinancialTransactionType> resolveSelectedTypes(

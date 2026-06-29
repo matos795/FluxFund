@@ -9,6 +9,7 @@ import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -18,15 +19,20 @@ import org.apache.pdfbox.multipdf.PDFMergerUtility;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.PDPageContentStream.AppendMode;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
+import org.apache.pdfbox.pdmodel.interactive.action.PDActionGoTo;
+import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationLink;
+import org.apache.pdfbox.pdmodel.interactive.documentnavigation.destination.PDPageFitDestination;
 import org.springframework.stereotype.Service;
 
 import com.fluxfund.api.domain.attachment.Attachment;
 import com.fluxfund.api.domain.attachment.AttachmentType;
+import com.fluxfund.api.domain.closingdossier.ClosingDossierExtraDocumentType;
 import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierPreviewRequest;
 import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierPreviewResponse;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
@@ -47,11 +53,14 @@ public class ClosingDossierPdfGenerator {
 
     private final LocalFileStorageService storageService;
 
+    private static final int TABLE_OF_CONTENTS_ENTRIES_PER_PAGE = 26;
+
     public byte[] generate(
             Organization organization,
             ClosingDossierPreviewRequest request,
             ClosingDossierPreviewResponse preview,
-            List<ClosingDossierExportAccount> accounts) {
+            List<ClosingDossierExportAccount> accounts,
+            List<ClosingDossierExportExtraDocument> extraDocuments) {
 
         try (
                 PDDocument document = new PDDocument();
@@ -59,20 +68,58 @@ public class ClosingDossierPdfGenerator {
 
             PdfWriter writer = new PdfWriter(document);
 
+            List<TableOfContentsEntry> tableOfContentsEntries = new ArrayList<>();
+
             writeGeneralCover(
                     writer,
                     organization,
                     request,
                     preview,
-                    accounts.size());
+                    accounts.size(),
+                    extraDocuments.size());
+
+            int tableOfContentsEntryCount = accounts.size();
+
+            if (!extraDocuments.isEmpty()) {
+                tableOfContentsEntryCount += extraDocuments.size() + 1;
+            }
+
+            int tableOfContentsPageCount = Math.max(
+                    1,
+                    (int) Math.ceil(
+                            (double) tableOfContentsEntryCount
+                                    / TABLE_OF_CONTENTS_ENTRIES_PER_PAGE));
+
+            List<PDPage> tableOfContentsPages = writer.reservePages(tableOfContentsPageCount);
+
+            if (!extraDocuments.isEmpty()) {
+                writeExtraDocumentsSection(
+                        document,
+                        writer,
+                        extraDocuments,
+                        tableOfContentsEntries);
+            }
 
             for (ClosingDossierExportAccount accountData : accounts) {
-                writeAccountSection(
+                PDPage accountStartPage = writeAccountSection(
                         document,
                         writer,
                         accountData,
                         request);
+
+                tableOfContentsEntries.add(
+                        new TableOfContentsEntry(
+                                accountData.account().getName(),
+                                0,
+                                accountStartPage));
             }
+
+            writer.close();
+
+            writer.writeTableOfContents(
+                    tableOfContentsPages,
+                    tableOfContentsEntries,
+                    request);
 
             writer.close();
 
@@ -91,7 +138,8 @@ public class ClosingDossierPdfGenerator {
             Organization organization,
             ClosingDossierPreviewRequest request,
             ClosingDossierPreviewResponse preview,
-            int includedAccountCount) throws IOException {
+            int includedAccountCount,
+            int extraDocumentCount) throws IOException {
 
         writer.startCoverPage(
                 "FLUXFUND",
@@ -103,6 +151,7 @@ public class ClosingDossierPdfGenerator {
                                 request.periodEndDate()),
                         "Gerado em: " + formatDate(OffsetDateTime.now().toLocalDate()),
                         "Contas incluídas: " + includedAccountCount,
+                        "Documentos complementares: " + extraDocumentCount,
                         "Movimentações: " + preview.totalTransactionCount(),
                         "Pendências de extrato: "
                                 + preview.accountsWithoutBankStatementCount(),
@@ -132,7 +181,75 @@ public class ClosingDossierPdfGenerator {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private void writeAccountSection(
+    private void writeExtraDocumentsSection(
+            PDDocument document,
+            PdfWriter writer,
+            List<ClosingDossierExportExtraDocument> extraDocuments,
+            List<TableOfContentsEntry> tableOfContentsEntries)
+            throws IOException {
+
+        PDPage sectionStartPage = writer.startPage();
+
+        writer.writeSectionTitle("Documentos complementares");
+
+        writer.writeParagraph(
+                "Arquivos gerais vinculados ao período de fechamento. "
+                        + "Eles não pertencem diretamente a uma conta ou transação.");
+
+        writer.writeDivider();
+
+        for (ClosingDossierExportExtraDocument documentItem : extraDocuments) {
+            writer.writeSmallLine(
+                    getExtraDocumentTypeLabel(documentItem.documentType()));
+
+            writer.writeParagraph(
+                    documentItem.title()
+                            + " - "
+                            + documentItem.originalFilename());
+
+            writer.writeDivider();
+        }
+
+        writer.closeCurrentPage();
+
+        tableOfContentsEntries.add(
+                new TableOfContentsEntry(
+                        "Documentos complementares",
+                        0,
+                        sectionStartPage));
+
+        for (ClosingDossierExportExtraDocument documentItem : extraDocuments) {
+            PDPage documentStartPage = appendPdfFromStorage(
+                    document,
+                    writer,
+                    documentItem.storageKey(),
+                    documentItem.originalFilename());
+
+            tableOfContentsEntries.add(
+                    new TableOfContentsEntry(
+                            getExtraDocumentTypeLabel(
+                                    documentItem.documentType())
+                                    + " - "
+                                    + documentItem.title(),
+                            1,
+                            documentStartPage));
+        }
+    }
+
+    private String getExtraDocumentTypeLabel(
+            ClosingDossierExtraDocumentType documentType) {
+
+        return switch (documentType) {
+            case ACCOUNTS_PAYABLE_REPORT -> "Relatório de contas a pagar";
+            case ACCOUNTS_RECEIVABLE_REPORT -> "Relatório de contas a receber";
+            case MISSIONARY_SUPPORT_REPORT -> "Relatório de sustento missionário";
+            case CIELO_STATEMENT -> "Extrato Cielo";
+            case INVESTMENT_STATEMENT -> "Extrato de aplicações";
+            case OTHER -> "Outro documento";
+        };
+    }
+
+    private PDPage writeAccountSection(
             PDDocument document,
             PdfWriter writer,
             ClosingDossierExportAccount accountData,
@@ -160,7 +277,7 @@ public class ClosingDossierPdfGenerator {
                         .isPresent())
                 .count();
 
-        writer.startCoverPage(
+        PDPage accountStartPage = writer.startCoverPage(
                 "CONTA",
                 account.getName(),
                 List.of(
@@ -210,6 +327,8 @@ public class ClosingDossierPdfGenerator {
                         accountData.getAttachments(transaction));
             }
         }
+
+        return accountStartPage;
     }
 
     private void appendBankStatements(
@@ -522,7 +641,7 @@ public class ClosingDossierPdfGenerator {
         writer.closeCurrentPage();
     }
 
-    private void appendPdfFromStorage(
+    private PDPage appendPdfFromStorage(
             PDDocument destination,
             PdfWriter writer,
             String storageKey,
@@ -530,19 +649,32 @@ public class ClosingDossierPdfGenerator {
 
         writer.closeCurrentPage();
 
+        int pageCountBeforeAppend = destination.getNumberOfPages();
+
         try (PDDocument source = Loader.loadPDF(storageService.read(storageKey))) {
             PDFMergerUtility merger = new PDFMergerUtility();
             merger.appendDocument(destination, source);
 
+            if (destination.getNumberOfPages() > pageCountBeforeAppend) {
+                return destination.getPage(pageCountBeforeAppend);
+            }
+
         } catch (IOException | RuntimeException exception) {
-            writer.startPage();
-            writer.writeSectionTitle("Arquivo não incorporado");
-            writer.writeParagraph(
-                    "Não foi possível incorporar o arquivo: " + filename);
-            writer.writeParagraph(
-                    "Verifique se o PDF está disponível, não possui senha e não está corrompido.");
-            writer.closeCurrentPage();
+            // O aviso será gerado abaixo.
         }
+
+        PDPage warningPage = writer.startPage();
+
+        writer.writeSectionTitle("Arquivo não incorporado");
+        writer.writeParagraph(
+                "Não foi possível incorporar o arquivo: " + filename);
+        writer.writeParagraph(
+                "Verifique se o PDF está disponível, não possui senha "
+                        + "e não está corrompido.");
+
+        writer.closeCurrentPage();
+
+        return warningPage;
     }
 
     private void appendImageFromStorage(
@@ -660,17 +792,23 @@ public class ClosingDossierPdfGenerator {
                 value != null ? value : BigDecimal.ZERO);
     }
 
-    private String formatDate(LocalDate date) {
+    private static String formatDate(LocalDate date) {
         return date != null ? DATE_FORMATTER.format(date) : "-";
     }
 
-    private String formatPeriod(
+    private static String formatPeriod(
             LocalDate periodStartDate,
             LocalDate periodEndDate) {
 
         return formatDate(periodStartDate)
                 + " até "
                 + formatDate(periodEndDate);
+    }
+
+    private record TableOfContentsEntry(
+            String label,
+            int level,
+            PDPage targetPage) {
     }
 
     private static final class PdfWriter {
@@ -757,7 +895,21 @@ public class ClosingDossierPdfGenerator {
             closeCurrentPage();
         }
 
-        void startPage() throws IOException {
+        List<PDPage> reservePages(int pageCount) throws IOException {
+            closeCurrentPage();
+
+            List<PDPage> pages = new ArrayList<>();
+
+            for (int index = 0; index < pageCount; index++) {
+                PDPage page = new PDPage(PDRectangle.A4);
+                document.addPage(page);
+                pages.add(page);
+            }
+
+            return pages;
+        }
+
+        PDPage startPage() throws IOException {
             closeCurrentPage();
 
             PDPage page = new PDPage(PDRectangle.A4);
@@ -765,14 +917,16 @@ public class ClosingDossierPdfGenerator {
 
             contentStream = new PDPageContentStream(document, page);
             cursorY = PAGE_HEIGHT - TOP_MARGIN;
+
+            return page;
         }
 
-        void startCoverPage(
+        PDPage startCoverPage(
                 String eyebrow,
                 String title,
                 List<String> details) throws IOException {
 
-            startPage();
+            PDPage page = startPage();
 
             contentStream.setNonStrokingColor(PRIMARY_COLOR);
             contentStream.addRect(
@@ -822,6 +976,8 @@ public class ClosingDossierPdfGenerator {
                     10,
                     Color.GRAY,
                     14);
+
+            return page;
         }
 
         void writeSectionTitle(String title) throws IOException {
@@ -915,6 +1071,218 @@ public class ClosingDossierPdfGenerator {
             contentStream.stroke();
 
             cursorY -= 12;
+        }
+
+        void writeTableOfContents(
+                List<PDPage> pages,
+                List<TableOfContentsEntry> entries,
+                ClosingDossierPreviewRequest request)
+                throws IOException {
+
+            int entryIndex = 0;
+
+            for (int pageIndex = 0; pageIndex < pages.size(); pageIndex++) {
+                PDPage page = pages.get(pageIndex);
+
+                try (PDPageContentStream stream = new PDPageContentStream(
+                        document,
+                        page,
+                        AppendMode.APPEND,
+                        true,
+                        true)) {
+
+                    float y = PAGE_HEIGHT - TOP_MARGIN;
+
+                    writeText(
+                            stream,
+                            pageIndex == 0
+                                    ? "SUMÁRIO DO FECHAMENTO"
+                                    : "SUMÁRIO DO FECHAMENTO - CONTINUAÇÃO",
+                            LEFT_MARGIN,
+                            y,
+                            boldFont,
+                            18,
+                            Color.DARK_GRAY);
+
+                    y -= 18;
+
+                    stream.setStrokingColor(PRIMARY_COLOR);
+                    stream.setLineWidth(1.4f);
+                    stream.moveTo(LEFT_MARGIN, y);
+                    stream.lineTo(PAGE_WIDTH - RIGHT_MARGIN, y);
+                    stream.stroke();
+
+                    y -= 26;
+
+                    writeText(
+                            stream,
+                            "Período: " + formatPeriod(
+                                    request.periodStartDate(),
+                                    request.periodEndDate()),
+                            LEFT_MARGIN,
+                            y,
+                            regularFont,
+                            10,
+                            Color.GRAY);
+
+                    y -= 30;
+
+                    int limit = Math.min(
+                            entryIndex + TABLE_OF_CONTENTS_ENTRIES_PER_PAGE,
+                            entries.size());
+
+                    while (entryIndex < limit) {
+                        TableOfContentsEntry entry = entries.get(entryIndex);
+
+                        float indent = entry.level() == 0 ? 0 : 18;
+                        float fontSize = entry.level() == 0 ? 10.5f : 9.5f;
+                        PDFont font = entry.level() == 0 ? boldFont : regularFont;
+
+                        int targetPageNumber = getPageNumber(entry.targetPage());
+
+                        String pageNumberText = String.valueOf(targetPageNumber);
+                        float pageNumberWidth = boldFont.getStringWidth(pageNumberText)
+                                / 1000f
+                                * 10f;
+
+                        float availableLabelWidth = CONTENT_WIDTH - indent - pageNumberWidth - 24;
+
+                        String label = fitText(
+                                entry.label(),
+                                font,
+                                fontSize,
+                                availableLabelWidth);
+
+                        writeText(
+                                stream,
+                                label,
+                                LEFT_MARGIN + indent,
+                                y,
+                                font,
+                                fontSize,
+                                Color.DARK_GRAY);
+
+                        writeText(
+                                stream,
+                                pageNumberText,
+                                PAGE_WIDTH - RIGHT_MARGIN - pageNumberWidth,
+                                y,
+                                boldFont,
+                                10,
+                                Color.DARK_GRAY);
+
+                        stream.setStrokingColor(new Color(220, 220, 220));
+                        stream.setLineWidth(0.5f);
+                        stream.moveTo(LEFT_MARGIN + indent, y - 7);
+                        stream.lineTo(PAGE_WIDTH - RIGHT_MARGIN, y - 7);
+                        stream.stroke();
+
+                        addPageLink(page, y, entry.targetPage());
+
+                        y -= 22;
+                        entryIndex++;
+                    }
+
+                    writeFooter(stream, getPageNumber(page));
+                }
+            }
+        }
+
+        private void addPageLink(
+                PDPage sourcePage,
+                float y,
+                PDPage targetPage) throws IOException {
+
+            PDAnnotationLink link = new PDAnnotationLink();
+
+            link.setRectangle(
+                    new PDRectangle(
+                            LEFT_MARGIN,
+                            y - 14,
+                            CONTENT_WIDTH,
+                            19));
+
+            PDActionGoTo action = new PDActionGoTo();
+
+            PDPageFitDestination destination = new PDPageFitDestination();
+
+            destination.setPage(targetPage);
+
+            action.setDestination(destination);
+            link.setAction(action);
+
+            sourcePage.getAnnotations().add(link);
+        }
+
+        private int getPageNumber(PDPage targetPage) {
+            int pageNumber = 1;
+
+            for (PDPage page : document.getPages()) {
+                if (page == targetPage) {
+                    return pageNumber;
+                }
+
+                pageNumber++;
+            }
+
+            return 0;
+        }
+
+        private String fitText(
+                String value,
+                PDFont font,
+                float fontSize,
+                float maxWidth) throws IOException {
+
+            String normalized = sanitizeText(value);
+
+            if (font.getStringWidth(normalized) / 1000f * fontSize <= maxWidth) {
+                return normalized;
+            }
+
+            String suffix = "...";
+            int endIndex = normalized.length();
+
+            while (endIndex > 0) {
+                String candidate = normalized.substring(0, endIndex).trim() + suffix;
+
+                if (font.getStringWidth(candidate) / 1000f * fontSize <= maxWidth) {
+                    return candidate;
+                }
+
+                endIndex--;
+            }
+
+            return suffix;
+        }
+
+        private void writeText(
+                PDPageContentStream stream,
+                String value,
+                float x,
+                float y,
+                PDFont font,
+                float fontSize,
+                Color color) throws IOException {
+
+            stream.beginText();
+            stream.setFont(font, fontSize);
+            stream.setNonStrokingColor(color);
+            stream.newLineAtOffset(x, y);
+            stream.showText(sanitizeText(value));
+            stream.endText();
+        }
+
+        private void writeFooter(
+                PDPageContentStream stream,
+                int pageNumber) throws IOException {
+
+            stream.beginText();
+            stream.setFont(regularFont, 8);
+            stream.setNonStrokingColor(Color.GRAY);
+            stream.newLineAtOffset(LEFT_MARGIN, 28);
+            stream.showText("FluxFund | Página " + pageNumber);
+            stream.endText();
         }
 
         private void writeWrappedText(
@@ -1024,15 +1392,7 @@ public class ClosingDossierPdfGenerator {
         }
 
         private void writeFooter() throws IOException {
-            contentStream.beginText();
-            contentStream.setFont(regularFont, 8);
-            contentStream.setNonStrokingColor(Color.GRAY);
-            contentStream.newLineAtOffset(
-                    LEFT_MARGIN,
-                    28);
-            contentStream.showText(
-                    "FluxFund | Página " + document.getNumberOfPages());
-            contentStream.endText();
+            writeFooter(contentStream, document.getNumberOfPages());
         }
 
         private String sanitizeText(String value) {
