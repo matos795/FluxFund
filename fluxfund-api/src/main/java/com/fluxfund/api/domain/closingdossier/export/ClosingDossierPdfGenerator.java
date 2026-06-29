@@ -1215,10 +1215,16 @@ public class ClosingDossierPdfGenerator {
         }
 
         private int getPageNumber(PDPage targetPage) {
+            int pageIndex = document.getPages().indexOf(targetPage);
+
+            if (pageIndex >= 0) {
+                return pageIndex + 1;
+            }
+
             int pageNumber = 1;
 
             for (PDPage page : document.getPages()) {
-                if (page == targetPage) {
+                if (page.getCOSObject() == targetPage.getCOSObject()) {
                     return pageNumber;
                 }
 
