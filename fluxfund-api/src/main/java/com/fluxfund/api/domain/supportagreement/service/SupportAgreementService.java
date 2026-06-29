@@ -17,7 +17,7 @@ import com.fluxfund.api.domain.beneficiary.repository.BeneficiaryRepository;
 import com.fluxfund.api.domain.fund.Fund;
 import com.fluxfund.api.domain.fund.repository.FundRepository;
 import com.fluxfund.api.domain.organization.Organization;
-import com.fluxfund.api.domain.organization.OrganizationRepository;
+import com.fluxfund.api.domain.organization.repository.OrganizationRepository;
 import com.fluxfund.api.domain.supportagreement.SupportAgreement;
 import com.fluxfund.api.domain.supportagreement.dto.CreateSupportAgreementRequest;
 import com.fluxfund.api.domain.supportagreement.dto.SupportAgreementResponse;

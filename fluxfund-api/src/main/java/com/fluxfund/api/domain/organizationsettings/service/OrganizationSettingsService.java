@@ -11,7 +11,7 @@ import com.fluxfund.api.domain.audit.service.AuditLogService;
 import com.fluxfund.api.domain.fund.Fund;
 import com.fluxfund.api.domain.fund.repository.FundRepository;
 import com.fluxfund.api.domain.organization.Organization;
-import com.fluxfund.api.domain.organization.OrganizationRepository;
+import com.fluxfund.api.domain.organization.repository.OrganizationRepository;
 import com.fluxfund.api.domain.organizationsettings.OrganizationSettings;
 import com.fluxfund.api.domain.organizationsettings.dto.OrganizationSettingsResponse;
 import com.fluxfund.api.domain.organizationsettings.dto.UpdateOrganizationSettingsRequest;

@@ -1,8 +1,9 @@
 package com.fluxfund.api.domain.organization.controller;
 
-import com.fluxfund.api.domain.organization.OrganizationService;
 import com.fluxfund.api.domain.organization.dto.CreateOrganizationRequest;
 import com.fluxfund.api.domain.organization.dto.OrganizationResponse;
+import com.fluxfund.api.domain.organization.service.OrganizationService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 

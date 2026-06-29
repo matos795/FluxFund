@@ -25,7 +25,7 @@ import com.fluxfund.api.domain.category.dto.UpdateCategoryRequest;
 import com.fluxfund.api.domain.category.mapper.CategoryMapper;
 import com.fluxfund.api.domain.category.repository.CategoryRepository;
 import com.fluxfund.api.domain.organization.Organization;
-import com.fluxfund.api.domain.organization.OrganizationRepository;
+import com.fluxfund.api.domain.organization.repository.OrganizationRepository;
 import com.fluxfund.api.security.OrganizationAccessService;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;

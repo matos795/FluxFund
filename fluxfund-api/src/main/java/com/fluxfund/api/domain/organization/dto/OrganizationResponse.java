@@ -7,6 +7,26 @@ public record OrganizationResponse(
         UUID id,
         String name,
         boolean active,
-        OffsetDateTime createdAt
+
+        String legalName,
+        String cnpj,
+        String contactEmail,
+        String contactPhone,
+
+        String addressLine,
+        String addressNumber,
+        String addressComplement,
+        String neighborhood,
+        String city,
+        String state,
+        String zipCode,
+
+        String reviewerName,
+        String reviewerTitle,
+        String approverName,
+        String approverTitle,
+
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
 ) {
 }

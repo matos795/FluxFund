@@ -31,7 +31,7 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.FiscalDocumentPolicy;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
-import com.fluxfund.api.domain.organization.OrganizationRepository;
+import com.fluxfund.api.domain.organization.repository.OrganizationRepository;
 import com.fluxfund.api.domain.organizationsettings.OrganizationSettings;
 import com.fluxfund.api.domain.organizationsettings.repository.OrganizationSettingsRepository;
 import com.fluxfund.api.security.OrganizationAccessService;

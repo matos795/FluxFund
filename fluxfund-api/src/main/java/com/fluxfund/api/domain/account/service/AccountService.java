@@ -15,7 +15,7 @@ import com.fluxfund.api.domain.account.dto.UpdateAccountRequest;
 import com.fluxfund.api.domain.account.mapper.AccountMapper;
 import com.fluxfund.api.domain.account.repository.AccountRepository;
 import com.fluxfund.api.domain.organization.Organization;
-import com.fluxfund.api.domain.organization.OrganizationRepository;
+import com.fluxfund.api.domain.organization.repository.OrganizationRepository;
 import com.fluxfund.api.security.OrganizationAccessService;
 import com.fluxfund.api.shared.dto.OptionResponse;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;

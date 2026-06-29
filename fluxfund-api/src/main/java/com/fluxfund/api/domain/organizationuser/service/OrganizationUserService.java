@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fluxfund.api.domain.organization.Organization;
-import com.fluxfund.api.domain.organization.OrganizationRepository;
+import com.fluxfund.api.domain.organization.repository.OrganizationRepository;
 import com.fluxfund.api.domain.organizationuser.OrganizationRole;
 import com.fluxfund.api.domain.organizationuser.OrganizationUser;
 import com.fluxfund.api.domain.organizationuser.OrganizationUserId;

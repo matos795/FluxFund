@@ -19,6 +19,51 @@ public class Organization extends BaseEntity {
     @Column(nullable = false)
     private String name;
 
+    @Column(name = "legal_name")
+    private String legalName;
+
+    @Column(name = "cnpj", length = 14)
+    private String cnpj;
+
+    @Column(name = "contact_email")
+    private String contactEmail;
+
+    @Column(name = "contact_phone")
+    private String contactPhone;
+
+    @Column(name = "address_line")
+    private String addressLine;
+
+    @Column(name = "address_number")
+    private String addressNumber;
+
+    @Column(name = "address_complement")
+    private String addressComplement;
+
+    @Column(name = "neighborhood")
+    private String neighborhood;
+
+    @Column(name = "city")
+    private String city;
+
+    @Column(name = "state", length = 2)
+    private String state;
+
+    @Column(name = "zip_code", length = 8)
+    private String zipCode;
+
+    @Column(name = "reviewer_name")
+    private String reviewerName;
+
+    @Column(name = "reviewer_title")
+    private String reviewerTitle;
+
+    @Column(name = "approver_name")
+    private String approverName;
+
+    @Column(name = "approver_title")
+    private String approverTitle;
+
     @Column(nullable = false)
     private boolean active = true;
 }

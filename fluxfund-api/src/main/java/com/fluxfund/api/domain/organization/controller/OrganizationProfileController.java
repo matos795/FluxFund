@@ -7,9 +7,9 @@ import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.fluxfund.api.domain.organization.OrganizationService;
 import com.fluxfund.api.domain.organization.dto.OrganizationResponse;
 import com.fluxfund.api.domain.organization.dto.UpdateOrganizationProfileRequest;
+import com.fluxfund.api.domain.organization.service.OrganizationService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

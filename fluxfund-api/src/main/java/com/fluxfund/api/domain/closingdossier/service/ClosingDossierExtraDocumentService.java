@@ -21,7 +21,7 @@ import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierExtraDocumentRes
 import com.fluxfund.api.domain.closingdossier.mapper.ClosingDossierExtraDocumentMapper;
 import com.fluxfund.api.domain.closingdossier.repository.ClosingDossierExtraDocumentRepository;
 import com.fluxfund.api.domain.organization.Organization;
-import com.fluxfund.api.domain.organization.OrganizationRepository;
+import com.fluxfund.api.domain.organization.repository.OrganizationRepository;
 import com.fluxfund.api.security.OrganizationAccessService;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
