@@ -26,6 +26,8 @@ public record OrganizationResponse(
         String approverName,
         String approverTitle,
 
+        OrganizationLogoResponse logo,
+
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {

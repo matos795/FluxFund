@@ -1,5 +1,7 @@
 package com.fluxfund.api.domain.organization;
 
+import java.time.OffsetDateTime;
+
 import com.fluxfund.api.shared.BaseEntity;
 
 import jakarta.persistence.Column;
@@ -63,6 +65,21 @@ public class Organization extends BaseEntity {
 
     @Column(name = "approver_title")
     private String approverTitle;
+
+    @Column(name = "logo_original_filename")
+    private String logoOriginalFilename;
+
+    @Column(name = "logo_content_type")
+    private String logoContentType;
+
+    @Column(name = "logo_size_bytes")
+    private Long logoSizeBytes;
+
+    @Column(name = "logo_storage_key")
+    private String logoStorageKey;
+
+    @Column(name = "logo_uploaded_at")
+    private OffsetDateTime logoUploadedAt;
 
     @Column(nullable = false)
     private boolean active = true;
