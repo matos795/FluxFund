@@ -85,3 +85,26 @@ export type ClosingDossierPreview = {
 
   accounts: ClosingDossierAccountPreview[]
 }
+
+export type ClosingDossierExtraDocumentType =
+  | "ACCOUNTS_PAYABLE_REPORT"
+  | "ACCOUNTS_RECEIVABLE_REPORT"
+  | "MISSIONARY_SUPPORT_REPORT"
+  | "CIELO_STATEMENT"
+  | "INVESTMENT_STATEMENT"
+  | "OTHER"
+
+export type ClosingDossierExtraDocument = {
+  id: string
+  periodStartDate: string
+  periodEndDate: string
+  documentType: ClosingDossierExtraDocumentType
+  title: string
+  originalFilename: string
+  contentType: string
+  sizeBytes: number
+  uploadedAt: string
+  sortOrder: number
+  createdAt: string
+  updatedAt: string | null
+}

@@ -35,6 +35,7 @@ import type { ClosingDossierPreviewRequest } from "@/features/closing-dossier/cl
 import { useExportClosingDossierPdf } from "@/features/closing-dossier/hooks/use-export-closing-dossier-pdf"
 import { downloadFile } from "@/utils/download-file"
 import { getApiErrorMessage } from "@/utils/api-error"
+import { ClosingDossierExtraDocumentsSection } from "@/features/closing-dossier/components/closing-dossier-extra-documents-section"
 
 const ACCOUNT_PAGE_SIZE = 100
 
@@ -456,6 +457,12 @@ export function ClosingDossierReportPage() {
                     </div>
                 </CardContent>
             </Card>
+
+            <ClosingDossierExtraDocumentsSection
+                periodStartDate={periodStartDate}
+                periodEndDate={periodEndDate}
+                canManageDocuments={canFinanceWrite}
+            />
 
             {filtersChanged && (
                 <div className="flex gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm">
