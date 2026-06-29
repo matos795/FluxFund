@@ -4,10 +4,21 @@ import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/features/auth/hooks/use-auth"
+import { useOrganizationProfile } from "@/features/organization-profile/hooks/use-organization-profile"
+import { OrganizationLogo } from "@/features/organization-profile/components/organization-logo"
 
 export function AppHeader() {
   const navigate = useNavigate()
-  const { session, logout } = useAuth()
+
+  const { session, logout, activeOrganization } = useAuth()
+  const organizationProfileQuery = useOrganizationProfile()
+
+  const organizationProfile = organizationProfileQuery.data
+
+  const organizationName =
+    organizationProfile?.name ??
+    activeOrganization?.name ??
+    "Organização"
 
   function handleLogout() {
     logout()
@@ -40,6 +51,25 @@ export function AppHeader() {
         <Button variant="outline" size="icon">
           <Bell className="size-4" />
         </Button>
+
+        <div className="hidden items-center gap-2 rounded-xl border bg-muted/40 p-1.5 pr-3 xl:flex">
+          <OrganizationLogo
+            organizationName={organizationName}
+            hasLogo={Boolean(organizationProfile?.logo)}
+            className="size-8 rounded-lg bg-background"
+            imageClassName="p-1"
+          />
+
+          <div className="max-w-44">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              Organização ativa
+            </p>
+
+            <p className="truncate text-sm font-semibold">
+              {organizationName}
+            </p>
+          </div>
+        </div>
 
         <div className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
           {initials}

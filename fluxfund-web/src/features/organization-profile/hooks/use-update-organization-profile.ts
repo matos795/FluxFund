@@ -1,8 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { useAuth } from "@/features/auth/hooks/use-auth"
+
 import { updateOrganizationProfile } from "../organization-profile-api"
-import type { UpdateOrganizationProfileRequest } from "../organization-profile-types"
+import type {
+  OrganizationProfile,
+  UpdateOrganizationProfileRequest,
+} from "../organization-profile-types"
+import { organizationProfileQueryKey } from "./use-organization-profile"
 
 export function useUpdateOrganizationProfile() {
   const queryClient = useQueryClient()
@@ -12,8 +17,12 @@ export function useUpdateOrganizationProfile() {
     mutationFn: (data: UpdateOrganizationProfileRequest) =>
       updateOrganizationProfile(data),
 
-    onSuccess: async () => {
-      queryClient.invalidateQueries({ queryKey: ["organization-profile"] })
+    onSuccess: async (organizationProfile) => {
+      queryClient.setQueryData<OrganizationProfile>(
+        organizationProfileQueryKey,
+        organizationProfile,
+      )
+
       await refreshUser()
     },
   })
