@@ -66,7 +66,9 @@ public class ClosingDossierPdfGenerator {
                 PDDocument document = new PDDocument();
                 ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
 
-            PdfWriter writer = new PdfWriter(document);
+            PdfWriter writer = new PdfWriter(
+                    document,
+                    buildFooterIdentity(organization));
 
             List<TableOfContentsEntry> tableOfContentsEntries = new ArrayList<>();
 
@@ -78,7 +80,7 @@ public class ClosingDossierPdfGenerator {
                     accounts.size(),
                     extraDocuments.size());
 
-            int tableOfContentsEntryCount = accounts.size();
+            int tableOfContentsEntryCount = accounts.size() + 1;
 
             if (!extraDocuments.isEmpty()) {
                 tableOfContentsEntryCount += extraDocuments.size() + 1;
@@ -114,6 +116,17 @@ public class ClosingDossierPdfGenerator {
                                 accountStartPage));
             }
 
+            PDPage closingConferencePage = writeClosingConferencePage(
+                    writer,
+                    organization,
+                    request);
+
+            tableOfContentsEntries.add(
+                    new TableOfContentsEntry(
+                            "Conferência do fechamento",
+                            0,
+                            closingConferencePage));
+
             writer.close();
 
             writer.writeTableOfContents(
@@ -141,26 +154,101 @@ public class ClosingDossierPdfGenerator {
             int includedAccountCount,
             int extraDocumentCount) throws IOException {
 
+        List<String> details = new ArrayList<>();
+
+        details.add("Razão social: " + getOrganizationLegalName(organization));
+
+        if (hasText(organization.getCnpj())) {
+            details.add("CNPJ: " + formatCnpj(organization.getCnpj()));
+        }
+
+        String address = buildOrganizationAddress(organization);
+
+        if (hasText(address)) {
+            details.add("Endereço: " + address);
+        }
+
+        details.add(
+                "Período: " + formatPeriod(
+                        request.periodStartDate(),
+                        request.periodEndDate()));
+
+        details.add(
+                "Gerado em: "
+                        + formatDate(OffsetDateTime.now().toLocalDate()));
+
+        details.add("Contas incluídas: " + includedAccountCount);
+        details.add("Documentos complementares: " + extraDocumentCount);
+        details.add("Movimentações: " + preview.totalTransactionCount());
+
+        details.add(
+                "Pendências de extrato: "
+                        + preview.accountsWithoutBankStatementCount());
+
+        details.add(
+                "Pendências de comprovante: "
+                        + preview.expensesWithoutPaymentProofCount());
+
+        details.add(
+                "Pendências fiscais: "
+                        + preview.expensesWithoutFiscalDocumentCount());
+
         writer.startCoverPage(
-                "FLUXFUND",
+                "DOCUMENTOS DE FECHAMENTO CONTÁBIL / FISCAL",
                 "Dossiê de Fechamento",
-                List.of(
-                        "Organização: " + organization.getName(),
-                        "Período: " + formatPeriod(
-                                request.periodStartDate(),
-                                request.periodEndDate()),
-                        "Gerado em: " + formatDate(OffsetDateTime.now().toLocalDate()),
-                        "Contas incluídas: " + includedAccountCount,
-                        "Documentos complementares: " + extraDocumentCount,
-                        "Movimentações: " + preview.totalTransactionCount(),
-                        "Pendências de extrato: "
-                                + preview.accountsWithoutBankStatementCount(),
-                        "Pendências de comprovante: "
-                                + preview.expensesWithoutPaymentProofCount(),
-                        "Pendências fiscais: "
-                                + preview.expensesWithoutFiscalDocumentCount()));
+                details);
+
+        writeOrganizationLogo(writer, organization);
 
         writer.closeCurrentPage();
+    }
+
+    private PDPage writeClosingConferencePage(
+            PdfWriter writer,
+            Organization organization,
+            ClosingDossierPreviewRequest request)
+            throws IOException {
+
+        PDPage page = writer.startPage();
+
+        writer.writeSectionTitle("Conferência do fechamento");
+
+        writer.writeParagraph(
+                "Esta página registra os responsáveis pela conferência e "
+                        + "aprovação do Dossiê de Fechamento.");
+
+        writer.writeMetric(
+                "Organização",
+                getOrganizationLegalName(organization));
+
+        writer.writeMetric(
+                "Período conferido",
+                formatPeriod(
+                        request.periodStartDate(),
+                        request.periodEndDate()));
+
+        writer.writeMetric(
+                "Data de geração",
+                formatDate(OffsetDateTime.now().toLocalDate()));
+
+        writer.writeDivider();
+
+        writer.writeParagraph(
+                "A assinatura nesta página é visual e destinada à conferência "
+                        + "interna ou à impressão do documento. Ela ainda não "
+                        + "representa uma assinatura digital certificada.");
+
+        writer.writeSignatureColumns(
+                "Conferido por",
+                organization.getReviewerName(),
+                organization.getReviewerTitle(),
+                "Aprovado por",
+                organization.getApproverName(),
+                organization.getApproverTitle());
+
+        writer.closeCurrentPage();
+
+        return page;
     }
 
     private List<FinancialTransaction> getCashTransactions(
@@ -787,6 +875,127 @@ public class ClosingDossierPdfGenerator {
                 : BigDecimal.ZERO;
     }
 
+    private void writeOrganizationLogo(
+            PdfWriter writer,
+            Organization organization) {
+
+        if (!hasText(organization.getLogoStorageKey())) {
+            return;
+        }
+
+        try {
+            writer.writeCoverLogo(
+                    storageService.read(organization.getLogoStorageKey()),
+                    organization.getLogoOriginalFilename());
+
+        } catch (IOException | RuntimeException exception) {
+            // A ausência ou falha da logo não pode impedir a geração do Dossiê.
+        }
+    }
+
+    private String getOrganizationLegalName(Organization organization) {
+        if (hasText(organization.getLegalName())) {
+            return organization.getLegalName().trim();
+        }
+
+        return organization.getName();
+    }
+
+    private String buildFooterIdentity(Organization organization) {
+        String identity = getOrganizationLegalName(organization);
+
+        if (!hasText(organization.getCnpj())) {
+            return identity;
+        }
+
+        return identity + " | CNPJ " + formatCnpj(organization.getCnpj());
+    }
+
+    private String buildOrganizationAddress(Organization organization) {
+        List<String> parts = new ArrayList<>();
+
+        String streetAndNumber = joinNonBlank(
+                ", ",
+                organization.getAddressLine(),
+                organization.getAddressNumber());
+
+        if (hasText(streetAndNumber)) {
+            parts.add(streetAndNumber);
+        }
+
+        if (hasText(organization.getAddressComplement())) {
+            parts.add(organization.getAddressComplement().trim());
+        }
+
+        if (hasText(organization.getNeighborhood())) {
+            parts.add(organization.getNeighborhood().trim());
+        }
+
+        String cityAndState = joinNonBlank(
+                " - ",
+                organization.getCity(),
+                organization.getState());
+
+        if (hasText(cityAndState)) {
+            parts.add(cityAndState);
+        }
+
+        if (hasText(organization.getZipCode())) {
+            parts.add("CEP " + formatZipCode(organization.getZipCode()));
+        }
+
+        return String.join(" | ", parts);
+    }
+
+    private String joinNonBlank(
+            String separator,
+            String... values) {
+
+        List<String> parts = new ArrayList<>();
+
+        for (String value : values) {
+            if (hasText(value)) {
+                parts.add(value.trim());
+            }
+        }
+
+        return String.join(separator, parts);
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private String formatCnpj(String cnpj) {
+        String digits = cnpj.replaceAll("\\D", "");
+
+        if (digits.length() != 14) {
+            return cnpj;
+        }
+
+        return digits.substring(0, 2)
+                + "."
+                + digits.substring(2, 5)
+                + "."
+                + digits.substring(5, 8)
+                + "/"
+                + digits.substring(8, 12)
+                + "-"
+                + digits.substring(12, 14);
+    }
+
+    private String formatZipCode(String zipCode) {
+        String digits = zipCode.replaceAll("\\D", "");
+
+        if (digits.length() != 8) {
+            return zipCode;
+        }
+
+        return digits.substring(0, 5)
+                + "-"
+                + digits.substring(5, 8);
+    }
+
     private String formatCurrency(BigDecimal value) {
         return CURRENCY_FORMATTER.format(
                 value != null ? value : BigDecimal.ZERO);
@@ -830,16 +1039,76 @@ public class ClosingDossierPdfGenerator {
         private final PDDocument document;
         private final PDFont regularFont;
         private final PDFont boldFont;
+        private final String footerIdentity;
 
         private PDPageContentStream contentStream;
         private float cursorY;
 
-        private PdfWriter(PDDocument document) throws IOException {
+        private PdfWriter(
+                PDDocument document,
+                String footerIdentity) throws IOException {
             this.document = document;
+            this.footerIdentity = footerIdentity;
             this.regularFont = new PDType1Font(
                     Standard14Fonts.FontName.HELVETICA);
             this.boldFont = new PDType1Font(
                     Standard14Fonts.FontName.HELVETICA_BOLD);
+        }
+
+        void writeCoverLogo(
+                byte[] imageBytes,
+                String originalFilename) throws IOException {
+
+            if (contentStream == null) {
+                return;
+            }
+
+            PDImageXObject image = PDImageXObject.createFromByteArray(
+                    document,
+                    imageBytes,
+                    originalFilename);
+
+            float boxWidth = 118f;
+            float boxHeight = 82f;
+            float boxX = PAGE_WIDTH - RIGHT_MARGIN - boxWidth;
+            float boxY = PAGE_HEIGHT - 160f;
+            float padding = 8f;
+
+            contentStream.setNonStrokingColor(Color.WHITE);
+            contentStream.addRect(boxX, boxY, boxWidth, boxHeight);
+            contentStream.fill();
+
+            contentStream.setStrokingColor(new Color(225, 225, 225));
+            contentStream.setLineWidth(0.7f);
+            contentStream.addRect(boxX, boxY, boxWidth, boxHeight);
+            contentStream.stroke();
+
+            float availableWidth = boxWidth - (padding * 2);
+            float availableHeight = boxHeight - (padding * 2);
+
+            float originalWidth = image.getWidth();
+            float originalHeight = image.getHeight();
+
+            if (originalWidth <= 0 || originalHeight <= 0) {
+                return;
+            }
+
+            float scale = Math.min(
+                    availableWidth / originalWidth,
+                    availableHeight / originalHeight);
+
+            float imageWidth = originalWidth * scale;
+            float imageHeight = originalHeight * scale;
+
+            float imageX = boxX + (boxWidth - imageWidth) / 2f;
+            float imageY = boxY + (boxHeight - imageHeight) / 2f;
+
+            contentStream.drawImage(
+                    image,
+                    imageX,
+                    imageY,
+                    imageWidth,
+                    imageHeight);
         }
 
         void writeImagePage(
@@ -1073,6 +1342,97 @@ public class ClosingDossierPdfGenerator {
             cursorY -= 12;
         }
 
+        void writeSignatureColumns(
+                String leftLabel,
+                String leftName,
+                String leftTitle,
+                String rightLabel,
+                String rightName,
+                String rightTitle) throws IOException {
+
+            ensureSpace(120);
+
+            float columnGap = 24f;
+            float columnWidth = (CONTENT_WIDTH - columnGap) / 2f;
+
+            float leftX = LEFT_MARGIN;
+            float rightX = LEFT_MARGIN + columnWidth + columnGap;
+
+            float labelY = cursorY;
+            float lineY = cursorY - 38;
+
+            writeText(
+                    leftLabel,
+                    leftX,
+                    labelY,
+                    boldFont,
+                    10,
+                    Color.DARK_GRAY);
+
+            writeText(
+                    rightLabel,
+                    rightX,
+                    labelY,
+                    boldFont,
+                    10,
+                    Color.DARK_GRAY);
+
+            contentStream.setStrokingColor(Color.DARK_GRAY);
+            contentStream.setLineWidth(0.7f);
+
+            contentStream.moveTo(leftX, lineY);
+            contentStream.lineTo(leftX + columnWidth, lineY);
+
+            contentStream.moveTo(rightX, lineY);
+            contentStream.lineTo(rightX + columnWidth, lineY);
+
+            contentStream.stroke();
+
+            writeSignatureIdentity(
+                    leftX,
+                    lineY,
+                    columnWidth,
+                    leftName,
+                    leftTitle);
+
+            writeSignatureIdentity(
+                    rightX,
+                    lineY,
+                    columnWidth,
+                    rightName,
+                    rightTitle);
+
+            cursorY = lineY - 58;
+        }
+
+        private void writeSignatureIdentity(
+                float x,
+                float lineY,
+                float width,
+                String name,
+                String title) throws IOException {
+
+            if (name != null && !name.isBlank()) {
+                writeText(
+                        fitText(name, boldFont, 9.5f, width),
+                        x,
+                        lineY - 17,
+                        boldFont,
+                        9.5f,
+                        Color.DARK_GRAY);
+            }
+
+            if (title != null && !title.isBlank()) {
+                writeText(
+                        fitText(title, regularFont, 8.5f, width),
+                        x,
+                        lineY - 31,
+                        regularFont,
+                        8.5f,
+                        Color.GRAY);
+            }
+        }
+
         void writeTableOfContents(
                 List<PDPage> pages,
                 List<TableOfContentsEntry> entries,
@@ -1283,12 +1643,37 @@ public class ClosingDossierPdfGenerator {
                 PDPageContentStream stream,
                 int pageNumber) throws IOException {
 
-            stream.beginText();
-            stream.setFont(regularFont, 8);
-            stream.setNonStrokingColor(Color.GRAY);
-            stream.newLineAtOffset(LEFT_MARGIN, 28);
-            stream.showText("FluxFund | Página " + pageNumber);
-            stream.endText();
+            String pageText = "FluxFund | Página " + pageNumber;
+
+            float pageTextWidth = regularFont.getStringWidth(pageText)
+                    / 1000f
+                    * 8f;
+
+            float maxIdentityWidth = CONTENT_WIDTH - pageTextWidth - 20f;
+
+            String identity = fitText(
+                    footerIdentity,
+                    regularFont,
+                    8f,
+                    maxIdentityWidth);
+
+            writeText(
+                    stream,
+                    identity,
+                    LEFT_MARGIN,
+                    28,
+                    regularFont,
+                    8,
+                    Color.GRAY);
+
+            writeText(
+                    stream,
+                    pageText,
+                    PAGE_WIDTH - RIGHT_MARGIN - pageTextWidth,
+                    28,
+                    regularFont,
+                    8,
+                    Color.GRAY);
         }
 
         private void writeWrappedText(
