@@ -44,6 +44,9 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportItemResponse;
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportResponse;
+import com.fluxfund.api.domain.report.dto.category.CategoryResultItemResponse;
+import com.fluxfund.api.domain.report.dto.expense.SettledExpenseReportItemResponse;
+import com.fluxfund.api.domain.report.dto.expense.SettledExpenseReportResponse;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.storage.LocalFileStorageService;
 
@@ -67,7 +70,8 @@ public class ClosingDossierPdfGenerator {
                         ClosingDossierPreviewResponse preview,
                         List<ClosingDossierExportAccount> accounts,
                         List<ClosingDossierExportExtraDocument> extraDocuments,
-                        AccountabilityReportResponse supportReport) {
+                        AccountabilityReportResponse supportReport,
+                        SettledExpenseReportResponse settledExpenseReport) {
 
                 try (
                                 PDDocument document = new PDDocument();
@@ -93,6 +97,10 @@ public class ClosingDossierPdfGenerator {
                                 tableOfContentsEntryCount++;
                         }
 
+                        if (settledExpenseReport != null) {
+                                tableOfContentsEntryCount++;
+                        }
+
                         if (!extraDocuments.isEmpty()) {
                                 tableOfContentsEntryCount += extraDocuments.size();
                         }
@@ -115,6 +123,18 @@ public class ClosingDossierPdfGenerator {
                                                                 "Relatório de Sustento Missionário",
                                                                 0,
                                                                 supportReportStartPage));
+                        }
+
+                        if (settledExpenseReport != null) {
+                                PDPage settledExpenseReportStartPage = writeSettledExpenseReportSection(
+                                                writer,
+                                                settledExpenseReport);
+
+                                tableOfContentsEntries.add(
+                                                new TableOfContentsEntry(
+                                                                "Relatório de Despesas Liquidadas",
+                                                                0,
+                                                                settledExpenseReportStartPage));
                         }
 
                         if (!extraDocuments.isEmpty()) {
@@ -406,6 +426,72 @@ public class ClosingDossierPdfGenerator {
                 return coverPage;
         }
 
+        private List<SettledExpenseCategoryParentSummary> buildSettledExpenseCategorySummaries(
+                        List<CategoryResultItemResponse> categoryItems) {
+
+                Map<UUID, SettledExpenseCategoryParentSummary> summariesByParent = new LinkedHashMap<>();
+
+                for (CategoryResultItemResponse item : categoryItems) {
+                        UUID parentCategoryId = item.parentCategoryId() != null
+                                        ? item.parentCategoryId()
+                                        : item.categoryId();
+
+                        String parentCategoryName = item.parentCategoryName() != null
+                                        ? item.parentCategoryName()
+                                        : item.categoryName();
+
+                        String childCategoryName = item.parentCategoryId() != null
+                                        ? item.categoryName()
+                                        : "Lançamentos diretos";
+
+                        SettledExpenseCategoryChildSummary childSummary = new SettledExpenseCategoryChildSummary(
+                                        childCategoryName,
+                                        item.total(),
+                                        item.transactionCount());
+
+                        SettledExpenseCategoryParentSummary newSummary = new SettledExpenseCategoryParentSummary(
+                                        parentCategoryName,
+                                        item.total(),
+                                        item.transactionCount(),
+                                        List.of(childSummary));
+
+                        summariesByParent.merge(
+                                        parentCategoryId,
+                                        newSummary,
+                                        (current, added) -> {
+                                                List<SettledExpenseCategoryChildSummary> children = new ArrayList<>(
+                                                                current.children());
+
+                                                children.addAll(added.children());
+
+                                                children.sort(
+                                                                Comparator.comparing(
+                                                                                SettledExpenseCategoryChildSummary::totalAmount)
+                                                                                .reversed()
+                                                                                .thenComparing(
+                                                                                                SettledExpenseCategoryChildSummary::categoryName));
+
+                                                return new SettledExpenseCategoryParentSummary(
+                                                                current.categoryName(),
+                                                                current.totalAmount()
+                                                                                .add(added.totalAmount()),
+                                                                current.transactionCount()
+                                                                                + added.transactionCount(),
+                                                                children);
+                                        });
+                }
+
+                return summariesByParent.values()
+                                .stream()
+                                .sorted(
+                                                Comparator.comparing(
+                                                                SettledExpenseCategoryParentSummary::totalAmount)
+                                                                .reversed()
+                                                                .thenComparing(
+                                                                                SettledExpenseCategoryParentSummary::categoryName))
+                                .toList();
+        }
+
         private List<SupportBeneficiarySummary> buildSupportBeneficiarySummaries(
                         List<AccountabilityReportItemResponse> items) {
 
@@ -434,6 +520,90 @@ public class ClosingDossierPdfGenerator {
                 }
 
                 return new ArrayList<>(summariesByBeneficiary.values());
+        }
+
+        private PDPage writeSettledExpenseReportSection(
+                        PdfWriter writer,
+                        SettledExpenseReportResponse settledExpenseReport)
+                        throws IOException {
+
+                List<SettledExpenseCategoryParentSummary> categorySummaries = buildSettledExpenseCategorySummaries(
+                                settledExpenseReport.categoryItems());
+
+                PDPage coverPage = writer.startCoverPage(
+                                "RELATÓRIO AUTOMÁTICO",
+                                "Despesas Liquidadas",
+                                List.of(
+                                                "Período: " + formatPeriod(
+                                                                settledExpenseReport.startDate(),
+                                                                settledExpenseReport.endDate()),
+                                                "Despesas liquidadas: "
+                                                                + settledExpenseReport.transactionCount(),
+                                                "Total pago no período: "
+                                                                + formatCurrency(
+                                                                                settledExpenseReport.totalPaidAmount()),
+                                                "Categorias principais com movimentação: "
+                                                                + categorySummaries.size()));
+
+                writer.closeCurrentPage();
+
+                writer.startPage();
+
+                writer.writeSectionTitle("Resumo financeiro");
+
+                writer.writeParagraph(
+                                "Demonstrativo automático das despesas efetivamente "
+                                                + "liquidadas no período selecionado.");
+
+                writer.writeMetric(
+                                "Quantidade de despesas",
+                                String.valueOf(
+                                                settledExpenseReport.transactionCount()));
+
+                writer.writeHighlightedMetric(
+                                "Total de despesas liquidadas",
+                                formatCurrency(
+                                                settledExpenseReport.totalPaidAmount()));
+
+                writer.closeCurrentPage();
+
+                writer.startPage();
+
+                writer.writeSectionTitle("Gastos por categoria");
+
+                writer.writeParagraph(
+                                "Consolidado das despesas liquidadas por categoria principal e "
+                                                + "subcategoria, ordenado do maior gasto para o menor.");
+
+                if (categorySummaries.isEmpty()) {
+                        writer.writeParagraph(
+                                        "Nenhuma despesa liquidada foi encontrada para este período.");
+                } else {
+                        writer.writeSettledExpenseCategoryHierarchy(
+                                        categorySummaries);
+                }
+
+                writer.closeCurrentPage();
+
+                writer.startPage();
+
+                writer.writeSectionTitle("Detalhamento das despesas liquidadas");
+
+                writer.writeParagraph(
+                                "Relação cronológica das despesas efetivamente pagas "
+                                                + "no período selecionado.");
+
+                if (settledExpenseReport.items().isEmpty()) {
+                        writer.writeParagraph(
+                                        "Nenhuma despesa liquidada foi encontrada para este período.");
+                } else {
+                        writer.writeSettledExpenseDetailTable(
+                                        settledExpenseReport.items());
+                }
+
+                writer.closeCurrentPage();
+
+                return coverPage;
         }
 
         private void writeExtraDocumentsSection(
@@ -1181,6 +1351,19 @@ public class ClosingDossierPdfGenerator {
                         BigDecimal pendingAmount) {
         }
 
+        private record SettledExpenseCategoryChildSummary(
+                        String categoryName,
+                        BigDecimal totalAmount,
+                        long transactionCount) {
+        }
+
+        private record SettledExpenseCategoryParentSummary(
+                        String categoryName,
+                        BigDecimal totalAmount,
+                        long transactionCount,
+                        List<SettledExpenseCategoryChildSummary> children) {
+        }
+
         private record TableOfContentsEntry(
                         String label,
                         int level,
@@ -1499,6 +1682,407 @@ public class ClosingDossierPdfGenerator {
                         cursorY -= 80;
                 }
 
+                void writeSettledExpenseCategoryHierarchy(
+                                List<SettledExpenseCategoryParentSummary> summaries)
+                                throws IOException {
+
+                        for (SettledExpenseCategoryParentSummary summary : summaries) {
+                                if (cursorY - 82 < BOTTOM_MARGIN) {
+                                        startPage();
+
+                                        writeSectionTitle("Gastos por categoria (continuação)");
+                                }
+
+                                writeSettledExpenseCategoryParentHeader(summary);
+                                writeSettledExpenseCategoryChildTableHeader();
+
+                                for (SettledExpenseCategoryChildSummary child : summary.children()) {
+                                        if (cursorY - 40 < BOTTOM_MARGIN) {
+                                                startPage();
+
+                                                writeSectionTitle("Gastos por categoria (continuação)");
+
+                                                writeSettledExpenseCategoryParentHeader(summary);
+                                                writeSettledExpenseCategoryChildTableHeader();
+                                        }
+
+                                        writeSettledExpenseCategoryChildTableRow(child);
+                                }
+                        }
+                }
+
+                private void writeSettledExpenseCategoryParentHeader(
+                                SettledExpenseCategoryParentSummary summary)
+                                throws IOException {
+
+                        ensureSpace(44);
+
+                        float boxHeight = 36f;
+
+                        contentStream.setNonStrokingColor(new Color(239, 246, 255));
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - boxHeight + 6,
+                                        CONTENT_WIDTH,
+                                        boxHeight);
+                        contentStream.fill();
+
+                        contentStream.setStrokingColor(new Color(191, 219, 254));
+                        contentStream.setLineWidth(0.5f);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - boxHeight + 6,
+                                        CONTENT_WIDTH,
+                                        boxHeight);
+                        contentStream.stroke();
+
+                        writeText(
+                                        fitText(
+                                                        summary.categoryName(),
+                                                        boldFont,
+                                                        10f,
+                                                        290f),
+                                        LEFT_MARGIN + 10,
+                                        cursorY - 11,
+                                        boldFont,
+                                        10f,
+                                        Color.DARK_GRAY);
+
+                        writeText(
+                                        summary.transactionCount() + " despesa(s)",
+                                        LEFT_MARGIN + 10,
+                                        cursorY - 25,
+                                        regularFont,
+                                        8f,
+                                        new Color(75, 85, 99));
+
+                        writeRightAlignedText(
+                                        formatCurrency(summary.totalAmount()),
+                                        PAGE_WIDTH - RIGHT_MARGIN - 10,
+                                        cursorY - 17,
+                                        10f,
+                                        150f,
+                                        new Color(30, 64, 175));
+
+                        cursorY -= 42;
+                }
+
+                private void writeSettledExpenseCategoryChildTableHeader()
+                                throws IOException {
+
+                        ensureSpace(34);
+
+                        float headerHeight = 24f;
+
+                        float categoryWidth = 300f;
+                        float transactionCountWidth = 105f;
+
+                        float categoryX = LEFT_MARGIN;
+                        float transactionCountX = categoryX + categoryWidth;
+                        float totalX = transactionCountX + transactionCountWidth;
+
+                        float totalWidth = PAGE_WIDTH - RIGHT_MARGIN - totalX;
+
+                        contentStream.setNonStrokingColor(PRIMARY_COLOR);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - headerHeight + 6,
+                                        CONTENT_WIDTH,
+                                        headerHeight);
+                        contentStream.fill();
+
+                        float textY = cursorY - 10;
+
+                        writeText(
+                                        "Subcategoria",
+                                        categoryX + 8,
+                                        textY,
+                                        boldFont,
+                                        8.5f,
+                                        Color.WHITE);
+
+                        writeRightAlignedText(
+                                        "Despesas",
+                                        transactionCountX + transactionCountWidth - 8,
+                                        textY,
+                                        8.5f,
+                                        transactionCountWidth - 16,
+                                        Color.WHITE);
+
+                        writeRightAlignedText(
+                                        "Total pago",
+                                        totalX + totalWidth - 8,
+                                        textY,
+                                        8.5f,
+                                        totalWidth - 16,
+                                        Color.WHITE);
+
+                        cursorY -= 30;
+                }
+
+                private void writeSettledExpenseCategoryChildTableRow(
+                                SettledExpenseCategoryChildSummary summary)
+                                throws IOException {
+
+                        float rowHeight = 34f;
+
+                        float categoryWidth = 300f;
+                        float transactionCountWidth = 105f;
+
+                        float categoryX = LEFT_MARGIN;
+                        float transactionCountX = categoryX + categoryWidth;
+                        float totalX = transactionCountX + transactionCountWidth;
+                        float totalWidth = PAGE_WIDTH - RIGHT_MARGIN - totalX;
+
+                        contentStream.setNonStrokingColor(Color.WHITE);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - rowHeight + 6,
+                                        CONTENT_WIDTH,
+                                        rowHeight);
+                        contentStream.fill();
+
+                        contentStream.setStrokingColor(new Color(225, 225, 225));
+                        contentStream.setLineWidth(0.5f);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - rowHeight + 6,
+                                        CONTENT_WIDTH,
+                                        rowHeight);
+                        contentStream.stroke();
+
+                        float textY = cursorY - 14;
+
+                        writeText(
+                                        fitText(
+                                                        summary.categoryName(),
+                                                        regularFont,
+                                                        8.5f,
+                                                        categoryWidth - 26),
+                                        categoryX + 18,
+                                        textY,
+                                        regularFont,
+                                        8.5f,
+                                        Color.DARK_GRAY);
+
+                        writeRightAlignedText(
+                                        String.valueOf(summary.transactionCount()),
+                                        transactionCountX + transactionCountWidth - 8,
+                                        textY,
+                                        8.5f,
+                                        transactionCountWidth - 16,
+                                        Color.DARK_GRAY);
+
+                        writeRightAlignedText(
+                                        formatCurrency(summary.totalAmount()),
+                                        totalX + totalWidth - 8,
+                                        textY,
+                                        8.5f,
+                                        totalWidth - 16,
+                                        Color.DARK_GRAY);
+
+                        cursorY -= 40;
+                }
+
+                void writeSettledExpenseDetailTable(
+                                List<SettledExpenseReportItemResponse> items)
+                                throws IOException {
+
+                        writeSettledExpenseDetailTableHeader();
+
+                        for (SettledExpenseReportItemResponse item : items) {
+                                float rowHeight = getSettledExpenseDetailRowHeight(item);
+
+                                if (cursorY - rowHeight < BOTTOM_MARGIN) {
+                                        startPage();
+
+                                        writeSectionTitle(
+                                                        "Detalhamento das despesas liquidadas (continuação)");
+
+                                        writeSettledExpenseDetailTableHeader();
+                                }
+
+                                writeSettledExpenseDetailTableRow(item, rowHeight);
+                        }
+                }
+
+                private void writeSettledExpenseDetailTableHeader()
+                                throws IOException {
+
+                        ensureSpace(34);
+
+                        float headerHeight = 24f;
+
+                        float dateWidth = 54f;
+                        float descriptionWidth = 175f;
+                        float categoryWidth = 103f;
+                        float accountWidth = 82f;
+
+                        float dateX = LEFT_MARGIN;
+                        float descriptionX = dateX + dateWidth;
+                        float categoryX = descriptionX + descriptionWidth;
+                        float accountX = categoryX + categoryWidth;
+                        float amountX = accountX + accountWidth;
+
+                        contentStream.setNonStrokingColor(PRIMARY_COLOR);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - headerHeight + 6,
+                                        CONTENT_WIDTH,
+                                        headerHeight);
+                        contentStream.fill();
+
+                        float textY = cursorY - 10;
+
+                        writeText(
+                                        "Data",
+                                        dateX + 7,
+                                        textY,
+                                        boldFont,
+                                        8f,
+                                        Color.WHITE);
+
+                        writeText(
+                                        "Descrição",
+                                        descriptionX + 7,
+                                        textY,
+                                        boldFont,
+                                        8f,
+                                        Color.WHITE);
+
+                        writeText(
+                                        "Categoria",
+                                        categoryX + 7,
+                                        textY,
+                                        boldFont,
+                                        8f,
+                                        Color.WHITE);
+
+                        writeText(
+                                        "Conta",
+                                        accountX + 7,
+                                        textY,
+                                        boldFont,
+                                        8f,
+                                        Color.WHITE);
+
+                        writeText(
+                                        "Valor",
+                                        amountX + 7,
+                                        textY,
+                                        boldFont,
+                                        8f,
+                                        Color.WHITE);
+
+                        cursorY -= 30;
+                }
+
+                private float getSettledExpenseDetailRowHeight(
+                                SettledExpenseReportItemResponse item)
+                                throws IOException {
+
+                        float descriptionWidth = 175f;
+
+                        List<String> descriptionLines = getSettledExpenseDescriptionLines(
+                                        item.description(),
+                                        descriptionWidth - 14);
+
+                        return descriptionLines.size() > 1 ? 46f : 34f;
+                }
+
+                private void writeSettledExpenseDetailTableRow(
+                                SettledExpenseReportItemResponse item,
+                                float rowHeight)
+                                throws IOException {
+
+                        float dateWidth = 54f;
+                        float descriptionWidth = 175f;
+                        float categoryWidth = 103f;
+                        float accountWidth = 82f;
+
+                        float dateX = LEFT_MARGIN;
+                        float descriptionX = dateX + dateWidth;
+                        float categoryX = descriptionX + descriptionWidth;
+                        float accountX = categoryX + categoryWidth;
+                        float amountX = accountX + accountWidth;
+                        float amountWidth = PAGE_WIDTH - RIGHT_MARGIN - amountX;
+
+                        List<String> descriptionLines = getSettledExpenseDescriptionLines(
+                                        item.description(),
+                                        descriptionWidth - 14);
+
+                        contentStream.setNonStrokingColor(Color.WHITE);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - rowHeight + 6,
+                                        CONTENT_WIDTH,
+                                        rowHeight);
+                        contentStream.fill();
+
+                        contentStream.setStrokingColor(new Color(225, 225, 225));
+                        contentStream.setLineWidth(0.5f);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - rowHeight + 6,
+                                        CONTENT_WIDTH,
+                                        rowHeight);
+                        contentStream.stroke();
+
+                        float firstLineY = cursorY - 14;
+
+                        writeText(
+                                        formatDate(item.settlementDate()),
+                                        dateX + 7,
+                                        firstLineY,
+                                        regularFont,
+                                        8f,
+                                        Color.DARK_GRAY);
+
+                        for (int index = 0; index < descriptionLines.size(); index++) {
+                                writeText(
+                                                descriptionLines.get(index),
+                                                descriptionX + 7,
+                                                firstLineY - (index * 12),
+                                                regularFont,
+                                                8f,
+                                                Color.DARK_GRAY);
+                        }
+
+                        writeText(
+                                        fitText(
+                                                        item.categoryName(),
+                                                        regularFont,
+                                                        8f,
+                                                        categoryWidth - 14),
+                                        categoryX + 7,
+                                        firstLineY,
+                                        regularFont,
+                                        8f,
+                                        Color.DARK_GRAY);
+
+                        writeText(
+                                        fitText(
+                                                        item.accountName(),
+                                                        regularFont,
+                                                        8f,
+                                                        accountWidth - 14),
+                                        accountX + 7,
+                                        firstLineY,
+                                        regularFont,
+                                        8f,
+                                        Color.DARK_GRAY);
+
+                        writeRightAlignedText(
+                                        formatCurrency(item.amount()),
+                                        amountX + amountWidth - 7,
+                                        firstLineY,
+                                        8f,
+                                        amountWidth - 14,
+                                        Color.DARK_GRAY);
+
+                        cursorY -= rowHeight + 6;
+                }
+
                 void writeSupportBeneficiarySummaryTable(
                                 List<SupportBeneficiarySummary> summaries)
                                 throws IOException {
@@ -1517,6 +2101,35 @@ public class ClosingDossierPdfGenerator {
 
                                 writeSupportBeneficiarySummaryTableRow(summary);
                         }
+                }
+
+                private List<String> getSettledExpenseDescriptionLines(
+                                String description,
+                                float maxWidth)
+                                throws IOException {
+
+                        String resolvedDescription = description != null
+                                        && !description.isBlank()
+                                                        ? description
+                                                        : "Sem descrição";
+
+                        List<String> lines = wrapText(
+                                        resolvedDescription,
+                                        regularFont,
+                                        8f,
+                                        maxWidth);
+
+                        if (lines.size() <= 2) {
+                                return lines;
+                        }
+
+                        return List.of(
+                                        lines.get(0),
+                                        fitText(
+                                                        lines.get(1) + " ...",
+                                                        regularFont,
+                                                        8f,
+                                                        maxWidth));
                 }
 
                 private void writeSupportBeneficiarySummaryTableHeader()
@@ -2344,6 +2957,53 @@ public class ClosingDossierPdfGenerator {
                                                 * fontSize;
 
                                 if (width <= CONTENT_WIDTH) {
+                                        currentLine.setLength(0);
+                                        currentLine.append(candidate);
+                                        continue;
+                                }
+
+                                if (!currentLine.isEmpty()) {
+                                        lines.add(currentLine.toString());
+                                }
+
+                                currentLine.setLength(0);
+                                currentLine.append(word);
+                        }
+
+                        if (!currentLine.isEmpty()) {
+                                lines.add(currentLine.toString());
+                        }
+
+                        return lines;
+                }
+
+                private List<String> wrapText(
+                                String value,
+                                PDFont font,
+                                float fontSize,
+                                float maxWidth)
+                                throws IOException {
+
+                        String normalizedValue = sanitizeText(value);
+
+                        if (normalizedValue.isBlank()) {
+                                return List.of("-");
+                        }
+
+                        String[] words = normalizedValue.split("\\s+");
+                        List<String> lines = new ArrayList<>();
+                        StringBuilder currentLine = new StringBuilder();
+
+                        for (String word : words) {
+                                String candidate = currentLine.isEmpty()
+                                                ? word
+                                                : currentLine + " " + word;
+
+                                float width = font.getStringWidth(candidate)
+                                                / 1000f
+                                                * fontSize;
+
+                                if (width <= maxWidth) {
                                         currentLine.setLength(0);
                                         currentLine.append(candidate);
                                         continue;

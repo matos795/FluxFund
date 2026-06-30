@@ -64,6 +64,7 @@ export function ClosingDossierReportPage() {
     const [includeExpenses, setIncludeExpenses] = useState(true)
     const [includeTransfers, setIncludeTransfers] = useState(true)
     const [includeSupportReport, setIncludeSupportReport] = useState(false)
+    const [includePayablesReport, setIncludePayablesReport] = useState(false)
 
     const [appliedPreviewSignature, setAppliedPreviewSignature] = useState<
         string | null
@@ -100,6 +101,7 @@ export function ClosingDossierReportPage() {
             includeExpenses,
             includeTransfers,
             includeSupportReport,
+            includePayablesReport
         }
     }, [
         includeAccountsWithoutMovement,
@@ -110,6 +112,7 @@ export function ClosingDossierReportPage() {
         periodStartDate,
         selectedAccountIds,
         includeSupportReport,
+        includePayablesReport,
     ])
 
     const currentPreviewSignature = currentRequest
@@ -475,6 +478,13 @@ export function ClosingDossierReportPage() {
                                 description="Inclui compromissos, ofertas, repasses e o saldo final a repassar por favorecido."
                                 onCheckedChange={setIncludeSupportReport}
                             />
+
+                            <DocumentTypeOption
+                                checked={includePayablesReport}
+                                label="Despesas liquidadas"
+                                description="Inclui resumo por categoria e detalhamento das despesas efetivamente pagas no período."
+                                onCheckedChange={setIncludePayablesReport}
+                            />
                         </div>
                     </div>
                 </CardContent>
@@ -536,6 +546,12 @@ export function ClosingDossierReportPage() {
                             {preview.includesSupportReport && (
                                 <Badge variant="outline">
                                     Sustento missionário incluído
+                                </Badge>
+                            )}
+
+                            {preview.includesPayablesReport && (
+                                <Badge variant="outline">
+                                    Despesas liquidadas incluídas
                                 </Badge>
                             )}
                         </div>

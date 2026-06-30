@@ -38,7 +38,10 @@ import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportPro
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportResponse;
 import com.fluxfund.api.domain.report.dto.accountcashflow.AccountCashFlowItemResponse;
 import com.fluxfund.api.domain.report.dto.accountcashflow.AccountCashFlowReportResponse;
+import com.fluxfund.api.domain.report.dto.category.CategoryResultItemResponse;
 import com.fluxfund.api.domain.report.dto.category.CategoryResultReportResponse;
+import com.fluxfund.api.domain.report.dto.expense.SettledExpenseReportItemResponse;
+import com.fluxfund.api.domain.report.dto.expense.SettledExpenseReportResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundReportItemResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundReportResponse;
 import com.fluxfund.api.domain.report.dto.pending.PendingCreditCardStatementResponse;
@@ -116,6 +119,55 @@ public class ReportService {
                                 incomeTotal,
                                 expenseTotal,
                                 netTotal,
+                                items);
+        }
+
+        public SettledExpenseReportResponse getSettledExpenseReport(
+                        UUID organizationId,
+                        LocalDate startDate,
+                        LocalDate endDate) {
+
+                organizationAccessService.requireReadAccess(organizationId);
+
+                validateOrganizationExists(organizationId);
+
+                LocalDate resolvedStartDate = startDate != null
+                                ? startDate
+                                : LocalDate.now().withDayOfMonth(1);
+
+                LocalDate resolvedEndDate = endDate != null
+                                ? endDate
+                                : LocalDate.now();
+
+                if (resolvedEndDate.isBefore(resolvedStartDate)) {
+                        throw new BusinessException(
+                                        "End date cannot be before start date");
+                }
+
+                List<SettledExpenseReportItemResponse> items = financialTransactionRepository.findSettledExpenseReport(
+                                organizationId,
+                                resolvedStartDate,
+                                resolvedEndDate);
+
+                List<CategoryResultItemResponse> categoryItems = financialTransactionRepository
+                                .findCategoryResultReport(
+                                                organizationId,
+                                                resolvedStartDate,
+                                                resolvedEndDate)
+                                .stream()
+                                .filter(item -> item.type() == FinancialTransactionType.EXPENSE)
+                                .toList();
+
+                BigDecimal totalPaidAmount = items.stream()
+                                .map(SettledExpenseReportItemResponse::amount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                return new SettledExpenseReportResponse(
+                                resolvedStartDate,
+                                resolvedEndDate,
+                                totalPaidAmount,
+                                items.size(),
+                                categoryItems,
                                 items);
         }
 

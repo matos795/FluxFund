@@ -64,6 +64,7 @@ export type ClosingDossierPreviewRequest = {
   includeExpenses: boolean
   includeTransfers: boolean
   includeSupportReport: boolean
+  includePayablesReport: boolean
 }
 
 export type ClosingDossierPreview = {
