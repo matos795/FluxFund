@@ -9,21 +9,24 @@ import jakarta.validation.constraints.NotNull;
 
 public record ClosingDossierPreviewRequest(
 
-        @NotNull
-        LocalDate periodStartDate,
+                @NotNull LocalDate periodStartDate,
 
-        @NotNull
-        LocalDate periodEndDate,
+                @NotNull LocalDate periodEndDate,
 
-        @NotEmpty
-        List<@NotNull UUID> accountIds,
+                @NotEmpty List<@NotNull UUID> accountIds,
 
-        Boolean includeAccountsWithoutMovement,
+                Boolean includeAccountsWithoutMovement,
 
-        Boolean includeIncomes,
+                Boolean includeIncomes,
 
-        Boolean includeExpenses,
+                Boolean includeExpenses,
 
-        Boolean includeTransfers
-) {
+                Boolean includeTransfers,
+
+                Boolean includeSupportReport,
+
+                Boolean includePayablesReport,
+                
+                Boolean includeReceivablesReport
+        ) {
 }

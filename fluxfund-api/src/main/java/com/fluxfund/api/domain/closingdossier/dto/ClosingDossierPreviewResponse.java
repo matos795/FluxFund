@@ -4,23 +4,27 @@ import java.time.LocalDate;
 import java.util.List;
 
 public record ClosingDossierPreviewResponse(
-        LocalDate periodStartDate,
-        LocalDate periodEndDate,
+                LocalDate periodStartDate,
+                LocalDate periodEndDate,
 
-        boolean includeAccountsWithoutMovement,
-        boolean includeIncomes,
-        boolean includeExpenses,
-        boolean includeTransfers,
+                boolean includeAccountsWithoutMovement,
+                boolean includeIncomes,
+                boolean includeExpenses,
+                boolean includeTransfers,
 
-        int selectedAccountCount,
-        int includedAccountCount,
+                boolean includesSupportReport,
+                boolean includesPayablesReport,
+                boolean includesReceivablesReport,
 
-        long totalTransactionCount,
-        long accountsWithoutMovementCount,
-        long accountsWithoutBankStatementCount,
-        long expensesWithoutPaymentProofCount,
-        long expensesWithoutFiscalDocumentCount,
+                int selectedAccountCount,
+                int includedAccountCount,
+                int automaticSectionCount,
 
-        List<ClosingDossierAccountPreviewResponse> accounts
-) {
+                long totalTransactionCount,
+                long accountsWithoutMovementCount,
+                long accountsWithoutBankStatementCount,
+                long expensesWithoutPaymentProofCount,
+                long expensesWithoutFiscalDocumentCount,
+
+                List<ClosingDossierAccountPreviewResponse> accounts) {
 }

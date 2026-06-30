@@ -45,387 +45,400 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 public class ClosingDossierService {
 
-    private final OrganizationAccessService organizationAccessService;
-    private final OrganizationRepository organizationRepository;
-    private final OrganizationSettingsRepository organizationSettingsRepository;
-    private final AccountRepository accountRepository;
-    private final FinancialTransactionRepository financialTransactionRepository;
-    private final AttachmentRepository attachmentRepository;
-    private final BankStatementDocumentRepository bankStatementDocumentRepository;
+        private final OrganizationAccessService organizationAccessService;
+        private final OrganizationRepository organizationRepository;
+        private final OrganizationSettingsRepository organizationSettingsRepository;
+        private final AccountRepository accountRepository;
+        private final FinancialTransactionRepository financialTransactionRepository;
+        private final AttachmentRepository attachmentRepository;
+        private final BankStatementDocumentRepository bankStatementDocumentRepository;
 
-    public ClosingDossierPreviewResponse preview(
-            UUID organizationId,
-            ClosingDossierPreviewRequest request) {
+        public ClosingDossierPreviewResponse preview(
+                        UUID organizationId,
+                        ClosingDossierPreviewRequest request) {
 
-        organizationAccessService.requireReadAccess(organizationId);
+                organizationAccessService.requireReadAccess(organizationId);
 
-        validatePeriod(request.periodStartDate(), request.periodEndDate());
+                validatePeriod(request.periodStartDate(), request.periodEndDate());
 
-        organizationRepository.findByIdAndActiveTrue(organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+                organizationRepository.findByIdAndActiveTrue(organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
-        List<UUID> accountIds = new ArrayList<>(
-                new LinkedHashSet<>(request.accountIds()));
+                List<UUID> accountIds = new ArrayList<>(
+                                new LinkedHashSet<>(request.accountIds()));
 
-        List<Account> accounts = accountRepository
-                .findAllByIdInAndOrganizationIdAndActiveTrue(
-                        accountIds,
-                        organizationId);
+                List<Account> accounts = accountRepository
+                                .findAllByIdInAndOrganizationIdAndActiveTrue(
+                                                accountIds,
+                                                organizationId);
 
-        if (accounts.size() != accountIds.size()) {
-            throw new ResourceNotFoundException(
-                    "One or more selected accounts were not found");
-        }
+                if (accounts.size() != accountIds.size()) {
+                        throw new ResourceNotFoundException(
+                                        "One or more selected accounts were not found");
+                }
 
-        boolean includeAccountsWithoutMovement =
-                Boolean.TRUE.equals(request.includeAccountsWithoutMovement());
+                boolean includeAccountsWithoutMovement = Boolean.TRUE.equals(request.includeAccountsWithoutMovement());
 
-        boolean includeIncomes =
-                Boolean.TRUE.equals(request.includeIncomes());
+                boolean includeIncomes = Boolean.TRUE.equals(request.includeIncomes());
 
-        boolean includeExpenses =
-                request.includeExpenses() == null
-                        || Boolean.TRUE.equals(request.includeExpenses());
+                boolean includeExpenses = request.includeExpenses() == null
+                                || Boolean.TRUE.equals(request.includeExpenses());
 
-        boolean includeTransfers =
-                Boolean.TRUE.equals(request.includeTransfers());
+                boolean includeTransfers = Boolean.TRUE.equals(request.includeTransfers());
 
-        List<FinancialTransactionType> selectedTypes =
-                resolveSelectedTypes(
-                        includeIncomes,
-                        includeExpenses,
-                        includeTransfers);
+                boolean includesSupportReport = shouldIncludeSupportReport(request);
+                boolean includesPayablesReport = shouldIncludePayablesReport(request);
+                boolean includesReceivablesReport = shouldIncludeReceivablesReport(request);
 
-        accounts.forEach(this::validateAccountSupported);
+                int automaticSectionCount = 0;
 
-        List<FinancialTransaction> transactions =
-                financialTransactionRepository.findSettledForClosingDossier(
-                        organizationId,
-                        accountIds,
-                        request.periodStartDate(),
-                        request.periodEndDate(),
-                        selectedTypes);
+                if (includesSupportReport) {
+                        automaticSectionCount++;
+                }
+                if (includesPayablesReport) {
+                        automaticSectionCount++;
+                }
+                if (includesReceivablesReport) {
+                        automaticSectionCount++;
+                }
 
-        Map<UUID, List<FinancialTransaction>> transactionsByAccountId =
-                transactions.stream()
-                        .collect(Collectors.groupingBy(
-                                transaction -> transaction.getAccount().getId()));
+                List<FinancialTransactionType> selectedTypes = resolveSelectedTypes(
+                                includeIncomes,
+                                includeExpenses,
+                                includeTransfers);
 
-        Map<UUID, List<Attachment>> attachmentsByTransactionId =
-                loadAttachmentsByTransactionId(
-                        organizationId,
-                        transactions);
+                accounts.forEach(this::validateAccountSupported);
 
-        Map<UUID, List<BankStatementDocumentResponse>> statementsByAccountId =
-                bankStatementDocumentRepository
-                        .findAllForAccountsAndOverlappingPeriod(
+                List<FinancialTransaction> transactions = financialTransactionRepository.findSettledForClosingDossier(
                                 organizationId,
                                 accountIds,
                                 request.periodStartDate(),
-                                request.periodEndDate())
-                        .stream()
-                        .map(BankStatementDocumentMapper::toResponse)
-                        .collect(Collectors.groupingBy(
-                                BankStatementDocumentResponse::accountId));
+                                request.periodEndDate(),
+                                selectedTypes);
 
-        OrganizationSettings settings = organizationSettingsRepository
-                .findByOrganizationId(organizationId)
-                .orElse(null);
+                Map<UUID, List<FinancialTransaction>> transactionsByAccountId = transactions.stream()
+                                .collect(Collectors.groupingBy(
+                                                transaction -> transaction.getAccount().getId()));
 
-        boolean requireFiscalDocumentForExpenses =
-                settings == null || settings.isRequireFiscalDocumentForExpenses();
+                Map<UUID, List<Attachment>> attachmentsByTransactionId = loadAttachmentsByTransactionId(
+                                organizationId,
+                                transactions);
 
-        List<ClosingDossierAccountPreviewResponse> accountPreviews =
-                new ArrayList<>();
+                Map<UUID, List<BankStatementDocumentResponse>> statementsByAccountId = bankStatementDocumentRepository
+                                .findAllForAccountsAndOverlappingPeriod(
+                                                organizationId,
+                                                accountIds,
+                                                request.periodStartDate(),
+                                                request.periodEndDate())
+                                .stream()
+                                .map(BankStatementDocumentMapper::toResponse)
+                                .collect(Collectors.groupingBy(
+                                                BankStatementDocumentResponse::accountId));
 
-        long accountsWithoutMovementCount = 0;
-        long accountsWithoutBankStatementCount = 0;
-        long expensesWithoutPaymentProofCount = 0;
-        long expensesWithoutFiscalDocumentCount = 0;
-        int includedAccountCount = 0;
+                OrganizationSettings settings = organizationSettingsRepository
+                                .findByOrganizationId(organizationId)
+                                .orElse(null);
 
-        List<Account> sortedAccounts = accounts.stream()
-                .sorted(Comparator.comparing(
-                        Account::getName,
-                        String.CASE_INSENSITIVE_ORDER))
-                .toList();
+                boolean requireFiscalDocumentForExpenses = settings == null
+                                || settings.isRequireFiscalDocumentForExpenses();
 
-        for (Account account : sortedAccounts) {
-            List<FinancialTransaction> accountTransactions =
-                    transactionsByAccountId.getOrDefault(
-                            account.getId(),
-                            List.of());
+                List<ClosingDossierAccountPreviewResponse> accountPreviews = new ArrayList<>();
 
-            List<BankStatementDocumentResponse> statementDocuments =
-                    statementsByAccountId.getOrDefault(
-                            account.getId(),
-                            List.of());
+                long accountsWithoutMovementCount = 0;
+                long accountsWithoutBankStatementCount = 0;
+                long expensesWithoutPaymentProofCount = 0;
+                long expensesWithoutFiscalDocumentCount = 0;
+                int includedAccountCount = 0;
 
-            boolean hasMovement = !accountTransactions.isEmpty();
-            boolean includedInDossier =
-                    includeAccountsWithoutMovement || hasMovement;
+                List<Account> sortedAccounts = accounts.stream()
+                                .sorted(Comparator.comparing(
+                                                Account::getName,
+                                                String.CASE_INSENSITIVE_ORDER))
+                                .toList();
 
-            if (!hasMovement) {
-                accountsWithoutMovementCount++;
-            }
+                for (Account account : sortedAccounts) {
+                        List<FinancialTransaction> accountTransactions = transactionsByAccountId.getOrDefault(
+                                        account.getId(),
+                                        List.of());
 
-            if (includedInDossier) {
-                includedAccountCount++;
+                        List<BankStatementDocumentResponse> statementDocuments = statementsByAccountId.getOrDefault(
+                                        account.getId(),
+                                        List.of());
 
-                if (statementDocuments.isEmpty()) {
-                    accountsWithoutBankStatementCount++;
+                        boolean hasMovement = !accountTransactions.isEmpty();
+                        boolean includedInDossier = includeAccountsWithoutMovement || hasMovement;
+
+                        if (!hasMovement) {
+                                accountsWithoutMovementCount++;
+                        }
+
+                        if (includedInDossier) {
+                                includedAccountCount++;
+
+                                if (statementDocuments.isEmpty()) {
+                                        accountsWithoutBankStatementCount++;
+                                }
+                        }
+
+                        List<ClosingDossierDocumentIssueResponse> paymentProofIssues = new ArrayList<>();
+
+                        List<ClosingDossierDocumentIssueResponse> fiscalDocumentIssues = new ArrayList<>();
+
+                        for (FinancialTransaction transaction : accountTransactions) {
+                                if (transaction.getType() != FinancialTransactionType.EXPENSE) {
+                                        continue;
+                                }
+
+                                List<Attachment> transactionAttachments = attachmentsByTransactionId.getOrDefault(
+                                                transaction.getId(),
+                                                List.of());
+
+                                if (requiresPaymentProof(transaction)
+                                                && !hasPaymentProof(transactionAttachments)) {
+
+                                        paymentProofIssues.add(toIssue(
+                                                        transaction,
+                                                        ClosingDossierDocumentIssueType.PAYMENT_PROOF_MISSING));
+                                }
+
+                                ClosingDossierDocumentIssueType fiscalIssueType = resolveFiscalDocumentIssueType(
+                                                transaction,
+                                                transactionAttachments,
+                                                requireFiscalDocumentForExpenses);
+
+                                if (fiscalIssueType != null) {
+                                        fiscalDocumentIssues.add(toIssue(
+                                                        transaction,
+                                                        fiscalIssueType));
+                                }
+                        }
+
+                        expensesWithoutPaymentProofCount += paymentProofIssues.size();
+                        expensesWithoutFiscalDocumentCount += fiscalDocumentIssues.size();
+
+                        accountPreviews.add(new ClosingDossierAccountPreviewResponse(
+                                        account.getId(),
+                                        account.getName(),
+                                        account.getType(),
+
+                                        hasMovement,
+                                        includedInDossier,
+
+                                        !statementDocuments.isEmpty(),
+                                        statementDocuments,
+
+                                        accountTransactions.size(),
+                                        sumByType(
+                                                        accountTransactions,
+                                                        FinancialTransactionType.INCOME),
+                                        sumByType(
+                                                        accountTransactions,
+                                                        FinancialTransactionType.EXPENSE),
+                                        sumByType(
+                                                        accountTransactions,
+                                                        FinancialTransactionType.TRANSFER),
+
+                                        paymentProofIssues,
+                                        fiscalDocumentIssues));
                 }
-            }
 
-            List<ClosingDossierDocumentIssueResponse> paymentProofIssues =
-                    new ArrayList<>();
+                return new ClosingDossierPreviewResponse(
+                                request.periodStartDate(),
+                                request.periodEndDate(),
 
-            List<ClosingDossierDocumentIssueResponse> fiscalDocumentIssues =
-                    new ArrayList<>();
+                                includeAccountsWithoutMovement,
+                                includeIncomes,
+                                includeExpenses,
+                                includeTransfers,
 
-            for (FinancialTransaction transaction : accountTransactions) {
-                if (transaction.getType() != FinancialTransactionType.EXPENSE) {
-                    continue;
+                                includesSupportReport,
+                                includesPayablesReport,
+                                includesReceivablesReport,
+
+                                accountIds.size(),
+                                includedAccountCount,
+                                automaticSectionCount,
+
+                                transactions.size(),
+                                accountsWithoutMovementCount,
+                                accountsWithoutBankStatementCount,
+                                expensesWithoutPaymentProofCount,
+                                expensesWithoutFiscalDocumentCount,
+
+                                accountPreviews);
+        }
+
+        private Map<UUID, List<Attachment>> loadAttachmentsByTransactionId(
+                        UUID organizationId,
+                        List<FinancialTransaction> transactions) {
+
+                List<UUID> transactionIds = transactions.stream()
+                                .map(FinancialTransaction::getId)
+                                .toList();
+
+                if (transactionIds.isEmpty()) {
+                        return Map.of();
                 }
 
-                List<Attachment> transactionAttachments =
-                        attachmentsByTransactionId.getOrDefault(
+                return attachmentRepository
+                                .findAllByTransactionIdsForExport(
+                                                organizationId,
+                                                transactionIds)
+                                .stream()
+                                .collect(Collectors.groupingBy(
+                                                attachment -> attachment.getFinancialTransaction().getId()));
+        }
+
+        private List<FinancialTransactionType> resolveSelectedTypes(
+                        boolean includeIncomes,
+                        boolean includeExpenses,
+                        boolean includeTransfers) {
+
+                List<FinancialTransactionType> types = new ArrayList<>();
+
+                if (includeIncomes) {
+                        types.add(FinancialTransactionType.INCOME);
+                }
+
+                if (includeExpenses) {
+                        types.add(FinancialTransactionType.EXPENSE);
+                }
+
+                if (includeTransfers) {
+                        types.add(FinancialTransactionType.TRANSFER);
+                }
+
+                if (types.isEmpty()) {
+                        throw new BusinessException(
+                                        "Select at least one transaction type for the closing dossier");
+                }
+
+                return types;
+        }
+
+        private void validateAccountSupported(Account account) {
+                if (account.getType() == AccountType.CREDIT_CARD) {
+                        throw new BusinessException(
+                                        "Credit card accounts are not supported in the closing dossier MVP");
+                }
+        }
+
+        private void validatePeriod(
+                        LocalDate periodStartDate,
+                        LocalDate periodEndDate) {
+
+                if (periodStartDate.isAfter(periodEndDate)) {
+                        throw new BusinessException(
+                                        "Period start date cannot be after period end date");
+                }
+        }
+
+        private boolean requiresPaymentProof(
+                        FinancialTransaction transaction) {
+
+                return transaction.getCategory() != null
+                                && transaction.getCategory().isRequiresPaymentProof();
+        }
+
+        private ClosingDossierDocumentIssueType resolveFiscalDocumentIssueType(
+                        FinancialTransaction transaction,
+                        List<Attachment> attachments,
+                        boolean requireFiscalDocumentForExpenses) {
+
+                if (hasFiscalDocument(attachments)) {
+                        return null;
+                }
+
+                FiscalDocumentPolicy policy = transaction.getFiscalDocumentPolicy() != null
+                                ? transaction.getFiscalDocumentPolicy()
+                                : FiscalDocumentPolicy.CATEGORY;
+
+                return switch (policy) {
+                        case REQUIRED ->
+                                ClosingDossierDocumentIssueType.FISCAL_DOCUMENT_REQUIRED_MISSING;
+
+                        case MISSING ->
+                                ClosingDossierDocumentIssueType.FISCAL_DOCUMENT_DECLARED_MISSING;
+
+                        case WAIVED -> null;
+
+                        case CATEGORY -> {
+                                boolean categoryRequiresFiscalDocument = transaction.getCategory() != null
+                                                && transaction.getCategory()
+                                                                .isRequiresFiscalDocument();
+
+                                yield categoryRequiresFiscalDocument
+                                                && requireFiscalDocumentForExpenses
+                                                                ? ClosingDossierDocumentIssueType.FISCAL_DOCUMENT_REQUIRED_MISSING
+                                                                : null;
+                        }
+                };
+        }
+
+        private boolean hasPaymentProof(List<Attachment> attachments) {
+                return attachments.stream()
+                                .anyMatch(attachment -> attachment.getType() == AttachmentType.PROOF_OF_PAYMENT);
+        }
+
+        private boolean hasFiscalDocument(List<Attachment> attachments) {
+                return attachments.stream()
+                                .anyMatch(attachment -> attachment.getType() == AttachmentType.INVOICE
+                                                || attachment.getType() == AttachmentType.RECEIPT
+                                                || attachment.getType() == AttachmentType.CONTRACT);
+        }
+
+        private BigDecimal sumByType(
+                        List<FinancialTransaction> transactions,
+                        FinancialTransactionType type) {
+
+                return transactions.stream()
+                                .filter(transaction -> transaction.getType() == type)
+                                .map(transaction -> absoluteAmount(
+                                                transaction.getSettledAmount()))
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+
+        private BigDecimal absoluteAmount(BigDecimal amount) {
+                return amount != null
+                                ? amount.abs()
+                                : BigDecimal.ZERO;
+        }
+
+        private ClosingDossierDocumentIssueResponse toIssue(
+                        FinancialTransaction transaction,
+                        ClosingDossierDocumentIssueType issueType) {
+
+                String description = transaction.getDescription() != null
+                                && !transaction.getDescription().isBlank()
+                                                ? transaction.getDescription()
+                                                : transaction.getRawDescription();
+
+                return new ClosingDossierDocumentIssueResponse(
                                 transaction.getId(),
-                                List.of());
-
-                if (requiresPaymentProof(transaction)
-                        && !hasPaymentProof(transactionAttachments)) {
-
-                    paymentProofIssues.add(toIssue(
-                            transaction,
-                            ClosingDossierDocumentIssueType.PAYMENT_PROOF_MISSING));
-                }
-
-                ClosingDossierDocumentIssueType fiscalIssueType =
-                        resolveFiscalDocumentIssueType(
-                                transaction,
-                                transactionAttachments,
-                                requireFiscalDocumentForExpenses);
-
-                if (fiscalIssueType != null) {
-                    fiscalDocumentIssues.add(toIssue(
-                            transaction,
-                            fiscalIssueType));
-                }
-            }
-
-            expensesWithoutPaymentProofCount += paymentProofIssues.size();
-            expensesWithoutFiscalDocumentCount += fiscalDocumentIssues.size();
-
-            accountPreviews.add(new ClosingDossierAccountPreviewResponse(
-                    account.getId(),
-                    account.getName(),
-                    account.getType(),
-
-                    hasMovement,
-                    includedInDossier,
-
-                    !statementDocuments.isEmpty(),
-                    statementDocuments,
-
-                    accountTransactions.size(),
-                    sumByType(
-                            accountTransactions,
-                            FinancialTransactionType.INCOME),
-                    sumByType(
-                            accountTransactions,
-                            FinancialTransactionType.EXPENSE),
-                    sumByType(
-                            accountTransactions,
-                            FinancialTransactionType.TRANSFER),
-
-                    paymentProofIssues,
-                    fiscalDocumentIssues));
+                                transaction.getSettlementDate(),
+                                description,
+                                transaction.getRawDescription(),
+                                transaction.getCategory() != null
+                                                ? transaction.getCategory().getName()
+                                                : null,
+                                absoluteAmount(transaction.getSettledAmount()),
+                                transaction.getFiscalDocumentPolicy(),
+                                transaction.getFiscalDocumentNote(),
+                                issueType);
         }
 
-        return new ClosingDossierPreviewResponse(
-                request.periodStartDate(),
-                request.periodEndDate(),
-
-                includeAccountsWithoutMovement,
-                includeIncomes,
-                includeExpenses,
-                includeTransfers,
-
-                accountIds.size(),
-                includedAccountCount,
-
-                transactions.size(),
-                accountsWithoutMovementCount,
-                accountsWithoutBankStatementCount,
-                expensesWithoutPaymentProofCount,
-                expensesWithoutFiscalDocumentCount,
-
-                accountPreviews);
-    }
-
-    private Map<UUID, List<Attachment>> loadAttachmentsByTransactionId(
-            UUID organizationId,
-            List<FinancialTransaction> transactions) {
-
-        List<UUID> transactionIds = transactions.stream()
-                .map(FinancialTransaction::getId)
-                .toList();
-
-        if (transactionIds.isEmpty()) {
-            return Map.of();
+        private boolean shouldIncludeSupportReport(
+                        ClosingDossierPreviewRequest request) {
+                return Boolean.TRUE.equals(request.includeSupportReport());
         }
 
-        return attachmentRepository
-                .findAllByTransactionIdsForExport(
-                        organizationId,
-                        transactionIds)
-                .stream()
-                .collect(Collectors.groupingBy(
-                        attachment -> attachment.getFinancialTransaction().getId()));
-    }
-
-    private List<FinancialTransactionType> resolveSelectedTypes(
-            boolean includeIncomes,
-            boolean includeExpenses,
-            boolean includeTransfers) {
-
-        List<FinancialTransactionType> types = new ArrayList<>();
-
-        if (includeIncomes) {
-            types.add(FinancialTransactionType.INCOME);
+        private boolean shouldIncludePayablesReport(
+                        ClosingDossierPreviewRequest request) {
+                return Boolean.TRUE.equals(request.includePayablesReport());
         }
 
-        if (includeExpenses) {
-            types.add(FinancialTransactionType.EXPENSE);
+        private boolean shouldIncludeReceivablesReport(
+                        ClosingDossierPreviewRequest request) {
+                return Boolean.TRUE.equals(request.includeReceivablesReport());
         }
-
-        if (includeTransfers) {
-            types.add(FinancialTransactionType.TRANSFER);
-        }
-
-        if (types.isEmpty()) {
-            throw new BusinessException(
-                    "Select at least one transaction type for the closing dossier");
-        }
-
-        return types;
-    }
-
-    private void validateAccountSupported(Account account) {
-        if (account.getType() == AccountType.CREDIT_CARD) {
-            throw new BusinessException(
-                    "Credit card accounts are not supported in the closing dossier MVP");
-        }
-    }
-
-    private void validatePeriod(
-            LocalDate periodStartDate,
-            LocalDate periodEndDate) {
-
-        if (periodStartDate.isAfter(periodEndDate)) {
-            throw new BusinessException(
-                    "Period start date cannot be after period end date");
-        }
-    }
-
-    private boolean requiresPaymentProof(
-            FinancialTransaction transaction) {
-
-        return transaction.getCategory() != null
-                && transaction.getCategory().isRequiresPaymentProof();
-    }
-
-    private ClosingDossierDocumentIssueType resolveFiscalDocumentIssueType(
-            FinancialTransaction transaction,
-            List<Attachment> attachments,
-            boolean requireFiscalDocumentForExpenses) {
-
-        if (hasFiscalDocument(attachments)) {
-            return null;
-        }
-
-        FiscalDocumentPolicy policy =
-                transaction.getFiscalDocumentPolicy() != null
-                        ? transaction.getFiscalDocumentPolicy()
-                        : FiscalDocumentPolicy.CATEGORY;
-
-        return switch (policy) {
-            case REQUIRED ->
-                ClosingDossierDocumentIssueType.FISCAL_DOCUMENT_REQUIRED_MISSING;
-
-            case MISSING ->
-                ClosingDossierDocumentIssueType.FISCAL_DOCUMENT_DECLARED_MISSING;
-
-            case WAIVED -> null;
-
-            case CATEGORY -> {
-                boolean categoryRequiresFiscalDocument =
-                        transaction.getCategory() != null
-                                && transaction.getCategory()
-                                        .isRequiresFiscalDocument();
-
-                yield categoryRequiresFiscalDocument
-                        && requireFiscalDocumentForExpenses
-                                ? ClosingDossierDocumentIssueType
-                                        .FISCAL_DOCUMENT_REQUIRED_MISSING
-                                : null;
-            }
-        };
-    }
-
-    private boolean hasPaymentProof(List<Attachment> attachments) {
-        return attachments.stream()
-                .anyMatch(attachment ->
-                        attachment.getType()
-                                == AttachmentType.PROOF_OF_PAYMENT);
-    }
-
-    private boolean hasFiscalDocument(List<Attachment> attachments) {
-        return attachments.stream()
-                .anyMatch(attachment ->
-                        attachment.getType() == AttachmentType.INVOICE
-                                || attachment.getType() == AttachmentType.RECEIPT
-                                || attachment.getType() == AttachmentType.CONTRACT);
-    }
-
-    private BigDecimal sumByType(
-            List<FinancialTransaction> transactions,
-            FinancialTransactionType type) {
-
-        return transactions.stream()
-                .filter(transaction -> transaction.getType() == type)
-                .map(transaction -> absoluteAmount(
-                        transaction.getSettledAmount()))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-
-    private BigDecimal absoluteAmount(BigDecimal amount) {
-        return amount != null
-                ? amount.abs()
-                : BigDecimal.ZERO;
-    }
-
-    private ClosingDossierDocumentIssueResponse toIssue(
-            FinancialTransaction transaction,
-            ClosingDossierDocumentIssueType issueType) {
-
-        String description = transaction.getDescription() != null
-                && !transaction.getDescription().isBlank()
-                        ? transaction.getDescription()
-                        : transaction.getRawDescription();
-
-        return new ClosingDossierDocumentIssueResponse(
-                transaction.getId(),
-                transaction.getSettlementDate(),
-                description,
-                transaction.getRawDescription(),
-                transaction.getCategory() != null
-                        ? transaction.getCategory().getName()
-                        : null,
-                absoluteAmount(transaction.getSettledAmount()),
-                transaction.getFiscalDocumentPolicy(),
-                transaction.getFiscalDocumentNote(),
-                issueType);
-    }
 }
