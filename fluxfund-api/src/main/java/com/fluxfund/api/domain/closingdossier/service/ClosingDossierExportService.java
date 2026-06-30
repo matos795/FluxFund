@@ -37,6 +37,8 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.repository.OrganizationRepository;
+import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportResponse;
+import com.fluxfund.api.domain.report.service.ReportService;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 
@@ -48,6 +50,7 @@ import lombok.RequiredArgsConstructor;
 public class ClosingDossierExportService {
 
         private final ClosingDossierService closingDossierService;
+        private final ReportService reportService;
         private final ClosingDossierPdfGenerator pdfGenerator;
 
         private final OrganizationRepository organizationRepository;
@@ -172,6 +175,13 @@ public class ClosingDossierExportService {
                                         "There are no accounts to include in the closing dossier");
                 }
 
+                AccountabilityReportResponse supportReport = preview.includesSupportReport()
+                                ? reportService.getAccountabilityReport(
+                                                organizationId,
+                                                request.periodStartDate(),
+                                                request.periodEndDate())
+                                : null;
+
                 List<ClosingDossierExportExtraDocument> extraDocuments = closingDossierExtraDocumentRepository
                                 .findAllByOrganizationIdAndPeriodStartDateAndPeriodEndDateOrderBySortOrderAscUploadedAtAsc(
                                                 organizationId,
@@ -186,7 +196,8 @@ public class ClosingDossierExportService {
                                 request,
                                 preview,
                                 exportAccounts,
-                                extraDocuments);
+                                extraDocuments,
+                                supportReport);
 
                 auditLogService.record(
                                 organizationId,

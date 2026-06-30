@@ -63,6 +63,7 @@ export function ClosingDossierReportPage() {
     const [includeIncomes, setIncludeIncomes] = useState(true)
     const [includeExpenses, setIncludeExpenses] = useState(true)
     const [includeTransfers, setIncludeTransfers] = useState(true)
+    const [includeSupportReport, setIncludeSupportReport] = useState(false)
 
     const [appliedPreviewSignature, setAppliedPreviewSignature] = useState<
         string | null
@@ -98,6 +99,7 @@ export function ClosingDossierReportPage() {
             includeIncomes,
             includeExpenses,
             includeTransfers,
+            includeSupportReport,
         }
     }, [
         includeAccountsWithoutMovement,
@@ -107,6 +109,7 @@ export function ClosingDossierReportPage() {
         periodEndDate,
         periodStartDate,
         selectedAccountIds,
+        includeSupportReport,
     ])
 
     const currentPreviewSignature = currentRequest
@@ -455,6 +458,25 @@ export function ClosingDossierReportPage() {
                             onCheckedChange={setIncludeTransfers}
                         />
                     </div>
+
+                    <div className="space-y-3 border-t pt-5">
+                        <div>
+                            <Label>Relatórios automáticos</Label>
+
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                Seções calculadas pelo FluxFund e inseridas automaticamente no PDF.
+                            </p>
+                        </div>
+
+                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                            <DocumentTypeOption
+                                checked={includeSupportReport}
+                                label="Sustento missionário"
+                                description="Inclui compromissos, ofertas, repasses e o saldo final a repassar por favorecido."
+                                onCheckedChange={setIncludeSupportReport}
+                            />
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
 
@@ -506,10 +528,17 @@ export function ClosingDossierReportPage() {
                             description={`Período analisado: ${preview.periodStartDate} até ${preview.periodEndDate}.`}
                         />
 
-                        <Badge variant="secondary">
-                            {preview.includedAccountCount} de {preview.selectedAccountCount}{" "}
-                            contas incluídas
-                        </Badge>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="secondary">
+                                {preview.includedAccountCount} de {preview.selectedAccountCount} contas incluídas
+                            </Badge>
+
+                            {preview.includesSupportReport && (
+                                <Badge variant="outline">
+                                    Sustento missionário incluído
+                                </Badge>
+                            )}
+                        </div>
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

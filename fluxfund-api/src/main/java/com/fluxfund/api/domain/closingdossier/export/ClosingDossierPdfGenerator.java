@@ -11,8 +11,11 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
 
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.multipdf.PDFMergerUtility;
@@ -39,6 +42,8 @@ import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierPreviewResponse;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.organization.Organization;
+import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportItemResponse;
+import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportResponse;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.storage.LocalFileStorageService;
 
@@ -61,7 +66,8 @@ public class ClosingDossierPdfGenerator {
                         ClosingDossierPreviewRequest request,
                         ClosingDossierPreviewResponse preview,
                         List<ClosingDossierExportAccount> accounts,
-                        List<ClosingDossierExportExtraDocument> extraDocuments) {
+                        List<ClosingDossierExportExtraDocument> extraDocuments,
+                        AccountabilityReportResponse supportReport) {
 
                 try (
                                 PDDocument document = new PDDocument();
@@ -83,6 +89,10 @@ public class ClosingDossierPdfGenerator {
 
                         int tableOfContentsEntryCount = accounts.size() + 1;
 
+                        if (supportReport != null) {
+                                tableOfContentsEntryCount++;
+                        }
+
                         if (!extraDocuments.isEmpty()) {
                                 tableOfContentsEntryCount += extraDocuments.size();
                         }
@@ -94,6 +104,18 @@ public class ClosingDossierPdfGenerator {
                                                                         / TABLE_OF_CONTENTS_ENTRIES_PER_PAGE));
 
                         List<PDPage> tableOfContentsPages = writer.reservePages(tableOfContentsPageCount);
+
+                        if (supportReport != null) {
+                                PDPage supportReportStartPage = writeSupportReportSection(
+                                                writer,
+                                                supportReport);
+
+                                tableOfContentsEntries.add(
+                                                new TableOfContentsEntry(
+                                                                "Relatório de Sustento Missionário",
+                                                                0,
+                                                                supportReportStartPage));
+                        }
 
                         if (!extraDocuments.isEmpty()) {
                                 writeExtraDocumentsSection(
@@ -268,6 +290,150 @@ public class ClosingDossierPdfGenerator {
                                 .filter(transaction -> transaction.getType() == type)
                                 .map(this::getTransactionAmount)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+
+        private PDPage writeSupportReportSection(
+                        PdfWriter writer,
+                        AccountabilityReportResponse supportReport)
+                        throws IOException {
+
+                PDPage coverPage = writer.startCoverPage(
+                                "RELATÓRIO AUTOMÁTICO",
+                                "Sustento Missionário",
+                                List.of(
+                                                "Período: " + formatPeriod(
+                                                                supportReport.startDate(),
+                                                                supportReport.endDate()),
+                                                "Favorecidos com saldo a repassar: "
+                                                                + supportReport.beneficiariesWithPendingBalance(),
+                                                "Compromissos no período: "
+                                                                + formatCurrency(
+                                                                                supportReport.commitmentTotal()),
+                                                "Ofertas destinadas: "
+                                                                + formatCurrency(
+                                                                                supportReport.allocatedTotal()),
+                                                "Repassado no período: "
+                                                                + formatCurrency(
+                                                                                supportReport.transferredTotal()),
+                                                "Saldo final a repassar: "
+                                                                + formatCurrency(
+                                                                                supportReport.pendingTotal())));
+
+                writer.closeCurrentPage();
+
+                writer.startPage();
+
+                writer.writeSectionTitle("Resumo financeiro");
+
+                writer.writeParagraph(
+                                "Resumo automático dos compromissos, ofertas destinadas e "
+                                                + "repasses realizados no período selecionado.");
+
+                writer.writeMetric(
+                                "Saldo anterior",
+                                formatCurrency(
+                                                supportReport.openingPendingTotal()));
+
+                writer.writeMetric(
+                                "Compromissos no período",
+                                formatCurrency(
+                                                supportReport.commitmentTotal()));
+
+                writer.writeMetric(
+                                "Ofertas destinadas",
+                                formatCurrency(
+                                                supportReport.allocatedTotal()));
+
+                writer.writeMetric(
+                                "A pagar no período",
+                                formatCurrency(
+                                                supportReport.payableTotal()));
+
+                writer.writeMetric(
+                                "Repassado no período",
+                                formatCurrency(
+                                                supportReport.transferredTotal()));
+
+                writer.writeHighlightedMetric(
+                                "Saldo final a repassar",
+                                formatCurrency(
+                                                supportReport.pendingTotal()));
+
+                writer.closeCurrentPage();
+
+                List<SupportBeneficiarySummary> beneficiarySummaries = buildSupportBeneficiarySummaries(
+                                supportReport.items());
+
+                writer.startPage();
+
+                writer.writeSectionTitle("Resumo por favorecido");
+
+                writer.writeParagraph(
+                                "Consolidado dos valores a pagar, repassados e pendentes "
+                                                + "para cada favorecido no período.");
+
+                if (beneficiarySummaries.isEmpty()) {
+                        writer.writeParagraph(
+                                        "Nenhum favorecido foi encontrado para este período.");
+                } else {
+                        writer.writeSupportBeneficiarySummaryTable(
+                                        beneficiarySummaries);
+                }
+
+                writer.closeCurrentPage();
+
+                writer.startPage();
+
+                writer.writeSectionTitle("Detalhamento por favorecido e fundo");
+
+                writer.writeParagraph(
+                                "Demonstrativo individual dos valores a pagar, repassados "
+                                                + "e pendentes no período.");
+
+                writer.writeParagraph(
+                                "Valores positivos em “A repassar” representam pendências. "
+                                                + "Valores negativos representam crédito ou adiantamento.");
+
+                if (supportReport.items().isEmpty()) {
+                        writer.writeParagraph(
+                                        "Nenhum favorecido ou fundo foi encontrado para este período.");
+                } else {
+                        writer.writeSupportReportTable(supportReport.items());
+                }
+
+                writer.closeCurrentPage();
+
+                return coverPage;
+        }
+
+        private List<SupportBeneficiarySummary> buildSupportBeneficiarySummaries(
+                        List<AccountabilityReportItemResponse> items) {
+
+                Map<UUID, SupportBeneficiarySummary> summariesByBeneficiary = new LinkedHashMap<>();
+
+                for (AccountabilityReportItemResponse item : items) {
+                        SupportBeneficiarySummary newSummary = new SupportBeneficiarySummary(
+                                        item.beneficiaryId(),
+                                        item.beneficiaryName(),
+                                        item.payableAmount(),
+                                        item.transferredAmount(),
+                                        item.pendingAmount());
+
+                        summariesByBeneficiary.merge(
+                                        item.beneficiaryId(),
+                                        newSummary,
+                                        (current, added) -> new SupportBeneficiarySummary(
+                                                        current.beneficiaryId(),
+                                                        current.beneficiaryName(),
+                                                        current.payableAmount()
+                                                                        .add(added.payableAmount()),
+                                                        current.transferredAmount()
+                                                                        .add(added.transferredAmount()),
+                                                        current.pendingAmount()
+                                                                        .add(added.pendingAmount())));
+                }
+
+                return new ArrayList<>(summariesByBeneficiary.values());
         }
 
         private void writeExtraDocumentsSection(
@@ -989,7 +1155,7 @@ public class ClosingDossierPdfGenerator {
                                 + digits.substring(5, 8);
         }
 
-        private String formatCurrency(BigDecimal value) {
+        private static String formatCurrency(BigDecimal value) {
                 return CURRENCY_FORMATTER.format(
                                 value != null ? value : BigDecimal.ZERO);
         }
@@ -1005,6 +1171,14 @@ public class ClosingDossierPdfGenerator {
                 return formatDate(periodStartDate)
                                 + " até "
                                 + formatDate(periodEndDate);
+        }
+
+        private record SupportBeneficiarySummary(
+                        UUID beneficiaryId,
+                        String beneficiaryName,
+                        BigDecimal payableAmount,
+                        BigDecimal transferredAmount,
+                        BigDecimal pendingAmount) {
         }
 
         private record TableOfContentsEntry(
@@ -1288,6 +1462,433 @@ public class ClosingDossierPdfGenerator {
                         contentStream.stroke();
 
                         cursorY -= 20;
+                }
+
+                void writeHighlightedMetric(
+                                String label,
+                                String value) throws IOException {
+
+                        ensureSpace(82);
+
+                        float boxHeight = 68;
+
+                        contentStream.setNonStrokingColor(PRIMARY_COLOR);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - boxHeight + 8,
+                                        CONTENT_WIDTH,
+                                        boxHeight);
+                        contentStream.fill();
+
+                        writeText(
+                                        label,
+                                        LEFT_MARGIN + 12,
+                                        cursorY - 8,
+                                        regularFont,
+                                        10,
+                                        Color.WHITE);
+
+                        writeText(
+                                        value,
+                                        LEFT_MARGIN + 12,
+                                        cursorY - 40,
+                                        boldFont,
+                                        20,
+                                        Color.WHITE);
+
+                        cursorY -= 80;
+                }
+
+                void writeSupportBeneficiarySummaryTable(
+                                List<SupportBeneficiarySummary> summaries)
+                                throws IOException {
+
+                        writeSupportBeneficiarySummaryTableHeader();
+
+                        for (SupportBeneficiarySummary summary : summaries) {
+                                if (cursorY - 40 < BOTTOM_MARGIN) {
+                                        startPage();
+
+                                        writeSectionTitle(
+                                                        "Resumo por favorecido (continuação)");
+
+                                        writeSupportBeneficiarySummaryTableHeader();
+                                }
+
+                                writeSupportBeneficiarySummaryTableRow(summary);
+                        }
+                }
+
+                private void writeSupportBeneficiarySummaryTableHeader()
+                                throws IOException {
+
+                        ensureSpace(34);
+
+                        float headerHeight = 24f;
+
+                        float beneficiaryWidth = 204f;
+                        float payableWidth = 96f;
+                        float transferredWidth = 102f;
+
+                        float beneficiaryX = LEFT_MARGIN;
+                        float payableX = beneficiaryX + beneficiaryWidth;
+                        float transferredX = payableX + payableWidth;
+                        float pendingX = transferredX + transferredWidth;
+
+                        contentStream.setNonStrokingColor(PRIMARY_COLOR);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - headerHeight + 6,
+                                        CONTENT_WIDTH,
+                                        headerHeight);
+                        contentStream.fill();
+
+                        float textY = cursorY - 10;
+
+                        writeText(
+                                        "Favorecido",
+                                        beneficiaryX + 8,
+                                        textY,
+                                        boldFont,
+                                        8.5f,
+                                        Color.WHITE);
+
+                        writeText(
+                                        "A pagar",
+                                        payableX + 8,
+                                        textY,
+                                        boldFont,
+                                        8.5f,
+                                        Color.WHITE);
+
+                        writeText(
+                                        "Repassado",
+                                        transferredX + 8,
+                                        textY,
+                                        boldFont,
+                                        8.5f,
+                                        Color.WHITE);
+
+                        writeText(
+                                        "A repassar",
+                                        pendingX + 8,
+                                        textY,
+                                        boldFont,
+                                        8.5f,
+                                        Color.WHITE);
+
+                        cursorY -= 30;
+                }
+
+                private void writeSupportBeneficiarySummaryTableRow(
+                                SupportBeneficiarySummary summary)
+                                throws IOException {
+
+                        float rowHeight = 34f;
+
+                        float beneficiaryWidth = 204f;
+                        float payableWidth = 96f;
+                        float transferredWidth = 102f;
+
+                        float beneficiaryX = LEFT_MARGIN;
+                        float payableX = beneficiaryX + beneficiaryWidth;
+                        float transferredX = payableX + payableWidth;
+                        float pendingX = transferredX + transferredWidth;
+
+                        float pendingWidth = PAGE_WIDTH - RIGHT_MARGIN - pendingX;
+
+                        BigDecimal pendingAmount = summary.pendingAmount();
+
+                        Color backgroundColor = Color.WHITE;
+                        Color pendingTextColor = Color.DARK_GRAY;
+
+                        if (pendingAmount.compareTo(BigDecimal.ZERO) > 0) {
+                                backgroundColor = new Color(255, 251, 235);
+                                pendingTextColor = new Color(146, 64, 14);
+                        }
+
+                        if (pendingAmount.compareTo(BigDecimal.ZERO) < 0) {
+                                backgroundColor = new Color(240, 253, 244);
+                                pendingTextColor = new Color(22, 101, 52);
+                        }
+
+                        contentStream.setNonStrokingColor(backgroundColor);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - rowHeight + 6,
+                                        CONTENT_WIDTH,
+                                        rowHeight);
+                        contentStream.fill();
+
+                        contentStream.setStrokingColor(new Color(225, 225, 225));
+                        contentStream.setLineWidth(0.5f);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - rowHeight + 6,
+                                        CONTENT_WIDTH,
+                                        rowHeight);
+                        contentStream.stroke();
+
+                        float textY = cursorY - 14;
+
+                        writeText(
+                                        fitText(
+                                                        summary.beneficiaryName(),
+                                                        regularFont,
+                                                        8.5f,
+                                                        beneficiaryWidth - 14),
+                                        beneficiaryX + 8,
+                                        textY,
+                                        regularFont,
+                                        8.5f,
+                                        Color.DARK_GRAY);
+
+                        writeRightAlignedText(
+                                        formatCurrency(summary.payableAmount()),
+                                        payableX + payableWidth - 8,
+                                        textY,
+                                        8.5f,
+                                        payableWidth - 12,
+                                        Color.DARK_GRAY);
+
+                        writeRightAlignedText(
+                                        formatCurrency(summary.transferredAmount()),
+                                        transferredX + transferredWidth - 8,
+                                        textY,
+                                        8.5f,
+                                        transferredWidth - 12,
+                                        Color.DARK_GRAY);
+
+                        writeRightAlignedText(
+                                        formatCurrency(summary.pendingAmount()),
+                                        pendingX + pendingWidth - 8,
+                                        textY,
+                                        8.5f,
+                                        pendingWidth - 16,
+                                        pendingTextColor);
+
+                        cursorY -= 40;
+                }
+
+                void writeSupportReportTable(
+                                List<AccountabilityReportItemResponse> items)
+                                throws IOException {
+
+                        writeSupportReportTableHeader();
+
+                        for (AccountabilityReportItemResponse item : items) {
+                                if (cursorY - 40 < BOTTOM_MARGIN) {
+                                        startPage();
+
+                                        writeSectionTitle(
+                                                        "Detalhamento por favorecido e fundo (continuação)");
+
+                                        writeSupportReportTableHeader();
+                                }
+
+                                writeSupportReportTableRow(item);
+                        }
+                }
+
+                private void writeSupportReportTableHeader() throws IOException {
+                        ensureSpace(34);
+
+                        float headerHeight = 24f;
+
+                        float beneficiaryWidth = 132f;
+                        float fundWidth = 86f;
+                        float payableWidth = 82f;
+                        float transferredWidth = 90f;
+
+                        float beneficiaryX = LEFT_MARGIN;
+                        float fundX = beneficiaryX + beneficiaryWidth;
+                        float payableX = fundX + fundWidth;
+                        float transferredX = payableX + payableWidth;
+                        float pendingX = transferredX + transferredWidth;
+
+                        contentStream.setNonStrokingColor(PRIMARY_COLOR);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - headerHeight + 6,
+                                        CONTENT_WIDTH,
+                                        headerHeight);
+                        contentStream.fill();
+
+                        float textY = cursorY - 10;
+
+                        writeText(
+                                        "Favorecido",
+                                        beneficiaryX + 8,
+                                        textY,
+                                        boldFont,
+                                        8.5f,
+                                        Color.WHITE);
+
+                        writeText(
+                                        "Fundo",
+                                        fundX + 8,
+                                        textY,
+                                        boldFont,
+                                        8.5f,
+                                        Color.WHITE);
+
+                        writeText(
+                                        "A pagar",
+                                        payableX + 8,
+                                        textY,
+                                        boldFont,
+                                        8.5f,
+                                        Color.WHITE);
+
+                        writeText(
+                                        "Repassado",
+                                        transferredX + 8,
+                                        textY,
+                                        boldFont,
+                                        8.5f,
+                                        Color.WHITE);
+
+                        writeText(
+                                        "A repassar",
+                                        pendingX + 8,
+                                        textY,
+                                        boldFont,
+                                        8.5f,
+                                        Color.WHITE);
+
+                        cursorY -= 30;
+                }
+
+                private void writeSupportReportTableRow(
+                                AccountabilityReportItemResponse item)
+                                throws IOException {
+
+                        float rowHeight = 34f;
+
+                        float beneficiaryWidth = 132f;
+                        float fundWidth = 86f;
+                        float payableWidth = 82f;
+                        float transferredWidth = 90f;
+
+                        float beneficiaryX = LEFT_MARGIN;
+                        float fundX = beneficiaryX + beneficiaryWidth;
+                        float payableX = fundX + fundWidth;
+                        float transferredX = payableX + payableWidth;
+                        float pendingX = transferredX + transferredWidth;
+
+                        float pendingWidth = PAGE_WIDTH - RIGHT_MARGIN - pendingX;
+
+                        BigDecimal pendingAmount = item.pendingAmount();
+
+                        Color backgroundColor = Color.WHITE;
+                        Color pendingTextColor = Color.DARK_GRAY;
+
+                        if (pendingAmount.compareTo(BigDecimal.ZERO) > 0) {
+                                backgroundColor = new Color(255, 251, 235);
+                                pendingTextColor = new Color(146, 64, 14);
+                        }
+
+                        if (pendingAmount.compareTo(BigDecimal.ZERO) < 0) {
+                                backgroundColor = new Color(240, 253, 244);
+                                pendingTextColor = new Color(22, 101, 52);
+                        }
+
+                        contentStream.setNonStrokingColor(backgroundColor);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - rowHeight + 6,
+                                        CONTENT_WIDTH,
+                                        rowHeight);
+                        contentStream.fill();
+
+                        contentStream.setStrokingColor(new Color(225, 225, 225));
+                        contentStream.setLineWidth(0.5f);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - rowHeight + 6,
+                                        CONTENT_WIDTH,
+                                        rowHeight);
+                        contentStream.stroke();
+
+                        float textY = cursorY - 14;
+
+                        writeText(
+                                        fitText(
+                                                        item.beneficiaryName(),
+                                                        regularFont,
+                                                        8.5f,
+                                                        beneficiaryWidth - 14),
+                                        beneficiaryX + 8,
+                                        textY,
+                                        regularFont,
+                                        8.5f,
+                                        Color.DARK_GRAY);
+
+                        writeText(
+                                        fitText(
+                                                        item.fundName(),
+                                                        regularFont,
+                                                        8.5f,
+                                                        fundWidth - 14),
+                                        fundX + 8,
+                                        textY,
+                                        regularFont,
+                                        8.5f,
+                                        Color.DARK_GRAY);
+
+                        writeRightAlignedText(
+                                        formatCurrency(item.payableAmount()),
+                                        payableX + payableWidth - 8,
+                                        textY,
+                                        8.5f,
+                                        payableWidth - 12,
+                                        Color.DARK_GRAY);
+
+                        writeRightAlignedText(
+                                        formatCurrency(item.transferredAmount()),
+                                        transferredX + transferredWidth - 8,
+                                        textY,
+                                        8.5f,
+                                        transferredWidth - 12,
+                                        Color.DARK_GRAY);
+
+                        writeRightAlignedText(
+                                        formatCurrency(item.pendingAmount()),
+                                        pendingX + pendingWidth - 8,
+                                        textY,
+                                        8.5f,
+                                        pendingWidth - 16,
+                                        pendingTextColor);
+
+                        cursorY -= 40;
+                }
+
+                private void writeRightAlignedText(
+                                String value,
+                                float rightX,
+                                float y,
+                                float fontSize,
+                                float maxWidth,
+                                Color color)
+                                throws IOException {
+
+                        String fittedValue = fitText(
+                                        value,
+                                        boldFont,
+                                        fontSize,
+                                        maxWidth);
+
+                        float textWidth = boldFont.getStringWidth(fittedValue)
+                                        / 1000f
+                                        * fontSize;
+
+                        writeText(
+                                        fittedValue,
+                                        rightX - textWidth,
+                                        y,
+                                        boldFont,
+                                        fontSize,
+                                        color);
                 }
 
                 void writeMetric(
