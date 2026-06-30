@@ -9,6 +9,7 @@ import {
     ChevronsDown,
     ChevronsUp,
     FileSpreadsheet,
+    FileText,
     HandCoins,
     History,
     Search,
@@ -34,6 +35,7 @@ import { downloadFile } from "@/utils/download-file"
 import { toast } from "sonner"
 import { getDateRangeForPreset, type DateRangeValue } from "@/components/filters/date-range-presets"
 import { DateRangePresetFilter } from "@/components/filters/date-range-preset-filter"
+import { useExportAccountabilityPdf } from "@/features/reports/hooks/use-export-accountability-pdf"
 
 type AccountabilityBeneficiaryGroup = {
     beneficiaryId: string
@@ -186,6 +188,7 @@ export function AccountabilityReportPage() {
     )
 
     const exportAccountabilityExcelMutation = useExportAccountabilityExcel()
+    const exportAccountabilityPdfMutation = useExportAccountabilityPdf()
 
     const currentItems = report?.items ?? []
 
@@ -270,6 +273,31 @@ export function AccountabilityReportPage() {
                 },
                 onError: () => {
                     toast.error("Não foi possível exportar o relatório.")
+                },
+            },
+        )
+    }
+
+    function handleExportPdf() {
+        exportAccountabilityPdfMutation.mutate(
+            {
+                startDate,
+                endDate,
+            },
+            {
+                onSuccess: (blob) => {
+                    const filenameStartDate = startDate || "inicio"
+                    const filenameEndDate = endDate || "fim"
+
+                    const filename =
+                        `relatorio-sustento-${filenameStartDate}-${filenameEndDate}.pdf`
+
+                    downloadFile(blob, filename)
+
+                    toast.success("Relatório em PDF exportado com sucesso.")
+                },
+                onError: () => {
+                    toast.error("Não foi possível exportar o relatório em PDF.")
                 },
             },
         )
@@ -429,7 +457,7 @@ export function AccountabilityReportPage() {
             </section>
 
             <section className="rounded-xl border bg-card p-4">
-                <div className="grid gap-4 lg:grid-cols-[minmax(240px,1fr)_minmax(0,2fr)_auto_auto] lg:items-end">
+                <div className="grid gap-4 xl:grid-cols-[minmax(240px,1fr)_minmax(0,2fr)_auto_auto_auto] xl:items-end">
                     <DateRangePresetFilter
                         value={period}
                         onChange={setPeriod}
@@ -480,6 +508,19 @@ export function AccountabilityReportPage() {
                         {exportAccountabilityExcelMutation.isPending
                             ? "Exportando..."
                             : "Exportar Excel"}
+                    </Button>
+
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleExportPdf}
+                        disabled={exportAccountabilityPdfMutation.isPending}
+                    >
+                        <FileText className="mr-2 size-4" />
+
+                        {exportAccountabilityPdfMutation.isPending
+                            ? "Gerando PDF..."
+                            : "Exportar PDF"}
                     </Button>
                 </div>
             </section>

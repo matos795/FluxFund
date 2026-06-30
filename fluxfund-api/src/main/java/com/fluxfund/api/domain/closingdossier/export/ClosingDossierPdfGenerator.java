@@ -228,6 +228,34 @@ public class ClosingDossierPdfGenerator {
                 }
         }
 
+        public byte[] generateSupportReport(
+                        Organization organization,
+                        AccountabilityReportResponse supportReport) {
+
+                try (
+                                PDDocument document = new PDDocument();
+                                ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+
+                        PdfWriter writer = new PdfWriter(
+                                        document,
+                                        buildFooterIdentity(organization));
+
+                        writeSupportReportSection(
+                                        writer,
+                                        supportReport);
+
+                        writer.close();
+
+                        document.save(outputStream);
+
+                        return outputStream.toByteArray();
+
+                } catch (IOException exception) {
+                        throw new BusinessException(
+                                        "Could not generate support report PDF");
+                }
+        }
+
         private void writeGeneralCover(
                         PdfWriter writer,
                         Organization organization,

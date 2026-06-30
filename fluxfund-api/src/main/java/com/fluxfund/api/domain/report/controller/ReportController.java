@@ -1,5 +1,6 @@
 package com.fluxfund.api.domain.report.controller;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -21,6 +22,7 @@ import com.fluxfund.api.domain.report.dto.category.CategoryResultReportResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundReportResponse;
 import com.fluxfund.api.domain.report.dto.pending.PendingItemsReportResponse;
 import com.fluxfund.api.domain.report.export.AccountabilityExcelExportService;
+import com.fluxfund.api.domain.report.export.AccountabilityPdfExportService;
 import com.fluxfund.api.domain.report.service.ReportService;
 
 import lombok.RequiredArgsConstructor;
@@ -34,6 +36,7 @@ public class ReportController {
 
         private final ReportService service;
         private final AccountabilityExcelExportService accountabilityExcelExportService;
+        private final AccountabilityPdfExportService accountabilityPdfExportService;
 
         @GetMapping("/category-result")
         public ResponseEntity<CategoryResultReportResponse> getCategoryResultReport(
@@ -95,6 +98,44 @@ public class ReportController {
                                                 HttpHeaders.CONTENT_DISPOSITION,
                                                 ContentDisposition.attachment()
                                                                 .filename(filename)
+                                                                .build()
+                                                                .toString())
+                                .body(file);
+        }
+
+        @GetMapping(value = "/accountability/export.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+        public ResponseEntity<byte[]> exportAccountabilityReportPdf(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
+                LocalDate resolvedStartDate = startDate != null
+                                ? startDate
+                                : LocalDate.now().withDayOfMonth(1);
+
+                LocalDate resolvedEndDate = endDate != null
+                                ? endDate
+                                : LocalDate.now();
+
+                byte[] file = accountabilityPdfExportService
+                                .exportAccountabilityReport(
+                                                organizationId,
+                                                resolvedStartDate,
+                                                resolvedEndDate);
+
+                String filename = "prestacao-contas-%s-a-%s.pdf"
+                                .formatted(
+                                                resolvedStartDate,
+                                                resolvedEndDate);
+
+                return ResponseEntity.ok()
+                                .contentType(MediaType.APPLICATION_PDF)
+                                .header(
+                                                HttpHeaders.CONTENT_DISPOSITION,
+                                                ContentDisposition.attachment()
+                                                                .filename(
+                                                                                filename,
+                                                                                StandardCharsets.UTF_8)
                                                                 .build()
                                                                 .toString())
                                 .body(file);
