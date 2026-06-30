@@ -23,6 +23,7 @@ import com.fluxfund.api.domain.dashboard.dto.DashboardTransactionActionItemProje
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
+import com.fluxfund.api.domain.fund.Fund;
 import com.fluxfund.api.domain.fund.repository.FundRepository;
 import com.fluxfund.api.domain.fundtransfer.repository.FundTransferRepository;
 import com.fluxfund.api.domain.organization.repository.OrganizationRepository;
@@ -42,8 +43,13 @@ import com.fluxfund.api.domain.report.dto.category.CategoryResultItemResponse;
 import com.fluxfund.api.domain.report.dto.category.CategoryResultReportResponse;
 import com.fluxfund.api.domain.report.dto.expense.SettledExpenseReportItemResponse;
 import com.fluxfund.api.domain.report.dto.expense.SettledExpenseReportResponse;
+import com.fluxfund.api.domain.report.dto.fund.FundMovementAllocationProjection;
+import com.fluxfund.api.domain.report.dto.fund.FundMovementReportItemResponse;
+import com.fluxfund.api.domain.report.dto.fund.FundMovementReportResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundReportItemResponse;
+import com.fluxfund.api.domain.report.dto.fund.FundReportProjection;
 import com.fluxfund.api.domain.report.dto.fund.FundReportResponse;
+import com.fluxfund.api.domain.report.dto.fund.FundTransferPeriodProjection;
 import com.fluxfund.api.domain.report.dto.income.SettledIncomeReportItemResponse;
 import com.fluxfund.api.domain.report.dto.income.SettledIncomeReportResponse;
 import com.fluxfund.api.domain.report.dto.pending.PendingCreditCardStatementResponse;
@@ -295,6 +301,139 @@ public class ReportService {
                                 incomeAllocatedTotal,
                                 expenseAllocatedTotal,
                                 negativeFundsCount,
+                                items);
+        }
+
+        public FundMovementReportResponse getFundMovementReport(
+                        UUID organizationId,
+                        LocalDate startDate,
+                        LocalDate endDate) {
+
+                organizationAccessService.requireReadAccess(organizationId);
+
+                validateOrganizationExists(organizationId);
+
+                LocalDate resolvedStartDate = startDate != null
+                                ? startDate
+                                : LocalDate.now().withDayOfMonth(1);
+
+                LocalDate resolvedEndDate = endDate != null
+                                ? endDate
+                                : LocalDate.now();
+
+                if (resolvedEndDate.isBefore(resolvedStartDate)) {
+                        throw new BusinessException(
+                                        "End date cannot be before start date");
+                }
+
+                List<Fund> funds = fundRepository
+                                .findByOrganizationIdOrderByNameAsc(organizationId);
+
+                Map<UUID, FundMovementAllocationProjection> allocationsByFundId = transactionAllocationRepository
+                                .findFundMovementAllocationsForPeriod(
+                                                organizationId,
+                                                resolvedStartDate,
+                                                resolvedEndDate)
+                                .stream()
+                                .collect(Collectors.toMap(
+                                                FundMovementAllocationProjection::fundId,
+                                                projection -> projection));
+
+                Map<UUID, BigDecimal> incomingTransfersByFundId = fundTransferRepository
+                                .sumIncomingTransfersByFundForPeriod(
+                                                organizationId,
+                                                resolvedStartDate,
+                                                resolvedEndDate)
+                                .stream()
+                                .collect(Collectors.toMap(
+                                                FundTransferPeriodProjection::fundId,
+                                                FundTransferPeriodProjection::totalAmount));
+
+                Map<UUID, BigDecimal> outgoingTransfersByFundId = fundTransferRepository
+                                .sumOutgoingTransfersByFundForPeriod(
+                                                organizationId,
+                                                resolvedStartDate,
+                                                resolvedEndDate)
+                                .stream()
+                                .collect(Collectors.toMap(
+                                                FundTransferPeriodProjection::fundId,
+                                                FundTransferPeriodProjection::totalAmount));
+
+                List<FundMovementReportItemResponse> items = funds.stream()
+                                .map(fund -> {
+                                        FundMovementAllocationProjection allocationProjection = allocationsByFundId
+                                                        .get(fund.getId());
+
+                                        BigDecimal incomeAllocatedAmount = allocationProjection != null
+                                                        ? allocationProjection.incomeAllocatedAmount()
+                                                        : BigDecimal.ZERO;
+
+                                        BigDecimal expenseAllocatedAmount = allocationProjection != null
+                                                        ? allocationProjection.expenseAllocatedAmount()
+                                                        : BigDecimal.ZERO;
+
+                                        long allocationCount = allocationProjection != null
+                                                        && allocationProjection.allocationCount() != null
+                                                                        ? allocationProjection.allocationCount()
+                                                                        : 0L;
+
+                                        BigDecimal incomingTransferAmount = incomingTransfersByFundId.getOrDefault(
+                                                        fund.getId(),
+                                                        BigDecimal.ZERO);
+
+                                        BigDecimal outgoingTransferAmount = outgoingTransfersByFundId.getOrDefault(
+                                                        fund.getId(),
+                                                        BigDecimal.ZERO);
+
+                                        BigDecimal netTransferAmount = incomingTransferAmount.subtract(
+                                                        outgoingTransferAmount);
+
+                                        BigDecimal netMovementAmount = incomeAllocatedAmount
+                                                        .subtract(expenseAllocatedAmount)
+                                                        .add(netTransferAmount);
+
+                                        return new FundMovementReportItemResponse(
+                                                        fund.getId(),
+                                                        fund.getName(),
+                                                        incomeAllocatedAmount,
+                                                        expenseAllocatedAmount,
+                                                        incomingTransferAmount,
+                                                        outgoingTransferAmount,
+                                                        netTransferAmount,
+                                                        netMovementAmount,
+                                                        allocationCount);
+                                })
+                                .filter(this::hasFundMovement)
+                                .toList();
+
+                BigDecimal incomeAllocatedTotal = items.stream()
+                                .map(FundMovementReportItemResponse::incomeAllocatedAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal expenseAllocatedTotal = items.stream()
+                                .map(FundMovementReportItemResponse::expenseAllocatedAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal incomingTransferTotal = items.stream()
+                                .map(FundMovementReportItemResponse::incomingTransferAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal outgoingTransferTotal = items.stream()
+                                .map(FundMovementReportItemResponse::outgoingTransferAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal netMovementTotal = items.stream()
+                                .map(FundMovementReportItemResponse::netMovementAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                return new FundMovementReportResponse(
+                                resolvedStartDate,
+                                resolvedEndDate,
+                                incomeAllocatedTotal,
+                                expenseAllocatedTotal,
+                                incomingTransferTotal,
+                                outgoingTransferTotal,
+                                netMovementTotal,
                                 items);
         }
 
@@ -909,6 +1048,15 @@ public class ReportService {
                 if (!organizationRepository.existsById(organizationId)) {
                         throw new ResourceNotFoundException("Organization not found");
                 }
+        }
+
+        private boolean hasFundMovement(
+                        FundMovementReportItemResponse item) {
+
+                return item.incomeAllocatedAmount().compareTo(BigDecimal.ZERO) != 0
+                                || item.expenseAllocatedAmount().compareTo(BigDecimal.ZERO) != 0
+                                || item.incomingTransferAmount().compareTo(BigDecimal.ZERO) != 0
+                                || item.outgoingTransferAmount().compareTo(BigDecimal.ZERO) != 0;
         }
 
         private BigDecimal calculateCommitmentAmountForPeriod(

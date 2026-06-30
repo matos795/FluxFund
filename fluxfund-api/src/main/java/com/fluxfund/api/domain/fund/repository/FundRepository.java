@@ -44,6 +44,8 @@ public interface FundRepository extends JpaRepository<Fund, UUID> {
 
   List<Fund> findByOrganizationIdAndActiveTrueOrderByNameAsc(UUID organizationId);
 
+  List<Fund> findByOrganizationIdOrderByNameAsc(UUID organizationId);
+
   @Query(value = """
                                           select
                                               f.id as fundId,

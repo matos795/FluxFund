@@ -26,7 +26,9 @@ public record ClosingDossierPreviewRequest(
                 Boolean includeSupportReport,
 
                 Boolean includePayablesReport,
-                
-                Boolean includeReceivablesReport
+
+                Boolean includeReceivablesReport,
+
+                Boolean includeFundMovementReport
         ) {
 }

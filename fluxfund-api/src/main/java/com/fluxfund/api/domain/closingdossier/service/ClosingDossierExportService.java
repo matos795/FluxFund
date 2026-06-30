@@ -39,6 +39,7 @@ import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.repository.OrganizationRepository;
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportResponse;
 import com.fluxfund.api.domain.report.dto.expense.SettledExpenseReportResponse;
+import com.fluxfund.api.domain.report.dto.fund.FundMovementReportResponse;
 import com.fluxfund.api.domain.report.dto.income.SettledIncomeReportResponse;
 import com.fluxfund.api.domain.report.service.ReportService;
 import com.fluxfund.api.shared.exception.BusinessException;
@@ -198,6 +199,13 @@ public class ClosingDossierExportService {
                                                 request.periodEndDate())
                                 : null;
 
+                FundMovementReportResponse fundMovementReport = preview.includesFundMovementReport()
+                                ? reportService.getFundMovementReport(
+                                                organizationId,
+                                                request.periodStartDate(),
+                                                request.periodEndDate())
+                                : null;
+
                 List<ClosingDossierExportExtraDocument> extraDocuments = closingDossierExtraDocumentRepository
                                 .findAllByOrganizationIdAndPeriodStartDateAndPeriodEndDateOrderBySortOrderAscUploadedAtAsc(
                                                 organizationId,
@@ -215,7 +223,8 @@ public class ClosingDossierExportService {
                                 extraDocuments,
                                 supportReport,
                                 settledExpenseReport,
-                                settledIncomeReport);
+                                settledIncomeReport,
+                                fundMovementReport);
 
                 auditLogService.record(
                                 organizationId,

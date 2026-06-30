@@ -66,6 +66,7 @@ export function ClosingDossierReportPage() {
     const [includeSupportReport, setIncludeSupportReport] = useState(false)
     const [includePayablesReport, setIncludePayablesReport] = useState(false)
     const [includeReceivablesReport, setIncludeReceivablesReport] = useState(false)
+    const [includeFundMovementReport, setIncludeFundMovementReport] = useState(false)
 
     const [appliedPreviewSignature, setAppliedPreviewSignature] = useState<
         string | null
@@ -104,6 +105,7 @@ export function ClosingDossierReportPage() {
             includeSupportReport,
             includePayablesReport,
             includeReceivablesReport,
+            includeFundMovementReport,
         }
     }, [
         includeAccountsWithoutMovement,
@@ -116,6 +118,7 @@ export function ClosingDossierReportPage() {
         includeSupportReport,
         includePayablesReport,
         includeReceivablesReport,
+        includeFundMovementReport,
     ])
 
     const currentPreviewSignature = currentRequest
@@ -474,7 +477,7 @@ export function ClosingDossierReportPage() {
                             </p>
                         </div>
 
-                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                             <DocumentTypeOption
                                 checked={includeSupportReport}
                                 label="Sustento missionário"
@@ -494,6 +497,13 @@ export function ClosingDossierReportPage() {
                                 label="Receitas liquidadas"
                                 description="Inclui resumo por categoria e detalhamento dos recebimentos efetivamente realizados no período."
                                 onCheckedChange={setIncludeReceivablesReport}
+                            />
+
+                            <DocumentTypeOption
+                                checked={includeFundMovementReport}
+                                label="Movimentação por fundos"
+                                description="Inclui entradas destinadas, saídas utilizadas, transferências internas e variação de cada fundo no período."
+                                onCheckedChange={setIncludeFundMovementReport}
                             />
                         </div>
                     </div>
@@ -568,6 +578,12 @@ export function ClosingDossierReportPage() {
                             {preview.includesReceivablesReport && (
                                 <Badge variant="outline">
                                     Receitas liquidadas incluídas
+                                </Badge>
+                            )}
+
+                            {preview.includesFundMovementReport && (
+                                <Badge variant="outline">
+                                    Movimentação por fundos incluída
                                 </Badge>
                             )}
                         </div>

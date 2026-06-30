@@ -46,6 +46,8 @@ import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportRes
 import com.fluxfund.api.domain.report.dto.category.CategoryResultItemResponse;
 import com.fluxfund.api.domain.report.dto.expense.SettledExpenseReportItemResponse;
 import com.fluxfund.api.domain.report.dto.expense.SettledExpenseReportResponse;
+import com.fluxfund.api.domain.report.dto.fund.FundMovementReportItemResponse;
+import com.fluxfund.api.domain.report.dto.fund.FundMovementReportResponse;
 import com.fluxfund.api.domain.report.dto.income.SettledIncomeReportItemResponse;
 import com.fluxfund.api.domain.report.dto.income.SettledIncomeReportResponse;
 import com.fluxfund.api.shared.exception.BusinessException;
@@ -75,7 +77,8 @@ public class ClosingDossierPdfGenerator {
                         List<ClosingDossierExportExtraDocument> extraDocuments,
                         AccountabilityReportResponse supportReport,
                         SettledExpenseReportResponse settledExpenseReport,
-                        SettledIncomeReportResponse settledIncomeReport) {
+                        SettledIncomeReportResponse settledIncomeReport,
+                        FundMovementReportResponse fundMovementReport) {
 
                 try (
                                 PDDocument document = new PDDocument();
@@ -106,6 +109,10 @@ public class ClosingDossierPdfGenerator {
                         }
 
                         if (settledIncomeReport != null) {
+                                tableOfContentsEntryCount++;
+                        }
+
+                        if (fundMovementReport != null) {
                                 tableOfContentsEntryCount++;
                         }
 
@@ -155,6 +162,18 @@ public class ClosingDossierPdfGenerator {
                                                                 "Relatório de Receitas Liquidadas",
                                                                 0,
                                                                 settledIncomeReportStartPage));
+                        }
+
+                        if (fundMovementReport != null) {
+                                PDPage fundMovementReportStartPage = writeFundMovementReportSection(
+                                                writer,
+                                                fundMovementReport);
+
+                                tableOfContentsEntries.add(
+                                                new TableOfContentsEntry(
+                                                                "Relatório de Movimentação por Fundos",
+                                                                0,
+                                                                fundMovementReportStartPage));
                         }
 
                         if (!extraDocuments.isEmpty()) {
@@ -711,6 +730,101 @@ public class ClosingDossierPdfGenerator {
                 } else {
                         writer.writeSettledIncomeDetailTable(
                                         settledIncomeReport.items());
+                }
+
+                writer.closeCurrentPage();
+
+                return coverPage;
+        }
+
+        private PDPage writeFundMovementReportSection(
+                        PdfWriter writer,
+                        FundMovementReportResponse fundMovementReport)
+                        throws IOException {
+
+                PDPage coverPage = writer.startCoverPage(
+                                "RELATÓRIO AUTOMÁTICO",
+                                "Movimentação por Fundos",
+                                List.of(
+                                                "Período: " + formatPeriod(
+                                                                fundMovementReport.startDate(),
+                                                                fundMovementReport.endDate()),
+                                                "Fundos com movimentação: "
+                                                                + fundMovementReport.items().size(),
+                                                "Entradas destinadas: "
+                                                                + formatCurrency(
+                                                                                fundMovementReport
+                                                                                                .incomeAllocatedTotal()),
+                                                "Saídas utilizadas: "
+                                                                + formatCurrency(
+                                                                                fundMovementReport
+                                                                                                .expenseAllocatedTotal()),
+                                                "Transferências recebidas: "
+                                                                + formatCurrency(
+                                                                                fundMovementReport
+                                                                                                .incomingTransferTotal()),
+                                                "Transferências enviadas: "
+                                                                + formatCurrency(
+                                                                                fundMovementReport
+                                                                                                .outgoingTransferTotal()),
+                                                "Variação líquida do período: "
+                                                                + formatCurrency(
+                                                                                fundMovementReport
+                                                                                                .netMovementTotal())));
+
+                writer.closeCurrentPage();
+
+                writer.startPage();
+
+                writer.writeSectionTitle("Resumo financeiro");
+
+                writer.writeParagraph(
+                                "Demonstrativo automático da movimentação dos fundos no "
+                                                + "período selecionado. Não representa o saldo atual "
+                                                + "do fundo, apenas as entradas e saídas ocorridas "
+                                                + "dentro deste período.");
+
+                writer.writeMetric(
+                                "Entradas destinadas",
+                                formatCurrency(
+                                                fundMovementReport.incomeAllocatedTotal()));
+
+                writer.writeMetric(
+                                "Saídas utilizadas",
+                                formatCurrency(
+                                                fundMovementReport.expenseAllocatedTotal()));
+
+                writer.writeMetric(
+                                "Transferências recebidas",
+                                formatCurrency(
+                                                fundMovementReport.incomingTransferTotal()));
+
+                writer.writeMetric(
+                                "Transferências enviadas",
+                                formatCurrency(
+                                                fundMovementReport.outgoingTransferTotal()));
+
+                writer.writeHighlightedMetric(
+                                "Variação líquida no período",
+                                formatCurrency(
+                                                fundMovementReport.netMovementTotal()));
+
+                writer.closeCurrentPage();
+
+                writer.startPage();
+
+                writer.writeSectionTitle("Movimentação por fundo");
+
+                writer.writeParagraph(
+                                "Entradas e saídas destinadas a cada fundo, incluindo a "
+                                                + "variação líquida de transferências internas.");
+
+                if (fundMovementReport.items().isEmpty()) {
+                        writer.writeParagraph(
+                                        "Nenhum fundo com movimentação foi encontrado para este período.");
+                } else {
+                        writer.writeFundMovementTable(
+                                        fundMovementReport.items());
                 }
 
                 writer.closeCurrentPage();
@@ -2415,6 +2529,207 @@ public class ClosingDossierPdfGenerator {
                                         new Color(22, 101, 52));
 
                         cursorY -= rowHeight + 6;
+                }
+
+                void writeFundMovementTable(
+                                List<FundMovementReportItemResponse> items)
+                                throws IOException {
+
+                        writeFundMovementTableHeader();
+
+                        for (FundMovementReportItemResponse item : items) {
+                                if (cursorY - 40 < BOTTOM_MARGIN) {
+                                        startPage();
+
+                                        writeSectionTitle(
+                                                        "Movimentação por fundo (continuação)");
+
+                                        writeFundMovementTableHeader();
+                                }
+
+                                writeFundMovementTableRow(item);
+                        }
+                }
+
+                private void writeFundMovementTableHeader()
+                                throws IOException {
+
+                        ensureSpace(34);
+
+                        float headerHeight = 24f;
+
+                        float fundWidth = 155f;
+                        float incomeWidth = 82f;
+                        float expenseWidth = 82f;
+                        float transferWidth = 96f;
+
+                        float fundX = LEFT_MARGIN;
+                        float incomeX = fundX + fundWidth;
+                        float expenseX = incomeX + incomeWidth;
+                        float transferX = expenseX + expenseWidth;
+                        float variationX = transferX + transferWidth;
+                        float variationWidth = PAGE_WIDTH - RIGHT_MARGIN - variationX;
+
+                        contentStream.setNonStrokingColor(PRIMARY_COLOR);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - headerHeight + 6,
+                                        CONTENT_WIDTH,
+                                        headerHeight);
+                        contentStream.fill();
+
+                        float textY = cursorY - 10;
+
+                        writeText(
+                                        "Fundo",
+                                        fundX + 8,
+                                        textY,
+                                        boldFont,
+                                        8f,
+                                        Color.WHITE);
+
+                        writeRightAlignedText(
+                                        "Entradas",
+                                        incomeX + incomeWidth - 8,
+                                        textY,
+                                        8f,
+                                        incomeWidth - 16,
+                                        Color.WHITE);
+
+                        writeRightAlignedText(
+                                        "Saídas",
+                                        expenseX + expenseWidth - 8,
+                                        textY,
+                                        8f,
+                                        expenseWidth - 16,
+                                        Color.WHITE);
+
+                        writeRightAlignedText(
+                                        "Transf. líquida",
+                                        transferX + transferWidth - 8,
+                                        textY,
+                                        8f,
+                                        transferWidth - 16,
+                                        Color.WHITE);
+
+                        writeRightAlignedText(
+                                        "Variação",
+                                        variationX + variationWidth - 8,
+                                        textY,
+                                        8f,
+                                        variationWidth - 16,
+                                        Color.WHITE);
+
+                        cursorY -= 30;
+                }
+
+                private void writeFundMovementTableRow(
+                                FundMovementReportItemResponse item)
+                                throws IOException {
+
+                        float rowHeight = 34f;
+
+                        float fundWidth = 155f;
+                        float incomeWidth = 82f;
+                        float expenseWidth = 82f;
+                        float transferWidth = 96f;
+
+                        float fundX = LEFT_MARGIN;
+                        float incomeX = fundX + fundWidth;
+                        float expenseX = incomeX + incomeWidth;
+                        float transferX = expenseX + expenseWidth;
+                        float variationX = transferX + transferWidth;
+                        float variationWidth = PAGE_WIDTH - RIGHT_MARGIN - variationX;
+
+                        BigDecimal netMovementAmount = item.netMovementAmount();
+
+                        Color backgroundColor = Color.WHITE;
+                        Color variationColor = Color.DARK_GRAY;
+
+                        if (netMovementAmount.compareTo(BigDecimal.ZERO) > 0) {
+                                backgroundColor = new Color(240, 253, 244);
+                                variationColor = new Color(22, 101, 52);
+                        }
+
+                        if (netMovementAmount.compareTo(BigDecimal.ZERO) < 0) {
+                                backgroundColor = new Color(254, 242, 242);
+                                variationColor = new Color(185, 28, 28);
+                        }
+
+                        contentStream.setNonStrokingColor(backgroundColor);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - rowHeight + 6,
+                                        CONTENT_WIDTH,
+                                        rowHeight);
+                        contentStream.fill();
+
+                        contentStream.setStrokingColor(new Color(225, 225, 225));
+                        contentStream.setLineWidth(0.5f);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - rowHeight + 6,
+                                        CONTENT_WIDTH,
+                                        rowHeight);
+                        contentStream.stroke();
+
+                        float textY = cursorY - 14;
+
+                        writeText(
+                                        fitText(
+                                                        item.fundName(),
+                                                        regularFont,
+                                                        8.5f,
+                                                        fundWidth - 14),
+                                        fundX + 8,
+                                        textY,
+                                        regularFont,
+                                        8.5f,
+                                        Color.DARK_GRAY);
+
+                        writeRightAlignedText(
+                                        formatCurrency(item.incomeAllocatedAmount()),
+                                        incomeX + incomeWidth - 8,
+                                        textY,
+                                        8.5f,
+                                        incomeWidth - 16,
+                                        Color.DARK_GRAY);
+
+                        writeRightAlignedText(
+                                        formatCurrency(item.expenseAllocatedAmount()),
+                                        expenseX + expenseWidth - 8,
+                                        textY,
+                                        8.5f,
+                                        expenseWidth - 16,
+                                        Color.DARK_GRAY);
+
+                        Color transferColor = Color.DARK_GRAY;
+
+                        if (item.netTransferAmount().compareTo(BigDecimal.ZERO) > 0) {
+                                transferColor = new Color(22, 101, 52);
+                        }
+
+                        if (item.netTransferAmount().compareTo(BigDecimal.ZERO) < 0) {
+                                transferColor = new Color(185, 28, 28);
+                        }
+
+                        writeRightAlignedText(
+                                        formatCurrency(item.netTransferAmount()),
+                                        transferX + transferWidth - 8,
+                                        textY,
+                                        8.5f,
+                                        transferWidth - 16,
+                                        transferColor);
+
+                        writeRightAlignedText(
+                                        formatCurrency(item.netMovementAmount()),
+                                        variationX + variationWidth - 8,
+                                        textY,
+                                        8.5f,
+                                        variationWidth - 16,
+                                        variationColor);
+
+                        cursorY -= 40;
                 }
 
                 void writeSupportBeneficiarySummaryTable(

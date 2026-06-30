@@ -89,6 +89,7 @@ public class ClosingDossierService {
                 boolean includesSupportReport = shouldIncludeSupportReport(request);
                 boolean includesPayablesReport = shouldIncludePayablesReport(request);
                 boolean includesReceivablesReport = shouldIncludeReceivablesReport(request);
+                boolean includesFundMovementReport = shouldIncludeFundMovementReport(request);
 
                 int automaticSectionCount = 0;
 
@@ -99,6 +100,10 @@ public class ClosingDossierService {
                         automaticSectionCount++;
                 }
                 if (includesReceivablesReport) {
+                        automaticSectionCount++;
+                }
+
+                if (includesFundMovementReport) {
                         automaticSectionCount++;
                 }
 
@@ -254,6 +259,7 @@ public class ClosingDossierService {
                                 includesSupportReport,
                                 includesPayablesReport,
                                 includesReceivablesReport,
+                                includesFundMovementReport,
 
                                 accountIds.size(),
                                 includedAccountCount,
@@ -440,5 +446,10 @@ public class ClosingDossierService {
         private boolean shouldIncludeReceivablesReport(
                         ClosingDossierPreviewRequest request) {
                 return Boolean.TRUE.equals(request.includeReceivablesReport());
+        }
+
+        private boolean shouldIncludeFundMovementReport(
+                        ClosingDossierPreviewRequest request) {
+                return Boolean.TRUE.equals(request.includeFundMovementReport());
         }
 }

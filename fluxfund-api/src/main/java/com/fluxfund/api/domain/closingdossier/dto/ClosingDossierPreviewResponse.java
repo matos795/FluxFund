@@ -15,6 +15,7 @@ public record ClosingDossierPreviewResponse(
                 boolean includesSupportReport,
                 boolean includesPayablesReport,
                 boolean includesReceivablesReport,
+                boolean includesFundMovementReport,
 
                 int selectedAccountCount,
                 int includedAccountCount,
