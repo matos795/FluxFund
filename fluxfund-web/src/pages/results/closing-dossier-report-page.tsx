@@ -65,6 +65,7 @@ export function ClosingDossierReportPage() {
     const [includeTransfers, setIncludeTransfers] = useState(true)
     const [includeSupportReport, setIncludeSupportReport] = useState(false)
     const [includePayablesReport, setIncludePayablesReport] = useState(false)
+    const [includeReceivablesReport, setIncludeReceivablesReport] = useState(false)
 
     const [appliedPreviewSignature, setAppliedPreviewSignature] = useState<
         string | null
@@ -101,7 +102,8 @@ export function ClosingDossierReportPage() {
             includeExpenses,
             includeTransfers,
             includeSupportReport,
-            includePayablesReport
+            includePayablesReport,
+            includeReceivablesReport,
         }
     }, [
         includeAccountsWithoutMovement,
@@ -113,6 +115,7 @@ export function ClosingDossierReportPage() {
         selectedAccountIds,
         includeSupportReport,
         includePayablesReport,
+        includeReceivablesReport,
     ])
 
     const currentPreviewSignature = currentRequest
@@ -485,6 +488,13 @@ export function ClosingDossierReportPage() {
                                 description="Inclui resumo por categoria e detalhamento das despesas efetivamente pagas no período."
                                 onCheckedChange={setIncludePayablesReport}
                             />
+
+                            <DocumentTypeOption
+                                checked={includeReceivablesReport}
+                                label="Receitas liquidadas"
+                                description="Inclui resumo por categoria e detalhamento dos recebimentos efetivamente realizados no período."
+                                onCheckedChange={setIncludeReceivablesReport}
+                            />
                         </div>
                     </div>
                 </CardContent>
@@ -552,6 +562,12 @@ export function ClosingDossierReportPage() {
                             {preview.includesPayablesReport && (
                                 <Badge variant="outline">
                                     Despesas liquidadas incluídas
+                                </Badge>
+                            )}
+
+                            {preview.includesReceivablesReport && (
+                                <Badge variant="outline">
+                                    Receitas liquidadas incluídas
                                 </Badge>
                             )}
                         </div>

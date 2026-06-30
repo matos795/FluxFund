@@ -36,7 +36,6 @@ import org.springframework.stereotype.Service;
 import com.fluxfund.api.domain.attachment.Attachment;
 import com.fluxfund.api.domain.attachment.AttachmentType;
 import com.fluxfund.api.domain.closingdossier.ClosingDossierExtraDocumentType;
-import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierExtraDocumentResponse;
 import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierPreviewRequest;
 import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierPreviewResponse;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
@@ -47,6 +46,8 @@ import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportRes
 import com.fluxfund.api.domain.report.dto.category.CategoryResultItemResponse;
 import com.fluxfund.api.domain.report.dto.expense.SettledExpenseReportItemResponse;
 import com.fluxfund.api.domain.report.dto.expense.SettledExpenseReportResponse;
+import com.fluxfund.api.domain.report.dto.income.SettledIncomeReportItemResponse;
+import com.fluxfund.api.domain.report.dto.income.SettledIncomeReportResponse;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.storage.LocalFileStorageService;
 
@@ -64,6 +65,8 @@ public class ClosingDossierPdfGenerator {
 
         private static final int TABLE_OF_CONTENTS_ENTRIES_PER_PAGE = 26;
 
+        private static final Color INCOME_HIGHLIGHT_COLOR = new Color(22, 101, 52);
+
         public byte[] generate(
                         Organization organization,
                         ClosingDossierPreviewRequest request,
@@ -71,7 +74,8 @@ public class ClosingDossierPdfGenerator {
                         List<ClosingDossierExportAccount> accounts,
                         List<ClosingDossierExportExtraDocument> extraDocuments,
                         AccountabilityReportResponse supportReport,
-                        SettledExpenseReportResponse settledExpenseReport) {
+                        SettledExpenseReportResponse settledExpenseReport,
+                        SettledIncomeReportResponse settledIncomeReport) {
 
                 try (
                                 PDDocument document = new PDDocument();
@@ -98,6 +102,10 @@ public class ClosingDossierPdfGenerator {
                         }
 
                         if (settledExpenseReport != null) {
+                                tableOfContentsEntryCount++;
+                        }
+
+                        if (settledIncomeReport != null) {
                                 tableOfContentsEntryCount++;
                         }
 
@@ -135,6 +143,18 @@ public class ClosingDossierPdfGenerator {
                                                                 "Relatório de Despesas Liquidadas",
                                                                 0,
                                                                 settledExpenseReportStartPage));
+                        }
+
+                        if (settledIncomeReport != null) {
+                                PDPage settledIncomeReportStartPage = writeSettledIncomeReportSection(
+                                                writer,
+                                                settledIncomeReport);
+
+                                tableOfContentsEntries.add(
+                                                new TableOfContentsEntry(
+                                                                "Relatório de Receitas Liquidadas",
+                                                                0,
+                                                                settledIncomeReportStartPage));
                         }
 
                         if (!extraDocuments.isEmpty()) {
@@ -426,10 +446,10 @@ public class ClosingDossierPdfGenerator {
                 return coverPage;
         }
 
-        private List<SettledExpenseCategoryParentSummary> buildSettledExpenseCategorySummaries(
+        private List<CategoryParentSummary> buildCategorySummaries(
                         List<CategoryResultItemResponse> categoryItems) {
 
-                Map<UUID, SettledExpenseCategoryParentSummary> summariesByParent = new LinkedHashMap<>();
+                Map<UUID, CategoryParentSummary> summariesByParent = new LinkedHashMap<>();
 
                 for (CategoryResultItemResponse item : categoryItems) {
                         UUID parentCategoryId = item.parentCategoryId() != null
@@ -444,12 +464,12 @@ public class ClosingDossierPdfGenerator {
                                         ? item.categoryName()
                                         : "Lançamentos diretos";
 
-                        SettledExpenseCategoryChildSummary childSummary = new SettledExpenseCategoryChildSummary(
+                        CategoryChildSummary childSummary = new CategoryChildSummary(
                                         childCategoryName,
                                         item.total(),
                                         item.transactionCount());
 
-                        SettledExpenseCategoryParentSummary newSummary = new SettledExpenseCategoryParentSummary(
+                        CategoryParentSummary newSummary = new CategoryParentSummary(
                                         parentCategoryName,
                                         item.total(),
                                         item.transactionCount(),
@@ -459,19 +479,19 @@ public class ClosingDossierPdfGenerator {
                                         parentCategoryId,
                                         newSummary,
                                         (current, added) -> {
-                                                List<SettledExpenseCategoryChildSummary> children = new ArrayList<>(
+                                                List<CategoryChildSummary> children = new ArrayList<>(
                                                                 current.children());
 
                                                 children.addAll(added.children());
 
                                                 children.sort(
                                                                 Comparator.comparing(
-                                                                                SettledExpenseCategoryChildSummary::totalAmount)
+                                                                                CategoryChildSummary::totalAmount)
                                                                                 .reversed()
                                                                                 .thenComparing(
-                                                                                                SettledExpenseCategoryChildSummary::categoryName));
+                                                                                                CategoryChildSummary::categoryName));
 
-                                                return new SettledExpenseCategoryParentSummary(
+                                                return new CategoryParentSummary(
                                                                 current.categoryName(),
                                                                 current.totalAmount()
                                                                                 .add(added.totalAmount()),
@@ -485,10 +505,10 @@ public class ClosingDossierPdfGenerator {
                                 .stream()
                                 .sorted(
                                                 Comparator.comparing(
-                                                                SettledExpenseCategoryParentSummary::totalAmount)
+                                                                CategoryParentSummary::totalAmount)
                                                                 .reversed()
                                                                 .thenComparing(
-                                                                                SettledExpenseCategoryParentSummary::categoryName))
+                                                                                CategoryParentSummary::categoryName))
                                 .toList();
         }
 
@@ -527,7 +547,7 @@ public class ClosingDossierPdfGenerator {
                         SettledExpenseReportResponse settledExpenseReport)
                         throws IOException {
 
-                List<SettledExpenseCategoryParentSummary> categorySummaries = buildSettledExpenseCategorySummaries(
+                List<CategoryParentSummary> categorySummaries = buildCategorySummaries(
                                 settledExpenseReport.categoryItems());
 
                 PDPage coverPage = writer.startCoverPage(
@@ -579,8 +599,11 @@ public class ClosingDossierPdfGenerator {
                         writer.writeParagraph(
                                         "Nenhuma despesa liquidada foi encontrada para este período.");
                 } else {
-                        writer.writeSettledExpenseCategoryHierarchy(
-                                        categorySummaries);
+                        writer.writeCategoryHierarchy(
+                                        categorySummaries,
+                                        "Gastos por categoria (continuação)",
+                                        "Despesas",
+                                        "despesa(s)");
                 }
 
                 writer.closeCurrentPage();
@@ -599,6 +622,95 @@ public class ClosingDossierPdfGenerator {
                 } else {
                         writer.writeSettledExpenseDetailTable(
                                         settledExpenseReport.items());
+                }
+
+                writer.closeCurrentPage();
+
+                return coverPage;
+        }
+
+        private PDPage writeSettledIncomeReportSection(
+                        PdfWriter writer,
+                        SettledIncomeReportResponse settledIncomeReport)
+                        throws IOException {
+
+                List<CategoryParentSummary> categorySummaries = buildCategorySummaries(
+                                settledIncomeReport.categoryItems());
+
+                PDPage coverPage = writer.startCoverPage(
+                                "RELATÓRIO AUTOMÁTICO",
+                                "Receitas Liquidadas",
+                                List.of(
+                                                "Período: " + formatPeriod(
+                                                                settledIncomeReport.startDate(),
+                                                                settledIncomeReport.endDate()),
+                                                "Receitas liquidadas: "
+                                                                + settledIncomeReport.transactionCount(),
+                                                "Total recebido no período: "
+                                                                + formatCurrency(
+                                                                                settledIncomeReport
+                                                                                                .totalReceivedAmount()),
+                                                "Categorias principais com movimentação: "
+                                                                + categorySummaries.size()));
+
+                writer.closeCurrentPage();
+
+                writer.startPage();
+
+                writer.writeSectionTitle("Resumo financeiro");
+
+                writer.writeParagraph(
+                                "Demonstrativo automático das receitas efetivamente "
+                                                + "recebidas no período selecionado.");
+
+                writer.writeMetric(
+                                "Quantidade de recebimentos",
+                                String.valueOf(
+                                                settledIncomeReport.transactionCount()));
+
+                writer.writeHighlightedMetric(
+                                "Total de receitas liquidadas",
+                                formatCurrency(
+                                                settledIncomeReport.totalReceivedAmount()),
+                                INCOME_HIGHLIGHT_COLOR);
+
+                writer.closeCurrentPage();
+
+                writer.startPage();
+
+                writer.writeSectionTitle("Receitas por categoria");
+
+                writer.writeParagraph(
+                                "Consolidado das receitas liquidadas por categoria principal "
+                                                + "e subcategoria, ordenado do maior recebimento para o menor.");
+
+                if (categorySummaries.isEmpty()) {
+                        writer.writeParagraph(
+                                        "Nenhuma receita liquidada foi encontrada para este período.");
+                } else {
+                        writer.writeCategoryHierarchy(
+                                        categorySummaries,
+                                        "Receitas por categoria (continuação)",
+                                        "Recebimentos",
+                                        "recebimento(s)");
+                }
+
+                writer.closeCurrentPage();
+
+                writer.startPage();
+
+                writer.writeSectionTitle("Detalhamento das receitas liquidadas");
+
+                writer.writeParagraph(
+                                "Relação cronológica das receitas efetivamente recebidas "
+                                                + "no período selecionado.");
+
+                if (settledIncomeReport.items().isEmpty()) {
+                        writer.writeParagraph(
+                                        "Nenhuma receita liquidada foi encontrada para este período.");
+                } else {
+                        writer.writeSettledIncomeDetailTable(
+                                        settledIncomeReport.items());
                 }
 
                 writer.closeCurrentPage();
@@ -1351,17 +1463,17 @@ public class ClosingDossierPdfGenerator {
                         BigDecimal pendingAmount) {
         }
 
-        private record SettledExpenseCategoryChildSummary(
+        private record CategoryChildSummary(
                         String categoryName,
                         BigDecimal totalAmount,
                         long transactionCount) {
         }
 
-        private record SettledExpenseCategoryParentSummary(
+        private record CategoryParentSummary(
                         String categoryName,
                         BigDecimal totalAmount,
                         long transactionCount,
-                        List<SettledExpenseCategoryChildSummary> children) {
+                        List<CategoryChildSummary> children) {
         }
 
         private record TableOfContentsEntry(
@@ -1649,13 +1761,26 @@ public class ClosingDossierPdfGenerator {
 
                 void writeHighlightedMetric(
                                 String label,
-                                String value) throws IOException {
+                                String value)
+                                throws IOException {
+
+                        writeHighlightedMetric(
+                                        label,
+                                        value,
+                                        PRIMARY_COLOR);
+                }
+
+                void writeHighlightedMetric(
+                                String label,
+                                String value,
+                                Color backgroundColor)
+                                throws IOException {
 
                         ensureSpace(82);
 
                         float boxHeight = 68;
 
-                        contentStream.setNonStrokingColor(PRIMARY_COLOR);
+                        contentStream.setNonStrokingColor(backgroundColor);
                         contentStream.addRect(
                                         LEFT_MARGIN,
                                         cursorY - boxHeight + 8,
@@ -1682,37 +1807,48 @@ public class ClosingDossierPdfGenerator {
                         cursorY -= 80;
                 }
 
-                void writeSettledExpenseCategoryHierarchy(
-                                List<SettledExpenseCategoryParentSummary> summaries)
+                void writeCategoryHierarchy(
+                                List<CategoryParentSummary> summaries,
+                                String continuationTitle,
+                                String countColumnLabel,
+                                String itemCountLabel)
                                 throws IOException {
 
-                        for (SettledExpenseCategoryParentSummary summary : summaries) {
+                        for (CategoryParentSummary summary : summaries) {
                                 if (cursorY - 82 < BOTTOM_MARGIN) {
                                         startPage();
 
-                                        writeSectionTitle("Gastos por categoria (continuação)");
+                                        writeSectionTitle(continuationTitle);
                                 }
 
-                                writeSettledExpenseCategoryParentHeader(summary);
-                                writeSettledExpenseCategoryChildTableHeader();
+                                writeCategoryParentHeader(
+                                                summary,
+                                                itemCountLabel);
+                                writeCategoryChildTableHeader(
+                                                countColumnLabel);
 
-                                for (SettledExpenseCategoryChildSummary child : summary.children()) {
+                                for (CategoryChildSummary child : summary.children()) {
                                         if (cursorY - 40 < BOTTOM_MARGIN) {
                                                 startPage();
 
-                                                writeSectionTitle("Gastos por categoria (continuação)");
+                                                writeSectionTitle(continuationTitle);
 
-                                                writeSettledExpenseCategoryParentHeader(summary);
-                                                writeSettledExpenseCategoryChildTableHeader();
+                                                writeCategoryParentHeader(
+                                                                summary,
+                                                                itemCountLabel);
+
+                                                writeCategoryChildTableHeader(
+                                                                countColumnLabel);
                                         }
 
-                                        writeSettledExpenseCategoryChildTableRow(child);
+                                        writeCategoryChildTableRow(child);
                                 }
                         }
                 }
 
-                private void writeSettledExpenseCategoryParentHeader(
-                                SettledExpenseCategoryParentSummary summary)
+                private void writeCategoryParentHeader(
+                                CategoryParentSummary summary,
+                                String itemCountLabel)
                                 throws IOException {
 
                         ensureSpace(44);
@@ -1749,7 +1885,7 @@ public class ClosingDossierPdfGenerator {
                                         Color.DARK_GRAY);
 
                         writeText(
-                                        summary.transactionCount() + " despesa(s)",
+                                        summary.transactionCount() + " " + itemCountLabel,
                                         LEFT_MARGIN + 10,
                                         cursorY - 25,
                                         regularFont,
@@ -1767,7 +1903,8 @@ public class ClosingDossierPdfGenerator {
                         cursorY -= 42;
                 }
 
-                private void writeSettledExpenseCategoryChildTableHeader()
+                private void writeCategoryChildTableHeader(
+                                String countColumnLabel)
                                 throws IOException {
 
                         ensureSpace(34);
@@ -1802,7 +1939,7 @@ public class ClosingDossierPdfGenerator {
                                         Color.WHITE);
 
                         writeRightAlignedText(
-                                        "Despesas",
+                                        countColumnLabel,
                                         transactionCountX + transactionCountWidth - 8,
                                         textY,
                                         8.5f,
@@ -1820,8 +1957,8 @@ public class ClosingDossierPdfGenerator {
                         cursorY -= 30;
                 }
 
-                private void writeSettledExpenseCategoryChildTableRow(
-                                SettledExpenseCategoryChildSummary summary)
+                private void writeCategoryChildTableRow(
+                                CategoryChildSummary summary)
                                 throws IOException {
 
                         float rowHeight = 34f;
@@ -1983,7 +2120,7 @@ public class ClosingDossierPdfGenerator {
 
                         float descriptionWidth = 175f;
 
-                        List<String> descriptionLines = getSettledExpenseDescriptionLines(
+                        List<String> descriptionLines = getMovementDescriptionLines(
                                         item.description(),
                                         descriptionWidth - 14);
 
@@ -2007,7 +2144,7 @@ public class ClosingDossierPdfGenerator {
                         float amountX = accountX + accountWidth;
                         float amountWidth = PAGE_WIDTH - RIGHT_MARGIN - amountX;
 
-                        List<String> descriptionLines = getSettledExpenseDescriptionLines(
+                        List<String> descriptionLines = getMovementDescriptionLines(
                                         item.description(),
                                         descriptionWidth - 14);
 
@@ -2083,6 +2220,203 @@ public class ClosingDossierPdfGenerator {
                         cursorY -= rowHeight + 6;
                 }
 
+                void writeSettledIncomeDetailTable(
+                                List<SettledIncomeReportItemResponse> items)
+                                throws IOException {
+
+                        writeSettledIncomeDetailTableHeader();
+
+                        for (SettledIncomeReportItemResponse item : items) {
+                                float rowHeight = getSettledIncomeDetailRowHeight(item);
+
+                                if (cursorY - rowHeight < BOTTOM_MARGIN) {
+                                        startPage();
+
+                                        writeSectionTitle(
+                                                        "Detalhamento das receitas liquidadas (continuação)");
+
+                                        writeSettledIncomeDetailTableHeader();
+                                }
+
+                                writeSettledIncomeDetailTableRow(item, rowHeight);
+                        }
+                }
+
+                private void writeSettledIncomeDetailTableHeader()
+                                throws IOException {
+
+                        ensureSpace(34);
+
+                        float headerHeight = 24f;
+
+                        float dateWidth = 54f;
+                        float descriptionWidth = 175f;
+                        float categoryWidth = 103f;
+                        float accountWidth = 82f;
+
+                        float dateX = LEFT_MARGIN;
+                        float descriptionX = dateX + dateWidth;
+                        float categoryX = descriptionX + descriptionWidth;
+                        float accountX = categoryX + categoryWidth;
+                        float amountX = accountX + accountWidth;
+
+                        contentStream.setNonStrokingColor(PRIMARY_COLOR);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - headerHeight + 6,
+                                        CONTENT_WIDTH,
+                                        headerHeight);
+                        contentStream.fill();
+
+                        float textY = cursorY - 10;
+
+                        writeText(
+                                        "Data",
+                                        dateX + 7,
+                                        textY,
+                                        boldFont,
+                                        8f,
+                                        Color.WHITE);
+
+                        writeText(
+                                        "Descrição",
+                                        descriptionX + 7,
+                                        textY,
+                                        boldFont,
+                                        8f,
+                                        Color.WHITE);
+
+                        writeText(
+                                        "Categoria",
+                                        categoryX + 7,
+                                        textY,
+                                        boldFont,
+                                        8f,
+                                        Color.WHITE);
+
+                        writeText(
+                                        "Conta",
+                                        accountX + 7,
+                                        textY,
+                                        boldFont,
+                                        8f,
+                                        Color.WHITE);
+
+                        writeText(
+                                        "Valor recebido",
+                                        amountX + 7,
+                                        textY,
+                                        boldFont,
+                                        8f,
+                                        Color.WHITE);
+
+                        cursorY -= 30;
+                }
+
+                private float getSettledIncomeDetailRowHeight(
+                                SettledIncomeReportItemResponse item)
+                                throws IOException {
+
+                        List<String> descriptionLines = getMovementDescriptionLines(
+                                        item.description(),
+                                        161f);
+
+                        return descriptionLines.size() > 1 ? 46f : 34f;
+                }
+
+                private void writeSettledIncomeDetailTableRow(
+                                SettledIncomeReportItemResponse item,
+                                float rowHeight)
+                                throws IOException {
+
+                        float dateWidth = 54f;
+                        float descriptionWidth = 175f;
+                        float categoryWidth = 103f;
+                        float accountWidth = 82f;
+
+                        float dateX = LEFT_MARGIN;
+                        float descriptionX = dateX + dateWidth;
+                        float categoryX = descriptionX + descriptionWidth;
+                        float accountX = categoryX + categoryWidth;
+                        float amountX = accountX + accountWidth;
+                        float amountWidth = PAGE_WIDTH - RIGHT_MARGIN - amountX;
+
+                        List<String> descriptionLines = getMovementDescriptionLines(
+                                        item.description(),
+                                        descriptionWidth - 14);
+
+                        contentStream.setNonStrokingColor(Color.WHITE);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - rowHeight + 6,
+                                        CONTENT_WIDTH,
+                                        rowHeight);
+                        contentStream.fill();
+
+                        contentStream.setStrokingColor(new Color(225, 225, 225));
+                        contentStream.setLineWidth(0.5f);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - rowHeight + 6,
+                                        CONTENT_WIDTH,
+                                        rowHeight);
+                        contentStream.stroke();
+
+                        float firstLineY = cursorY - 14;
+
+                        writeText(
+                                        formatDate(item.settlementDate()),
+                                        dateX + 7,
+                                        firstLineY,
+                                        regularFont,
+                                        8f,
+                                        Color.DARK_GRAY);
+
+                        for (int index = 0; index < descriptionLines.size(); index++) {
+                                writeText(
+                                                descriptionLines.get(index),
+                                                descriptionX + 7,
+                                                firstLineY - (index * 12),
+                                                regularFont,
+                                                8f,
+                                                Color.DARK_GRAY);
+                        }
+
+                        writeText(
+                                        fitText(
+                                                        item.categoryName(),
+                                                        regularFont,
+                                                        8f,
+                                                        categoryWidth - 14),
+                                        categoryX + 7,
+                                        firstLineY,
+                                        regularFont,
+                                        8f,
+                                        Color.DARK_GRAY);
+
+                        writeText(
+                                        fitText(
+                                                        item.accountName(),
+                                                        regularFont,
+                                                        8f,
+                                                        accountWidth - 14),
+                                        accountX + 7,
+                                        firstLineY,
+                                        regularFont,
+                                        8f,
+                                        Color.DARK_GRAY);
+
+                        writeRightAlignedText(
+                                        formatCurrency(item.amount()),
+                                        amountX + amountWidth - 7,
+                                        firstLineY,
+                                        8f,
+                                        amountWidth - 14,
+                                        new Color(22, 101, 52));
+
+                        cursorY -= rowHeight + 6;
+                }
+
                 void writeSupportBeneficiarySummaryTable(
                                 List<SupportBeneficiarySummary> summaries)
                                 throws IOException {
@@ -2103,7 +2437,7 @@ public class ClosingDossierPdfGenerator {
                         }
                 }
 
-                private List<String> getSettledExpenseDescriptionLines(
+                private List<String> getMovementDescriptionLines(
                                 String description,
                                 float maxWidth)
                                 throws IOException {

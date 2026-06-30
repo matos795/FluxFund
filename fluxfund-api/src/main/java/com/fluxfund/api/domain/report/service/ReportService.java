@@ -44,6 +44,8 @@ import com.fluxfund.api.domain.report.dto.expense.SettledExpenseReportItemRespon
 import com.fluxfund.api.domain.report.dto.expense.SettledExpenseReportResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundReportItemResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundReportResponse;
+import com.fluxfund.api.domain.report.dto.income.SettledIncomeReportItemResponse;
+import com.fluxfund.api.domain.report.dto.income.SettledIncomeReportResponse;
 import com.fluxfund.api.domain.report.dto.pending.PendingCreditCardStatementResponse;
 import com.fluxfund.api.domain.report.dto.pending.PendingFundResponse;
 import com.fluxfund.api.domain.report.dto.pending.PendingItemsReportResponse;
@@ -166,6 +168,55 @@ public class ReportService {
                                 resolvedStartDate,
                                 resolvedEndDate,
                                 totalPaidAmount,
+                                items.size(),
+                                categoryItems,
+                                items);
+        }
+
+        public SettledIncomeReportResponse getSettledIncomeReport(
+                        UUID organizationId,
+                        LocalDate startDate,
+                        LocalDate endDate) {
+
+                organizationAccessService.requireReadAccess(organizationId);
+
+                validateOrganizationExists(organizationId);
+
+                LocalDate resolvedStartDate = startDate != null
+                                ? startDate
+                                : LocalDate.now().withDayOfMonth(1);
+
+                LocalDate resolvedEndDate = endDate != null
+                                ? endDate
+                                : LocalDate.now();
+
+                if (resolvedEndDate.isBefore(resolvedStartDate)) {
+                        throw new BusinessException(
+                                        "End date cannot be before start date");
+                }
+
+                List<SettledIncomeReportItemResponse> items = financialTransactionRepository.findSettledIncomeReport(
+                                organizationId,
+                                resolvedStartDate,
+                                resolvedEndDate);
+
+                List<CategoryResultItemResponse> categoryItems = financialTransactionRepository
+                                .findCategoryResultReport(
+                                                organizationId,
+                                                resolvedStartDate,
+                                                resolvedEndDate)
+                                .stream()
+                                .filter(item -> item.type() == FinancialTransactionType.INCOME)
+                                .toList();
+
+                BigDecimal totalReceivedAmount = items.stream()
+                                .map(SettledIncomeReportItemResponse::amount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                return new SettledIncomeReportResponse(
+                                resolvedStartDate,
+                                resolvedEndDate,
+                                totalReceivedAmount,
                                 items.size(),
                                 categoryItems,
                                 items);

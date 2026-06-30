@@ -21,6 +21,7 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.report.dto.category.CategoryResultItemResponse;
 import com.fluxfund.api.domain.report.dto.expense.SettledExpenseReportItemResponse;
+import com.fluxfund.api.domain.report.dto.income.SettledIncomeReportItemResponse;
 import com.fluxfund.api.domain.report.projection.PendingDocumentTransactionProjection;
 
 public interface FinancialTransactionRepository
@@ -169,6 +170,28 @@ public interface FinancialTransactionRepository
       order by t.settlementDate asc, t.createdAt asc
       """)
   List<SettledExpenseReportItemResponse> findSettledExpenseReport(
+      @Param("organizationId") UUID organizationId,
+      @Param("startDate") LocalDate startDate,
+      @Param("endDate") LocalDate endDate);
+
+  @Query("""
+      select new com.fluxfund.api.domain.report.dto.income.SettledIncomeReportItemResponse(
+          t.settlementDate,
+          coalesce(t.description, t.rawDescription),
+          coalesce(c.name, 'Sem categoria'),
+          acc.name,
+          abs(t.settledAmount)
+      )
+      from FinancialTransaction t
+      join t.account acc
+      left join t.category c
+      where t.organization.id = :organizationId
+        and t.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+        and t.type = com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.INCOME
+        and t.settlementDate between :startDate and :endDate
+      order by t.settlementDate asc, t.createdAt asc
+      """)
+  List<SettledIncomeReportItemResponse> findSettledIncomeReport(
       @Param("organizationId") UUID organizationId,
       @Param("startDate") LocalDate startDate,
       @Param("endDate") LocalDate endDate);
