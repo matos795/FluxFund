@@ -21,13 +21,11 @@ import {
     CardTitle,
 } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { useAccounts } from "@/features/accounts/hooks/use-accounts"
 import type { Account } from "@/features/accounts/types"
-import { getFirstDayOfCurrentMonth, getTodayDate } from "@/utils/date-getters"
 import { cn } from "@/lib/utils"
 import { ClosingDossierAccountCard } from "@/features/closing-dossier/components/closing-dossier-account-card"
 import { useClosingDossierPreview } from "@/features/closing-dossier/hooks/use-closing-dossier-preview"
@@ -36,6 +34,8 @@ import { useExportClosingDossierPdf } from "@/features/closing-dossier/hooks/use
 import { downloadFile } from "@/utils/download-file"
 import { getApiErrorMessage } from "@/utils/api-error"
 import { ClosingDossierExtraDocumentsSection } from "@/features/closing-dossier/components/closing-dossier-extra-documents-section"
+import { getDateRangeForPreset, type DateRangeValue } from "@/components/filters/date-range-presets"
+import { DateRangePresetFilter } from "@/components/filters/date-range-preset-filter"
 
 const ACCOUNT_PAGE_SIZE = 100
 
@@ -49,11 +49,11 @@ const accountTypeLabels: Record<Account["type"], string> = {
 export function ClosingDossierReportPage() {
     const { canFinanceWrite, canExportReports } = usePermissions()
 
-    const [periodStartDate, setPeriodStartDate] = useState(
-        getFirstDayOfCurrentMonth(),
+    const [period, setPeriod] = useState<DateRangeValue>(() =>
+        getDateRangeForPreset("current-month"),
     )
 
-    const [periodEndDate, setPeriodEndDate] = useState(getTodayDate())
+    const { startDate: periodStartDate, endDate: periodEndDate } = period
 
     const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([])
 
@@ -295,28 +295,13 @@ export function ClosingDossierReportPage() {
                 </CardHeader>
 
                 <CardContent className="space-y-6">
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="closing-dossier-start-date">Data inicial</Label>
-
-                            <Input
-                                id="closing-dossier-start-date"
-                                type="date"
-                                value={periodStartDate}
-                                onChange={(event) => setPeriodStartDate(event.target.value)}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="closing-dossier-end-date">Data final</Label>
-
-                            <Input
-                                id="closing-dossier-end-date"
-                                type="date"
-                                value={periodEndDate}
-                                onChange={(event) => setPeriodEndDate(event.target.value)}
-                            />
-                        </div>
+                    <div className="grid gap-4 lg:grid-cols-[minmax(260px,1fr)_minmax(250px,1fr)_auto] lg:items-end">
+                        <DateRangePresetFilter
+                            value={period}
+                            onChange={setPeriod}
+                            idPrefix="closing-dossier-period"
+                            label="Período do Dossiê"
+                        />
 
                         <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm">
                             <Checkbox
