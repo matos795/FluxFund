@@ -1,5 +1,6 @@
 package com.fluxfund.api.domain.organizationsettings.dto;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -15,6 +16,7 @@ public record OrganizationSettingsResponse(
                 Boolean suggestDefaultFundReallocation,
                 Boolean requireFiscalDocumentForExpenses,
                 Boolean requireProofForIncomes,
-                Boolean autoFillClassificationSuggestions
+                Boolean autoFillClassificationSuggestions,
+                LocalDate accountabilityHistoryStartDate
         ) {
 }

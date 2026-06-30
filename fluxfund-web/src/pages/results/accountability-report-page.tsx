@@ -10,6 +10,7 @@ import {
     ChevronsUp,
     FileSpreadsheet,
     HandCoins,
+    History,
     Search,
     UserRound,
     WalletCards,
@@ -31,6 +32,8 @@ import { useAccountabilityByAccountReport } from "@/features/reports/hooks/use-a
 import { useExportAccountabilityExcel } from "@/features/reports/hooks/use-export-accountability-excel"
 import { downloadFile } from "@/utils/download-file"
 import { toast } from "sonner"
+import { getDateRangeForPreset, type DateRangeValue } from "@/components/filters/date-range-presets"
+import { DateRangePresetFilter } from "@/components/filters/date-range-preset-filter"
 
 type AccountabilityBeneficiaryGroup = {
     beneficiaryId: string
@@ -42,18 +45,7 @@ type AccountabilityBeneficiaryGroup = {
     pendingAmount: number
     allocationCount: number
     funds: AccountabilityListItem[]
-}
-
-function getTodayDate() {
-    return new Date().toISOString().slice(0, 10)
-}
-
-function getFirstDayOfCurrentMonth() {
-    const today = new Date()
-
-    return new Date(today.getFullYear(), today.getMonth(), 1)
-        .toISOString()
-        .slice(0, 10)
+    openingPendingAmount: number
 }
 
 type AccountabilityListItem =
@@ -114,6 +106,7 @@ function groupItemsByBeneficiary(
                 pendingAmount: item.pendingAmount,
                 allocationCount: item.allocationCount,
                 funds: [item],
+                openingPendingAmount: item.openingPendingAmount,
             })
 
             continue
@@ -125,6 +118,7 @@ function groupItemsByBeneficiary(
         existingGroup.payableAmount += item.payableAmount
         existingGroup.pendingAmount += item.pendingAmount
         existingGroup.allocationCount += item.allocationCount
+        existingGroup.openingPendingAmount += item.openingPendingAmount
         existingGroup.funds.push(item)
     }
 
@@ -150,8 +144,13 @@ function groupItemsByBeneficiary(
 }
 
 export function AccountabilityReportPage() {
-    const [startDate, setStartDate] = useState(getFirstDayOfCurrentMonth)
-    const [endDate, setEndDate] = useState(getTodayDate)
+
+    const [period, setPeriod] = useState<DateRangeValue>(() =>
+        getDateRangeForPreset("current-month"),
+    )
+
+    const { startDate, endDate } = period
+
     const [search, setSearch] = useState("")
     const [showOnlyPending, setShowOnlyPending] = useState(false)
 
@@ -307,12 +306,33 @@ export function AccountabilityReportPage() {
                 description={`Acompanhe compromissos fixos, ofertas destinadas e repasses de ${formatDate(report?.startDate)} até ${formatDate(report?.endDate)}.`}
             />
 
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">
+                            Saldo anterior
+                        </CardTitle>
+
+                        <History className="size-4 text-muted-foreground" />
+                    </CardHeader>
+
+                    <CardContent>
+                        <div className="text-2xl font-bold">
+                            {formatCurrency(report?.openingPendingTotal ?? 0)}
+                        </div>
+
+                        <p className="text-xs text-muted-foreground">
+                            Pendências acumuladas antes do início do período.
+                        </p>
+                    </CardContent>
+                </Card>
+
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">
                             Compromissos fixos
                         </CardTitle>
+
                         <HandCoins className="size-4 text-muted-foreground" />
                     </CardHeader>
 
@@ -320,6 +340,7 @@ export function AccountabilityReportPage() {
                         <div className="text-2xl font-bold">
                             {formatCurrency(report?.commitmentTotal ?? 0)}
                         </div>
+
                         <p className="text-xs text-muted-foreground">
                             Sustentos fixos previstos no período.
                         </p>
@@ -331,6 +352,7 @@ export function AccountabilityReportPage() {
                         <CardTitle className="text-sm font-medium">
                             Ofertas destinadas
                         </CardTitle>
+
                         <ArrowUpCircle className="size-4 text-muted-foreground" />
                     </CardHeader>
 
@@ -338,8 +360,9 @@ export function AccountabilityReportPage() {
                         <div className="text-2xl font-bold">
                             {formatCurrency(report?.allocatedTotal ?? 0)}
                         </div>
+
                         <p className="text-xs text-muted-foreground">
-                            Valores destinados aos favorecidos.
+                            Valores destinados aos favorecidos no período.
                         </p>
                     </CardContent>
                 </Card>
@@ -347,8 +370,9 @@ export function AccountabilityReportPage() {
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">
-                            Total devido
+                            A pagar no período
                         </CardTitle>
+
                         <WalletCards className="size-4 text-muted-foreground" />
                     </CardHeader>
 
@@ -356,8 +380,9 @@ export function AccountabilityReportPage() {
                         <div className="text-2xl font-bold">
                             {formatCurrency(report?.payableTotal ?? 0)}
                         </div>
+
                         <p className="text-xs text-muted-foreground">
-                            Compromissos fixos mais ofertas destinadas.
+                            Compromissos e ofertas gerados dentro do período.
                         </p>
                     </CardContent>
                 </Card>
@@ -365,8 +390,9 @@ export function AccountabilityReportPage() {
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">
-                            Repassado/utilizado
+                            Repassado no período
                         </CardTitle>
+
                         <ArrowDownCircle className="size-4 text-muted-foreground" />
                     </CardHeader>
 
@@ -374,8 +400,9 @@ export function AccountabilityReportPage() {
                         <div className="text-2xl font-bold">
                             {formatCurrency(report?.transferredTotal ?? 0)}
                         </div>
+
                         <p className="text-xs text-muted-foreground">
-                            Valores já repassados ou utilizados.
+                            Valores pagos ou utilizados dentro do período.
                         </p>
                     </CardContent>
                 </Card>
@@ -383,8 +410,9 @@ export function AccountabilityReportPage() {
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">
-                            A repassar
+                            Saldo final a repassar
                         </CardTitle>
+
                         <UserRound className="size-4 text-muted-foreground" />
                     </CardHeader>
 
@@ -392,45 +420,28 @@ export function AccountabilityReportPage() {
                         <div className="text-2xl font-bold">
                             {formatCurrency(report?.pendingTotal ?? 0)}
                         </div>
+
                         <p className="text-xs text-muted-foreground">
-                            Total devido menos o que já foi repassado.
+                            Saldo anterior + valores do período − repasses.
                         </p>
                     </CardContent>
                 </Card>
             </section>
 
             <section className="rounded-xl border bg-card p-4">
-                <div className="grid gap-4 lg:grid-cols-[1fr_1fr_2fr_auto_auto] lg:items-end">
-                    <div className="space-y-2">
-                        <label htmlFor="startDate" className="text-sm font-medium">
-                            Data inicial
-                        </label>
-
-                        <input
-                            id="startDate"
-                            type="date"
-                            value={startDate}
-                            onChange={(event) => setStartDate(event.target.value)}
-                            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                        />
-                    </div>
+                <div className="grid gap-4 lg:grid-cols-[minmax(240px,1fr)_minmax(0,2fr)_auto_auto] lg:items-end">
+                    <DateRangePresetFilter
+                        value={period}
+                        onChange={setPeriod}
+                        idPrefix="accountability-period"
+                        label="Período do relatório"
+                    />
 
                     <div className="space-y-2">
-                        <label htmlFor="endDate" className="text-sm font-medium">
-                            Data final
-                        </label>
-
-                        <input
-                            id="endDate"
-                            type="date"
-                            value={endDate}
-                            onChange={(event) => setEndDate(event.target.value)}
-                            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                        />
-                    </div>
-
-                    <div className="space-y-2">
-                        <label htmlFor="accountabilitySearch" className="text-sm font-medium">
+                        <label
+                            htmlFor="accountabilitySearch"
+                            className="text-sm font-medium"
+                        >
                             Buscar
                         </label>
 
@@ -453,7 +464,9 @@ export function AccountabilityReportPage() {
                         variant={showOnlyPending ? "default" : "outline"}
                         onClick={() => setShowOnlyPending((current) => !current)}
                     >
-                        {showOnlyPending ? "Mostrando saldos a repassar" : "Somente saldos a repassar"}
+                        {showOnlyPending
+                            ? "Mostrando saldos a repassar"
+                            : "Somente saldos a repassar"}
                     </Button>
 
                     <Button
@@ -463,6 +476,7 @@ export function AccountabilityReportPage() {
                         disabled={exportAccountabilityExcelMutation.isPending}
                     >
                         <FileSpreadsheet className="mr-2 size-4" />
+
                         {exportAccountabilityExcelMutation.isPending
                             ? "Exportando..."
                             : "Exportar Excel"}
@@ -559,9 +573,15 @@ function AccountabilityBeneficiaryCard({
     const hasPending = group.pendingAmount > 0
     const hasOverpaid = group.pendingAmount < 0
 
+    const totalToSettleAmount =
+        group.openingPendingAmount + group.payableAmount
+
     const transferredPercentage =
-        group.payableAmount > 0
-            ? Math.min((group.transferredAmount / group.payableAmount) * 100, 100)
+        totalToSettleAmount > 0
+            ? Math.min(
+                (group.transferredAmount / totalToSettleAmount) * 100,
+                100,
+            )
             : 0
 
     return (
@@ -592,7 +612,7 @@ function AccountabilityBeneficiaryCard({
                     </div>
 
                     <div className="text-right">
-                        <p className="text-xs text-muted-foreground">A repassar</p>
+                        <p className="text-xs text-muted-foreground">Saldo final a repassar</p>
                         <strong className="text-lg">
                             {formatCurrency(group.pendingAmount)}
                         </strong>
@@ -601,21 +621,32 @@ function AccountabilityBeneficiaryCard({
 
                 {hasPending && (
                     <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs">
-                        Ainda existe valor a repassar para este favorecido considerando compromissos fixos e ofertas destinadas.
+                        Ainda existe saldo final a repassar para este favorecido considerando compromissos fixos e ofertas destinadas.
                     </div>
                 )}
 
                 {hasOverpaid && (
                     <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                        Os repasses ultrapassaram o total devido no período.
+                        Existe um crédito a compensar em períodos futuros.
                     </div>
                 )}
             </CardHeader>
 
             <CardContent className="space-y-5">
-                <div className="grid gap-3 sm:grid-cols-5">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                     <div>
-                        <p className="text-xs text-muted-foreground">Compromisso</p>
+                        <p className="text-xs text-muted-foreground">
+                            Saldo anterior
+                        </p>
+                        <p className="font-medium">
+                            {formatCurrency(group.openingPendingAmount)}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p className="text-xs text-muted-foreground">
+                            Compromisso
+                        </p>
                         <p className="font-medium">
                             {formatCurrency(group.commitmentAmount)}
                         </p>
@@ -629,21 +660,27 @@ function AccountabilityBeneficiaryCard({
                     </div>
 
                     <div>
-                        <p className="text-xs text-muted-foreground">Total devido</p>
+                        <p className="text-xs text-muted-foreground">
+                            A pagar no período
+                        </p>
                         <p className="font-medium">
                             {formatCurrency(group.payableAmount)}
                         </p>
                     </div>
 
                     <div>
-                        <p className="text-xs text-muted-foreground">Repassado</p>
+                        <p className="text-xs text-muted-foreground">
+                            Repassado no período
+                        </p>
                         <p className="font-medium">
                             {formatCurrency(group.transferredAmount)}
                         </p>
                     </div>
 
                     <div>
-                        <p className="text-xs text-muted-foreground">A repassar</p>
+                        <p className="text-xs text-muted-foreground">
+                            Saldo final a repassar
+                        </p>
                         <p className="font-medium">
                             {formatCurrency(group.pendingAmount)}
                         </p>
@@ -664,8 +701,8 @@ function AccountabilityBeneficiaryCard({
                     </div>
 
                     <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Total devido</span>
-                        <span>Repassado</span>
+                        <span>A pagar no período</span>
+                        <span>Repassado no período</span>
                     </div>
                 </div>
 
@@ -760,44 +797,63 @@ function AccountabilityFundSection({
                 </div>
 
                 <div className="text-left md:text-right">
-                    <p className="text-xs text-muted-foreground">A repassar</p>
+                    <p className="text-xs text-muted-foreground">Saldo final a repassar</p>
                     <p className="text-sm font-semibold">
                         {formatCurrency(item.pendingAmount)}
                     </p>
                 </div>
             </div>
 
-            <div className="mt-3 grid gap-3 text-sm sm:grid-cols-5">
+            <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                 <div>
-                    <p className="text-xs text-muted-foreground">Compromisso</p>
+                    <p className="text-xs text-muted-foreground">
+                        Saldo anterior
+                    </p>
+                    <p className="font-medium">
+                        {formatCurrency(item.openingPendingAmount)}
+                    </p>
+                </div>
+
+                <div>
+                    <p className="text-xs text-muted-foreground">
+                        Compromisso
+                    </p>
                     <p className="font-medium">
                         {formatCurrency(item.commitmentAmount)}
                     </p>
                 </div>
 
                 <div>
-                    <p className="text-xs text-muted-foreground">Ofertas</p>
+                    <p className="text-xs text-muted-foreground">
+                        Ofertas
+                    </p>
                     <p className="font-medium">
                         {formatCurrency(item.allocatedAmount)}
                     </p>
                 </div>
 
                 <div>
-                    <p className="text-xs text-muted-foreground">Total devido</p>
+                    <p className="text-xs text-muted-foreground">
+                        A pagar no período
+                    </p>
                     <p className="font-medium">
                         {formatCurrency(item.payableAmount)}
                     </p>
                 </div>
 
                 <div>
-                    <p className="text-xs text-muted-foreground">Repassado</p>
+                    <p className="text-xs text-muted-foreground">
+                        Repassado no período
+                    </p>
                     <p className="font-medium">
                         {formatCurrency(item.transferredAmount)}
                     </p>
                 </div>
 
                 <div>
-                    <p className="text-xs text-muted-foreground">A repassar</p>
+                    <p className="text-xs text-muted-foreground">
+                        Saldo final a repassar
+                    </p>
                     <p className="font-medium">
                         {formatCurrency(item.pendingAmount)}
                     </p>
@@ -897,7 +953,7 @@ function AccountabilityFundSection({
 
                                                 <div>
                                                     <p className="text-xs text-muted-foreground">
-                                                        Saldo no banco
+                                                        Movimento líquido no período
                                                     </p>
                                                     <p className="font-medium">
                                                         {formatCurrency(account.pendingAmount)}

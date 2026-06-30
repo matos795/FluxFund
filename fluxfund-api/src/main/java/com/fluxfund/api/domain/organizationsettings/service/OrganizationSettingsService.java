@@ -90,6 +90,11 @@ public class OrganizationSettingsService {
                     request.autoFillClassificationSuggestions());
         }
 
+        if (request.accountabilityHistoryStartDate() != null) {
+            settings.setAccountabilityHistoryStartDate(
+                    request.accountabilityHistoryStartDate());
+        }
+
         repository.save(settings);
 
         auditLogService.record(

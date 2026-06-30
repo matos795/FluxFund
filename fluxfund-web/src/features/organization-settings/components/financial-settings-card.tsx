@@ -21,6 +21,7 @@ import { useFundOptions } from "@/features/funds/hooks/use-fund-options"
 import { FundComboboxWithCreate } from "@/features/funds/components/fund-combobox-with-create"
 import { Switch } from "@/components/ui/switch"
 import { getApiErrorMessage } from "@/utils/api-error"
+import { Input } from "@/components/ui/input"
 
 export function FinancialSettingsCard() {
 
@@ -46,6 +47,11 @@ export function FinancialSettingsCard() {
     autoFillClassificationSuggestions,
     setAutoFillClassificationSuggestions,
   ] = useState<boolean | undefined>()
+
+  const [
+    accountabilityHistoryStartDate,
+    setAccountabilityHistoryStartDate,
+  ] = useState<string | undefined>()
 
   const settingsQuery = useOrganizationSettings()
   const updateSettingsMutation = useUpdateOrganizationSettings()
@@ -76,6 +82,11 @@ export function FinancialSettingsCard() {
     settings?.autoFillClassificationSuggestions ??
     true
 
+  const effectiveAccountabilityHistoryStartDate =
+    accountabilityHistoryStartDate ??
+    settings?.accountabilityHistoryStartDate ??
+    ""
+
   const selectedFundId = effectiveDefaultFundId
 
   const selectedFund = useMemo(() => {
@@ -95,6 +106,8 @@ export function FinancialSettingsCard() {
         requireProofForIncomes: effectiveRequireProofForIncomes,
         autoFillClassificationSuggestions:
           effectiveAutoFillClassificationSuggestions,
+        accountabilityHistoryStartDate:
+          effectiveAccountabilityHistoryStartDate || null,
       },
       {
         onSuccess: () => {
@@ -106,6 +119,7 @@ export function FinancialSettingsCard() {
           setRequireFiscalDocumentForExpenses(undefined)
           setRequireProofForIncomes(undefined)
           setAutoFillClassificationSuggestions(undefined)
+          setAccountabilityHistoryStartDate(undefined)
         },
         onError: (error) => {
           toast.error(
@@ -146,7 +160,9 @@ export function FinancialSettingsCard() {
     effectiveRequireFiscalDocumentForExpenses ||
     settings?.requireProofForIncomes !== effectiveRequireProofForIncomes ||
     settings?.autoFillClassificationSuggestions !==
-    effectiveAutoFillClassificationSuggestions
+    effectiveAutoFillClassificationSuggestions ||
+    (settings?.accountabilityHistoryStartDate ?? "") !==
+    effectiveAccountabilityHistoryStartDate
 
   const canSuggestDefaultFundReallocation = !effectiveAllowNegativeFunds && Boolean(effectiveDefaultFundId)
 
@@ -297,6 +313,39 @@ export function FinancialSettingsCard() {
                   onCheckedChange={setAutoFillClassificationSuggestions}
                 />
               </div>
+            </div>
+
+            <div className="space-y-3 rounded-lg border p-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">
+                  Início do histórico confiável de sustento
+                </p>
+
+                <p className="text-sm text-muted-foreground">
+                  Data a partir da qual o FluxFund deve considerar compromissos,
+                  ofertas e repasses para calcular o saldo anterior dos favorecidos.
+                </p>
+              </div>
+
+              <div className="max-w-xs space-y-2">
+                <Label htmlFor="accountability-history-start-date">
+                  Data de início
+                </Label>
+
+                <Input
+                  id="accountability-history-start-date"
+                  type="date"
+                  value={effectiveAccountabilityHistoryStartDate}
+                  disabled={!canAdmin}
+                  onChange={(event) =>
+                    setAccountabilityHistoryStartDate(event.target.value)
+                  }
+                />
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Para a organização atual, use 01/04/2026.
+              </p>
             </div>
 
             <div className="space-y-4 rounded-lg border p-4">

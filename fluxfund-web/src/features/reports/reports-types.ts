@@ -52,6 +52,9 @@ export type AccountabilityReportItem = {
   beneficiaryName: string
   fundId: string
   fundName: string
+
+  openingPendingAmount: number
+
   allocatedAmount: number
   transferredAmount: number
   commitmentAmount: number
@@ -63,6 +66,9 @@ export type AccountabilityReportItem = {
 export type AccountabilityReport = {
   startDate: string
   endDate: string
+
+  openingPendingTotal: number
+
   allocatedTotal: number
   transferredTotal: number
   commitmentTotal: number
@@ -87,6 +93,9 @@ export type AccountabilityByAccountReportItem = {
   beneficiaryName: string
   fundId: string
   fundName: string
+
+  openingPendingAmount: number
+
   allocatedAmount: number
   transferredAmount: number
   commitmentAmount: number
@@ -99,6 +108,9 @@ export type AccountabilityByAccountReportItem = {
 export type AccountabilityByAccountReport = {
   startDate: string
   endDate: string
+
+  openingPendingTotal: number
+
   allocatedTotal: number
   transferredTotal: number
   commitmentTotal: number

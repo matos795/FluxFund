@@ -9,6 +9,7 @@ export type OrganizationSettings = {
   requireFiscalDocumentForExpenses: boolean
   requireProofForIncomes: boolean
   autoFillClassificationSuggestions: boolean
+  accountabilityHistoryStartDate: string | null
   createdAt: string
   updatedAt: string | null
 }
@@ -20,4 +21,5 @@ export type UpdateOrganizationSettingsRequest = {
   requireFiscalDocumentForExpenses: boolean
   requireProofForIncomes: boolean
   autoFillClassificationSuggestions: boolean
+  accountabilityHistoryStartDate: string | null
 }

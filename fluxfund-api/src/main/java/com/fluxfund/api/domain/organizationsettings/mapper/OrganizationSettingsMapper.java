@@ -22,6 +22,7 @@ public class OrganizationSettingsMapper {
                 settings.isSuggestDefaultFundReallocation(),
                 settings.isRequireFiscalDocumentForExpenses(),
                 settings.isRequireProofForIncomes(),
-                settings.isAutoFillClassificationSuggestions());
+                settings.isAutoFillClassificationSuggestions(),
+                settings.getAccountabilityHistoryStartDate());
     }
 }

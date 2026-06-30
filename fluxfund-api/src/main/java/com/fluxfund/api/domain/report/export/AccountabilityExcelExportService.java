@@ -114,28 +114,31 @@ public class AccountabilityExcelExportService {
         rowIndex++;
 
         Row totalHeaderRow = sheet.createRow(rowIndex++);
-        createHeaderCell(totalHeaderRow, 0, "Compromissos", styles);
-        createHeaderCell(totalHeaderRow, 1, "Ofertas Destinadas", styles);
-        createHeaderCell(totalHeaderRow, 2, "Total Devido", styles);
-        createHeaderCell(totalHeaderRow, 3, "Repassado", styles);
-        createHeaderCell(totalHeaderRow, 4, "A Repassar", styles);
+        createHeaderCell(totalHeaderRow, 0, "Saldo Anterior", styles);
+        createHeaderCell(totalHeaderRow, 1, "Compromissos do Período", styles);
+        createHeaderCell(totalHeaderRow, 2, "Ofertas Destinadas no Período", styles);
+        createHeaderCell(totalHeaderRow, 3, "A Pagar no Período", styles);
+        createHeaderCell(totalHeaderRow, 4, "Repassado no Período", styles);
+        createHeaderCell(totalHeaderRow, 5, "Saldo Final a Repassar", styles);
 
         Row totalRow = sheet.createRow(rowIndex++);
-        createMoneyCell(totalRow, 0, report.commitmentTotal(), styles);
-        createMoneyCell(totalRow, 1, report.allocatedTotal(), styles);
-        createMoneyCell(totalRow, 2, report.payableTotal(), styles);
-        createMoneyCell(totalRow, 3, report.transferredTotal(), styles);
-        createMoneyCell(totalRow, 4, report.pendingTotal(), styles);
+        createMoneyCell(totalRow, 0, report.openingPendingTotal(), styles);
+        createMoneyCell(totalRow, 1, report.commitmentTotal(), styles);
+        createMoneyCell(totalRow, 2, report.allocatedTotal(), styles);
+        createMoneyCell(totalRow, 3, report.payableTotal(), styles);
+        createMoneyCell(totalRow, 4, report.transferredTotal(), styles);
+        createMoneyCell(totalRow, 5, report.pendingTotal(), styles);
 
         rowIndex++;
 
         Row headerRow = sheet.createRow(rowIndex++);
         createHeaderCell(headerRow, 0, "Favorecido", styles);
-        createHeaderCell(headerRow, 1, "Compromissos", styles);
-        createHeaderCell(headerRow, 2, "Ofertas Destinadas", styles);
-        createHeaderCell(headerRow, 3, "Total Devido", styles);
-        createHeaderCell(headerRow, 4, "Repassado", styles);
-        createHeaderCell(headerRow, 5, "A Repassar", styles);
+        createHeaderCell(headerRow, 1, "Saldo Anterior", styles);
+        createHeaderCell(headerRow, 2, "Compromissos do Período", styles);
+        createHeaderCell(headerRow, 3, "Ofertas Destinadas no Período", styles);
+        createHeaderCell(headerRow, 4, "A Pagar no Período", styles);
+        createHeaderCell(headerRow, 5, "Repassado no Período", styles);
+        createHeaderCell(headerRow, 6, "Saldo Final a Repassar", styles);
 
         List<AccountabilityByAccountItemResponse> reportItems = report.items();
         if (reportItems == null || reportItems.isEmpty()) {
@@ -156,6 +159,11 @@ public class AccountabilityExcelExportService {
                     first.beneficiaryId(), first.beneficiaryName());
 
             try {
+
+                BigDecimal openingPendingAmount = beneficiaryItems.stream()
+                        .map(AccountabilityByAccountItemResponse::openingPendingAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
                 BigDecimal commitmentAmount = beneficiaryItems.stream()
                         .map(AccountabilityByAccountItemResponse::commitmentAmount)
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -178,11 +186,12 @@ public class AccountabilityExcelExportService {
 
                 Row row = sheet.createRow(rowIndex++);
                 createTextCell(row, 0, first.beneficiaryName(), styles);
-                createMoneyCell(row, 1, commitmentAmount, styles);
-                createMoneyCell(row, 2, allocatedAmount, styles);
-                createMoneyCell(row, 3, payableAmount, styles);
-                createMoneyCell(row, 4, transferredAmount, styles);
-                createMoneyCell(row, 5, pendingAmount, styles);
+                createMoneyCell(row, 1, openingPendingAmount, styles);
+                createMoneyCell(row, 2, commitmentAmount, styles);
+                createMoneyCell(row, 3, allocatedAmount, styles);
+                createMoneyCell(row, 4, payableAmount, styles);
+                createMoneyCell(row, 5, transferredAmount, styles);
+                createMoneyCell(row, 6, pendingAmount, styles);
             } catch (Exception exception) {
                 log.error("Error processing beneficiary id={} name='{}' in 'Resumo' sheet: {}",
                         first.beneficiaryId(), first.beneficiaryName(), exception.getMessage(), exception);
@@ -190,7 +199,7 @@ public class AccountabilityExcelExportService {
             }
         }
 
-        applySheetDefaults(sheet, 6);
+        applySheetDefaults(sheet, 7);
     }
 
     private void createFundsSheet(
@@ -216,12 +225,13 @@ public class AccountabilityExcelExportService {
         Row headerRow = sheet.createRow(rowIndex++);
         createHeaderCell(headerRow, 0, "Favorecido", styles);
         createHeaderCell(headerRow, 1, "Fundo", styles);
-        createHeaderCell(headerRow, 2, "Compromisso Fixo", styles);
-        createHeaderCell(headerRow, 3, "Ofertas Destinadas", styles);
-        createHeaderCell(headerRow, 4, "Total Devido", styles);
-        createHeaderCell(headerRow, 5, "Repassado", styles);
-        createHeaderCell(headerRow, 6, "A Repassar", styles);
-        createHeaderCell(headerRow, 7, "Qtd. Alocações", styles);
+        createHeaderCell(headerRow, 2, "Saldo Anterior", styles);
+        createHeaderCell(headerRow, 3, "Compromissos do Período", styles);
+        createHeaderCell(headerRow, 4, "Ofertas Destinadas no Período", styles);
+        createHeaderCell(headerRow, 5, "A Pagar no Período", styles);
+        createHeaderCell(headerRow, 6, "Repassado no Período", styles);
+        createHeaderCell(headerRow, 7, "Saldo Final a Repassar", styles);
+        createHeaderCell(headerRow, 8, "Qtd. Alocações", styles);
 
         List<AccountabilityByAccountItemResponse> fundItems = report.items();
         if (fundItems == null || fundItems.isEmpty()) {
@@ -239,12 +249,13 @@ public class AccountabilityExcelExportService {
 
                 createTextCell(row, 0, item.beneficiaryName(), styles);
                 createTextCell(row, 1, item.fundName(), styles);
-                createMoneyCell(row, 2, item.commitmentAmount(), styles);
-                createMoneyCell(row, 3, item.allocatedAmount(), styles);
-                createMoneyCell(row, 4, item.payableAmount(), styles);
-                createMoneyCell(row, 5, item.transferredAmount(), styles);
-                createMoneyCell(row, 6, item.pendingAmount(), styles);
-                createNumberCell(row, 7, item.allocationCount(), styles);
+                createMoneyCell(row, 2, item.openingPendingAmount(), styles);
+                createMoneyCell(row, 3, item.commitmentAmount(), styles);
+                createMoneyCell(row, 4, item.allocatedAmount(), styles);
+                createMoneyCell(row, 5, item.payableAmount(), styles);
+                createMoneyCell(row, 6, item.transferredAmount(), styles);
+                createMoneyCell(row, 7, item.pendingAmount(), styles);
+                createNumberCell(row, 8, item.allocationCount(), styles);
             } catch (Exception exception) {
                 log.error("Error processing item beneficiaryId={} fundId={} in 'Fundos por Favorecido' sheet: {}",
                         item.beneficiaryId(), item.fundId(), exception.getMessage(), exception);
@@ -252,7 +263,7 @@ public class AccountabilityExcelExportService {
             }
         }
 
-        applySheetDefaults(sheet, 8);
+        applySheetDefaults(sheet, 9);
     }
 
     private void createAccountsSheet(
@@ -280,9 +291,23 @@ public class AccountabilityExcelExportService {
         createHeaderCell(headerRow, 1, "Fundo", styles);
         createHeaderCell(headerRow, 2, "Conta", styles);
         createHeaderCell(headerRow, 3, "Banco", styles);
-        createHeaderCell(headerRow, 4, "Ofertas Destinadas", styles);
-        createHeaderCell(headerRow, 5, "Repassado", styles);
-        createHeaderCell(headerRow, 6, "Saldo no Banco", styles);
+        createHeaderCell(
+                headerRow,
+                4,
+                "Ofertas Destinadas no Período",
+                styles);
+
+        createHeaderCell(
+                headerRow,
+                5,
+                "Repassado no Período",
+                styles);
+
+        createHeaderCell(
+                headerRow,
+                6,
+                "Movimento Líquido no Período",
+                styles);
         createHeaderCell(headerRow, 7, "Qtd. Alocações", styles);
 
         List<AccountabilityByAccountItemResponse> accountItems = report.items();

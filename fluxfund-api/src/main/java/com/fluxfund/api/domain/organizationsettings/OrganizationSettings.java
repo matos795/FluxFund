@@ -1,5 +1,7 @@
 package com.fluxfund.api.domain.organizationsettings;
 
+import java.time.LocalDate;
+
 import com.fluxfund.api.domain.fund.Fund;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.shared.BaseEntity;
@@ -47,4 +49,7 @@ public class OrganizationSettings extends BaseEntity {
 
         @Column(name = "auto_fill_classification_suggestions", nullable = false)
         private boolean autoFillClassificationSuggestions = true;
+
+        @Column(name = "accountability_history_start_date")
+        private LocalDate accountabilityHistoryStartDate;
 }
