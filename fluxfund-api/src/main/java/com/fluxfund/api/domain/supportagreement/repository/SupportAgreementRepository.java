@@ -27,10 +27,22 @@ public interface SupportAgreementRepository extends JpaRepository<SupportAgreeme
             UUID id,
             UUID organizationId);
 
-    boolean existsByOrganizationIdAndBeneficiaryIdAndFundIdAndActiveTrue(
-            UUID organizationId,
-            UUID beneficiaryId,
-            UUID fundId);
+    @Query("""
+            select sa
+            from SupportAgreement sa
+            where sa.organization.id = :organizationId
+              and sa.beneficiary.id = :beneficiaryId
+              and sa.fund.id = :fundId
+              and sa.active = true
+              and sa.startDate <= :candidateEndDate
+              and (sa.endDate is null or sa.endDate >= :candidateStartDate)
+            """)
+    List<SupportAgreement> findActiveOverlappingAgreements(
+            @Param("organizationId") UUID organizationId,
+            @Param("beneficiaryId") UUID beneficiaryId,
+            @Param("fundId") UUID fundId,
+            @Param("candidateStartDate") LocalDate candidateStartDate,
+            @Param("candidateEndDate") LocalDate candidateEndDate);
 
     Page<SupportAgreement> findAllByOrganizationIdAndActiveFalse(
             UUID organizationId,
@@ -88,6 +100,7 @@ public interface SupportAgreementRepository extends JpaRepository<SupportAgreeme
             join fetch sa.beneficiary
             join fetch sa.fund
             where sa.organization.id = :organizationId
+            and sa.active = true
               and sa.startDate <= :endDate
               and (sa.endDate is null or sa.endDate >= :startDate)
             """)
@@ -102,6 +115,7 @@ public interface SupportAgreementRepository extends JpaRepository<SupportAgreeme
             join fetch sa.beneficiary
             join fetch sa.fund
             where sa.organization.id = :organizationId
+            and sa.active = true
               and sa.startDate < :periodStartDate
               and (sa.endDate is null or sa.endDate >= :historyStartDate)
             """)

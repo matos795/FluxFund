@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fluxfund.api.domain.supportagreement.dto.CreateSupportAgreementRequest;
+import com.fluxfund.api.domain.supportagreement.dto.CreateSupportAgreementVersionRequest;
 import com.fluxfund.api.domain.supportagreement.dto.SupportAgreementResponse;
 import com.fluxfund.api.domain.supportagreement.dto.UpdateSupportAgreementRequest;
 import com.fluxfund.api.domain.supportagreement.service.SupportAgreementService;
@@ -41,6 +42,16 @@ public class SupportAgreementController {
             @RequestHeader(ORGANIZATION_ID) UUID organizationId,
             @Valid @RequestBody CreateSupportAgreementRequest request) {
         return service.create(organizationId, request);
+    }
+
+    @PostMapping("/api/v1/support-agreements/{id}/versions")
+    @ResponseStatus(HttpStatus.CREATED)
+    public SupportAgreementResponse createVersion(
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+            @PathVariable UUID id,
+            @Valid @RequestBody CreateSupportAgreementVersionRequest request) {
+
+        return service.createVersion(organizationId, id, request);
     }
 
     @GetMapping("/api/v1/support-agreements")

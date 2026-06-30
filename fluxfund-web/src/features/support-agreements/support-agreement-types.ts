@@ -33,3 +33,9 @@ export type UpdateSupportAgreementRequest = {
   active?: boolean
   description?: string | null
 }
+
+export type CreateSupportAgreementVersionRequest = {
+  amount: number
+  startDate: string
+  description?: string | null
+}

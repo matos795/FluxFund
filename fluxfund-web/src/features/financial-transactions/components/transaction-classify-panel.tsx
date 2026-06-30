@@ -103,7 +103,7 @@ export function TransactionClassifyPanel({
     const { data: settings } = useOrganizationSettings()
 
     const autoFillEnabled =
-    settings?.autoFillClassificationSuggestions ?? true
+        settings?.autoFillClassificationSuggestions ?? true
 
     const classificationSuggestionQuery = useClassificationSuggestion(
         transaction.id,
@@ -149,7 +149,9 @@ export function TransactionClassifyPanel({
             {
                 fundId: "",
                 beneficiaryId: "",
-                referenceMonth: "",
+                referenceMonth: settlementDate
+                    ? settlementDate.slice(0, 7)
+                    : "",
                 amount: remainingAmount > 0 ? String(remainingAmount) : "",
             },
         ])
@@ -828,11 +830,13 @@ export function TransactionClassifyPanel({
                                     </div>
 
                                     <SupportAgreementSuggestionCard
+                                        fundId={allocation.fundId}
                                         beneficiaryId={allocation.beneficiaryId}
                                         transactionType={type}
                                         referenceMonth={allocation.referenceMonth}
+                                        referenceDateFallback={settlementDate}
                                         remainingAmount={Number(allocation.amount || 0)}
-                                        autoApply={autoFillEnabled}
+                                        autoApply={false}
                                         onApply={(suggestion) => {
                                             handleChangeAllocation(index, "fundId", suggestion.fundId)
                                             handleChangeAllocation(index, "beneficiaryId", suggestion.beneficiaryId)

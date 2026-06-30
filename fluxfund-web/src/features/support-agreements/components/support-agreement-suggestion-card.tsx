@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react"
+import { useCallback, useEffect, useMemo, useRef } from "react"
 import { HandCoins } from "lucide-react"
 import { toast } from "sonner"
 
@@ -13,6 +13,8 @@ type SupportAgreementSuggestionCardProps = {
   referenceMonth?: string | null
   remainingAmount?: number
   autoApply?: boolean
+  fundId?: string | null
+  referenceDateFallback?: string | null
   onApply: (data: {
     fundId: string
     beneficiaryId: string
@@ -22,16 +24,25 @@ type SupportAgreementSuggestionCardProps = {
 }
 
 export function SupportAgreementSuggestionCard({
+  fundId,
   beneficiaryId,
   transactionType,
   referenceMonth,
+  referenceDateFallback,
   remainingAmount,
   onApply,
   autoApply = false,
 }: SupportAgreementSuggestionCardProps) {
   const shouldSearch = transactionType === "EXPENSE" && Boolean(beneficiaryId)
 
-  const referenceDate = referenceMonth ? `${referenceMonth}-01` : undefined
+  const effectiveReferenceMonth =
+    referenceMonth ||
+    referenceDateFallback?.slice(0, 7) ||
+    ""
+
+  const referenceDate = effectiveReferenceMonth
+    ? `${effectiveReferenceMonth}-01`
+    : undefined
 
   const { data: suggestions = [], isLoading } = useSupportAgreementSuggestions(
     {
@@ -39,6 +50,14 @@ export function SupportAgreementSuggestionCard({
       referenceDate,
     },
     { enabled: shouldSearch },
+  )
+
+  const visibleSuggestions = useMemo(
+    () =>
+      suggestions.filter(
+        (agreement) => agreement.fund.id !== fundId,
+      ),
+    [fundId, suggestions],
   )
 
   const autoAppliedKeyRef = useRef<string | null>(null)
@@ -58,11 +77,11 @@ export function SupportAgreementSuggestionCard({
       return {
         fundId: agreement.fund.id,
         beneficiaryId: agreement.beneficiary.id,
-        referenceMonth: referenceMonth ?? "",
+        referenceMonth: effectiveReferenceMonth,
         amount: suggestedAmount,
       }
     },
-    [referenceMonth, remainingAmount],
+    [effectiveReferenceMonth, remainingAmount],
   )
 
   useEffect(() => {
@@ -70,12 +89,12 @@ export function SupportAgreementSuggestionCard({
       !autoApply ||
       !shouldSearch ||
       isLoading ||
-      suggestions.length !== 1
+      visibleSuggestions.length !== 1
     ) {
       return
     }
 
-    const agreement = suggestions[0]
+    const agreement = visibleSuggestions[0]
 
     if (!agreement) {
       return
@@ -106,10 +125,10 @@ export function SupportAgreementSuggestionCard({
     onApply,
     referenceDate,
     shouldSearch,
-    suggestions,
+    visibleSuggestions,
   ])
 
-  if (!shouldSearch || isLoading || suggestions.length === 0) {
+  if (!shouldSearch || isLoading || visibleSuggestions.length === 0) {
     return null
   }
 
@@ -128,7 +147,7 @@ export function SupportAgreementSuggestionCard({
           </div>
 
           <div className="space-y-2">
-            {suggestions.map((agreement) => {
+            {visibleSuggestions.map((agreement) => {
               const suggestion = buildSuggestion(agreement)
               const suggestedAmount = suggestion.amount
 

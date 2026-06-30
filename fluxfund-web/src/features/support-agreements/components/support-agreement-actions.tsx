@@ -15,6 +15,7 @@ import { EditSupportAgreementDialog } from "./edit-support-agreement-dialog"
 import { useActivateSupportAgreement } from "../hooks/use-activate-support-agreement"
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { ConfirmActionDialog } from "@/components/layout/confirm-action-dialog"
+import { CreateSupportAgreementVersionDialog } from "./create-support-agreement-version-dialog"
 
 type SupportAgreementActionsProps = {
   agreement: SupportAgreement
@@ -65,6 +66,10 @@ export function SupportAgreementActions({
 
         <DropdownMenuContent align="end">
           {canFinanceWrite && <EditSupportAgreementDialog agreement={agreement} />}
+
+          {canFinanceWrite && agreement.active && !agreement.endDate && (
+            <CreateSupportAgreementVersionDialog agreement={agreement} />
+          )}
 
           {canFinanceWrite && agreement.active && (
             <DropdownMenuItem

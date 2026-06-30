@@ -238,6 +238,7 @@ export function TransactionAllocationForm({
       )}
 
       <SupportAgreementSuggestionCard
+        fundId={selectedFundId}
         beneficiaryId={selectedBeneficiaryId}
         transactionType={transactionType}
         referenceMonth={referenceMonth}

@@ -2,6 +2,7 @@ import { httpClient } from "@/api/http-client"
 import type { PageResponse } from "@/types/page-response"
 import type {
   CreateSupportAgreementRequest,
+  CreateSupportAgreementVersionRequest,
   SupportAgreement,
   UpdateSupportAgreementRequest,
 } from "./support-agreement-types"
@@ -90,6 +91,21 @@ export async function getSupportAgreementSuggestions({
   const response = await httpClient.get<SupportAgreement[]>(
     "/api/v1/support-agreements/suggestions",
     { params },
+  )
+
+  return response.data
+}
+
+export async function createSupportAgreementVersion({
+  id,
+  data,
+}: {
+  id: string
+  data: CreateSupportAgreementVersionRequest
+}) {
+  const response = await httpClient.post<SupportAgreement>(
+    `/api/v1/support-agreements/${id}/versions`,
+    data,
   )
 
   return response.data
