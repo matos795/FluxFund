@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react"
+import { useCallback, useEffect, useRef } from "react"
 import { HandCoins } from "lucide-react"
 import { toast } from "sonner"
 
@@ -11,7 +11,7 @@ type SupportAgreementSuggestionCardProps = {
   beneficiaryId?: string | null
   transactionType: FinancialTransactionType
   referenceMonth?: string | null
-  remainingAmount?: number
+  maxAmount?: number
   autoApply?: boolean
   fundId?: string | null
   referenceDateFallback?: string | null
@@ -29,7 +29,7 @@ export function SupportAgreementSuggestionCard({
   transactionType,
   referenceMonth,
   referenceDateFallback,
-  remainingAmount,
+  maxAmount,
   onApply,
   autoApply = false,
 }: SupportAgreementSuggestionCardProps) {
@@ -52,27 +52,21 @@ export function SupportAgreementSuggestionCard({
     { enabled: shouldSearch },
   )
 
-  const visibleSuggestions = useMemo(
-    () =>
-      suggestions.filter(
-        (agreement) => agreement.fund.id !== fundId,
-      ),
-    [fundId, suggestions],
-  )
-
   const autoAppliedKeyRef = useRef<string | null>(null)
 
   const buildSuggestion = useCallback(
     (agreement: (typeof suggestions)[number]) => {
-      const availableAmount = Math.max(
-        Number(remainingAmount ?? agreement.amount),
-        0,
-      )
+      const agreementAmount = Number(agreement.amount)
 
-      const suggestedAmount =
-        availableAmount > 0
-          ? Math.min(Number(agreement.amount), availableAmount)
-          : Number(agreement.amount)
+      const allowedAmount =
+        maxAmount === undefined
+          ? agreementAmount
+          : Math.max(maxAmount, 0)
+
+      const suggestedAmount = Math.min(
+        agreementAmount,
+        allowedAmount,
+      )
 
       return {
         fundId: agreement.fund.id,
@@ -81,7 +75,7 @@ export function SupportAgreementSuggestionCard({
         amount: suggestedAmount,
       }
     },
-    [effectiveReferenceMonth, remainingAmount],
+    [effectiveReferenceMonth, maxAmount],
   )
 
   useEffect(() => {
@@ -89,12 +83,18 @@ export function SupportAgreementSuggestionCard({
       !autoApply ||
       !shouldSearch ||
       isLoading ||
-      visibleSuggestions.length !== 1
+      suggestions.length !== 1
     ) {
       return
     }
 
-    const agreement = visibleSuggestions[0]
+    const agreement = suggestions[0]
+
+    const suggestion = buildSuggestion(agreement)
+
+    if (suggestion.amount <= 0) {
+      return
+    }
 
     if (!agreement) {
       return
@@ -109,7 +109,7 @@ export function SupportAgreementSuggestionCard({
     autoAppliedKeyRef.current = autoApplyKey
 
     const timeoutId = window.setTimeout(() => {
-      onApply(buildSuggestion(agreement))
+      onApply(suggestion)
 
       toast.info(
         "Compromisso ativo aplicado automaticamente. Revise antes de salvar.",
@@ -125,10 +125,10 @@ export function SupportAgreementSuggestionCard({
     onApply,
     referenceDate,
     shouldSearch,
-    visibleSuggestions,
+    suggestions,
   ])
 
-  if (!shouldSearch || isLoading || visibleSuggestions.length === 0) {
+  if (!shouldSearch || isLoading || suggestions.length === 0) {
     return null
   }
 
@@ -147,9 +147,11 @@ export function SupportAgreementSuggestionCard({
           </div>
 
           <div className="space-y-2">
-            {visibleSuggestions.map((agreement) => {
+            {suggestions.map((agreement) => {
               const suggestion = buildSuggestion(agreement)
               const suggestedAmount = suggestion.amount
+              const cannotApplySuggestion = suggestedAmount <= 0
+              const isCurrentFund = agreement.fund.id === fundId
 
               return (
                 <div
@@ -162,10 +164,24 @@ export function SupportAgreementSuggestionCard({
                       {formatCurrency(Number(agreement.amount))}
                     </p>
 
+                    {isCurrentFund && (
+                      <p className="text-xs text-emerald-900/80">
+                        O fundo selecionado já corresponde a este compromisso.
+                        Confira a competência e o valor antes de salvar.
+                      </p>
+                    )}
+
                     {suggestedAmount < Number(agreement.amount) && (
                       <p className="text-xs text-muted-foreground">
                         O compromisso é maior que o valor restante. A sugestão
                         usará {formatCurrency(suggestedAmount)}.
+                      </p>
+                    )}
+
+                    {cannotApplySuggestion && (
+                      <p className="text-xs text-destructive">
+                        Não há valor disponível nesta alocação. Ajuste as outras alocações
+                        antes de usar este compromisso.
                       </p>
                     )}
                   </div>
@@ -174,6 +190,7 @@ export function SupportAgreementSuggestionCard({
                     type="button"
                     size="sm"
                     variant="outline"
+                    disabled={cannotApplySuggestion}
                     onClick={() => onApply(suggestion)}
                   >
                     Usar compromisso

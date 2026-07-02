@@ -400,6 +400,52 @@ public class FinancialTransactionService {
         return TransactionAllocationMapper.toResponse(savedAllocation);
     }
 
+    public List<TransactionAllocationResponse> addAllocationsBatch(
+            UUID organizationId,
+            UUID id,
+            List<CreateTransactionAllocationRequest> requests) {
+
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
+
+        FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
+
+        List<TransactionAllocation> allocations = requests.stream()
+                .map(request -> buildAllocation(
+                        organizationId,
+                        financialTransaction,
+                        request))
+                .toList();
+
+        for (TransactionAllocation allocation : allocations) {
+            validateBasicAllocationRules(allocation);
+            financialTransaction.addAllocation(allocation);
+        }
+
+        validateTotalAllocatedAmount(financialTransaction);
+
+        validateFundNegativePolicy(
+                organizationId,
+                financialTransaction.getId(),
+                Map.of(),
+                toImpactByFund(allocations));
+
+        List<TransactionAllocation> savedAllocations = allocationRepository.saveAllAndFlush(allocations);
+
+        for (TransactionAllocation allocation : savedAllocations) {
+            auditLogService.record(
+                    organizationId,
+                    AuditEntityType.TRANSACTION_ALLOCATION,
+                    allocation.getId(),
+                    AuditAction.ADD_ALLOCATION,
+                    "Allocation added through batch to transaction "
+                            + financialTransaction.getId());
+        }
+
+        return savedAllocations.stream()
+                .map(TransactionAllocationMapper::toResponse)
+                .toList();
+    }
+
     public TransactionAllocationResponse updateAllocation(UUID organizationId, UUID id, UUID allocationId,
             UpdateTransactionAllocationRequest request) {
         organizationAccessService.requireFinanceWriteAccess(organizationId);

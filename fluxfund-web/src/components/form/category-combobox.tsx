@@ -17,6 +17,8 @@ import {
 import { cn } from "@/lib/utils"
 import type { CategoryOption } from "@/features/categories/category-types"
 import { normalizeSearch } from "@/utils/normalizer"
+import { useState } from "react"
+import { useCommandListWheelScroll } from "./use-command-list-wheel-scroll"
 
 type CategoryComboboxProps = {
   value: string
@@ -47,6 +49,10 @@ export function CategoryCombobox({
 }: CategoryComboboxProps) {
   const selectedOption = options.find((option) => option.id === value)
 
+  const { listRef, handleWheel } = useCommandListWheelScroll()
+
+  const [open, setOpen] = useState(false)
+
   const parentOptions = options.filter((option) => !option.parentId)
 
   const orphanChildOptions = options.filter(
@@ -56,7 +62,7 @@ export function CategoryCombobox({
   )
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -73,7 +79,14 @@ export function CategoryCombobox({
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+      <PopoverContent
+        side="bottom"
+        align="start"
+        sideOffset={6}
+        collisionPadding={12}
+        className="w-[--radix-popover-trigger-width] p-0"
+        onWheelCapture={handleWheel}
+      >
         <Command
           filter={(value, search) => {
             const normalizedSearch = normalizeSearch(search)
@@ -99,6 +112,8 @@ export function CategoryCombobox({
                 onClick={(event) => {
                   event.preventDefault()
                   event.stopPropagation()
+
+                  setOpen(false)
                   onCreate()
                 }}
               >
@@ -108,14 +123,20 @@ export function CategoryCombobox({
             )}
           </div>
 
-          <CommandList>
+          <CommandList
+            ref={listRef}
+            className="max-h-52"
+          >
             <CommandEmpty>{emptyMessage}</CommandEmpty>
 
             {allowClear && (
               <CommandGroup>
                 <CommandItem
                   value={normalizeSearch(clearLabel)}
-                  onSelect={() => onChange("")}
+                  onSelect={() => {
+                    onChange("")
+                    setOpen(false)
+                  }}
                 >
                   <X
                     className={cn(
@@ -143,7 +164,10 @@ export function CategoryCombobox({
                         parent.parentName ?? "",
                       ].join(" "),
                     )}
-                    onSelect={() => onChange(parent.id)}
+                    onSelect={() => {
+                      onChange(parent.id)
+                      setOpen(false)
+                    }}
                   >
                     <Check
                       className={cn(
@@ -165,7 +189,10 @@ export function CategoryCombobox({
                           child.parentName ?? "",
                         ].join(" "),
                       )}
-                      onSelect={() => onChange(child.id)}
+                      onSelect={() => {
+                        onChange(child.id)
+                        setOpen(false)
+                      }}
                     >
                       <Check
                         className={cn(

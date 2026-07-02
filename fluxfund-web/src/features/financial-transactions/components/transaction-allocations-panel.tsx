@@ -18,8 +18,10 @@ import {
 import { useOrganizationSettings } from "@/features/organization-settings/hooks/use-organization-settings"
 import { getApiErrorMessage } from "@/utils/api-error"
 import {
+  formatCents,
   formatCurrency,
   formatReferenceMonth,
+  fromCents,
   toReferenceMonthDate,
 } from "@/utils/formatters"
 
@@ -32,6 +34,7 @@ import { useAddTransactionAllocation } from "../hooks/use-add-transaction-alloca
 import { useDeleteTransactionAllocation } from "../hooks/use-delete-transaction-allocation"
 import { useUpdateTransactionAllocation } from "../hooks/use-update-transaction-allocation"
 import { TransactionAllocationForm } from "./transaction-allocation-form"
+import { useAddTransactionAllocationsBatch } from "../hooks/use-add-transaction-allocations-batch"
 
 type TransactionAllocationsPanelProps = {
   transaction: FinancialTransaction
@@ -49,19 +52,44 @@ export function TransactionAllocationsPanel({
   const addAllocationMutation = useAddTransactionAllocation()
   const updateAllocationMutation = useUpdateTransactionAllocation()
   const deleteAllocationMutation = useDeleteTransactionAllocation()
+  const addAllocationsBatchMutation = useAddTransactionAllocationsBatch()
 
   const totalAllocated = useMemo(() => {
-    return transaction.allocations.reduce(
-      (total, allocation) => total + Math.abs(allocation.amount),
+    const totalInCents = transaction.allocations.reduce(
+      (total, allocation) =>
+        total + formatCents(Math.abs(allocation.amount)),
       0,
     )
+
+    return fromCents(totalInCents)
   }, [transaction.allocations])
 
-  const settledAmount = Math.abs(transaction.settledAmount ?? 0)
-  const remainingAmount = Math.max(settledAmount - totalAllocated, 0)
+  const settledAmount = fromCents(
+    formatCents(Math.abs(transaction.settledAmount ?? 0)),
+  )
+
+  const remainingAmount = Math.max(
+    fromCents(
+      formatCents(settledAmount) - formatCents(totalAllocated),
+    ),
+    0,
+  )
+
+  const maxSupportAgreementAmount = editingAllocation
+    ? fromCents(
+      formatCents(remainingAmount) +
+      formatCents(Math.abs(editingAllocation.amount)),
+    )
+    : remainingAmount
+
+  const newAllocationFormKey = transaction.allocations
+    .map((allocation) => `${allocation.id}:${allocation.amount}`)
+    .join("|")
 
   const isSubmitting =
-    addAllocationMutation.isPending || updateAllocationMutation.isPending
+    addAllocationMutation.isPending ||
+    updateAllocationMutation.isPending ||
+    addAllocationsBatchMutation.isPending
 
   const canAllocateRemainingToDefaultFund =
     Boolean(defaultFund) &&
@@ -178,53 +206,50 @@ export function TransactionAllocationsPanel({
       return
     }
 
-    const requests = []
+    const allocations = []
 
     if (data.selectedFundAmount > 0) {
-      requests.push(
-        addAllocationMutation.mutateAsync({
-          transactionId: transaction.id,
-          data: {
-            fundId: data.selectedFundId,
-            beneficiaryId: data.beneficiaryId || null,
-            referenceMonth: toReferenceMonthDate(data.referenceMonth),
-            amount: data.selectedFundAmount,
-          },
-        }),
-      )
+      allocations.push({
+        fundId: data.selectedFundId,
+        beneficiaryId: data.beneficiaryId || null,
+        referenceMonth: toReferenceMonthDate(data.referenceMonth),
+        amount: data.selectedFundAmount,
+      })
     }
 
     if (data.defaultFundAmount > 0) {
-      requests.push(
-        addAllocationMutation.mutateAsync({
-          transactionId: transaction.id,
-          data: {
-            fundId: data.defaultFundId,
-            beneficiaryId: data.beneficiaryId || null,
-            referenceMonth: toReferenceMonthDate(data.referenceMonth),
-            amount: data.defaultFundAmount,
-          },
-        }),
-      )
+      allocations.push({
+        fundId: data.defaultFundId,
+        beneficiaryId: data.beneficiaryId || null,
+        referenceMonth: toReferenceMonthDate(data.referenceMonth),
+        amount: data.defaultFundAmount,
+      })
     }
 
-    if (requests.length === 0) {
+    if (allocations.length === 0) {
       toast.error("Não há valores para aplicar na sugestão.")
       return
     }
 
-    Promise.all(requests)
-      .then(() => {
-        toast.success("Sugestão de remanejamento aplicada com sucesso.")
-      })
-      .catch((error) => {
-        toast.error(
-          getApiErrorMessage(
-            error,
-            "Não foi possível aplicar a sugestão de remanejamento.",
-          ),
-        )
-      })
+    addAllocationsBatchMutation.mutate(
+      {
+        transactionId: transaction.id,
+        allocations,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Sugestão de remanejamento aplicada com sucesso.")
+        },
+        onError: (error) => {
+          toast.error(
+            getApiErrorMessage(
+              error,
+              "Não foi possível aplicar a sugestão de remanejamento.",
+            ),
+          )
+        },
+      },
+    )
   }
 
   function handleDeleteAllocation(allocation: TransactionAllocation) {
@@ -304,25 +329,32 @@ export function TransactionAllocationsPanel({
         description="Distribua o valor baixado entre fundos e favorecidos."
       >
         <TransactionAllocationForm
-          key={editingAllocation?.id ?? "new-allocation"}
+          key={
+            editingAllocation
+              ? `edit-${editingAllocation.id}`
+              : `new-${newAllocationFormKey}`
+          }
           onCancel={editingAllocation ? () => setEditingAllocation(null) : undefined}
           transactionType={transaction.type}
           defaultValues={
             editingAllocation
               ? {
-                  fundId: editingAllocation.fund.id,
-                  beneficiaryId: editingAllocation.beneficiary?.id ?? "",
-                  referenceMonth:
-                    editingAllocation.referenceMonth?.slice(0, 7) ?? "",
-                  amount: Math.abs(editingAllocation.amount),
-                }
+                fundId: editingAllocation.fund.id,
+                beneficiaryId: editingAllocation.beneficiary?.id ?? "",
+                referenceMonth:
+                  editingAllocation.referenceMonth?.slice(0, 7) ?? "",
+                amount: Math.abs(editingAllocation.amount),
+              }
               : {
-                  amount: remainingAmount,
-                }
+                referenceMonth: transaction.settlementDate?.slice(0, 7) ?? "",
+                amount: remainingAmount,
+              }
           }
           submitLabel={editingAllocation ? "Salvar alocação" : "Adicionar alocação"}
           onSubmit={handleSubmitAllocation}
           isSubmitting={isSubmitting}
+          isApplyingReallocation={addAllocationsBatchMutation.isPending}
+          maxSupportAgreementAmount={maxSupportAgreementAmount}
           onApplyReallocationSuggestion={
             editingAllocation ? undefined : handleApplyReallocationSuggestion
           }

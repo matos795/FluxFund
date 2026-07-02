@@ -15,6 +15,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { useState } from "react"
+import { useCommandListWheelScroll } from "./use-command-list-wheel-scroll"
 
 type EntityComboboxOption = {
   value: string
@@ -50,9 +52,11 @@ export function EntityCombobox({
   onCreate,
 }: EntityComboboxProps) {
   const selectedOption = options.find((option) => option.value === value)
+  const [open, setOpen] = useState(false)
+  const { listRef, handleWheel } = useCommandListWheelScroll()
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -69,7 +73,14 @@ export function EntityCombobox({
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+      <PopoverContent
+        side="bottom"
+        align="start"
+        sideOffset={6}
+        collisionPadding={12}
+        className="w-[--radix-popover-trigger-width] p-0"
+        onWheelCapture={handleWheel}
+      >
         <Command>
           <div className="flex items-center border-b px-3">
             <Search className="mr-2 size-4 shrink-0 opacity-50" />
@@ -84,6 +95,8 @@ export function EntityCombobox({
                 onClick={(event) => {
                   event.preventDefault()
                   event.stopPropagation()
+
+                  setOpen(false)
                   onCreate()
                 }}
               >
@@ -93,14 +106,20 @@ export function EntityCombobox({
             )}
           </div>
 
-          <CommandList>
+          <CommandList
+            ref={listRef}
+            className="max-h-52"
+          >
             <CommandEmpty>{emptyMessage}</CommandEmpty>
 
             <CommandGroup>
               {allowClear && (
                 <CommandItem
                   value={clearLabel}
-                  onSelect={() => onChange("")}
+                  onSelect={() => {
+                    onChange("")
+                    setOpen(false)
+                  }}
                 >
                   <X
                     className={cn(
@@ -116,7 +135,10 @@ export function EntityCombobox({
                 <CommandItem
                   key={option.value}
                   value={option.searchValue ?? option.label}
-                  onSelect={() => onChange(option.value)}
+                  onSelect={() => {
+                    onChange(option.value)
+                    setOpen(false)
+                  }}
                 >
                   <Check
                     className={cn(

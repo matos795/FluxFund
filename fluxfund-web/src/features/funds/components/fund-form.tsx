@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
-
+import type { FormEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -35,8 +35,14 @@ export function FundForm({
         },
     })
 
+    function handleFormSubmit(event: FormEvent<HTMLFormElement>) {
+        event.stopPropagation()
+
+        void handleSubmit(onSubmit)(event)
+    }
+
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleFormSubmit} className="space-y-4">
             <div className="space-y-2">
                 <Label htmlFor="name">Nome do fundo</Label>
                 <Input

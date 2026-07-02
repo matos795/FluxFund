@@ -38,6 +38,7 @@ import com.fluxfund.api.domain.financialtransaction.export.FinancialTransactionE
 import com.fluxfund.api.domain.financialtransaction.service.FinancialTransactionCsvImportService;
 import com.fluxfund.api.domain.financialtransaction.service.FinancialTransactionService;
 import com.fluxfund.api.domain.financialtransaction.service.OfxImportService;
+import com.fluxfund.api.domain.transactionallocation.dto.CreateTransactionAllocationBatchRequest;
 import com.fluxfund.api.domain.transactionallocation.dto.CreateTransactionAllocationRequest;
 import com.fluxfund.api.domain.transactionallocation.dto.TransactionAllocationResponse;
 import com.fluxfund.api.domain.transactionallocation.dto.UpdateTransactionAllocationRequest;
@@ -145,6 +146,19 @@ public class FinancialTransactionController {
 
                 return ResponseEntity.status(HttpStatus.CREATED)
                                 .body(service.addAllocation(organizationId, id, request));
+        }
+
+        @PostMapping("/{id}/allocations/batch")
+        public ResponseEntity<List<TransactionAllocationResponse>> addAllocationsBatch(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID id,
+                        @RequestBody @Valid CreateTransactionAllocationBatchRequest request) {
+
+                return ResponseEntity.status(HttpStatus.CREATED)
+                                .body(service.addAllocationsBatch(
+                                                organizationId,
+                                                id,
+                                                request.allocations()));
         }
 
         @PutMapping("/{id}/allocations/{allocationId}")

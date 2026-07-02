@@ -1,6 +1,7 @@
 import type { FinancialTransactionType } from "@/features/financial-transactions/financial-transaction-types"
 import type { FundOption } from "@/features/funds/fund-types"
 import type { OrganizationSettings } from "@/features/organization-settings/organization-settings-types"
+import { formatCents, fromCents } from "./formatters"
 
 type ReallocationSuggestionInput = {
   fundId: string
@@ -43,7 +44,9 @@ export function getDefaultFundReallocationSuggestion({
     return null
   }
 
-  if (!amount || amount <= 0) {
+  const amountInCents = formatCents(amount)
+
+  if (amountInCents <= 0) {
     return null
   }
 
@@ -54,25 +57,27 @@ export function getDefaultFundReallocationSuggestion({
     return null
   }
 
-  const available = Math.max(selectedFund.currentBalance, 0)
+  const availableInCents = Math.max(
+    formatCents(selectedFund.currentBalance),
+    0,
+  )
 
-  if (amount <= available) {
+  if (amountInCents <= availableInCents) {
     return null
   }
 
-  if (available <= 0) {
-    return {
-      selectedFund,
-      defaultFund,
-      selectedFundAmount: 0,
-      defaultFundAmount: amount,
-    }
-  }
+  const selectedFundAmountInCents = Math.min(
+    amountInCents,
+    availableInCents,
+  )
+
+  const defaultFundAmountInCents =
+    amountInCents - selectedFundAmountInCents
 
   return {
     selectedFund,
     defaultFund,
-    selectedFundAmount: available,
-    defaultFundAmount: amount - available,
+    selectedFundAmount: fromCents(selectedFundAmountInCents),
+    defaultFundAmount: fromCents(defaultFundAmountInCents),
   }
 }

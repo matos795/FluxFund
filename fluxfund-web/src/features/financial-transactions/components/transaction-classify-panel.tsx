@@ -25,7 +25,7 @@ import { BeneficiaryComboboxWithCreate } from "@/features/beneficiaries/componen
 import { useFundOptions } from "@/features/funds/hooks/use-fund-options"
 import { useOrganizationSettings } from "@/features/organization-settings/hooks/use-organization-settings"
 import { getDefaultFundReallocationSuggestion } from "@/utils/fund-reallocation"
-import { formatCurrency } from "@/utils/formatters"
+import { formatCents, formatCurrency, fromCents } from "@/utils/formatters"
 import { getApiErrorMessage } from "@/utils/api-error"
 import { SupportAgreementSuggestionCard } from "@/features/support-agreements/components/support-agreement-suggestion-card"
 import { useAccounts } from "@/features/accounts/hooks/use-accounts"
@@ -103,7 +103,7 @@ export function TransactionClassifyPanel({
     const { data: settings } = useOrganizationSettings()
 
     const autoFillEnabled =
-        settings?.autoFillClassificationSuggestions ?? true
+        settings?.autoFillClassificationSuggestions === true
 
     const classificationSuggestionQuery = useClassificationSuggestion(
         transaction.id,
@@ -116,6 +116,12 @@ export function TransactionClassifyPanel({
     )
 
     const appliedSuggestionKeyRef = useRef<string | null>(null)
+
+    const hasManualChangesRef = useRef(false)
+
+    function markAsManuallyEdited() {
+        hasManualChangesRef.current = true
+    }
 
     const accountsQuery = useAccounts({ page: 0, size: 200 })
 
@@ -135,15 +141,23 @@ export function TransactionClassifyPanel({
             })) ?? []
 
     const totalAllocated = useMemo(() => {
-        return allocations.reduce((total, allocation) => {
-            return total + Number(allocation.amount || 0)
-        }, 0)
+        const totalInCents = allocations.reduce(
+            (total, allocation) => total + formatCents(allocation.amount),
+            0,
+        )
+
+        return fromCents(totalInCents)
     }, [allocations])
 
-    const amountNumber = Number(settledAmount || 0)
-    const remainingAmount = amountNumber - totalAllocated
+    const amountNumber = fromCents(formatCents(settledAmount))
+
+    const remainingAmount = fromCents(
+        formatCents(amountNumber) - formatCents(totalAllocated),
+    )
 
     function handleAddAllocation() {
+        markAsManuallyEdited()
+
         setAllocations((current) => [
             ...current,
             {
@@ -158,6 +172,7 @@ export function TransactionClassifyPanel({
     }
 
     function handleRemoveAllocation(index: number) {
+        markAsManuallyEdited()
         setAllocations((current) => current.filter((_, itemIndex) => itemIndex !== index))
     }
 
@@ -166,6 +181,8 @@ export function TransactionClassifyPanel({
         field: keyof AllocationFormItem,
         value: string,
     ) {
+        markAsManuallyEdited()
+
         setAllocations((current) =>
             current.map((allocation, itemIndex) =>
                 itemIndex === index
@@ -179,6 +196,9 @@ export function TransactionClassifyPanel({
     }
 
     function handleApplyReallocationSuggestion(index: number) {
+
+        markAsManuallyEdited()
+
         const allocation = allocations[index]
 
         const suggestion = getDefaultFundReallocationSuggestion({
@@ -198,14 +218,14 @@ export function TransactionClassifyPanel({
 
             updated[index] = {
                 ...updated[index],
-                amount: String(suggestion.selectedFundAmount),
+                amount: String(fromCents(formatCents(suggestion.selectedFundAmount))),
             }
 
             updated.splice(index + 1, 0, {
                 fundId: suggestion.defaultFund.id,
                 beneficiaryId: allocation.beneficiaryId,
                 referenceMonth: allocation.referenceMonth,
-                amount: String(suggestion.defaultFundAmount),
+                amount: String(fromCents(formatCents(suggestion.defaultFundAmount))),
             })
 
             return updated
@@ -477,6 +497,7 @@ export function TransactionClassifyPanel({
         }
 
         const resetForm = () => {
+            hasManualChangesRef.current = false
             setType(transaction.type)
             setCategoryId(transaction.category?.id ?? "")
             setDescription(transaction.description ?? "")
@@ -519,15 +540,22 @@ export function TransactionClassifyPanel({
             return
         }
 
+        if (hasManualChangesRef.current) {
+            return
+        }
+
         const suggestionKey = `${transaction.id}:${suggestion.basedOnTransactionId}`
 
         if (appliedSuggestionKeyRef.current === suggestionKey) {
             return
         }
 
-        appliedSuggestionKeyRef.current = suggestionKey
-
         const timeoutId = window.setTimeout(() => {
+            if (hasManualChangesRef.current) {
+                return
+            }
+
+            appliedSuggestionKeyRef.current = suggestionKey
             setType(suggestion.type!)
             setCategoryId(suggestion.category!.id)
 
@@ -535,18 +563,21 @@ export function TransactionClassifyPanel({
                 setDescription(suggestion.description)
             }
 
+            const defaultReferenceMonth = settlementDate
+                ? settlementDate.slice(0, 7)
+                : ""
+
             setAllocations(
                 suggestion.allocations.map((allocation) => ({
                     fundId: allocation.fund.id,
                     beneficiaryId: allocation.beneficiary?.id ?? "",
-                    referenceMonth: allocation.referenceMonth
-                        ? allocation.referenceMonth.slice(0, 7)
-                        : "",
+                    referenceMonth: defaultReferenceMonth,
                     amount: String(Math.abs(Number(allocation.amount))),
                 })),
             )
-
-            toast.info("Sugestão aplicada com base no histórico. Revise antes de salvar.")
+            toast.info(
+                "Sugestão aplicada com base no histórico. A competência foi iniciada no mês da baixa.",
+            )
         }, 0)
 
         return () => window.clearTimeout(timeoutId)
@@ -555,12 +586,33 @@ export function TransactionClassifyPanel({
         classificationSuggestionQuery.data,
         description,
         dialogOpen,
+        settlementDate,
         transaction.id,
     ])
 
     useEffect(() => {
         appliedSuggestionKeyRef.current = null
     }, [transaction.id])
+
+    function getMaxAmountForAllocation(index: number) {
+        const totalOfOtherAllocationsInCents = allocations.reduce(
+            (total, allocation, allocationIndex) => {
+                if (allocationIndex === index) {
+                    return total
+                }
+
+                return total + formatCents(allocation.amount)
+            },
+            0,
+        )
+
+        return Math.max(
+            fromCents(
+                formatCents(amountNumber) - totalOfOtherAllocationsInCents,
+            ),
+            0,
+        )
+    }
 
     return (
         <form className="space-y-6" onSubmit={handleSubmit}>
@@ -581,6 +633,8 @@ export function TransactionClassifyPanel({
                         value={type}
                         onValueChange={(value) => {
                             const nextType = value as FinancialTransaction["type"]
+
+                            markAsManuallyEdited()
 
                             setType(nextType)
                             setCategoryId("")
@@ -618,9 +672,12 @@ export function TransactionClassifyPanel({
 
                         <Select
                             value={transferDirection ?? ""}
-                            onValueChange={(value) =>
-                                setTransferDirection(value as FinancialTransaction["transferDirection"])
-                            }
+                            onValueChange={(value) => {
+                                markAsManuallyEdited()
+                                setTransferDirection(
+                                    value as FinancialTransaction["transferDirection"],
+                                )
+                            }}
                         >
                             <SelectTrigger>
                                 <SelectValue placeholder="Selecione a direção" />
@@ -643,6 +700,7 @@ export function TransactionClassifyPanel({
                             emptyMessage="Nenhuma categoria encontrada."
                             allowClear={false}
                             onChange={(value) => {
+                                markAsManuallyEdited()
                                 setCategoryId(value)
 
                                 if (!value) {
@@ -658,7 +716,10 @@ export function TransactionClassifyPanel({
                     <Input
                         type="date"
                         value={settlementDate}
-                        onChange={(event) => setSettlementDate(event.target.value)}
+                        onChange={(event) => {
+                            markAsManuallyEdited()
+                            setSettlementDate(event.target.value)
+                        }}
                     />
                 </div>
 
@@ -667,7 +728,10 @@ export function TransactionClassifyPanel({
                     <CurrencyInput
                         id="settledAmount"
                         value={amountNumber}
-                        onValueChange={(value) => setSettledAmount(String(value ?? 0))}
+                        onValueChange={(value) => {
+                            markAsManuallyEdited()
+                            setSettledAmount(String(value ?? 0))
+                        }}
                     />
                 </div>
 
@@ -676,7 +740,10 @@ export function TransactionClassifyPanel({
                     <Input
                         value={description}
                         placeholder="Ex: Compra de material, oferta destinada, repasse..."
-                        onChange={(event) => setDescription(event.target.value)}
+                        onChange={(event) => {
+                            markAsManuallyEdited()
+                            setDescription(event.target.value)
+                        }}
                     />
                 </div>
 
@@ -691,7 +758,10 @@ export function TransactionClassifyPanel({
                             searchPlaceholder="Buscar conta..."
                             emptyMessage="Nenhuma conta encontrada."
                             allowClear={false}
-                            onChange={setTransferCounterpartyAccountId}
+                            onChange={(value) => {
+                                markAsManuallyEdited()
+                                setTransferCounterpartyAccountId(value)
+                            }}
                         />
 
                         <p className="text-xs text-muted-foreground">
@@ -715,13 +785,18 @@ export function TransactionClassifyPanel({
                     value={fiscalDocumentPolicy}
                     note={fiscalDocumentNote}
                     onValueChange={(value) => {
+                        markAsManuallyEdited()
+
                         setFiscalDocumentPolicy(value)
 
                         if (value === "CATEGORY" || value === "REQUIRED") {
                             setFiscalDocumentNote("")
                         }
                     }}
-                    onNoteChange={setFiscalDocumentNote}
+                    onNoteChange={(value) => {
+                        markAsManuallyEdited()
+                        setFiscalDocumentNote(value)
+                    }}
                 />
             )}
 
@@ -803,7 +878,7 @@ export function TransactionClassifyPanel({
                                                 }
                                             />
                                             <p className="text-xs text-muted-foreground">
-                                                Para repasses de outro mês.
+                                                Padrão: mês da baixa. Altere somente se este repasse quitar outro mês.
                                             </p>
                                         </div>
 
@@ -835,7 +910,7 @@ export function TransactionClassifyPanel({
                                         transactionType={type}
                                         referenceMonth={allocation.referenceMonth}
                                         referenceDateFallback={settlementDate}
-                                        remainingAmount={Number(allocation.amount || 0)}
+                                        maxAmount={getMaxAmountForAllocation(index)}
                                         autoApply={false}
                                         onApply={(suggestion) => {
                                             handleChangeAllocation(index, "fundId", suggestion.fundId)

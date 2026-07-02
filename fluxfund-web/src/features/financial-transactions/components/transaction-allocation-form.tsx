@@ -27,8 +27,10 @@ type TransactionAllocationFormProps = {
   transactionType: FinancialTransactionType
   onSubmit: (data: TransactionAllocationFormData) => void
   isSubmitting?: boolean
+  isApplyingReallocation?: boolean
   defaultValues?: Partial<TransactionAllocationFormInput>
   submitLabel?: string
+  maxSupportAgreementAmount?: number
   onApplyReallocationSuggestion?: (data: {
     selectedFundId: string
     selectedFundAmount: number
@@ -44,8 +46,10 @@ export function TransactionAllocationForm({
   transactionType,
   onSubmit,
   isSubmitting = false,
+  isApplyingReallocation = false,
   defaultValues,
   submitLabel = "Adicionar alocação",
+  maxSupportAgreementAmount,
   onApplyReallocationSuggestion,
 }: TransactionAllocationFormProps) {
 
@@ -154,7 +158,7 @@ export function TransactionAllocationForm({
             </p>
           )}
           <p className="text-xs text-muted-foreground">
-            Para repasses de outro mês.
+            Padrão: mês da baixa. Altere somente se este repasse quitar outro mês.
           </p>
         </div>
 
@@ -218,6 +222,7 @@ export function TransactionAllocationForm({
                   type="button"
                   size="sm"
                   variant="outline"
+                  disabled={isSubmitting || isApplyingReallocation}
                   onClick={() =>
                     onApplyReallocationSuggestion({
                       selectedFundId: reallocationSuggestion.selectedFund.id,
@@ -229,7 +234,9 @@ export function TransactionAllocationForm({
                     })
                   }
                 >
-                  Aplicar sugestão
+                  {isApplyingReallocation
+                    ? "Aplicando..."
+                    : "Aplicar sugestão"}
                 </Button>
               )}
             </div>
@@ -242,7 +249,7 @@ export function TransactionAllocationForm({
         beneficiaryId={selectedBeneficiaryId}
         transactionType={transactionType}
         referenceMonth={referenceMonth}
-        remainingAmount={Number(amount || 0)}
+        maxAmount={maxSupportAgreementAmount}
         onApply={(suggestion) => {
           setValue("fundId", suggestion.fundId, { shouldValidate: true })
           setValue("beneficiaryId", suggestion.beneficiaryId, {

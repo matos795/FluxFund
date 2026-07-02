@@ -10,6 +10,7 @@ import { CategoryCombobox } from "@/components/form/category-combobox"
 import type { CategoryOption } from "../category-types"
 import { Switch } from "@/components/ui/switch"
 import { FileCheck2, ReceiptText } from "lucide-react"
+import type { FormEvent } from "react"
 
 
 type CategoryFormProps = {
@@ -57,8 +58,14 @@ export function CategoryForm({
         name: "requiresPaymentProof",
     })
 
+    function handleFormSubmit(event: FormEvent<HTMLFormElement>) {
+        event.stopPropagation()
+
+        void handleSubmit(onSubmit)(event)
+    }
+
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleFormSubmit} className="space-y-4">
             <div className="space-y-2">
                 <Label htmlFor="name">Nome da categoria</Label>
                 <Input

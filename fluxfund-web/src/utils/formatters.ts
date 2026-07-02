@@ -5,6 +5,28 @@ export function formatCurrency(value: number) {
   }).format(value)
 }
 
+export function formatCents(
+  value: number | string | null | undefined,
+): number {
+  const numericValue = Number(value ?? 0)
+
+  if (!Number.isFinite(numericValue)) {
+    return 0
+  }
+
+  return Math.round((numericValue + Number.EPSILON) * 100)
+}
+
+export function fromCents(cents: number): number {
+  return cents / 100
+}
+
+export function normalizeMoney(
+  value: number | string | null | undefined,
+): number {
+  return fromCents(formatCents(value))
+}
+
 export function formatDate(value: string | null | undefined) {
   if (!value) {
     return "-"

@@ -103,6 +103,20 @@ export async function addTransactionAllocation(
   return response.data
 }
 
+export async function addTransactionAllocationsBatch(
+  transactionId: string,
+  allocations: CreateTransactionAllocationRequest[],
+) {
+  const response = await httpClient.post<TransactionAllocation[]>(
+    `/api/v1/financial-transactions/${transactionId}/allocations/batch`,
+    {
+      allocations,
+    },
+  )
+
+  return response.data
+}
+
 export async function updateTransactionAllocation(
   transactionId: string,
   allocationId: string,
