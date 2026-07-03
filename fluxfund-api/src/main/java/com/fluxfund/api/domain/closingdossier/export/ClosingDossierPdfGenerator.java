@@ -312,6 +312,34 @@ public class ClosingDossierPdfGenerator {
                 }
         }
 
+        public byte[] generateFundMovementReport(
+                        Organization organization,
+                        FundMovementReportResponse fundMovementReport) {
+
+                try (
+                                PDDocument document = new PDDocument();
+                                ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+
+                        PdfWriter writer = new PdfWriter(
+                                        document,
+                                        buildFooterIdentity(organization));
+
+                        writeFundMovementReportSection(
+                                        writer,
+                                        fundMovementReport);
+
+                        writer.close();
+
+                        document.save(outputStream);
+
+                        return outputStream.toByteArray();
+
+                } catch (IOException exception) {
+                        throw new BusinessException(
+                                        "Could not generate fund movement report PDF");
+                }
+        }
+
         private void writeGeneralCover(
                         PdfWriter writer,
                         Organization organization,

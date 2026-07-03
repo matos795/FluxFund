@@ -7,6 +7,7 @@ import {
     Search,
     TrendingDown,
     Wallet,
+    FileText,
 } from "lucide-react"
 import { Link } from "react-router-dom"
 
@@ -23,6 +24,9 @@ import type { FundReportItem } from "@/features/reports/reports-types"
 import { formatCurrency, formatDate } from "@/utils/formatters"
 import { getDateRangeForPreset, type DateRangeValue } from "@/components/filters/date-range-presets"
 import { DateRangePresetFilter } from "@/components/filters/date-range-preset-filter"
+import { useExportFundMovementPdf } from "@/features/reports/hooks/use-export-fund-movement-pdf"
+import { toast } from "sonner"
+import { downloadFile } from "@/utils/download-file"
 
 function filterFunds(items: FundReportItem[], search: string) {
     const normalizedSearch = search.trim().toLowerCase()
@@ -67,6 +71,13 @@ export function FundReportPage() {
 
     const { startDate, endDate } = period
 
+    const exportFundMovementPdfMutation = useExportFundMovementPdf()
+
+    const hasValidPeriod =
+        Boolean(startDate) &&
+        Boolean(endDate) &&
+        startDate <= endDate
+
     const [search, setSearch] = useState("")
     const [showOnlyNegative, setShowOnlyNegative] = useState(false)
 
@@ -92,6 +103,37 @@ export function FundReportPage() {
 
     if (isError) {
         return <p>Não foi possível carregar o relatório.</p>
+    }
+
+    function handleExportFundMovementPdf() {
+        if (!hasValidPeriod) {
+            toast.error("Informe um período válido para exportar o PDF.")
+            return
+        }
+
+        exportFundMovementPdfMutation.mutate(
+            {
+                startDate,
+                endDate,
+            },
+            {
+                onSuccess: (blob) => {
+                    downloadFile(
+                        blob,
+                        `movimentacao-por-fundos-${startDate}-${endDate}.pdf`,
+                    )
+
+                    toast.success(
+                        "Relatório de movimentação por fundos exportado com sucesso.",
+                    )
+                },
+                onError: () => {
+                    toast.error(
+                        "Não foi possível exportar o relatório de movimentação por fundos.",
+                    )
+                },
+            },
+        )
     }
 
     return (
@@ -218,17 +260,35 @@ export function FundReportPage() {
                             </div>
                         </div>
 
-                        <Button
-                            type="button"
-                            variant={showOnlyNegative ? "default" : "outline"}
-                            onClick={() =>
-                                setShowOnlyNegative((current) => !current)
-                            }
-                        >
-                            {showOnlyNegative
-                                ? "Mostrando negativos"
-                                : "Somente negativos"}
-                        </Button>
+                        <div className="flex flex-wrap gap-2 md:justify-end">
+                            <Button
+                                type="button"
+                                variant={showOnlyNegative ? "default" : "outline"}
+                                onClick={() =>
+                                    setShowOnlyNegative((current) => !current)
+                                }
+                            >
+                                {showOnlyNegative
+                                    ? "Mostrando negativos"
+                                    : "Somente negativos"}
+                            </Button>
+
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleExportFundMovementPdf}
+                                disabled={
+                                    !hasValidPeriod ||
+                                    exportFundMovementPdfMutation.isPending
+                                }
+                            >
+                                <FileText className="mr-2 size-4" />
+
+                                {exportFundMovementPdfMutation.isPending
+                                    ? "Gerando PDF..."
+                                    : "Exportar PDF"}
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </section>

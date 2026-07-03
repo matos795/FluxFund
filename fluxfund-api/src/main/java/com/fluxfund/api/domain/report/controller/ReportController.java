@@ -23,6 +23,7 @@ import com.fluxfund.api.domain.report.dto.fund.FundReportResponse;
 import com.fluxfund.api.domain.report.dto.pending.PendingItemsReportResponse;
 import com.fluxfund.api.domain.report.export.AccountabilityExcelExportService;
 import com.fluxfund.api.domain.report.export.AccountabilityPdfExportService;
+import com.fluxfund.api.domain.report.export.FundMovementPdfExportService;
 import com.fluxfund.api.domain.report.export.SettledFinancialReportPdfExportService;
 import com.fluxfund.api.domain.report.service.ReportService;
 
@@ -39,6 +40,7 @@ public class ReportController {
         private final AccountabilityExcelExportService accountabilityExcelExportService;
         private final AccountabilityPdfExportService accountabilityPdfExportService;
         private final SettledFinancialReportPdfExportService settledFinancialReportPdfExportService;
+        private final FundMovementPdfExportService fundMovementPdfExportService;
 
         @GetMapping("/category-result")
         public ResponseEntity<CategoryResultReportResponse> getCategoryResultReport(
@@ -202,6 +204,44 @@ public class ReportController {
                                                 resolvedEndDate);
 
                 String filename = "receitas-liquidadas-%s-a-%s.pdf"
+                                .formatted(
+                                                resolvedStartDate,
+                                                resolvedEndDate);
+
+                return ResponseEntity.ok()
+                                .contentType(MediaType.APPLICATION_PDF)
+                                .header(
+                                                HttpHeaders.CONTENT_DISPOSITION,
+                                                ContentDisposition.attachment()
+                                                                .filename(
+                                                                                filename,
+                                                                                StandardCharsets.UTF_8)
+                                                                .build()
+                                                                .toString())
+                                .body(file);
+        }
+
+        @GetMapping(value = "/fund-movement/export.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+        public ResponseEntity<byte[]> exportFundMovementReportPdf(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
+                LocalDate resolvedStartDate = startDate != null
+                                ? startDate
+                                : LocalDate.now().withDayOfMonth(1);
+
+                LocalDate resolvedEndDate = endDate != null
+                                ? endDate
+                                : LocalDate.now();
+
+                byte[] file = fundMovementPdfExportService
+                                .exportFundMovementReport(
+                                                organizationId,
+                                                resolvedStartDate,
+                                                resolvedEndDate);
+
+                String filename = "movimentacao-por-fundos-%s-a-%s.pdf"
                                 .formatted(
                                                 resolvedStartDate,
                                                 resolvedEndDate);
