@@ -10,7 +10,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
@@ -36,6 +35,8 @@ import type {
   AuditAction,
   AuditEntityType,
 } from "@/features/audit-logs/audit-log-types"
+import type { DateRangeValue } from "@/components/filters/date-range-presets"
+import { DateRangePresetFilter } from "@/components/filters/date-range-preset-filter"
 
 const PAGE_SIZE = 20
 
@@ -72,14 +73,24 @@ function formatDateTime(value: string) {
   }).format(new Date(value))
 }
 
+const ALL_AUDIT_PERIOD: DateRangeValue = {
+  preset: "all",
+  startDate: "",
+  endDate: "",
+}
+
 export function AuditLogReportPage() {
   const { canAdmin } = usePermissions()
 
   const [page, setPage] = useState(0)
   const [action, setAction] = useState<AuditAction | "ALL">("ALL")
   const [entityType, setEntityType] = useState<AuditEntityType | "ALL">("ALL")
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
+
+  const [period, setPeriod] = useState<DateRangeValue>(
+    ALL_AUDIT_PERIOD,
+  )
+
+  const { startDate, endDate } = period
 
   const { data, isLoading, isError, isFetching } = useAuditLogs({
     page,
@@ -126,77 +137,68 @@ export function AuditLogReportPage() {
           </CardTitle>
         </CardHeader>
 
-        <CardContent className="grid gap-4 md:grid-cols-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Ação</label>
-            <Select
-              value={action}
-              onValueChange={(value) => {
-                setPage(0)
-                setAction(value as AuditAction | "ALL")
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Todas" />
-              </SelectTrigger>
+        <CardContent className="space-y-6">
 
-              <SelectContent>
-                <SelectItem value="ALL">Todas</SelectItem>
-                {auditActions.map((item) => (
-                  <SelectItem key={item} value={item}>
-                    {auditActionLabels[item]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <DateRangePresetFilter
+            value={period}
+            onChange={(value) => {
+              setPage(0)
+              setPeriod(value)
+            }}
+            idPrefix="audit-log-period"
+            label="Período da ação"
+            includeAllPeriodOption
+            className="w-full"
+          />
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Entidade</label>
-            <Select
-              value={entityType}
-              onValueChange={(value) => {
-                setPage(0)
-                setEntityType(value as AuditEntityType | "ALL")
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Todas" />
-              </SelectTrigger>
+          <div className="grid gap-4 border-t pt-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Ação</label>
+              <Select
+                value={action}
+                onValueChange={(value) => {
+                  setPage(0)
+                  setAction(value as AuditAction | "ALL")
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
 
-              <SelectContent>
-                <SelectItem value="ALL">Todas</SelectItem>
-                {entityTypes.map((item) => (
-                  <SelectItem key={item} value={item}>
-                    {auditEntityTypeLabels[item]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+                <SelectContent>
+                  <SelectItem value="ALL">Todas</SelectItem>
+                  {auditActions.map((item) => (
+                    <SelectItem key={item} value={item}>
+                      {auditActionLabels[item]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Início</label>
-            <Input
-              type="date"
-              value={startDate}
-              onChange={(event) => {
-                setPage(0)
-                setStartDate(event.target.value)
-              }}
-            />
-          </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Entidade</label>
+              <Select
+                value={entityType}
+                onValueChange={(value) => {
+                  setPage(0)
+                  setEntityType(value as AuditEntityType | "ALL")
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Fim</label>
-            <Input
-              type="date"
-              value={endDate}
-              onChange={(event) => {
-                setPage(0)
-                setEndDate(event.target.value)
-              }}
-            />
+                <SelectContent>
+                  <SelectItem value="ALL">Todas</SelectItem>
+                  {entityTypes.map((item) => (
+                    <SelectItem key={item} value={item}>
+                      {auditEntityTypeLabels[item]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>

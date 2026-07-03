@@ -14,13 +14,18 @@ import { useCategoryResultReport } from "@/features/reports/hooks/use-category-r
 import { filterCategoryResultGroups, groupCategoryResultItems } from "@/features/reports/category-result-utils"
 import { CategoryResultStatement } from "@/features/reports/components/category-result-statement"
 import { useState } from "react"
-import { getFirstDayOfCurrentMonth, getTodayDate } from "@/utils/date-getters"
+import { getDateRangeForPreset, type DateRangeValue } from "@/components/filters/date-range-presets"
+import { DateRangePresetFilter } from "@/components/filters/date-range-preset-filter"
 
 export function CategoryResultReportPage() {
 
     const [search, setSearch] = useState("")
-    const [startDate, setStartDate] = useState(getFirstDayOfCurrentMonth)
-    const [endDate, setEndDate] = useState(getTodayDate)
+
+    const [period, setPeriod] = useState<DateRangeValue>(() =>
+        getDateRangeForPreset("current-month"),
+    )
+
+    const { startDate, endDate } = period
 
     const {
         data: report,
@@ -62,73 +67,47 @@ export function CategoryResultReportPage() {
 
             <PageHeader
                 title="Resultado por Categoria"
-                description={`Analise receitas, despesas e resultado de ${report?.startDate} até ${report?.endDate}.`}
+                description={`Analise receitas, despesas e resultado de ${formatDate(
+                    report?.startDate,
+                )} até ${formatDate(report?.endDate)}.`}
             />
 
             <section className="rounded-xl border bg-card p-4">
-                <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
-                    <div className="space-y-2">
-                        <label
-                            htmlFor="startDate"
-                            className="text-sm font-medium"
-                        >
-                            Data inicial
-                        </label>
+                <div className="space-y-5">
+                    <DateRangePresetFilter
+                        value={period}
+                        onChange={setPeriod}
+                        idPrefix="category-result-period"
+                        label="Período analisado"
+                        layout="full"
+                        className="w-full"
+                    />
 
-                        <input
-                            id="startDate"
-                            type="date"
-                            value={startDate}
-                            onChange={(event) => setStartDate(event.target.value)}
-                            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                        />
+                    <div className="border-t pt-4">
+                        <div className="space-y-2">
+                            <label
+                                htmlFor="categorySearch"
+                                className="text-sm font-medium"
+                            >
+                                Buscar categoria
+                            </label>
+
+                            <input
+                                id="categorySearch"
+                                type="search"
+                                value={search}
+                                onChange={(event) => setSearch(event.target.value)}
+                                placeholder="Digite o nome da categoria ou grupo..."
+                                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                            />
+
+                            {search && (
+                                <p className="text-xs text-muted-foreground">
+                                    Exibindo categorias que correspondem a “{search}”.
+                                </p>
+                            )}
+                        </div>
                     </div>
-
-                    <div className="space-y-2">
-                        <label
-                            htmlFor="endDate"
-                            className="text-sm font-medium"
-                        >
-                            Data final
-                        </label>
-
-                        <input
-                            id="endDate"
-                            type="date"
-                            value={endDate}
-                            onChange={(event) => setEndDate(event.target.value)}
-                            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                        />
-                    </div>
-
-                    <div className="text-sm text-muted-foreground">
-                        Dados de {formatDate(report?.startDate)} até {formatDate(report?.endDate)}
-                    </div>
-                </div>
-            </section>
-
-            <section className="rounded-xl border bg-card p-4">
-                <div className="space-y-2">
-                    <label htmlFor="categorySearch" className="text-sm font-medium">
-                        Buscar categoria
-                    </label>
-
-                    <div className="flex gap-2">
-                        <input
-                            id="categorySearch"
-                            type="search"
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Digite o nome da categoria ou grupo..."
-                            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                        />
-                    </div>
-
-                    {search && (
-                        <p className="text-xs text-muted-foreground">
-                            Exibindo categorias que correspondem a “{search}”.
-                        </p>
-                    )}
                 </div>
             </section>
 

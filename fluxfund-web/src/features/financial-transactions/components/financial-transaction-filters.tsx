@@ -13,13 +13,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import type { DateRangeValue } from "@/components/filters/date-range-presets"
+import { DateRangePresetFilter } from "@/components/filters/date-range-preset-filter"
 
 type FinancialTransactionFiltersProps = {
   type: string
   status: string
   description: string
-  settlementDateFrom: string
-  settlementDateTo: string
+  settlementDatePeriod: DateRangeValue
   accountId: string
   categoryId: string
   accounts: {
@@ -41,8 +42,7 @@ type FinancialTransactionFiltersProps = {
   onTypeChange: (value: string) => void
   onStatusChange: (value: string) => void
   onDescriptionChange: (value: string) => void
-  onSettlementDateFromChange: (value: string) => void
-  onSettlementDateToChange: (value: string) => void
+  onSettlementDatePeriodChange: (value: DateRangeValue) => void
   onClear: () => void
 }
 
@@ -50,8 +50,7 @@ export function FinancialTransactionFilters({
   type,
   status,
   description,
-  settlementDateFrom,
-  settlementDateTo,
+  settlementDatePeriod,
   accountId,
   categoryId,
   accounts,
@@ -67,14 +66,16 @@ export function FinancialTransactionFilters({
   onTypeChange,
   onStatusChange,
   onDescriptionChange,
-  onSettlementDateFromChange,
-  onSettlementDateToChange,
+  onSettlementDatePeriodChange,
   onClear,
 }: FinancialTransactionFiltersProps) {
   const [advancedOpen, setAdvancedOpen] = useState(false)
 
   const hasAdvancedFilters =
-    settlementDateFrom || settlementDateTo || accountId || categoryId || source
+    settlementDatePeriod.preset !== "all" ||
+    accountId ||
+    categoryId ||
+    source
 
   return (
     <div className="rounded-xl border bg-card p-3 shadow-sm">
@@ -169,25 +170,15 @@ export function FinancialTransactionFilters({
 
       {advancedOpen && (
         <div className="mt-4 grid gap-3 border-t pt-4 md:grid-cols-2 lg:grid-cols-5">
-          <div className="space-y-2">
-            <Label>Data inicial</Label>
-            <Input
-              type="date"
-              value={settlementDateFrom}
-              onChange={(event) =>
-                onSettlementDateFromChange(event.target.value)
-              }
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Data final</Label>
-            <Input
-              type="date"
-              value={settlementDateTo}
-              onChange={(event) => onSettlementDateToChange(event.target.value)}
-            />
-          </div>
+          <DateRangePresetFilter
+            value={settlementDatePeriod}
+            onChange={onSettlementDatePeriodChange}
+            idPrefix="financial-transactions-settlement-date"
+            label="Período de baixa"
+            includeAllPeriodOption
+            className="md:col-span-2"
+            layout="compact"
+          />
 
           <div className="space-y-2">
             <Label>Conta</Label>

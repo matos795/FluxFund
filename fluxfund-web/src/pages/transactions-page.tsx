@@ -17,6 +17,31 @@ import type { TransactionWorkspaceTab } from "@/features/financial-transactions/
 import { needsFinancialTransactionClassification } from "@/features/financial-transactions/financial-transaction-rules"
 import { TransactionWorkspaceDialog } from "@/features/financial-transactions/components/transaction-workspace-dialog"
 import { ImportFinancialTransactionsDialog } from "@/features/financial-transactions/components/import-financial-transactions-dialog"
+import type { DateRangeValue } from "@/components/filters/date-range-presets"
+
+
+const ALL_SETTLEMENT_DATE_PERIOD: DateRangeValue = {
+  preset: "all",
+  startDate: "",
+  endDate: "",
+}
+
+function getInitialSettlementDatePeriod(
+  searchParams: URLSearchParams,
+): DateRangeValue {
+  const startDate = searchParams.get("settlementDateFrom") ?? ""
+  const endDate = searchParams.get("settlementDateTo") ?? ""
+
+  if (!startDate && !endDate) {
+    return ALL_SETTLEMENT_DATE_PERIOD
+  }
+
+  return {
+    preset: "custom",
+    startDate,
+    endDate,
+  }
+}
 
 export function TransactionsPage() {
 
@@ -65,12 +90,17 @@ export function TransactionsPage() {
   const [accountId, setAccountId] = useState(searchParams.get("accountId") ?? "")
   const [categoryId, setCategoryId] = useState(searchParams.get("categoryId") ?? "")
   const [description, setDescription] = useState(searchParams.get("description") ?? "")
-  const [settlementDateFrom, setSettlementDateFrom] = useState(
-    searchParams.get("settlementDateFrom") ?? "",
-  )
-  const [settlementDateTo, setSettlementDateTo] = useState(
-    searchParams.get("settlementDateTo") ?? "",
-  )
+
+  const [settlementDatePeriod, setSettlementDatePeriod] =
+    useState<DateRangeValue>(() =>
+      getInitialSettlementDatePeriod(searchParams),
+    )
+
+  const {
+    startDate: settlementDateFrom,
+    endDate: settlementDateTo,
+  } = settlementDatePeriod
+
   const [source, setSource] = useState(searchParams.get("source") ?? "")
   const [onlyUnclassified, setOnlyUnclassified] = useState(
     searchParams.get("onlyUnclassified") === "true",
@@ -145,8 +175,7 @@ export function TransactionsPage() {
     setCategoryId("")
     setFundId("")
     setDescription("")
-    setSettlementDateFrom("")
-    setSettlementDateTo("")
+    setSettlementDatePeriod(ALL_SETTLEMENT_DATE_PERIOD)
     setOnlyUnclassified(false)
     setOnlyUnallocated(false)
     setPage(0)
@@ -195,8 +224,7 @@ export function TransactionsPage() {
         accountId={accountId}
         categoryId={categoryId}
         description={description}
-        settlementDateFrom={settlementDateFrom}
-        settlementDateTo={settlementDateTo}
+        settlementDatePeriod={settlementDatePeriod}
         onlyUnclassified={onlyUnclassified}
         onlyUnallocated={onlyUnallocated}
         accounts={accounts.map((account) => ({
@@ -231,12 +259,8 @@ export function TransactionsPage() {
           setDescription(value)
           setPage(0)
         }}
-        onSettlementDateFromChange={(value) => {
-          setSettlementDateFrom(value)
-          setPage(0)
-        }}
-        onSettlementDateToChange={(value) => {
-          setSettlementDateTo(value)
+        onSettlementDatePeriodChange={(value) => {
+          setSettlementDatePeriod(value)
           setPage(0)
         }}
         onOnlyUnclassifiedChange={(value) => {

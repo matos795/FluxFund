@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import {
   Activity,
   AlertTriangle,
@@ -22,16 +22,10 @@ import {
 } from "@/components/ui/card"
 import { DashboardActionItemsPanel } from "@/features/dashboard/components/dashboard-action-items-panel"
 import { DashboardAlertsPanel } from "@/features/dashboard/components/dashboard-alerts-panel"
-import { DashboardPeriodFilter } from "@/features/dashboard/components/dashboard-period-filter"
 import { DashboardSummaryCard } from "@/features/dashboard/components/dashboard-summary-card"
 import { ExpensesByCategoryChart } from "@/features/dashboard/components/expenses-by-category-chart"
 import { FundsOverviewChart } from "@/features/dashboard/components/funds-overview-chart"
 import { MonthlyCashFlowChart } from "@/features/dashboard/components/monthly-cash-flow-chart"
-import {
-  dashboardPeriodLabels,
-  getDashboardPeriod,
-  type DashboardPeriodPreset,
-} from "@/features/dashboard/dashboard-periods"
 import { useDashboardActionItems } from "@/features/dashboard/hooks/use-dashboard-action-items"
 import { useDashboardAlerts } from "@/features/dashboard/hooks/use-dashboard-alerts"
 import { useDashboardExpensesByCategory } from "@/features/dashboard/hooks/use-dashboard-expenses-by-category"
@@ -39,6 +33,20 @@ import { useDashboardFundsOverview } from "@/features/dashboard/hooks/use-dashbo
 import { useDashboardMonthlyCashFlow } from "@/features/dashboard/hooks/use-dashboard-monthly-cash-flow"
 import { useDashboardSummary } from "@/features/dashboard/hooks/use-dashboard-summary"
 import { formatCurrency, formatDate } from "@/utils/formatters"
+import { dateRangePresetLabels, getDateRangeForPreset, type DateRangePreset, type DateRangeValue } from "@/components/filters/date-range-presets"
+import { DateRangePresetFilter } from "@/components/filters/date-range-preset-filter"
+
+const DASHBOARD_PERIOD_OPTIONS: Exclude<DateRangePreset, "all">[] = [
+  "current-month",
+  "previous-month",
+  "specific-month",
+  "current-quarter",
+  "previous-quarter",
+  "current-year",
+  "previous-year",
+  "last-12-months",
+  "custom",
+]
 
 function DashboardSectionHeader({
   title,
@@ -144,12 +152,9 @@ function getFinancialHealthMessage({
 }
 
 export function DashboardPage() {
-  const [periodPreset, setPeriodPreset] =
-    useState<DashboardPeriodPreset>("current-year")
 
-  const period = useMemo(
-    () => getDashboardPeriod(periodPreset),
-    [periodPreset],
+  const [period, setPeriod] = useState<DateRangeValue>(() =>
+    getDateRangeForPreset("current-year"),
   )
 
   const {
@@ -298,16 +303,23 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div className="space-y-4">
         <PageHeader
           title="Dashboard financeiro"
           description="Painel de comando para acompanhar resultado, saldos, pendências e saúde dos fundos."
         />
 
-        <DashboardPeriodFilter
-          value={periodPreset}
-          onChange={setPeriodPreset}
-        />
+        <div className="rounded-xl border bg-card p-4">
+          <DateRangePresetFilter
+            value={period}
+            onChange={setPeriod}
+            idPrefix="dashboard-period"
+            label="Período analisado"
+            presetOptions={DASHBOARD_PERIOD_OPTIONS}
+            layout="full"
+            className="w-full"
+          />
+        </div>
       </div>
 
       <section
@@ -334,7 +346,7 @@ export function DashboardPage() {
             <div className="rounded-xl bg-background/70 p-3">
               <p className="text-xs opacity-70">Período</p>
               <p className="mt-1 font-medium">
-                {dashboardPeriodLabels[periodPreset]}
+                {dateRangePresetLabels[period.preset]}
               </p>
             </div>
 

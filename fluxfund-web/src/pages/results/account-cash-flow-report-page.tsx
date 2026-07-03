@@ -44,25 +44,17 @@ import {
 } from "@/components/ui/table"
 import { useAccountCashFlowReport } from "@/features/reports/hooks/use-account-cash-flow-report"
 import type { AccountCashFlowItem } from "@/features/reports/reports-types"
-import { getFirstDayOfCurrentMonth, getTodayDate } from "@/utils/date-getters"
 import { formatCurrency, formatDate } from "@/utils/formatters"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { getDateRangeForPreset, type DateRangeValue } from "@/components/filters/date-range-presets"
+import { DateRangePresetFilter } from "@/components/filters/date-range-preset-filter"
 
 const accountTypeLabels: Record<AccountCashFlowItem["accountType"], string> = {
-    BANK_ACCOUNT: "Banco",
+    BANK: "Banco",
     CASH: "Caixa",
     DIGITAL_WALLET: "Conta digital",
     CREDIT_CARD: "Cartão",
     OTHER: "Outro",
 }
-
-type PeriodPreset =
-    | "current-month"
-    | "current-quarter"
-    | "current-year"
-    | "last-30-days"
-    | "last-90-days"
-    | "custom"
 
 type ChartAccountItem = AccountCashFlowItem & {
     label: string
@@ -80,70 +72,6 @@ type CurrencyTooltipProps = {
     active?: boolean
     label?: string
     payload?: TooltipPayloadItem[]
-}
-
-function toDateInputValue(date: Date) {
-    return date.toISOString().slice(0, 10)
-}
-
-function getStartOfCurrentQuarter() {
-    const today = new Date()
-    const month = today.getMonth()
-    const quarterStartMonth = Math.floor(month / 3) * 3
-
-    return toDateInputValue(new Date(today.getFullYear(), quarterStartMonth, 1))
-}
-
-function getStartOfCurrentYear() {
-    const today = new Date()
-
-    return toDateInputValue(new Date(today.getFullYear(), 0, 1))
-}
-
-function getDateDaysAgo(days: number) {
-    const date = new Date()
-    date.setDate(date.getDate() - days)
-
-    return toDateInputValue(date)
-}
-
-function resolvePeriodPreset(preset: PeriodPreset) {
-    const today = getTodayDate()
-
-    switch (preset) {
-        case "current-month":
-            return {
-                startDate: getFirstDayOfCurrentMonth(),
-                endDate: today,
-            }
-
-        case "current-quarter":
-            return {
-                startDate: getStartOfCurrentQuarter(),
-                endDate: today,
-            }
-
-        case "current-year":
-            return {
-                startDate: getStartOfCurrentYear(),
-                endDate: today,
-            }
-
-        case "last-30-days":
-            return {
-                startDate: getDateDaysAgo(30),
-                endDate: today,
-            }
-
-        case "last-90-days":
-            return {
-                startDate: getDateDaysAgo(90),
-                endDate: today,
-            }
-
-        case "custom":
-            return null
-    }
 }
 
 function filterAccounts(items: AccountCashFlowItem[], search: string) {
@@ -226,25 +154,13 @@ function CurrencyTooltip({ active, payload, label }: CurrencyTooltipProps) {
 }
 
 export function AccountCashFlowReportPage() {
-    const [periodPreset, setPeriodPreset] =
-        useState<PeriodPreset>("current-month")
+    const [period, setPeriod] = useState<DateRangeValue>(() =>
+        getDateRangeForPreset("current-month"),
+    )
 
-    const [startDate, setStartDate] = useState(() => getFirstDayOfCurrentMonth())
-    const [endDate, setEndDate] = useState(() => getTodayDate())
+    const { startDate, endDate } = period
+
     const [search, setSearch] = useState("")
-
-    function handlePeriodPresetChange(nextPreset: PeriodPreset) {
-        setPeriodPreset(nextPreset)
-
-        const resolvedPeriod = resolvePeriodPreset(nextPreset)
-
-        if (!resolvedPeriod) {
-            return
-        }
-
-        setStartDate(resolvedPeriod.startDate)
-        setEndDate(resolvedPeriod.endDate)
-    }
 
     const {
         data: report,
@@ -379,88 +295,41 @@ export function AccountCashFlowReportPage() {
                     )} e ${formatDate(report.endDate)}.`}
                 />
 
-                <section className="rounded-xl border bg-card p-3">
-                    <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr_1fr_2fr_auto] lg:items-end">
+                <section className="rounded-xl border bg-card p-4">
+                    <div className="space-y-4">
+                        <DateRangePresetFilter
+                            value={period}
+                            onChange={setPeriod}
+                            idPrefix="account-cash-flow-period"
+                            label="Período do fluxo"
+                        />
 
-                        <div className="space-y-2">
-                            <label htmlFor="periodPreset" className="text-sm font-medium">
-                                Período
-                            </label>
+                        <div className="grid gap-4 md:grid-cols-[minmax(280px,1fr)_auto] md:items-end">
+                            <div className="space-y-2">
+                                <label
+                                    htmlFor="accountSearch"
+                                    className="text-sm font-medium"
+                                >
+                                    Buscar conta
+                                </label>
 
-                            <Select
-                                value={periodPreset}
-                                onValueChange={(value) =>
-                                    handlePeriodPresetChange(value as PeriodPreset)
-                                }
-                            >
-                                <SelectTrigger id="periodPreset">
-                                    <SelectValue placeholder="Selecione o período" />
-                                </SelectTrigger>
+                                <div className="relative">
+                                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 
-                                <SelectContent>
-                                    <SelectItem value="current-month">Mês atual</SelectItem>
-                                    <SelectItem value="current-quarter">Trimestre atual</SelectItem>
-                                    <SelectItem value="current-year">Ano atual</SelectItem>
-                                    <SelectItem value="last-30-days">Últimos 30 dias</SelectItem>
-                                    <SelectItem value="last-90-days">Últimos 90 dias</SelectItem>
-                                    <SelectItem value="custom">Personalizado</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label htmlFor="startDate" className="text-sm font-medium">
-                                Data inicial
-                            </label>
-
-                            <Input
-                                id="startDate"
-                                type="date"
-                                value={startDate}
-                                onChange={(event) => {
-                                    setPeriodPreset("custom")
-                                    setStartDate(event.target.value)
-                                }}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label htmlFor="endDate" className="text-sm font-medium">
-                                Data final
-                            </label>
-
-                            <Input
-                                id="endDate"
-                                type="date"
-                                value={endDate}
-                                onChange={(event) => {
-                                    setPeriodPreset("custom")
-                                    setEndDate(event.target.value)
-                                }}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label htmlFor="accountSearch" className="text-sm font-medium">
-                                Buscar conta
-                            </label>
-
-                            <div className="relative">
-                                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-
-                                <Input
-                                    id="accountSearch"
-                                    type="search"
-                                    value={search}
-                                    onChange={(event) => setSearch(event.target.value)}
-                                    placeholder="Banco, conta, caixa..."
-                                    className="pl-9"
-                                />
+                                    <Input
+                                        id="accountSearch"
+                                        type="search"
+                                        value={search}
+                                        onChange={(event) => setSearch(event.target.value)}
+                                        placeholder="Banco, conta, caixa..."
+                                        className="pl-9"
+                                    />
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
-                            {filteredAccounts.length} conta(s)
+                            <div className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                                {filteredAccounts.length} conta(s) encontrada(s)
+                            </div>
                         </div>
                     </div>
                 </section>

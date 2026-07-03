@@ -1,19 +1,29 @@
-import { CalendarRange } from "lucide-react"
+import {
+  CalendarDays,
+  CalendarRange,
+  ChevronDown,
+  SlidersHorizontal,
+} from "lucide-react"
 
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { formatDate } from "@/utils/formatters"
 
 import {
   dateRangePresetLabels,
+  getCurrentMonthInputValue,
+  getMonthRange,
   resolveDateRangePreset,
   type DateRangePreset,
   type DateRangeValue,
@@ -25,19 +35,42 @@ type DateRangePresetFilterProps = {
   idPrefix: string
   label?: string
   className?: string
+  presetOptions?: Exclude<DateRangePreset, "all">[]
+  includeAllPeriodOption?: boolean
+  layout?: "full" | "compact"
 }
 
-const presets: DateRangePreset[] = [
+const DEFAULT_PRESET_OPTIONS: Exclude<DateRangePreset, "all">[] = [
   "current-month",
   "previous-month",
+  "specific-month",
   "current-quarter",
   "previous-quarter",
   "current-year",
   "previous-year",
   "last-30-days",
   "last-90-days",
+  "last-12-months",
   "custom",
 ]
+
+const QUICK_PRESETS: DateRangePreset[] = [
+  "current-month",
+  "previous-month",
+  "specific-month",
+  "current-quarter",
+  "current-year",
+]
+
+const QUICK_PRESET_LABELS: Partial<
+  Record<DateRangePreset, string>
+> = {
+  "current-month": "Mês atual",
+  "previous-month": "Mês anterior",
+  "specific-month": "Escolher mês",
+  "current-quarter": "Trimestre atual",
+  "current-year": "Ano atual",
+}
 
 export function DateRangePresetFilter({
   value,
@@ -45,7 +78,12 @@ export function DateRangePresetFilter({
   idPrefix,
   label = "Período",
   className,
+  presetOptions,
+  includeAllPeriodOption = false,
+  layout = "full",
 }: DateRangePresetFilterProps) {
+  const isAllPeriod = value.preset === "all"
+  const isSpecificMonth = value.preset === "specific-month"
   const isCustom = value.preset === "custom"
 
   const hasInvalidRange =
@@ -53,7 +91,50 @@ export function DateRangePresetFilter({
     Boolean(value.endDate) &&
     value.startDate > value.endDate
 
+  const availablePresetOptions =
+    presetOptions ?? DEFAULT_PRESET_OPTIONS
+
+  const selectablePresets: DateRangePreset[] =
+    includeAllPeriodOption
+      ? ["all", ...availablePresetOptions]
+      : availablePresetOptions
+
+  const quickPresets = QUICK_PRESETS.filter((preset) =>
+    selectablePresets.includes(preset),
+  )
+
+  const morePresetOptions = selectablePresets.filter(
+    (preset) => !quickPresets.includes(preset),
+  )
+
+  const isMoreOptionSelected = morePresetOptions.includes(
+    value.preset,
+  )
+
   function handlePresetChange(nextPreset: DateRangePreset) {
+    if (nextPreset === "all") {
+      onChange({
+        preset: "all",
+        startDate: "",
+        endDate: "",
+      })
+
+      return
+    }
+
+    if (nextPreset === "specific-month") {
+      const monthValue = value.startDate
+        ? value.startDate.slice(0, 7)
+        : getCurrentMonthInputValue()
+
+      onChange({
+        preset: "specific-month",
+        ...getMonthRange(monthValue),
+      })
+
+      return
+    }
+
     if (nextPreset === "custom") {
       onChange({
         ...value,
@@ -81,71 +162,232 @@ export function DateRangePresetFilter({
   }
 
   return (
-    <div className={cn("space-y-2", className)}>
-      <Label htmlFor={`${idPrefix}-preset`}>{label}</Label>
+    <div className={cn("space-y-3", className)}>
+      <Label>{label}</Label>
 
-      <Select
-        value={value.preset}
-        onValueChange={(nextValue) =>
-          handlePresetChange(nextValue as DateRangePreset)
-        }
-      >
-        <SelectTrigger id={`${idPrefix}-preset`}>
-          <CalendarRange className="mr-2 size-4 text-muted-foreground" />
-          <SelectValue />
-        </SelectTrigger>
+      {layout === "compact" ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant={isAllPeriod ? "outline" : "secondary"}
+              className="h-9 w-full justify-between px-3"
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <CalendarRange className="size-4 shrink-0" />
 
-        <SelectContent>
-          {presets.map((preset) => (
-            <SelectItem key={preset} value={preset}>
-              {dateRangePresetLabels[preset]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+                <span className="truncate">
+                  {dateRangePresetLabels[value.preset]}
+                </span>
+              </span>
 
-      {isCustom ? (
-        <div className="grid gap-3 pt-1 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor={`${idPrefix}-start-date`}>
-              Data inicial
-            </Label>
+              <ChevronDown className="size-4 shrink-0" />
+            </Button>
+          </DropdownMenuTrigger>
 
-            <Input
-              id={`${idPrefix}-start-date`}
-              type="date"
-              value={value.startDate}
-              onChange={(event) =>
-                handleDateChange("startDate", event.target.value)
+          <DropdownMenuContent
+            side="bottom"
+            align="start"
+            sideOffset={6}
+            collisionPadding={12}
+            className="w-60"
+          >
+            <DropdownMenuLabel>
+              Selecionar período
+            </DropdownMenuLabel>
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuRadioGroup
+              value={value.preset}
+              onValueChange={(nextValue) =>
+                handlePresetChange(nextValue as DateRangePreset)
               }
-            />
-          </div>
+            >
+              {selectablePresets.map((preset) => (
+                <DropdownMenuRadioItem
+                  key={preset}
+                  value={preset}
+                >
+                  {dateRangePresetLabels[preset]}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          {quickPresets.map((preset) => {
+            const isSelected = value.preset === preset
+            const isSpecificMonthPreset =
+              preset === "specific-month"
 
-          <div className="space-y-2">
-            <Label htmlFor={`${idPrefix}-end-date`}>
-              Data final
-            </Label>
+            return (
+              <Button
+                key={preset}
+                type="button"
+                size="sm"
+                variant={isSelected ? "default" : "outline"}
+                className="h-9 rounded-full px-3"
+                onClick={() => handlePresetChange(preset)}
+              >
+                {isSpecificMonthPreset ? (
+                  <CalendarDays className="mr-1.5 size-4" />
+                ) : (
+                  <CalendarRange className="mr-1.5 size-4" />
+                )}
 
-            <Input
-              id={`${idPrefix}-end-date`}
-              type="date"
-              value={value.endDate}
-              onChange={(event) =>
-                handleDateChange("endDate", event.target.value)
-              }
-            />
+                {QUICK_PRESET_LABELS[preset] ??
+                  dateRangePresetLabels[preset]}
+              </Button>
+            )
+          })}
+
+          {morePresetOptions.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={
+                    isMoreOptionSelected
+                      ? "secondary"
+                      : "outline"
+                  }
+                  className="h-9 rounded-full px-3"
+                >
+                  <SlidersHorizontal className="mr-1.5 size-4" />
+
+                  {isMoreOptionSelected
+                    ? dateRangePresetLabels[value.preset]
+                    : "Mais períodos"}
+
+                  <ChevronDown className="ml-1 size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent
+                side="bottom"
+                align="start"
+                sideOffset={6}
+                collisionPadding={12}
+                className="w-56"
+              >
+                <DropdownMenuLabel>
+                  Outros períodos
+                </DropdownMenuLabel>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuRadioGroup
+                  value={
+                    isMoreOptionSelected
+                      ? value.preset
+                      : ""
+                  }
+                  onValueChange={(nextValue) =>
+                    handlePresetChange(
+                      nextValue as DateRangePreset,
+                    )
+                  }
+                >
+                  {morePresetOptions.map((preset) => (
+                    <DropdownMenuRadioItem
+                      key={preset}
+                      value={preset}
+                    >
+                      {dateRangePresetLabels[preset]}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      )}
+
+      {isAllPeriod ? (
+        <div className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+          <CalendarRange className="size-4 shrink-0" />
+          Nenhuma restrição de data será aplicada.
+        </div>
+      ) : isSpecificMonth ? (
+        <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
+          <Label htmlFor={`${idPrefix}-month`}>
+            Mês e ano
+          </Label>
+
+          <Input
+            id={`${idPrefix}-month`}
+            type="month"
+            value={value.startDate.slice(0, 7)}
+            onChange={(event) => {
+              onChange({
+                preset: "specific-month",
+                ...getMonthRange(event.target.value),
+              })
+            }}
+          />
+
+          <p className="text-xs text-muted-foreground">
+            O período considerará todo o mês selecionado.
+          </p>
+        </div>
+      ) : isCustom ? (
+        <div className="rounded-lg border bg-muted/20 p-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor={`${idPrefix}-start-date`}>
+                Data inicial
+              </Label>
+
+              <Input
+                id={`${idPrefix}-start-date`}
+                type="date"
+                value={value.startDate}
+                onChange={(event) =>
+                  handleDateChange(
+                    "startDate",
+                    event.target.value,
+                  )
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor={`${idPrefix}-end-date`}>
+                Data final
+              </Label>
+
+              <Input
+                id={`${idPrefix}-end-date`}
+                type="date"
+                value={value.endDate}
+                onChange={(event) =>
+                  handleDateChange(
+                    "endDate",
+                    event.target.value,
+                  )
+                }
+              />
+            </div>
           </div>
 
           {hasInvalidRange && (
-            <p className="sm:col-span-2 text-sm text-destructive">
+            <p className="mt-3 text-sm text-destructive">
               A data final não pode ser anterior à data inicial.
             </p>
           )}
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground">
-          De {formatDate(value.startDate)} até {formatDate(value.endDate)}
-        </p>
+        <div className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+          <CalendarRange className="size-4 shrink-0" />
+
+          <span>
+            De {formatDate(value.startDate)} até{" "}
+            {formatDate(value.endDate)}
+          </span>
+        </div>
       )}
     </div>
   )

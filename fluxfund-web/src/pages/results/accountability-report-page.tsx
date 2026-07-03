@@ -457,71 +457,76 @@ export function AccountabilityReportPage() {
             </section>
 
             <section className="rounded-xl border bg-card p-4">
-                <div className="grid gap-4 xl:grid-cols-[minmax(240px,1fr)_minmax(0,2fr)_auto_auto_auto] xl:items-end">
+                <div className="space-y-6">
                     <DateRangePresetFilter
                         value={period}
                         onChange={setPeriod}
                         idPrefix="accountability-period"
                         label="Período do relatório"
+                        layout="full"
                     />
 
-                    <div className="space-y-2">
-                        <label
-                            htmlFor="accountabilitySearch"
-                            className="text-sm font-medium"
-                        >
-                            Buscar
-                        </label>
+                    <div className="grid gap-4 border-t pt-4 xl:grid-cols-[minmax(280px,1fr)_auto] xl:items-end">
+                        <div className="space-y-2">
+                            <label
+                                htmlFor="accountabilitySearch"
+                                className="text-sm font-medium"
+                            >
+                                Buscar
+                            </label>
 
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 
-                            <input
-                                id="accountabilitySearch"
-                                type="search"
-                                value={search}
-                                onChange={(event) => setSearch(event.target.value)}
-                                placeholder="Buscar por favorecido ou fundo..."
-                                className="h-10 w-full rounded-md border bg-background pl-9 pr-3 text-sm"
-                            />
+                                <input
+                                    id="accountabilitySearch"
+                                    type="search"
+                                    value={search}
+                                    onChange={(event) => setSearch(event.target.value)}
+                                    placeholder="Buscar por favorecido ou fundo..."
+                                    className="h-10 w-full rounded-md border bg-background pl-9 pr-3 text-sm"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 xl:justify-end">
+                            <Button
+                                type="button"
+                                variant={showOnlyPending ? "default" : "outline"}
+                                onClick={() => setShowOnlyPending((current) => !current)}
+                            >
+                                {showOnlyPending
+                                    ? "Mostrando saldos a repassar"
+                                    : "Somente saldos a repassar"}
+                            </Button>
+
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleExportExcel}
+                                disabled={exportAccountabilityExcelMutation.isPending}
+                            >
+                                <FileSpreadsheet className="mr-2 size-4" />
+
+                                {exportAccountabilityExcelMutation.isPending
+                                    ? "Exportando..."
+                                    : "Exportar Excel"}
+                            </Button>
+
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleExportPdf}
+                                disabled={exportAccountabilityPdfMutation.isPending}
+                            >
+                                <FileText className="mr-2 size-4" />
+
+                                {exportAccountabilityPdfMutation.isPending
+                                    ? "Gerando PDF..."
+                                    : "Exportar PDF"}
+                            </Button>
                         </div>
                     </div>
-
-                    <Button
-                        type="button"
-                        variant={showOnlyPending ? "default" : "outline"}
-                        onClick={() => setShowOnlyPending((current) => !current)}
-                    >
-                        {showOnlyPending
-                            ? "Mostrando saldos a repassar"
-                            : "Somente saldos a repassar"}
-                    </Button>
-
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleExportExcel}
-                        disabled={exportAccountabilityExcelMutation.isPending}
-                    >
-                        <FileSpreadsheet className="mr-2 size-4" />
-
-                        {exportAccountabilityExcelMutation.isPending
-                            ? "Exportando..."
-                            : "Exportar Excel"}
-                    </Button>
-
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleExportPdf}
-                        disabled={exportAccountabilityPdfMutation.isPending}
-                    >
-                        <FileText className="mr-2 size-4" />
-
-                        {exportAccountabilityPdfMutation.isPending
-                            ? "Gerando PDF..."
-                            : "Exportar PDF"}
-                    </Button>
                 </div>
             </section>
 

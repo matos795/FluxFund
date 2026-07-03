@@ -1,4 +1,5 @@
 export type DateRangePreset =
+  | "all"
   | "current-month"
   | "previous-month"
   | "current-quarter"
@@ -7,6 +8,8 @@ export type DateRangePreset =
   | "previous-year"
   | "last-30-days"
   | "last-90-days"
+  | "last-12-months"
+  | "specific-month"
   | "custom"
 
 export type DateRangeValue = {
@@ -16,6 +19,7 @@ export type DateRangeValue = {
 }
 
 export const dateRangePresetLabels: Record<DateRangePreset, string> = {
+  all: "Todo o período",
   "current-month": "Mês atual",
   "previous-month": "Mês anterior",
   "current-quarter": "Trimestre atual",
@@ -24,6 +28,8 @@ export const dateRangePresetLabels: Record<DateRangePreset, string> = {
   "previous-year": "Ano anterior",
   "last-30-days": "Últimos 30 dias",
   "last-90-days": "Últimos 90 dias",
+  "last-12-months": "Últimos 12 meses",
+  "specific-month": "Escolher mês",
   custom: "Personalizado",
 }
 
@@ -60,7 +66,7 @@ function getDateDaysAgo(baseDate: Date, days: number) {
 }
 
 export function resolveDateRangePreset(
-  preset: Exclude<DateRangePreset, "custom">,
+  preset: Exclude<DateRangePreset, "custom" | "specific-month" | "all">,
   baseDate = new Date(),
 ) {
   if (preset === "current-month") {
@@ -129,6 +135,19 @@ export function resolveDateRangePreset(
     }
   }
 
+  if (preset === "last-12-months") {
+    return {
+      startDate: toDateInputValue(
+        new Date(
+          baseDate.getFullYear(),
+          baseDate.getMonth() - 11,
+          1,
+        ),
+      ),
+      endDate: toDateInputValue(baseDate),
+    }
+  }
+
   if (preset === "last-30-days") {
     return {
       startDate: toDateInputValue(getDateDaysAgo(baseDate, 29)),
@@ -143,10 +162,43 @@ export function resolveDateRangePreset(
 }
 
 export function getDateRangeForPreset(
-  preset: Exclude<DateRangePreset, "custom">,
+  preset: Exclude<DateRangePreset, "custom" | "specific-month" | "all">,
 ): DateRangeValue {
   return {
     preset,
     ...resolveDateRangePreset(preset),
   }
+}
+
+function toMonthInputValue(date: Date) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}`
+}
+
+export function getMonthRange(monthValue: string) {
+  if (!monthValue) {
+    return {
+      startDate: "",
+      endDate: "",
+    }
+  }
+
+  const [year, month] = monthValue.split("-").map(Number)
+
+  if (!year || !month) {
+    return {
+      startDate: "",
+      endDate: "",
+    }
+  }
+
+  const monthDate = new Date(year, month - 1, 1)
+
+  return {
+    startDate: toDateInputValue(getStartOfMonth(monthDate)),
+    endDate: toDateInputValue(getEndOfMonth(monthDate)),
+  }
+}
+
+export function getCurrentMonthInputValue() {
+  return toMonthInputValue(new Date())
 }

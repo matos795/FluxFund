@@ -20,8 +20,9 @@ import {
 } from "@/components/ui/card"
 import { useFundReport } from "@/features/reports/hooks/use-fund-report"
 import type { FundReportItem } from "@/features/reports/reports-types"
-import { formatCurrency } from "@/utils/formatters"
-import { getFirstDayOfCurrentMonth, getTodayDate } from "@/utils/date-getters"
+import { formatCurrency, formatDate } from "@/utils/formatters"
+import { getDateRangeForPreset, type DateRangeValue } from "@/components/filters/date-range-presets"
+import { DateRangePresetFilter } from "@/components/filters/date-range-preset-filter"
 
 function filterFunds(items: FundReportItem[], search: string) {
     const normalizedSearch = search.trim().toLowerCase()
@@ -59,8 +60,13 @@ function filterNegativeFunds(
 }
 
 export function FundReportPage() {
-    const [startDate, setStartDate] = useState(getFirstDayOfCurrentMonth)
-    const [endDate, setEndDate] = useState(getTodayDate)
+
+    const [period, setPeriod] = useState<DateRangeValue>(() =>
+        getDateRangeForPreset("current-month"),
+    )
+
+    const { startDate, endDate } = period
+
     const [search, setSearch] = useState("")
     const [showOnlyNegative, setShowOnlyNegative] = useState(false)
 
@@ -99,7 +105,9 @@ export function FundReportPage() {
 
             <PageHeader
                 title="Fundos e Projetos"
-                description={`Acompanhe entradas, saídas e saldo dos fundos de ${report?.startDate} até ${report?.endDate}.`}
+                description={`Acompanhe entradas, saídas e saldo dos fundos de ${formatDate(
+                    report?.startDate,
+                )} até ${formatDate(report?.endDate)}.`}
             />
 
             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -177,61 +185,51 @@ export function FundReportPage() {
             </section>
 
             <section className="rounded-xl border bg-card p-4">
-                <div className="grid gap-4 lg:grid-cols-[1fr_1fr_2fr_auto] lg:items-end">
-                    <div className="space-y-2">
-                        <label htmlFor="startDate" className="text-sm font-medium">
-                            Data inicial
-                        </label>
+                <div className="space-y-5">
+                    <DateRangePresetFilter
+                        value={period}
+                        onChange={setPeriod}
+                        idPrefix="fund-report-period"
+                        label="Período analisado"
+                        layout="full"
+                        className="w-full"
+                    />
 
-                        <input
-                            id="startDate"
-                            type="date"
-                            value={startDate}
-                            onChange={(event) => setStartDate(event.target.value)}
-                            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                        />
-                    </div>
+                    <div className="grid gap-4 border-t pt-4 md:grid-cols-[minmax(280px,1fr)_auto] md:items-end">
+                        <div className="space-y-2">
+                            <label
+                                htmlFor="fundSearch"
+                                className="text-sm font-medium"
+                            >
+                                Buscar fundo
+                            </label>
 
-                    <div className="space-y-2">
-                        <label htmlFor="endDate" className="text-sm font-medium">
-                            Data final
-                        </label>
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 
-                        <input
-                            id="endDate"
-                            type="date"
-                            value={endDate}
-                            onChange={(event) => setEndDate(event.target.value)}
-                            className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                        />
-                    </div>
-
-                    <div className="space-y-2">
-                        <label htmlFor="fundSearch" className="text-sm font-medium">
-                            Buscar fundo
-                        </label>
-
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-
-                            <input
-                                id="fundSearch"
-                                type="search"
-                                value={search}
-                                onChange={(event) => setSearch(event.target.value)}
-                                placeholder="Digite o nome do fundo ou projeto..."
-                                className="h-10 w-full rounded-md border bg-background pl-9 pr-3 text-sm"
-                            />
+                                <input
+                                    id="fundSearch"
+                                    type="search"
+                                    value={search}
+                                    onChange={(event) => setSearch(event.target.value)}
+                                    placeholder="Digite o nome do fundo ou projeto..."
+                                    className="h-10 w-full rounded-md border bg-background pl-9 pr-3 text-sm"
+                                />
+                            </div>
                         </div>
-                    </div>
 
-                    <Button
-                        type="button"
-                        variant={showOnlyNegative ? "default" : "outline"}
-                        onClick={() => setShowOnlyNegative((current) => !current)}
-                    >
-                        {showOnlyNegative ? "Mostrando negativos" : "Somente negativos"}
-                    </Button>
+                        <Button
+                            type="button"
+                            variant={showOnlyNegative ? "default" : "outline"}
+                            onClick={() =>
+                                setShowOnlyNegative((current) => !current)
+                            }
+                        >
+                            {showOnlyNegative
+                                ? "Mostrando negativos"
+                                : "Somente negativos"}
+                        </Button>
+                    </div>
                 </div>
             </section>
 

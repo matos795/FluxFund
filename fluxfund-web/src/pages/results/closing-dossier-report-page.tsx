@@ -295,36 +295,37 @@ export function ClosingDossierReportPage() {
                 </CardHeader>
 
                 <CardContent className="space-y-6">
-                    <div className="grid gap-4 lg:grid-cols-[minmax(260px,1fr)_minmax(250px,1fr)_auto] lg:items-end">
+                    <div className="space-y-6">
                         <DateRangePresetFilter
                             value={period}
                             onChange={setPeriod}
                             idPrefix="closing-dossier-period"
                             label="Período do Dossiê"
+                            layout="full"
                         />
 
-                        <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm">
-                            <Checkbox
-                                checked={includeAccountsWithoutMovement}
-                                onCheckedChange={(checked) =>
-                                    setIncludeAccountsWithoutMovement(Boolean(checked))
-                                }
-                            />
+                        <div className="flex flex-col gap-4 border-t pt-4 md:flex-row md:items-center md:justify-between">
+                            <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm">
+                                <Checkbox
+                                    checked={includeAccountsWithoutMovement}
+                                    onCheckedChange={(checked) =>
+                                        setIncludeAccountsWithoutMovement(Boolean(checked))
+                                    }
+                                />
 
-                            <span>
-                                <span className="block font-medium">
-                                    Incluir contas sem movimento
+                                <span>
+                                    <span className="block font-medium">
+                                        Incluir contas sem movimento
+                                    </span>
+
+                                    <span className="block text-xs text-muted-foreground">
+                                        Mostra contas vazias na pasta final.
+                                    </span>
                                 </span>
+                            </label>
 
-                                <span className="block text-xs text-muted-foreground">
-                                    Mostra contas vazias na pasta final.
-                                </span>
-                            </span>
-                        </label>
-
-                        <div className="flex items-end">
                             <Button
-                                className="w-full"
+                                className="w-full md:w-auto"
                                 onClick={handlePreview}
                                 disabled={
                                     previewMutation.isPending ||
@@ -338,6 +339,7 @@ export function ClosingDossierReportPage() {
                                         previewMutation.isPending && "animate-spin",
                                     )}
                                 />
+
                                 {previewMutation.isPending
                                     ? "Atualizando prévia..."
                                     : "Gerar prévia"}

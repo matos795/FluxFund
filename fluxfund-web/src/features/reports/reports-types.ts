@@ -167,7 +167,7 @@ export type AccountCashFlowItem = {
   accountId: string
   accountName: string
   accountType:
-    | "BANK_ACCOUNT"
+    | "BANK"
     | "CASH"
     | "DIGITAL_WALLET"
     | "CREDIT_CARD"
