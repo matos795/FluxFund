@@ -4,6 +4,7 @@ import {
     ArrowLeft,
     ArrowRightLeft,
     ArrowUpCircle,
+    FileText,
     Landmark,
     Search,
     TrendingDown,
@@ -47,6 +48,10 @@ import type { AccountCashFlowItem } from "@/features/reports/reports-types"
 import { formatCurrency, formatDate } from "@/utils/formatters"
 import { getDateRangeForPreset, type DateRangeValue } from "@/components/filters/date-range-presets"
 import { DateRangePresetFilter } from "@/components/filters/date-range-preset-filter"
+import { useExportAccountMovementPdf } from "@/features/reports/hooks/use-export-account-movement-pdf"
+import { toast } from "sonner"
+import { getApiErrorMessage } from "@/utils/api-error"
+import { downloadFile } from "@/utils/download-file"
 
 const accountTypeLabels: Record<AccountCashFlowItem["accountType"], string> = {
     BANK: "Banco",
@@ -159,6 +164,13 @@ export function AccountCashFlowReportPage() {
     )
 
     const { startDate, endDate } = period
+
+    const exportAccountMovementPdfMutation = useExportAccountMovementPdf()
+
+    const hasValidPeriod =
+        Boolean(startDate) &&
+        Boolean(endDate) &&
+        startDate <= endDate
 
     const [search, setSearch] = useState("")
 
@@ -277,6 +289,50 @@ export function AccountCashFlowReportPage() {
     }
 
     const netIsPositive = report.netTotal >= 0
+
+    function handleExportAccountMovementPdf(
+        account: AccountCashFlowItem,
+    ) {
+        if (!hasValidPeriod) {
+            toast.error("Informe um período válido para exportar o PDF.")
+            return
+        }
+
+        if (account.accountType === "CREDIT_CARD") {
+            toast.info(
+                "Use o relatório de fatura para contas do tipo cartão de crédito.",
+            )
+            return
+        }
+
+        exportAccountMovementPdfMutation.mutate(
+            {
+                accountId: account.accountId,
+                startDate,
+                endDate,
+            },
+            {
+                onSuccess: (blob) => {
+                    downloadFile(
+                        blob,
+                        `movimentacao-conta-${startDate}-${endDate}.pdf`,
+                    )
+
+                    toast.success(
+                        `Movimentação da conta "${account.accountName}" exportada com sucesso.`,
+                    )
+                },
+                onError: (error) => {
+                    toast.error(
+                        getApiErrorMessage(
+                            error,
+                            "Não foi possível exportar a movimentação da conta.",
+                        ),
+                    )
+                },
+            },
+        )
+    }
 
     return (
         <div className="space-y-4">
@@ -622,6 +678,7 @@ export function AccountCashFlowReportPage() {
                                             <TableHead className="text-right">Fim do período</TableHead>
                                             <TableHead className="text-right">Saldo atual</TableHead>
                                             <TableHead className="text-right">Mov.</TableHead>
+                                            <TableHead className="text-right">Relatório</TableHead>
                                         </TableRow>
                                     </TableHeader>
 
@@ -694,6 +751,31 @@ export function AccountCashFlowReportPage() {
 
                                                 <TableCell className="text-right">
                                                     {item.transactionCount}
+                                                </TableCell>
+
+                                                <TableCell className="text-right">
+                                                    {item.accountType === "CREDIT_CARD" ? (
+                                                        <span className="text-xs text-muted-foreground">
+                                                            Use fatura
+                                                        </span>
+                                                    ) : (
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => handleExportAccountMovementPdf(item)}
+                                                            disabled={
+                                                                !hasValidPeriod ||
+                                                                exportAccountMovementPdfMutation.isPending
+                                                            }
+                                                        >
+                                                            <FileText className="mr-2 size-4" />
+
+                                                            {exportAccountMovementPdfMutation.isPending
+                                                                ? "Gerando..."
+                                                                : "PDF"}
+                                                        </Button>
+                                                    )}
                                                 </TableCell>
                                             </TableRow>
                                         ))}

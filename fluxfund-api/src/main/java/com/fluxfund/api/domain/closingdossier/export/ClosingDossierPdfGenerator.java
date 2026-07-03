@@ -40,9 +40,12 @@ import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierPreviewRequest;
 import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierPreviewResponse;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
+import com.fluxfund.api.domain.financialtransaction.TransferDirection;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportItemResponse;
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportResponse;
+import com.fluxfund.api.domain.report.dto.accountmovement.AccountMovementReportItemResponse;
+import com.fluxfund.api.domain.report.dto.accountmovement.AccountMovementReportResponse;
 import com.fluxfund.api.domain.report.dto.category.CategoryResultItemResponse;
 import com.fluxfund.api.domain.report.dto.expense.SettledExpenseReportItemResponse;
 import com.fluxfund.api.domain.report.dto.expense.SettledExpenseReportResponse;
@@ -337,6 +340,34 @@ public class ClosingDossierPdfGenerator {
                 } catch (IOException exception) {
                         throw new BusinessException(
                                         "Could not generate fund movement report PDF");
+                }
+        }
+
+        public byte[] generateAccountMovementReport(
+                        Organization organization,
+                        AccountMovementReportResponse accountMovementReport) {
+
+                try (
+                                PDDocument document = new PDDocument();
+                                ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+
+                        PdfWriter writer = new PdfWriter(
+                                        document,
+                                        buildFooterIdentity(organization));
+
+                        writeAccountMovementReportSection(
+                                        writer,
+                                        accountMovementReport);
+
+                        writer.close();
+
+                        document.save(outputStream);
+
+                        return outputStream.toByteArray();
+
+                } catch (IOException exception) {
+                        throw new BusinessException(
+                                        "Could not generate account movement report PDF");
                 }
         }
 
@@ -942,6 +973,114 @@ public class ClosingDossierPdfGenerator {
                 writer.closeCurrentPage();
 
                 return coverPage;
+        }
+
+        private void writeAccountMovementReportSection(
+                        PdfWriter writer,
+                        AccountMovementReportResponse accountMovementReport)
+                        throws IOException {
+
+                List<String> coverDetails = new ArrayList<>();
+
+                coverDetails.add(
+                                "Conta: " + accountMovementReport.accountName());
+
+                if (hasText(accountMovementReport.bankName())) {
+                        coverDetails.add(
+                                        "Instituição: " + accountMovementReport.bankName());
+                }
+
+                coverDetails.add(
+                                "Período: " + formatPeriod(
+                                                accountMovementReport.startDate(),
+                                                accountMovementReport.endDate()));
+
+                coverDetails.add(
+                                "Lançamentos no período: "
+                                                + accountMovementReport.transactionCount());
+
+                coverDetails.add(
+                                "Saldo inicial: "
+                                                + formatCurrency(
+                                                                accountMovementReport.openingBalance()));
+
+                coverDetails.add(
+                                "Saldo final: "
+                                                + formatCurrency(
+                                                                accountMovementReport.closingBalance()));
+
+                writer.startCoverPage(
+                                "RELATÓRIO FINANCEIRO",
+                                "Movimentação por Conta",
+                                coverDetails);
+
+                writer.closeCurrentPage();
+
+                writer.startPage();
+
+                writer.writeSectionTitle("Resumo financeiro");
+
+                writer.writeParagraph(
+                                "Demonstrativo das movimentações liquidadas da conta no "
+                                                + "período selecionado. Este relatório não inclui "
+                                                + "anexos, comprovantes ou documentos fiscais.");
+
+                writer.writeMetric(
+                                "Saldo inicial",
+                                formatCurrency(
+                                                accountMovementReport.openingBalance()));
+
+                writer.writeMetric(
+                                "Receitas",
+                                formatCurrency(
+                                                accountMovementReport.incomeTotal()));
+
+                writer.writeMetric(
+                                "Despesas",
+                                formatCurrency(
+                                                accountMovementReport.expenseTotal()));
+
+                writer.writeMetric(
+                                "Transferências recebidas",
+                                formatCurrency(
+                                                accountMovementReport.transferInTotal()));
+
+                writer.writeMetric(
+                                "Transferências enviadas",
+                                formatCurrency(
+                                                accountMovementReport.transferOutTotal()));
+
+                writer.writeMetric(
+                                "Movimentação líquida",
+                                formatCurrency(
+                                                accountMovementReport.netMovement()));
+
+                writer.writeHighlightedMetric(
+                                "Saldo final",
+                                formatCurrency(
+                                                accountMovementReport.closingBalance()));
+
+                writer.closeCurrentPage();
+
+                writer.startPage();
+
+                writer.writeSectionTitle("Movimentações da conta");
+
+                writer.writeParagraph(
+                                "Relação cronológica das receitas, despesas e transferências "
+                                                + "liquidadas no período, com saldo acumulado após "
+                                                + "cada lançamento.");
+
+                if (accountMovementReport.items().isEmpty()) {
+                        writer.writeParagraph(
+                                        "Nenhuma movimentação liquidada foi encontrada para "
+                                                        + "esta conta no período selecionado.");
+                } else {
+                        writer.writeAccountMovementTable(
+                                        accountMovementReport.items());
+                }
+
+                writer.closeCurrentPage();
         }
 
         private void writeExtraDocumentsSection(
@@ -1629,7 +1768,7 @@ public class ClosingDossierPdfGenerator {
                 return String.join(separator, parts);
         }
 
-        private boolean hasText(String value) {
+        private static boolean hasText(String value) {
                 return value != null && !value.isBlank();
         }
 
@@ -2641,6 +2780,271 @@ public class ClosingDossierPdfGenerator {
                                         new Color(22, 101, 52));
 
                         cursorY -= rowHeight + 6;
+                }
+
+                void writeAccountMovementTable(
+                                List<AccountMovementReportItemResponse> items)
+                                throws IOException {
+
+                        writeAccountMovementTableHeader();
+
+                        for (AccountMovementReportItemResponse item : items) {
+                                float rowHeight = getAccountMovementRowHeight(item);
+
+                                if (cursorY - rowHeight < BOTTOM_MARGIN) {
+                                        startPage();
+
+                                        writeSectionTitle(
+                                                        "Movimentações da conta (continuação)");
+
+                                        writeAccountMovementTableHeader();
+                                }
+
+                                writeAccountMovementTableRow(item, rowHeight);
+                        }
+                }
+
+                private void writeAccountMovementTableHeader()
+                                throws IOException {
+
+                        ensureSpace(34);
+
+                        float headerHeight = 24f;
+
+                        float dateWidth = 48f;
+                        float descriptionWidth = 130f;
+                        float detailWidth = 90f;
+                        float entryWidth = 67f;
+                        float exitWidth = 67f;
+
+                        float dateX = LEFT_MARGIN;
+                        float descriptionX = dateX + dateWidth;
+                        float detailX = descriptionX + descriptionWidth;
+                        float entryX = detailX + detailWidth;
+                        float exitX = entryX + entryWidth;
+                        float balanceX = exitX + exitWidth;
+                        float balanceWidth = PAGE_WIDTH - RIGHT_MARGIN - balanceX;
+
+                        contentStream.setNonStrokingColor(PRIMARY_COLOR);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - headerHeight + 6,
+                                        CONTENT_WIDTH,
+                                        headerHeight);
+                        contentStream.fill();
+
+                        float textY = cursorY - 10;
+
+                        writeText(
+                                        "Data",
+                                        dateX + 7,
+                                        textY,
+                                        boldFont,
+                                        7.5f,
+                                        Color.WHITE);
+
+                        writeText(
+                                        "Descrição",
+                                        descriptionX + 7,
+                                        textY,
+                                        boldFont,
+                                        7.5f,
+                                        Color.WHITE);
+
+                        writeText(
+                                        "Categoria/conta",
+                                        detailX + 7,
+                                        textY,
+                                        boldFont,
+                                        7.5f,
+                                        Color.WHITE);
+
+                        writeRightAlignedText(
+                                        "Entrada",
+                                        entryX + entryWidth - 7,
+                                        textY,
+                                        7.5f,
+                                        entryWidth - 14,
+                                        Color.WHITE);
+
+                        writeRightAlignedText(
+                                        "Saída",
+                                        exitX + exitWidth - 7,
+                                        textY,
+                                        7.5f,
+                                        exitWidth - 14,
+                                        Color.WHITE);
+
+                        writeRightAlignedText(
+                                        "Saldo",
+                                        balanceX + balanceWidth - 7,
+                                        textY,
+                                        7.5f,
+                                        balanceWidth - 14,
+                                        Color.WHITE);
+
+                        cursorY -= 30;
+                }
+
+                private float getAccountMovementRowHeight(
+                                AccountMovementReportItemResponse item)
+                                throws IOException {
+
+                        List<String> descriptionLines = getMovementDescriptionLines(
+                                        item.description(),
+                                        116f);
+
+                        return descriptionLines.size() > 1 ? 46f : 34f;
+                }
+
+                private void writeAccountMovementTableRow(
+                                AccountMovementReportItemResponse item,
+                                float rowHeight)
+                                throws IOException {
+
+                        float dateWidth = 48f;
+                        float descriptionWidth = 130f;
+                        float detailWidth = 90f;
+                        float entryWidth = 67f;
+                        float exitWidth = 67f;
+
+                        float dateX = LEFT_MARGIN;
+                        float descriptionX = dateX + dateWidth;
+                        float detailX = descriptionX + descriptionWidth;
+                        float entryX = detailX + detailWidth;
+                        float exitX = entryX + entryWidth;
+                        float balanceX = exitX + exitWidth;
+                        float balanceWidth = PAGE_WIDTH - RIGHT_MARGIN - balanceX;
+
+                        BigDecimal signedAmount = item.signedAmount() != null
+                                        ? item.signedAmount()
+                                        : BigDecimal.ZERO;
+
+                        boolean isEntry = signedAmount.compareTo(BigDecimal.ZERO) > 0;
+                        boolean isExit = signedAmount.compareTo(BigDecimal.ZERO) < 0;
+
+                        Color backgroundColor = Color.WHITE;
+
+                        if (isEntry) {
+                                backgroundColor = new Color(240, 253, 244);
+                        }
+
+                        if (isExit) {
+                                backgroundColor = new Color(254, 242, 242);
+                        }
+
+                        Color movementColor = isEntry
+                                        ? new Color(22, 101, 52)
+                                        : isExit
+                                                        ? new Color(185, 28, 28)
+                                                        : Color.DARK_GRAY;
+
+                        List<String> descriptionLines = getMovementDescriptionLines(
+                                        item.description(),
+                                        descriptionWidth - 14);
+
+                        contentStream.setNonStrokingColor(backgroundColor);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - rowHeight + 6,
+                                        CONTENT_WIDTH,
+                                        rowHeight);
+                        contentStream.fill();
+
+                        contentStream.setStrokingColor(new Color(225, 225, 225));
+                        contentStream.setLineWidth(0.5f);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - rowHeight + 6,
+                                        CONTENT_WIDTH,
+                                        rowHeight);
+                        contentStream.stroke();
+
+                        float firstLineY = cursorY - 14;
+
+                        writeText(
+                                        formatDate(item.settlementDate()),
+                                        dateX + 7,
+                                        firstLineY,
+                                        regularFont,
+                                        7.5f,
+                                        Color.DARK_GRAY);
+
+                        for (int index = 0; index < descriptionLines.size(); index++) {
+                                writeText(
+                                                descriptionLines.get(index),
+                                                descriptionX + 7,
+                                                firstLineY - (index * 12),
+                                                regularFont,
+                                                7.5f,
+                                                Color.DARK_GRAY);
+                        }
+
+                        writeText(
+                                        fitText(
+                                                        resolveAccountMovementDetail(item),
+                                                        regularFont,
+                                                        7.5f,
+                                                        detailWidth - 14),
+                                        detailX + 7,
+                                        firstLineY,
+                                        regularFont,
+                                        7.5f,
+                                        Color.DARK_GRAY);
+
+                        writeRightAlignedText(
+                                        isEntry
+                                                        ? formatCurrency(item.amount())
+                                                        : "-",
+                                        entryX + entryWidth - 7,
+                                        firstLineY,
+                                        7.5f,
+                                        entryWidth - 14,
+                                        isEntry ? movementColor : Color.GRAY);
+
+                        writeRightAlignedText(
+                                        isExit
+                                                        ? formatCurrency(item.amount())
+                                                        : "-",
+                                        exitX + exitWidth - 7,
+                                        firstLineY,
+                                        7.5f,
+                                        exitWidth - 14,
+                                        isExit ? movementColor : Color.GRAY);
+
+                        writeRightAlignedText(
+                                        formatCurrency(item.runningBalance()),
+                                        balanceX + balanceWidth - 7,
+                                        firstLineY,
+                                        7.5f,
+                                        balanceWidth - 14,
+                                        Color.DARK_GRAY);
+
+                        cursorY -= rowHeight + 6;
+                }
+
+                private String resolveAccountMovementDetail(
+                                AccountMovementReportItemResponse item) {
+
+                        if (item.type() == FinancialTransactionType.TRANSFER) {
+                                String counterpartyAccountName = item.counterpartyAccountName();
+
+                                if (counterpartyAccountName == null
+                                                || counterpartyAccountName.isBlank()) {
+                                        return "Transferência";
+                                }
+
+                                return item.transferDirection() == TransferDirection.IN
+                                                ? "De: " + counterpartyAccountName
+                                                : "Para: " + counterpartyAccountName;
+                        }
+
+                        if (item.categoryName() == null
+                                        || item.categoryName().isBlank()) {
+                                return "Sem categoria";
+                        }
+
+                        return item.categoryName();
                 }
 
                 void writeFundMovementTable(

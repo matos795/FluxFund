@@ -134,6 +134,22 @@ export const reportsApi = {
     return response.data
   },
 
+  async exportAccountMovementPdf(params: {
+    accountId: string
+    startDate?: string
+    endDate?: string
+  }) {
+    const response = await httpClient.get<Blob>(
+      "/api/v1/reports/account-movement/export.pdf",
+      {
+        params,
+        responseType: "blob",
+      },
+    )
+
+    return response.data
+  },
+
   async getPendingItems({ limit = 10 }: { limit?: number } = {}) {
     const response = await httpClient.get<PendingItemsReport>(
       "/api/v1/reports/pending-items",

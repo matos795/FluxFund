@@ -16,12 +16,15 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fluxfund.api.domain.account.Account;
 import com.fluxfund.api.domain.account.AccountType;
 import com.fluxfund.api.domain.account.repository.AccountRepository;
 import com.fluxfund.api.domain.creditcardstatement.repository.CreditCardStatementRepository;
 import com.fluxfund.api.domain.dashboard.dto.DashboardTransactionActionItemProjection;
+import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
+import com.fluxfund.api.domain.financialtransaction.TransferDirection;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
 import com.fluxfund.api.domain.fund.Fund;
 import com.fluxfund.api.domain.fund.repository.FundRepository;
@@ -39,6 +42,8 @@ import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportPro
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportResponse;
 import com.fluxfund.api.domain.report.dto.accountcashflow.AccountCashFlowItemResponse;
 import com.fluxfund.api.domain.report.dto.accountcashflow.AccountCashFlowReportResponse;
+import com.fluxfund.api.domain.report.dto.accountmovement.AccountMovementReportItemResponse;
+import com.fluxfund.api.domain.report.dto.accountmovement.AccountMovementReportResponse;
 import com.fluxfund.api.domain.report.dto.category.CategoryResultItemResponse;
 import com.fluxfund.api.domain.report.dto.category.CategoryResultReportResponse;
 import com.fluxfund.api.domain.report.dto.expense.SettledExpenseReportItemResponse;
@@ -434,6 +439,144 @@ public class ReportService {
                                 incomingTransferTotal,
                                 outgoingTransferTotal,
                                 netMovementTotal,
+                                items);
+        }
+
+        public AccountMovementReportResponse getAccountMovementReport(
+                        UUID organizationId,
+                        UUID accountId,
+                        LocalDate startDate,
+                        LocalDate endDate) {
+
+                organizationAccessService.requireReadAccess(organizationId);
+
+                validateOrganizationExists(organizationId);
+
+                LocalDate resolvedStartDate = startDate != null
+                                ? startDate
+                                : LocalDate.now().withDayOfMonth(1);
+
+                LocalDate resolvedEndDate = endDate != null
+                                ? endDate
+                                : LocalDate.now();
+
+                if (resolvedEndDate.isBefore(resolvedStartDate)) {
+                        throw new BusinessException(
+                                        "End date cannot be before start date");
+                }
+
+                Account account = accountRepository
+                                .findByIdAndOrganizationId(accountId, organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Account not found"));
+
+                if (account.getType() == AccountType.CREDIT_CARD) {
+                        throw new BusinessException(
+                                        "Use the credit card statement report for credit card accounts");
+                }
+
+                validateAccountMovementReportStartDate(
+                                account,
+                                resolvedStartDate);
+
+                BigDecimal initialBalance = account.getInitialBalance() != null
+                                ? account.getInitialBalance()
+                                : BigDecimal.ZERO;
+
+                BigDecimal movementBeforePeriod = financialTransactionRepository
+                                .sumSignedSettledAccountMovementBeforeDate(
+                                                organizationId,
+                                                accountId,
+                                                resolvedStartDate);
+
+                BigDecimal openingBalance = initialBalance.add(
+                                movementBeforePeriod);
+
+                List<FinancialTransaction> transactions = financialTransactionRepository
+                                .findSettledAccountMovementReportTransactions(
+                                                organizationId,
+                                                accountId,
+                                                resolvedStartDate,
+                                                resolvedEndDate);
+
+                BigDecimal incomeTotal = BigDecimal.ZERO;
+                BigDecimal expenseTotal = BigDecimal.ZERO;
+                BigDecimal transferInTotal = BigDecimal.ZERO;
+                BigDecimal transferOutTotal = BigDecimal.ZERO;
+                BigDecimal runningBalance = openingBalance;
+
+                List<AccountMovementReportItemResponse> items = new ArrayList<>();
+
+                for (FinancialTransaction transaction : transactions) {
+                        BigDecimal amount = getAbsoluteSettledAmount(transaction);
+
+                        BigDecimal signedAmount = resolveSignedAccountMovement(
+                                        transaction,
+                                        amount);
+
+                        runningBalance = runningBalance.add(signedAmount);
+
+                        if (transaction.getType() == FinancialTransactionType.INCOME) {
+                                incomeTotal = incomeTotal.add(amount);
+                        }
+
+                        if (transaction.getType() == FinancialTransactionType.EXPENSE) {
+                                expenseTotal = expenseTotal.add(amount);
+                        }
+
+                        if (transaction.getType() == FinancialTransactionType.TRANSFER) {
+                                if (transaction.getTransferDirection() == TransferDirection.IN) {
+                                        transferInTotal = transferInTotal.add(amount);
+                                }
+
+                                if (transaction.getTransferDirection() == TransferDirection.OUT) {
+                                        transferOutTotal = transferOutTotal.add(amount);
+                                }
+                        }
+
+                        String categoryName = transaction.getType() == FinancialTransactionType.TRANSFER
+                                        ? "Transferência"
+                                        : transaction.getCategory() != null
+                                                        ? transaction.getCategory().getName()
+                                                        : "Sem categoria";
+
+                        String counterpartyAccountName = transaction.getTransferCounterpartyAccount() != null
+                                        ? transaction.getTransferCounterpartyAccount().getName()
+                                        : null;
+
+                        items.add(new AccountMovementReportItemResponse(
+                                        transaction.getId(),
+                                        transaction.getSettlementDate(),
+                                        transaction.getType(),
+                                        transaction.getTransferDirection(),
+                                        resolveTransactionDescription(transaction),
+                                        categoryName,
+                                        counterpartyAccountName,
+                                        amount,
+                                        signedAmount,
+                                        runningBalance));
+                }
+
+                BigDecimal closingBalance = runningBalance;
+
+                BigDecimal netMovement = closingBalance.subtract(
+                                openingBalance);
+
+                return new AccountMovementReportResponse(
+                                account.getId(),
+                                account.getName(),
+                                account.getType(),
+                                account.getBankName(),
+                                resolvedStartDate,
+                                resolvedEndDate,
+                                openingBalance,
+                                incomeTotal,
+                                expenseTotal,
+                                transferInTotal,
+                                transferOutTotal,
+                                netMovement,
+                                closingBalance,
+                                items.size(),
                                 items);
         }
 
@@ -1042,6 +1185,65 @@ public class ReportService {
                                 currentBalanceTotal,
                                 transactionCount,
                                 items);
+        }
+
+        private void validateAccountMovementReportStartDate(
+                        Account account,
+                        LocalDate startDate) {
+
+                if (account.getInitialBalanceDate() != null
+                                && startDate.isBefore(account.getInitialBalanceDate())) {
+                        throw new BusinessException(
+                                        "The selected period starts before the account initial balance date");
+                }
+        }
+
+        private BigDecimal getAbsoluteSettledAmount(
+                        FinancialTransaction transaction) {
+
+                if (transaction.getSettledAmount() == null) {
+                        return BigDecimal.ZERO;
+                }
+
+                return transaction.getSettledAmount().abs();
+        }
+
+        private BigDecimal resolveSignedAccountMovement(
+                        FinancialTransaction transaction,
+                        BigDecimal amount) {
+
+                return switch (transaction.getType()) {
+                        case INCOME -> amount;
+
+                        case EXPENSE -> amount.negate();
+
+                        case TRANSFER -> {
+                                if (transaction.getTransferDirection() == null) {
+                                        throw new BusinessException(
+                                                        "Transfer transaction has no direction configured");
+                                }
+
+                                yield transaction.getTransferDirection() == TransferDirection.IN
+                                                ? amount
+                                                : amount.negate();
+                        }
+                };
+        }
+
+        private String resolveTransactionDescription(
+                        FinancialTransaction transaction) {
+
+                if (transaction.getDescription() != null
+                                && !transaction.getDescription().isBlank()) {
+                        return transaction.getDescription();
+                }
+
+                if (transaction.getRawDescription() != null
+                                && !transaction.getRawDescription().isBlank()) {
+                        return transaction.getRawDescription();
+                }
+
+                return "Sem descrição";
         }
 
         private void validateOrganizationExists(UUID organizationId) {

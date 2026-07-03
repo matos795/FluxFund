@@ -21,6 +21,7 @@ import com.fluxfund.api.domain.report.dto.accountcashflow.AccountCashFlowReportR
 import com.fluxfund.api.domain.report.dto.category.CategoryResultReportResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundReportResponse;
 import com.fluxfund.api.domain.report.dto.pending.PendingItemsReportResponse;
+import com.fluxfund.api.domain.report.export.AccountMovementPdfExportService;
 import com.fluxfund.api.domain.report.export.AccountabilityExcelExportService;
 import com.fluxfund.api.domain.report.export.AccountabilityPdfExportService;
 import com.fluxfund.api.domain.report.export.FundMovementPdfExportService;
@@ -41,6 +42,7 @@ public class ReportController {
         private final AccountabilityPdfExportService accountabilityPdfExportService;
         private final SettledFinancialReportPdfExportService settledFinancialReportPdfExportService;
         private final FundMovementPdfExportService fundMovementPdfExportService;
+        private final AccountMovementPdfExportService accountMovementPdfExportService;
 
         @GetMapping("/category-result")
         public ResponseEntity<CategoryResultReportResponse> getCategoryResultReport(
@@ -242,6 +244,46 @@ public class ReportController {
                                                 resolvedEndDate);
 
                 String filename = "movimentacao-por-fundos-%s-a-%s.pdf"
+                                .formatted(
+                                                resolvedStartDate,
+                                                resolvedEndDate);
+
+                return ResponseEntity.ok()
+                                .contentType(MediaType.APPLICATION_PDF)
+                                .header(
+                                                HttpHeaders.CONTENT_DISPOSITION,
+                                                ContentDisposition.attachment()
+                                                                .filename(
+                                                                                filename,
+                                                                                StandardCharsets.UTF_8)
+                                                                .build()
+                                                                .toString())
+                                .body(file);
+        }
+
+        @GetMapping(value = "/account-movement/export.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+        public ResponseEntity<byte[]> exportAccountMovementReportPdf(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @RequestParam UUID accountId,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
+                LocalDate resolvedStartDate = startDate != null
+                                ? startDate
+                                : LocalDate.now().withDayOfMonth(1);
+
+                LocalDate resolvedEndDate = endDate != null
+                                ? endDate
+                                : LocalDate.now();
+
+                byte[] file = accountMovementPdfExportService
+                                .exportAccountMovementReport(
+                                                organizationId,
+                                                accountId,
+                                                resolvedStartDate,
+                                                resolvedEndDate);
+
+                String filename = "movimentacao-conta-%s-a-%s.pdf"
                                 .formatted(
                                                 resolvedStartDate,
                                                 resolvedEndDate);
