@@ -80,16 +80,44 @@ export const reportsApi = {
   },
 
   async exportAccountabilityPdf(params: GetAccountabilityReportParams) {
-  const response = await httpClient.get<Blob>(
-    "/api/v1/reports/accountability/export.pdf",
-    {
-      params,
-      responseType: "blob",
-    },
-  )
+    const response = await httpClient.get<Blob>(
+      "/api/v1/reports/accountability/export.pdf",
+      {
+        params,
+        responseType: "blob",
+      },
+    )
 
-  return response.data
-},
+    return response.data
+  },
+
+  async exportSettledExpensePdf(
+    params: GetCategoryResultReportParams,
+  ) {
+    const response = await httpClient.get<Blob>(
+      "/api/v1/reports/settled-expenses/export.pdf",
+      {
+        params,
+        responseType: "blob",
+      },
+    )
+
+    return response.data
+  },
+
+  async exportSettledIncomePdf(
+    params: GetCategoryResultReportParams,
+  ) {
+    const response = await httpClient.get<Blob>(
+      "/api/v1/reports/settled-incomes/export.pdf",
+      {
+        params,
+        responseType: "blob",
+      },
+    )
+
+    return response.data
+  },
 
   async getPendingItems({ limit = 10 }: { limit?: number } = {}) {
     const response = await httpClient.get<PendingItemsReport>(

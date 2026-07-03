@@ -256,6 +256,62 @@ public class ClosingDossierPdfGenerator {
                 }
         }
 
+        public byte[] generateSettledExpenseReport(
+                        Organization organization,
+                        SettledExpenseReportResponse expenseReport) {
+
+                try (
+                                PDDocument document = new PDDocument();
+                                ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+
+                        PdfWriter writer = new PdfWriter(
+                                        document,
+                                        buildFooterIdentity(organization));
+
+                        writeSettledExpenseReportSection(
+                                        writer,
+                                        expenseReport);
+
+                        writer.close();
+
+                        document.save(outputStream);
+
+                        return outputStream.toByteArray();
+
+                } catch (IOException exception) {
+                        throw new BusinessException(
+                                        "Could not generate settled expense report PDF");
+                }
+        }
+
+        public byte[] generateSettledIncomeReport(
+                        Organization organization,
+                        SettledIncomeReportResponse incomeReport) {
+
+                try (
+                                PDDocument document = new PDDocument();
+                                ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+
+                        PdfWriter writer = new PdfWriter(
+                                        document,
+                                        buildFooterIdentity(organization));
+
+                        writeSettledIncomeReportSection(
+                                        writer,
+                                        incomeReport);
+
+                        writer.close();
+
+                        document.save(outputStream);
+
+                        return outputStream.toByteArray();
+
+                } catch (IOException exception) {
+                        throw new BusinessException(
+                                        "Could not generate settled income report PDF");
+                }
+        }
+
         private void writeGeneralCover(
                         PdfWriter writer,
                         Organization organization,
