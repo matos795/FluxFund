@@ -1,4 +1,4 @@
-import { CreditCard, FileText, FileUp, ListChecks, MoreHorizontal, Plus, Trash2 } from "lucide-react"
+import { CreditCard, FileDown, FileText, FileUp, ListChecks, MoreHorizontal, Plus, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -31,7 +31,9 @@ import { ViewCreditCardStatementItemsDialog } from "./view-credit-card-statement
 import { ImportCreditCardStatementDialog } from "./import-credit-card-statement-dialog"
 import { ConfirmActionDialog } from "@/components/layout/confirm-action-dialog"
 import { CreditCardStatementDocumentDialog } from "./credit-card-statement-document-dialog"
-import { ExportCreditCardStatementReportButton } from "@/features/credit-card-statements/components/export-credit-card-statement-report-button"
+import { useExportCreditCardStatementPdf } from "@/features/reports/hooks/use-export-credit-card-statement-pdf"
+import { getApiErrorMessage } from "@/utils/api-error"
+import { downloadFile } from "@/utils/download-file"
 
 type CreditCardStatementsTableProps = {
   statements: CreditCardStatement[]
@@ -76,6 +78,8 @@ export function CreditCardStatementsTable({
 
   const cancelStatementMutation = useCancelCreditCardStatement()
 
+  const exportCreditCardStatementPdfMutation = useExportCreditCardStatementPdf()
+
   function handleCancelStatement() {
     if (!statementToCancel) {
       return
@@ -88,6 +92,31 @@ export function CreditCardStatementsTable({
       },
       onError: () => {
         toast.error("Não foi possível cancelar a fatura.")
+      },
+    })
+  }
+
+  function handleExportCreditCardStatementPdf(
+    statement: CreditCardStatement,
+  ) {
+    exportCreditCardStatementPdfMutation.mutate(statement.id, {
+      onSuccess: (blob) => {
+        downloadFile(
+          blob,
+          `relatorio-fatura-${statement.dueDate}.pdf`,
+        )
+
+        toast.success(
+          `Relatório da fatura "${statement.name}" exportado com sucesso.`,
+        )
+      },
+      onError: (error) => {
+        toast.error(
+          getApiErrorMessage(
+            error,
+            "Não foi possível exportar o relatório da fatura.",
+          ),
+        )
       },
     })
   }
@@ -210,10 +239,21 @@ export function CreditCardStatementsTable({
                           Ver itens da fatura
                         </DropdownMenuItem>
 
-                        <ExportCreditCardStatementReportButton
-                          statement={statement}
-                          presentation="menu-item"
-                        />
+                        <DropdownMenuItem
+                          disabled={
+                            statement.status === "CANCELED" ||
+                            exportCreditCardStatementPdfMutation.isPending
+                          }
+                          onSelect={() =>
+                            handleExportCreditCardStatementPdf(statement)
+                          }
+                        >
+                          <FileDown className="mr-2 size-4" />
+
+                          {exportCreditCardStatementPdfMutation.isPending
+                            ? "Gerando relatório..."
+                            : "Exportar relatório PDF"}
+                        </DropdownMenuItem>
 
                         {canFinanceWrite && (
                           <>
