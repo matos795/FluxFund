@@ -1,5 +1,5 @@
 import { AlertTriangle, CheckCircle2, ListChecks, RefreshCw } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useMemo, useState, type ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -24,6 +24,9 @@ import { AppDialogBody, AppDialogContent, AppDialogHeader } from "@/components/l
 
 type ViewCreditCardStatementItemsDialogProps = {
   statement: CreditCardStatement
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  trigger?: ReactNode | null
 }
 
 function getStatusLabel(status: string) {
@@ -67,10 +70,37 @@ function SummaryCard({
 
 export function ViewCreditCardStatementItemsDialog({
   statement,
+  open,
+  onOpenChange,
+  trigger,
 }: ViewCreditCardStatementItemsDialogProps) {
-  const [open, setOpen] = useState(false)
 
-  const itemsQuery = useCreditCardStatementItems(statement.id, open)
+  const [internalOpen, setInternalOpen] = useState(false)
+
+  const resolvedOpen = open ?? internalOpen
+
+  const resolvedTrigger =
+    trigger === undefined ? (
+      <Button size="sm" variant="outline">
+        <ListChecks className="mr-2 size-4" />
+        Itens
+      </Button>
+    ) : (
+      trigger
+    )
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (open === undefined) {
+      setInternalOpen(nextOpen)
+    }
+
+    onOpenChange?.(nextOpen)
+  }
+
+  const itemsQuery = useCreditCardStatementItems(
+    statement.id,
+    resolvedOpen,
+  )
 
   const items = useMemo(() => itemsQuery.data ?? [], [itemsQuery.data])
 
@@ -89,13 +119,10 @@ export function ViewCreditCardStatementItemsDialog({
     : "Todos os itens estão classificados e alocados."
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          <ListChecks className="mr-2 size-4" />
-          Itens
-        </Button>
-      </DialogTrigger>
+    <Dialog open={resolvedOpen} onOpenChange={handleOpenChange}>
+      {resolvedTrigger ? (
+        <DialogTrigger asChild>{resolvedTrigger}</DialogTrigger>
+      ) : null}
 
       <AppDialogContent size="full">
         <AppDialogHeader

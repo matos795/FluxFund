@@ -9,6 +9,7 @@ import {
   useState,
   type ChangeEvent,
   type FormEvent,
+  type ReactNode,
 } from "react"
 import { toast } from "sonner"
 
@@ -39,15 +40,34 @@ import {
 type CreditCardStatementDocumentDialogProps = {
   statement: CreditCardStatement
   canManageDocuments: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  trigger?: ReactNode | null
 }
 
 export function CreditCardStatementDocumentDialog({
   statement,
   canManageDocuments,
+  open,
+  onOpenChange,
+  trigger,
 }: CreditCardStatementDocumentDialogProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+
+  const resolvedOpen = open ?? internalOpen
+
+  const resolvedTrigger =
+    trigger === undefined ? (
+      <Button size="sm" variant="outline">
+        <FileText className="mr-2 size-4" />
+        Documento
+      </Button>
+    ) : (
+      trigger
+    )
+
   const [file, setFile] = useState<File | null>(null)
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] =
     useState(false)
@@ -66,7 +86,11 @@ export function CreditCardStatementDocumentDialog({
   }
 
   function handleOpenChange(nextOpen: boolean) {
-    setOpen(nextOpen)
+    if (open === undefined) {
+      setInternalOpen(nextOpen)
+    }
+
+    onOpenChange?.(nextOpen)
 
     if (!nextOpen) {
       resetFile()
@@ -168,13 +192,10 @@ export function CreditCardStatementDocumentDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogTrigger asChild>
-          <Button size="sm" variant="outline">
-            <FileText className="mr-2 size-4" />
-            PDF
-          </Button>
-        </DialogTrigger>
+      <Dialog open={resolvedOpen} onOpenChange={handleOpenChange}>
+        {resolvedTrigger ? (
+          <DialogTrigger asChild>{resolvedTrigger}</DialogTrigger>
+        ) : null}
 
         <AppDialogContent size="md">
           <AppDialogHeader

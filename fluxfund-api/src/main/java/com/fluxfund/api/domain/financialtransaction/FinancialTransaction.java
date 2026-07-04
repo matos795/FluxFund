@@ -66,6 +66,9 @@ public class FinancialTransaction extends BaseEntity {
     @Column(nullable = false)
     private FinancialTransactionType type;
 
+    @Column(name = "purchase_date")
+    private LocalDate purchaseDate;
+
     @Column(name = "due_date")
     private LocalDate dueDate;
 

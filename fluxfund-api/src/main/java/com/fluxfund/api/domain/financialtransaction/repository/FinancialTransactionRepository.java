@@ -465,7 +465,10 @@ public interface FinancialTransactionRepository
             where ft.organization.id = :organizationId
               and ft.creditCardStatement.id = :statementId
               and ft.status <> com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.CANCELED
-            order by ft.dueDate asc, ft.createdAt asc
+            order by
+              coalesce(ft.purchaseDate, ft.dueDate) asc,
+              ft.createdAt asc,
+              ft.id asc
             """)
     List<FinancialTransaction> findCreditCardStatementItems(
             @Param("organizationId") UUID organizationId,

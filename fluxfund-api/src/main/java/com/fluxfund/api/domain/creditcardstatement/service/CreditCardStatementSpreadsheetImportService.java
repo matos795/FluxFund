@@ -93,8 +93,7 @@ public class CreditCardStatementSpreadsheetImportService {
                         statement,
                         row);
 
-                FinancialTransaction savedTransaction =
-                        financialTransactionRepository.save(transaction);
+                FinancialTransaction savedTransaction = financialTransactionRepository.save(transaction);
 
                 importedItems.add(FinancialTransactionMapper.toResponse(savedTransaction));
                 imported++;
@@ -135,6 +134,7 @@ public class CreditCardStatementSpreadsheetImportService {
         transaction.setSource(FinancialTransactionSource.CREDIT_CARD);
         transaction.setStatus(FinancialTransactionStatus.PENDING);
 
+        transaction.setPurchaseDate(row.date());
         transaction.setDueDate(statement.getDueDate());
         transaction.setSettlementDate(null);
 

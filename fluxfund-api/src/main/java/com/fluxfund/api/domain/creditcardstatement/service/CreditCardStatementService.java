@@ -187,6 +187,7 @@ public class CreditCardStatementService {
                 .source(FinancialTransactionSource.CREDIT_CARD)
                 .status(FinancialTransactionStatus.PENDING)
                 .category(category)
+                .purchaseDate(request.purchaseDate())
                 .dueDate(statement.getDueDate())
                 .settlementDate(null)
                 .expectedAmount(request.amount())

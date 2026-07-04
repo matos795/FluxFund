@@ -2,7 +2,9 @@ package com.fluxfund.api.domain.creditcardstatement.service;
 
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -78,8 +80,7 @@ public class CreditCardStatementOfxImportService {
         List<String> errors = new ArrayList<>();
 
         try (InputStream inputStream = file.getInputStream()) {
-            AggregateUnmarshaller<ResponseEnvelope> unmarshaller =
-                    new AggregateUnmarshaller<>(ResponseEnvelope.class);
+            AggregateUnmarshaller<ResponseEnvelope> unmarshaller = new AggregateUnmarshaller<>(ResponseEnvelope.class);
 
             ResponseEnvelope envelope = unmarshaller.unmarshal(inputStream);
 
@@ -106,16 +107,14 @@ public class CreditCardStatementOfxImportService {
                         continue;
                     }
 
-                    FinancialTransaction financialTransaction =
-                            createCreditCardItemFromOfx(
-                                    organization,
-                                    creditCardAccount,
-                                    creditCardStatement,
-                                    ofxTransaction,
-                                    externalId);
+                    FinancialTransaction financialTransaction = createCreditCardItemFromOfx(
+                            organization,
+                            creditCardAccount,
+                            creditCardStatement,
+                            ofxTransaction,
+                            externalId);
 
-                    FinancialTransaction savedTransaction =
-                            financialTransactionRepository.save(financialTransaction);
+                    FinancialTransaction savedTransaction = financialTransactionRepository.save(financialTransaction);
 
                     importedItems.add(FinancialTransactionMapper.toResponse(savedTransaction));
                     imported++;
@@ -156,8 +155,8 @@ public class CreditCardStatementOfxImportService {
     }
 
     private List<Transaction> extractCreditCardTransactions(ResponseEnvelope envelope) {
-        CreditCardResponseMessageSet creditCardResponse =
-                (CreditCardResponseMessageSet) envelope.getMessageSet(MessageSetType.creditcard);
+        CreditCardResponseMessageSet creditCardResponse = (CreditCardResponseMessageSet) envelope
+                .getMessageSet(MessageSetType.creditcard);
 
         if (creditCardResponse == null
                 || creditCardResponse.getStatementResponses() == null
@@ -165,8 +164,7 @@ public class CreditCardStatementOfxImportService {
             return List.of();
         }
 
-        CreditCardStatementResponseTransaction statementTransaction =
-                creditCardResponse.getStatementResponses().get(0);
+        CreditCardStatementResponseTransaction statementTransaction = creditCardResponse.getStatementResponses().get(0);
 
         CreditCardStatementResponse statement = statementTransaction.getMessage();
 
@@ -174,8 +172,8 @@ public class CreditCardStatementOfxImportService {
     }
 
     private List<Transaction> extractBankingTransactions(ResponseEnvelope envelope) {
-        BankingResponseMessageSet bankResponse =
-                (BankingResponseMessageSet) envelope.getMessageSet(MessageSetType.banking);
+        BankingResponseMessageSet bankResponse = (BankingResponseMessageSet) envelope
+                .getMessageSet(MessageSetType.banking);
 
         if (bankResponse == null
                 || bankResponse.getStatementResponses() == null
@@ -183,8 +181,7 @@ public class CreditCardStatementOfxImportService {
             return List.of();
         }
 
-        BankStatementResponseTransaction statementTransaction =
-                bankResponse.getStatementResponses().get(0);
+        BankStatementResponseTransaction statementTransaction = bankResponse.getStatementResponses().get(0);
 
         BankStatementResponse statement = statementTransaction.getMessage();
 
@@ -234,6 +231,16 @@ public class CreditCardStatementOfxImportService {
 
         BigDecimal absoluteAmount = amount.abs();
 
+        if (ofxTransaction.getDatePosted() == null) {
+            throw new BusinessException(
+                    "Transaction purchase date must be provided");
+        }
+
+        LocalDate purchaseDate = ofxTransaction.getDatePosted()
+                .toInstant()
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate();
+
         String rawDescription = buildDescription(ofxTransaction);
 
         FinancialTransaction financialTransaction = new FinancialTransaction();
@@ -247,6 +254,8 @@ public class CreditCardStatementOfxImportService {
         financialTransaction.setSource(FinancialTransactionSource.CREDIT_CARD);
 
         financialTransaction.setStatus(FinancialTransactionStatus.PENDING);
+
+        financialTransaction.setPurchaseDate(purchaseDate);
         financialTransaction.setDueDate(creditCardStatement.getDueDate());
         financialTransaction.setSettlementDate(null);
 

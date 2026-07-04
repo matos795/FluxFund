@@ -1,4 +1,4 @@
-import { CreditCard, FileUp, MoreHorizontal, Plus, Trash2 } from "lucide-react"
+import { CreditCard, FileText, FileUp, ListChecks, MoreHorizontal, Plus, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -9,6 +9,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -30,6 +31,7 @@ import { ViewCreditCardStatementItemsDialog } from "./view-credit-card-statement
 import { ImportCreditCardStatementDialog } from "./import-credit-card-statement-dialog"
 import { ConfirmActionDialog } from "@/components/layout/confirm-action-dialog"
 import { CreditCardStatementDocumentDialog } from "./credit-card-statement-document-dialog"
+import { ExportCreditCardStatementReportButton } from "@/features/credit-card-statements/components/export-credit-card-statement-report-button"
 
 type CreditCardStatementsTableProps = {
   statements: CreditCardStatement[]
@@ -64,6 +66,12 @@ export function CreditCardStatementsTable({
     useState<CreditCardStatement | null>(null)
 
   const [statementToPay, setStatementToPay] =
+    useState<CreditCardStatement | null>(null)
+
+  const [statementToManageDocument, setStatementToManageDocument] =
+    useState<CreditCardStatement | null>(null)
+
+  const [statementToViewItems, setStatementToViewItems] =
     useState<CreditCardStatement | null>(null)
 
   const cancelStatementMutation = useCancelCreditCardStatement()
@@ -128,7 +136,7 @@ export function CreditCardStatementsTable({
                 <TableHead>Vencimento</TableHead>
                 <TableHead>Pagamento</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-[220px] text-right">Ações</TableHead>
+                <TableHead className="w-[72px] text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -171,30 +179,49 @@ export function CreditCardStatementsTable({
                     </Badge>
                   </TableCell>
 
-                  <TableCell>
-                    <div className="flex justify-end gap-2">
-                      <CreditCardStatementDocumentDialog
-                        statement={statement}
-                        canManageDocuments={
-                          canFinanceWrite && statement.status !== "CANCELED"
-                        }
-                      />
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="size-4" />
+                          <span className="sr-only">
+                            Abrir ações da fatura
+                          </span>
+                        </Button>
+                      </DropdownMenuTrigger>
 
-                      <ViewCreditCardStatementItemsDialog statement={statement} />
+                      <DropdownMenuContent align="end" className="w-64">
+                        <DropdownMenuItem
+                          onSelect={() => setStatementToManageDocument(statement)}
+                        >
+                          <FileText className="mr-2 size-4" />
 
-                      {canFinanceWrite && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="size-4" />
-                              <span className="sr-only">Abrir ações</span>
-                            </Button>
-                          </DropdownMenuTrigger>
+                          {statement.statementDocument
+                            ? "Gerenciar extrato da fatura"
+                            : canFinanceWrite && statement.status !== "CANCELED"
+                              ? "Anexar extrato da fatura"
+                              : "Ver extrato da fatura"}
+                        </DropdownMenuItem>
 
-                          <DropdownMenuContent align="end" className="w-52">
+                        <DropdownMenuItem
+                          onSelect={() => setStatementToViewItems(statement)}
+                        >
+                          <ListChecks className="mr-2 size-4" />
+                          Ver itens da fatura
+                        </DropdownMenuItem>
+
+                        <ExportCreditCardStatementReportButton
+                          statement={statement}
+                          presentation="menu-item"
+                        />
+
+                        {canFinanceWrite && (
+                          <>
+                            <DropdownMenuSeparator />
+
                             <DropdownMenuItem
                               disabled={!canImportStatement(statement)}
-                              onClick={() => setStatementToImport(statement)}
+                              onSelect={() => setStatementToImport(statement)}
                             >
                               <FileUp className="mr-2 size-4" />
                               Importar fatura
@@ -202,7 +229,7 @@ export function CreditCardStatementsTable({
 
                             <DropdownMenuItem
                               disabled={!canAddItemToStatement(statement)}
-                              onClick={() => setStatementToAddItem(statement)}
+                              onSelect={() => setStatementToAddItem(statement)}
                             >
                               <Plus className="mr-2 size-4" />
                               Adicionar item
@@ -210,7 +237,7 @@ export function CreditCardStatementsTable({
 
                             <DropdownMenuItem
                               disabled={!canPayStatement(statement)}
-                              onClick={() => setStatementToPay(statement)}
+                              onSelect={() => setStatementToPay(statement)}
                             >
                               <CreditCard className="mr-2 size-4" />
                               Pagar fatura
@@ -219,15 +246,15 @@ export function CreditCardStatementsTable({
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
                               disabled={!canCancelStatement(statement)}
-                              onClick={() => setStatementToCancel(statement)}
+                              onSelect={() => setStatementToCancel(statement)}
                             >
                               <Trash2 className="mr-2 size-4" />
                               Cancelar fatura
                             </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                    </div>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}
@@ -235,6 +262,36 @@ export function CreditCardStatementsTable({
           </Table>
         </CardContent>
       </Card>
+
+      {statementToManageDocument && (
+        <CreditCardStatementDocumentDialog
+          statement={statementToManageDocument}
+          canManageDocuments={
+            canFinanceWrite &&
+            statementToManageDocument.status !== "CANCELED"
+          }
+          open={Boolean(statementToManageDocument)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setStatementToManageDocument(null)
+            }
+          }}
+          trigger={null}
+        />
+      )}
+
+      {statementToViewItems && (
+        <ViewCreditCardStatementItemsDialog
+          statement={statementToViewItems}
+          open={Boolean(statementToViewItems)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setStatementToViewItems(null)
+            }
+          }}
+          trigger={null}
+        />
+      )}
 
       {statementToImport && (
         <ImportCreditCardStatementDialog

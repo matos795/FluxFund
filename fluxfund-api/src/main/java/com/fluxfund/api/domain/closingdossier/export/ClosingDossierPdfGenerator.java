@@ -38,6 +38,7 @@ import com.fluxfund.api.domain.attachment.AttachmentType;
 import com.fluxfund.api.domain.closingdossier.ClosingDossierExtraDocumentType;
 import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierPreviewRequest;
 import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierPreviewResponse;
+import com.fluxfund.api.domain.creditcardstatement.CreditCardStatementStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.TransferDirection;
@@ -47,6 +48,9 @@ import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportRes
 import com.fluxfund.api.domain.report.dto.accountmovement.AccountMovementReportItemResponse;
 import com.fluxfund.api.domain.report.dto.accountmovement.AccountMovementReportResponse;
 import com.fluxfund.api.domain.report.dto.category.CategoryResultItemResponse;
+import com.fluxfund.api.domain.report.dto.creditcardstatement.CreditCardStatementCategorySummaryResponse;
+import com.fluxfund.api.domain.report.dto.creditcardstatement.CreditCardStatementReportItemResponse;
+import com.fluxfund.api.domain.report.dto.creditcardstatement.CreditCardStatementReportResponse;
 import com.fluxfund.api.domain.report.dto.expense.SettledExpenseReportItemResponse;
 import com.fluxfund.api.domain.report.dto.expense.SettledExpenseReportResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundMovementReportItemResponse;
@@ -368,6 +372,34 @@ public class ClosingDossierPdfGenerator {
                 } catch (IOException exception) {
                         throw new BusinessException(
                                         "Could not generate account movement report PDF");
+                }
+        }
+
+        public byte[] generateCreditCardStatementReport(
+                        Organization organization,
+                        CreditCardStatementReportResponse creditCardStatementReport) {
+
+                try (
+                                PDDocument document = new PDDocument();
+                                ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+
+                        PdfWriter writer = new PdfWriter(
+                                        document,
+                                        buildFooterIdentity(organization));
+
+                        writeCreditCardStatementReportSection(
+                                        writer,
+                                        creditCardStatementReport);
+
+                        writer.close();
+
+                        document.save(outputStream);
+
+                        return outputStream.toByteArray();
+
+                } catch (IOException exception) {
+                        throw new BusinessException(
+                                        "Could not generate credit card statement report PDF");
                 }
         }
 
@@ -973,6 +1005,160 @@ public class ClosingDossierPdfGenerator {
                 writer.closeCurrentPage();
 
                 return coverPage;
+        }
+
+        private void writeCreditCardStatementReportSection(
+                        PdfWriter writer,
+                        CreditCardStatementReportResponse report)
+                        throws IOException {
+
+                List<String> coverDetails = new ArrayList<>();
+
+                coverDetails.add(
+                                "Cartão: " + report.creditCardAccountName());
+
+                if (hasText(report.bankName())) {
+                        coverDetails.add(
+                                        "Instituição: " + report.bankName());
+                }
+
+                if (hasText(report.statementName())) {
+                        coverDetails.add(
+                                        "Fatura: " + report.statementName());
+                }
+
+                coverDetails.add(
+                                "Fechamento: "
+                                                + formatOptionalDate(report.closingDate()));
+
+                coverDetails.add(
+                                "Vencimento: "
+                                                + formatOptionalDate(report.dueDate()));
+
+                coverDetails.add(
+                                "Situação: "
+                                                + formatCreditCardStatementStatus(report.status()));
+
+                if (report.paymentDate() != null) {
+                        coverDetails.add(
+                                        "Pagamento: "
+                                                        + formatOptionalDate(report.paymentDate()));
+                }
+
+                if (hasText(report.paymentAccountName())) {
+                        coverDetails.add(
+                                        "Conta pagadora: "
+                                                        + report.paymentAccountName());
+                }
+
+                coverDetails.add(
+                                "Itens da fatura: " + report.itemCount());
+
+                writer.startCoverPage(
+                                "RELATÓRIO FINANCEIRO",
+                                "Fatura de Cartão de Crédito",
+                                coverDetails);
+
+                writer.closeCurrentPage();
+
+                writer.startPage();
+
+                writer.writeSectionTitle("Resumo da fatura");
+
+                writer.writeParagraph(
+                                "Demonstrativo financeiro da fatura selecionada, "
+                                                + "com valores, situação de pagamento, categorias "
+                                                + "e detalhamento das compras. Este relatório não "
+                                                + "inclui anexos, comprovantes ou documentos fiscais.");
+
+                writer.writeMetric(
+                                "Status",
+                                formatCreditCardStatementStatus(report.status()));
+
+                writer.writeMetric(
+                                "Total da fatura",
+                                formatCurrency(report.totalAmount()));
+
+                writer.writeMetric(
+                                "Valor pago",
+                                formatCurrency(report.paidAmount()));
+
+                writer.writeMetric(
+                                "Valor pendente",
+                                formatCurrency(report.outstandingAmount()));
+
+                writer.writeMetric(
+                                "Itens lançados",
+                                String.valueOf(report.itemCount()));
+
+                writer.writeMetric(
+                                "Itens sem categoria",
+                                String.valueOf(report.unclassifiedItemCount()));
+
+                writer.writeHighlightedMetric(
+                                "Total a conferir",
+                                formatCurrency(report.totalAmount()));
+
+                writer.closeCurrentPage();
+
+                writer.startPage();
+
+                writer.writeSectionTitle("Gastos por categoria");
+
+                writer.writeParagraph(
+                                "Consolidação dos valores da fatura por categoria financeira. "
+                                                + "Itens ainda não classificados aparecem em "
+                                                + "\"Sem categoria\".");
+
+                if (report.categoryItems().isEmpty()) {
+                        writer.writeParagraph(
+                                        "Nenhuma compra foi encontrada nesta fatura.");
+                } else {
+                        writer.writeCreditCardStatementCategoryTable(
+                                        report.categoryItems());
+                }
+
+                writer.closeCurrentPage();
+
+                writer.startPage();
+
+                writer.writeSectionTitle("Compras da fatura");
+
+                writer.writeParagraph(
+                                "Relação cronológica das compras, com data, descrição, "
+                                                + "categoria, parcela e valor.");
+
+                if (report.items().isEmpty()) {
+                        writer.writeParagraph(
+                                        "Nenhuma compra foi encontrada nesta fatura.");
+                } else {
+                        writer.writeCreditCardStatementItemsTable(
+                                        report.items());
+                }
+
+                writer.closeCurrentPage();
+        }
+
+        private String formatOptionalDate(LocalDate date) {
+                return date != null
+                                ? formatDate(date)
+                                : "Não informado";
+        }
+
+        private String formatCreditCardStatementStatus(
+                        CreditCardStatementStatus status) {
+
+                if (status == null) {
+                        return "Não informado";
+                }
+
+                return switch (status.name()) {
+                        case "OPEN" -> "Aberta";
+                        case "CLOSED" -> "Fechada";
+                        case "PAID" -> "Paga";
+                        case "CANCELED" -> "Cancelada";
+                        default -> status.name();
+                };
         }
 
         private void writeAccountMovementReportSection(
@@ -3246,6 +3432,373 @@ public class ClosingDossierPdfGenerator {
                                         variationColor);
 
                         cursorY -= 40;
+                }
+
+                void writeCreditCardStatementCategoryTable(
+                                List<CreditCardStatementCategorySummaryResponse> items)
+                                throws IOException {
+
+                        writeCreditCardStatementCategoryTableHeader();
+
+                        for (CreditCardStatementCategorySummaryResponse item : items) {
+                                if (cursorY - 40 < BOTTOM_MARGIN) {
+                                        startPage();
+
+                                        writeSectionTitle("Gastos por categoria (continuação)");
+
+                                        writeCreditCardStatementCategoryTableHeader();
+                                }
+
+                                writeCreditCardStatementCategoryTableRow(item);
+                        }
+                }
+
+                private void writeCreditCardStatementCategoryTableHeader()
+                                throws IOException {
+
+                        ensureSpace(34);
+
+                        float headerHeight = 24f;
+
+                        float categoryWidth = 290f;
+                        float itemCountWidth = 90f;
+
+                        float categoryX = LEFT_MARGIN;
+                        float itemCountX = categoryX + categoryWidth;
+                        float totalX = itemCountX + itemCountWidth;
+                        float totalWidth = PAGE_WIDTH - RIGHT_MARGIN - totalX;
+
+                        contentStream.setNonStrokingColor(PRIMARY_COLOR);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - headerHeight + 6,
+                                        CONTENT_WIDTH,
+                                        headerHeight);
+                        contentStream.fill();
+
+                        float textY = cursorY - 10;
+
+                        writeText(
+                                        "Categoria",
+                                        categoryX + 8,
+                                        textY,
+                                        boldFont,
+                                        8.5f,
+                                        Color.WHITE);
+
+                        writeRightAlignedText(
+                                        "Itens",
+                                        itemCountX + itemCountWidth - 8,
+                                        textY,
+                                        8.5f,
+                                        itemCountWidth - 16,
+                                        Color.WHITE);
+
+                        writeRightAlignedText(
+                                        "Total",
+                                        totalX + totalWidth - 8,
+                                        textY,
+                                        8.5f,
+                                        totalWidth - 16,
+                                        Color.WHITE);
+
+                        cursorY -= 30;
+                }
+
+                private void writeCreditCardStatementCategoryTableRow(
+                                CreditCardStatementCategorySummaryResponse item)
+                                throws IOException {
+
+                        float rowHeight = 34f;
+
+                        float categoryWidth = 290f;
+                        float itemCountWidth = 90f;
+
+                        float categoryX = LEFT_MARGIN;
+                        float itemCountX = categoryX + categoryWidth;
+                        float totalX = itemCountX + itemCountWidth;
+                        float totalWidth = PAGE_WIDTH - RIGHT_MARGIN - totalX;
+
+                        boolean isUnclassified = "Sem categoria"
+                                        .equalsIgnoreCase(item.categoryName());
+
+                        Color backgroundColor = isUnclassified
+                                        ? new Color(255, 251, 235)
+                                        : Color.WHITE;
+
+                        Color categoryColor = isUnclassified
+                                        ? new Color(180, 83, 9)
+                                        : Color.DARK_GRAY;
+
+                        contentStream.setNonStrokingColor(backgroundColor);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - rowHeight + 6,
+                                        CONTENT_WIDTH,
+                                        rowHeight);
+                        contentStream.fill();
+
+                        contentStream.setStrokingColor(new Color(225, 225, 225));
+                        contentStream.setLineWidth(0.5f);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - rowHeight + 6,
+                                        CONTENT_WIDTH,
+                                        rowHeight);
+                        contentStream.stroke();
+
+                        float textY = cursorY - 14;
+
+                        writeText(
+                                        fitText(
+                                                        item.categoryName(),
+                                                        regularFont,
+                                                        8.5f,
+                                                        categoryWidth - 16),
+                                        categoryX + 8,
+                                        textY,
+                                        regularFont,
+                                        8.5f,
+                                        categoryColor);
+
+                        writeRightAlignedText(
+                                        String.valueOf(item.itemCount()),
+                                        itemCountX + itemCountWidth - 8,
+                                        textY,
+                                        8.5f,
+                                        itemCountWidth - 16,
+                                        Color.DARK_GRAY);
+
+                        writeRightAlignedText(
+                                        formatCurrency(item.totalAmount()),
+                                        totalX + totalWidth - 8,
+                                        textY,
+                                        8.5f,
+                                        totalWidth - 16,
+                                        isUnclassified
+                                                        ? new Color(180, 83, 9)
+                                                        : new Color(30, 64, 175));
+
+                        cursorY -= rowHeight + 6;
+                }
+
+                void writeCreditCardStatementItemsTable(
+                                List<CreditCardStatementReportItemResponse> items)
+                                throws IOException {
+
+                        writeCreditCardStatementItemsTableHeader();
+
+                        for (CreditCardStatementReportItemResponse item : items) {
+                                float rowHeight = getCreditCardStatementItemRowHeight(item);
+
+                                if (cursorY - rowHeight < BOTTOM_MARGIN) {
+                                        startPage();
+
+                                        writeSectionTitle("Compras da fatura (continuação)");
+
+                                        writeCreditCardStatementItemsTableHeader();
+                                }
+
+                                writeCreditCardStatementItemsTableRow(item, rowHeight);
+                        }
+                }
+
+                private void writeCreditCardStatementItemsTableHeader()
+                                throws IOException {
+
+                        ensureSpace(34);
+
+                        float headerHeight = 24f;
+
+                        float dateWidth = 48f;
+                        float descriptionWidth = 155f;
+                        float categoryWidth = 110f;
+                        float installmentWidth = 53f;
+
+                        float dateX = LEFT_MARGIN;
+                        float descriptionX = dateX + dateWidth;
+                        float categoryX = descriptionX + descriptionWidth;
+                        float installmentX = categoryX + categoryWidth;
+                        float amountX = installmentX + installmentWidth;
+                        float amountWidth = PAGE_WIDTH - RIGHT_MARGIN - amountX;
+
+                        contentStream.setNonStrokingColor(PRIMARY_COLOR);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - headerHeight + 6,
+                                        CONTENT_WIDTH,
+                                        headerHeight);
+                        contentStream.fill();
+
+                        float textY = cursorY - 10;
+
+                        writeText(
+                                        "Data",
+                                        dateX + 7,
+                                        textY,
+                                        boldFont,
+                                        7.5f,
+                                        Color.WHITE);
+
+                        writeText(
+                                        "Descrição",
+                                        descriptionX + 7,
+                                        textY,
+                                        boldFont,
+                                        7.5f,
+                                        Color.WHITE);
+
+                        writeText(
+                                        "Categoria",
+                                        categoryX + 7,
+                                        textY,
+                                        boldFont,
+                                        7.5f,
+                                        Color.WHITE);
+
+                        writeRightAlignedText(
+                                        "Parcela",
+                                        installmentX + installmentWidth - 7,
+                                        textY,
+                                        7.5f,
+                                        installmentWidth - 14,
+                                        Color.WHITE);
+
+                        writeRightAlignedText(
+                                        "Valor",
+                                        amountX + amountWidth - 7,
+                                        textY,
+                                        7.5f,
+                                        amountWidth - 14,
+                                        Color.WHITE);
+
+                        cursorY -= 30;
+                }
+
+                private float getCreditCardStatementItemRowHeight(
+                                CreditCardStatementReportItemResponse item)
+                                throws IOException {
+
+                        List<String> descriptionLines = wrapText(
+                                        item.description(),
+                                        regularFont,
+                                        7.5f,
+                                        141f);
+
+                        return 34f + ((descriptionLines.size() - 1) * 10f);
+                }
+
+                private void writeCreditCardStatementItemsTableRow(
+                                CreditCardStatementReportItemResponse item,
+                                float rowHeight)
+                                throws IOException {
+
+                        float dateWidth = 48f;
+                        float descriptionWidth = 155f;
+                        float categoryWidth = 110f;
+                        float installmentWidth = 53f;
+
+                        float dateX = LEFT_MARGIN;
+                        float descriptionX = dateX + dateWidth;
+                        float categoryX = descriptionX + descriptionWidth;
+                        float installmentX = categoryX + categoryWidth;
+                        float amountX = installmentX + installmentWidth;
+                        float amountWidth = PAGE_WIDTH - RIGHT_MARGIN - amountX;
+
+                        Color backgroundColor = item.classified()
+                                        ? Color.WHITE
+                                        : new Color(255, 251, 235);
+
+                        Color categoryColor = item.classified()
+                                        ? Color.DARK_GRAY
+                                        : new Color(180, 83, 9);
+
+                        List<String> descriptionLines = wrapText(
+                                        item.description(),
+                                        regularFont,
+                                        7.5f,
+                                        descriptionWidth - 14);
+
+                        contentStream.setNonStrokingColor(backgroundColor);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - rowHeight + 6,
+                                        CONTENT_WIDTH,
+                                        rowHeight);
+                        contentStream.fill();
+
+                        contentStream.setStrokingColor(new Color(225, 225, 225));
+                        contentStream.setLineWidth(0.5f);
+                        contentStream.addRect(
+                                        LEFT_MARGIN,
+                                        cursorY - rowHeight + 6,
+                                        CONTENT_WIDTH,
+                                        rowHeight);
+                        contentStream.stroke();
+
+                        float firstLineY = cursorY - 14;
+
+                        writeText(
+                                        formatDate(item.purchaseDate()),
+                                        dateX + 7,
+                                        firstLineY,
+                                        regularFont,
+                                        7.5f,
+                                        Color.DARK_GRAY);
+
+                        for (int index = 0; index < descriptionLines.size(); index++) {
+                                writeText(
+                                                descriptionLines.get(index),
+                                                descriptionX + 7,
+                                                firstLineY - (index * 10),
+                                                regularFont,
+                                                7.5f,
+                                                Color.DARK_GRAY);
+                        }
+
+                        writeText(
+                                        fitText(
+                                                        item.categoryName(),
+                                                        regularFont,
+                                                        7.5f,
+                                                        categoryWidth - 14),
+                                        categoryX + 7,
+                                        firstLineY,
+                                        regularFont,
+                                        7.5f,
+                                        categoryColor);
+
+                        writeRightAlignedText(
+                                        resolveCreditCardInstallmentLabel(item),
+                                        installmentX + installmentWidth - 7,
+                                        firstLineY,
+                                        7.5f,
+                                        installmentWidth - 14,
+                                        Color.DARK_GRAY);
+
+                        writeRightAlignedText(
+                                        formatCurrency(item.amount()),
+                                        amountX + amountWidth - 7,
+                                        firstLineY,
+                                        7.5f,
+                                        amountWidth - 14,
+                                        new Color(185, 28, 28));
+
+                        cursorY -= rowHeight + 6;
+                }
+
+                private String resolveCreditCardInstallmentLabel(
+                                CreditCardStatementReportItemResponse item) {
+
+                        if (item.installmentNumber() == null
+                                        || item.installmentCount() == null
+                                        || item.installmentCount() <= 1) {
+                                return "-";
+                        }
+
+                        return item.installmentNumber()
+                                        + "/"
+                                        + item.installmentCount();
                 }
 
                 void writeSupportBeneficiarySummaryTable(

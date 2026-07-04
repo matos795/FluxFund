@@ -150,6 +150,17 @@ export const reportsApi = {
     return response.data
   },
 
+  async exportCreditCardStatementPdf(statementId: string) {
+    const response = await httpClient.get<Blob>(
+      `/api/v1/reports/credit-card-statements/${statementId}/export.pdf`,
+      {
+        responseType: "blob",
+      },
+    )
+
+    return response.data
+  },
+
   async getPendingItems({ limit = 10 }: { limit?: number } = {}) {
     const response = await httpClient.get<PendingItemsReport>(
       "/api/v1/reports/pending-items",

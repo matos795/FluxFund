@@ -10,6 +10,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -24,6 +25,7 @@ import com.fluxfund.api.domain.report.dto.pending.PendingItemsReportResponse;
 import com.fluxfund.api.domain.report.export.AccountMovementPdfExportService;
 import com.fluxfund.api.domain.report.export.AccountabilityExcelExportService;
 import com.fluxfund.api.domain.report.export.AccountabilityPdfExportService;
+import com.fluxfund.api.domain.report.export.CreditCardStatementPdfExportService;
 import com.fluxfund.api.domain.report.export.FundMovementPdfExportService;
 import com.fluxfund.api.domain.report.export.SettledFinancialReportPdfExportService;
 import com.fluxfund.api.domain.report.service.ReportService;
@@ -43,6 +45,7 @@ public class ReportController {
         private final SettledFinancialReportPdfExportService settledFinancialReportPdfExportService;
         private final FundMovementPdfExportService fundMovementPdfExportService;
         private final AccountMovementPdfExportService accountMovementPdfExportService;
+        private final CreditCardStatementPdfExportService creditCardStatementPdfExportService;
 
         @GetMapping("/category-result")
         public ResponseEntity<CategoryResultReportResponse> getCategoryResultReport(
@@ -287,6 +290,32 @@ public class ReportController {
                                 .formatted(
                                                 resolvedStartDate,
                                                 resolvedEndDate);
+
+                return ResponseEntity.ok()
+                                .contentType(MediaType.APPLICATION_PDF)
+                                .header(
+                                                HttpHeaders.CONTENT_DISPOSITION,
+                                                ContentDisposition.attachment()
+                                                                .filename(
+                                                                                filename,
+                                                                                StandardCharsets.UTF_8)
+                                                                .build()
+                                                                .toString())
+                                .body(file);
+        }
+
+        @GetMapping(value = "/credit-card-statements/{statementId}/export.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+        public ResponseEntity<byte[]> exportCreditCardStatementReportPdf(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID statementId) {
+
+                byte[] file = creditCardStatementPdfExportService
+                                .exportCreditCardStatementReport(
+                                                organizationId,
+                                                statementId);
+
+                String filename = "fatura-cartao-%s.pdf"
+                                .formatted(statementId);
 
                 return ResponseEntity.ok()
                                 .contentType(MediaType.APPLICATION_PDF)

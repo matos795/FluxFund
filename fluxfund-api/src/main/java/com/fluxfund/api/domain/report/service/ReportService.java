@@ -19,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fluxfund.api.domain.account.Account;
 import com.fluxfund.api.domain.account.AccountType;
 import com.fluxfund.api.domain.account.repository.AccountRepository;
+import com.fluxfund.api.domain.creditcardstatement.CreditCardStatement;
+import com.fluxfund.api.domain.creditcardstatement.CreditCardStatementStatus;
 import com.fluxfund.api.domain.creditcardstatement.repository.CreditCardStatementRepository;
 import com.fluxfund.api.domain.dashboard.dto.DashboardTransactionActionItemProjection;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
@@ -46,6 +48,9 @@ import com.fluxfund.api.domain.report.dto.accountmovement.AccountMovementReportI
 import com.fluxfund.api.domain.report.dto.accountmovement.AccountMovementReportResponse;
 import com.fluxfund.api.domain.report.dto.category.CategoryResultItemResponse;
 import com.fluxfund.api.domain.report.dto.category.CategoryResultReportResponse;
+import com.fluxfund.api.domain.report.dto.creditcardstatement.CreditCardStatementCategorySummaryResponse;
+import com.fluxfund.api.domain.report.dto.creditcardstatement.CreditCardStatementReportItemResponse;
+import com.fluxfund.api.domain.report.dto.creditcardstatement.CreditCardStatementReportResponse;
 import com.fluxfund.api.domain.report.dto.expense.SettledExpenseReportItemResponse;
 import com.fluxfund.api.domain.report.dto.expense.SettledExpenseReportResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundMovementAllocationProjection;
@@ -577,6 +582,128 @@ public class ReportService {
                                 netMovement,
                                 closingBalance,
                                 items.size(),
+                                items);
+        }
+
+        public CreditCardStatementReportResponse getCreditCardStatementReport(
+                        UUID organizationId,
+                        UUID statementId) {
+
+                organizationAccessService.requireReadAccess(organizationId);
+
+                validateOrganizationExists(organizationId);
+
+                CreditCardStatement statement = creditCardStatementRepository
+                                .findForReport(organizationId, statementId)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Credit card statement not found"));
+
+                if (statement.getStatus() == CreditCardStatementStatus.CANCELED) {
+                        throw new BusinessException(
+                                        "Canceled credit card statements cannot be exported");
+                }
+
+                List<FinancialTransaction> transactions = financialTransactionRepository
+                                .findCreditCardStatementItems(
+                                                organizationId,
+                                                statementId);
+
+                BigDecimal totalAmount = BigDecimal.ZERO;
+                long unclassifiedItemCount = 0;
+
+                List<CreditCardStatementReportItemResponse> items = new ArrayList<>();
+
+                Map<String, BigDecimal> categoryTotals = new LinkedHashMap<>();
+
+                Map<String, Long> categoryItemCounts = new LinkedHashMap<>();
+
+                for (FinancialTransaction transaction : transactions) {
+                        BigDecimal amount = resolveCreditCardStatementItemAmount(
+                                        transaction);
+
+                        String categoryName = resolveCreditCardStatementCategoryName(
+                                        transaction);
+
+                        boolean classified = transaction.getCategory() != null;
+
+                        if (!classified) {
+                                unclassifiedItemCount++;
+                        }
+
+                        totalAmount = totalAmount.add(amount);
+
+                        categoryTotals.merge(
+                                        categoryName,
+                                        amount,
+                                        BigDecimal::add);
+
+                        categoryItemCounts.merge(
+                                        categoryName,
+                                        1L,
+                                        Long::sum);
+
+                        items.add(new CreditCardStatementReportItemResponse(
+                                        transaction.getId(),
+                                        transaction.getPurchaseDate(),
+                                        resolveTransactionDescription(transaction),
+                                        categoryName,
+                                        transaction.getInstallmentNumber(),
+                                        transaction.getInstallmentCount(),
+                                        amount,
+                                        classified));
+                }
+
+                List<CreditCardStatementCategorySummaryResponse> categoryItems = categoryTotals.entrySet()
+                                .stream()
+                                .sorted((left, right) -> {
+                                        int amountComparison = right.getValue()
+                                                        .compareTo(left.getValue());
+
+                                        if (amountComparison != 0) {
+                                                return amountComparison;
+                                        }
+
+                                        return left.getKey()
+                                                        .compareToIgnoreCase(right.getKey());
+                                })
+                                .map(entry -> new CreditCardStatementCategorySummaryResponse(
+                                                entry.getKey(),
+                                                entry.getValue(),
+                                                categoryItemCounts.get(
+                                                                entry.getKey())))
+                                .toList();
+
+                BigDecimal paidAmount = statement.getStatus() == CreditCardStatementStatus.PAID
+                                ? totalAmount
+                                : BigDecimal.ZERO;
+
+                BigDecimal outstandingAmount = totalAmount.subtract(paidAmount);
+
+                return new CreditCardStatementReportResponse(
+                                statement.getId(),
+                                statement.getName(),
+
+                                statement.getCreditCardAccount().getName(),
+                                statement.getCreditCardAccount().getBankName(),
+
+                                statement.getPaymentAccount() != null
+                                                ? statement.getPaymentAccount().getName()
+                                                : null,
+
+                                statement.getClosingDate(),
+                                statement.getDueDate(),
+                                statement.getPaymentDate(),
+
+                                statement.getStatus(),
+
+                                totalAmount,
+                                paidAmount,
+                                outstandingAmount,
+
+                                items.size(),
+                                unclassifiedItemCount,
+
+                                categoryItems,
                                 items);
         }
 
@@ -1244,6 +1371,32 @@ public class ReportService {
                 }
 
                 return "Sem descrição";
+        }
+
+        private BigDecimal resolveCreditCardStatementItemAmount(
+                        FinancialTransaction transaction) {
+
+                BigDecimal amount = transaction.getExpectedAmount();
+
+                if (amount == null) {
+                        amount = transaction.getSettledAmount();
+                }
+
+                return amount != null
+                                ? amount.abs()
+                                : BigDecimal.ZERO;
+        }
+
+        private String resolveCreditCardStatementCategoryName(
+                        FinancialTransaction transaction) {
+
+                if (transaction.getCategory() == null
+                                || transaction.getCategory().getName() == null
+                                || transaction.getCategory().getName().isBlank()) {
+                        return "Sem categoria";
+                }
+
+                return transaction.getCategory().getName();
         }
 
         private void validateOrganizationExists(UUID organizationId) {
