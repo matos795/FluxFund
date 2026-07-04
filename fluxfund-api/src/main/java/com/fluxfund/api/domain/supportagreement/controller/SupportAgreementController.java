@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fluxfund.api.domain.supportagreement.SupportAgreementStatus;
 import com.fluxfund.api.domain.supportagreement.dto.CreateSupportAgreementRequest;
 import com.fluxfund.api.domain.supportagreement.dto.CreateSupportAgreementVersionRequest;
 import com.fluxfund.api.domain.supportagreement.dto.SupportAgreementResponse;
@@ -57,9 +58,9 @@ public class SupportAgreementController {
     @GetMapping("/api/v1/support-agreements")
     public Page<SupportAgreementResponse> findAll(
             @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) SupportAgreementStatus status,
             Pageable pageable) {
-        return service.findAll(organizationId, active, pageable);
+        return service.findAll(organizationId, status, pageable);
     }
 
     @GetMapping("/api/v1/support-agreements/suggestions")

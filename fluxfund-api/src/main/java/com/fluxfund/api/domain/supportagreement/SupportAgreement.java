@@ -51,4 +51,23 @@ public class SupportAgreement extends BaseEntity {
 
     @Column(length = 255)
     private String description;
+
+    public SupportAgreementStatus resolveStatusAt(
+            LocalDate referenceDate) {
+
+        if (!Boolean.TRUE.equals(active)) {
+            return SupportAgreementStatus.INACTIVE;
+        }
+
+        if (startDate.isAfter(referenceDate)) {
+            return SupportAgreementStatus.SCHEDULED;
+        }
+
+        if (endDate != null
+                && endDate.isBefore(referenceDate)) {
+            return SupportAgreementStatus.EXPIRED;
+        }
+
+        return SupportAgreementStatus.ACTIVE;
+    }
 }

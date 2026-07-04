@@ -65,11 +65,7 @@ export function SupportAgreementsTable({
             </TableCell>
 
             <TableCell>
-              {agreement.active ? (
-                <Badge>Ativo</Badge>
-              ) : (
-                <Badge variant="secondary">Inativo</Badge>
-              )}
+              <SupportAgreementStatusBadge status={agreement.status} />
             </TableCell>
 
             <TableCell>
@@ -80,6 +76,33 @@ export function SupportAgreementsTable({
       </TableBody>
     </Table>
   )
+}
+
+function SupportAgreementStatusBadge({
+  status,
+}: {
+  status: SupportAgreement["status"]
+}) {
+  switch (status) {
+    case "ACTIVE":
+      return <Badge>Vigente</Badge>
+
+    case "SCHEDULED":
+      return <Badge variant="outline">Agendado</Badge>
+
+    case "EXPIRED":
+      return <Badge variant="secondary">Encerrado</Badge>
+
+    case "INACTIVE":
+      return (
+        <Badge
+          variant="secondary"
+          className="text-muted-foreground"
+        >
+          Desativado
+        </Badge>
+      )
+  }
 }
 
 function formatCurrency(value: number) {

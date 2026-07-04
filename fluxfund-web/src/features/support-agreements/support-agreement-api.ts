@@ -4,13 +4,14 @@ import type {
   CreateSupportAgreementRequest,
   CreateSupportAgreementVersionRequest,
   SupportAgreement,
+  SupportAgreementStatus,
   UpdateSupportAgreementRequest,
 } from "./support-agreement-types"
 
 export type GetSupportAgreementsParams = {
   page?: number
   size?: number
-  active?: boolean
+  status?: SupportAgreementStatus
 }
 
 export type GetSupportAgreementSuggestionsParams = {
@@ -21,15 +22,15 @@ export type GetSupportAgreementSuggestionsParams = {
 export async function getSupportAgreements({
   page = 0,
   size = 10,
-  active,
+  status,
 }: GetSupportAgreementsParams) {
   const params: Record<string, string | number | boolean> = {
     page,
     size,
   }
 
-  if (active !== undefined) {
-    params.active = active
+  if (status) {
+    params.status = status
   }
 
   const response = await httpClient.get<PageResponse<SupportAgreement>>(

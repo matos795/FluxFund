@@ -19,6 +19,7 @@ import com.fluxfund.api.domain.fund.repository.FundRepository;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.repository.OrganizationRepository;
 import com.fluxfund.api.domain.supportagreement.SupportAgreement;
+import com.fluxfund.api.domain.supportagreement.SupportAgreementStatus;
 import com.fluxfund.api.domain.supportagreement.dto.CreateSupportAgreementRequest;
 import com.fluxfund.api.domain.supportagreement.dto.CreateSupportAgreementVersionRequest;
 import com.fluxfund.api.domain.supportagreement.dto.SupportAgreementResponse;
@@ -43,8 +44,6 @@ public class SupportAgreementService {
         private final OrganizationAccessService organizationAccessService;
         private final AuditLogService auditLogService;
 
-        private static final LocalDate OPEN_ENDED_AGREEMENT_DATE = LocalDate.of(9999, 12, 31);
-
         public SupportAgreementResponse create(
                         UUID organizationId,
                         CreateSupportAgreementRequest request) {
@@ -63,7 +62,7 @@ public class SupportAgreementService {
                                 .findByIdAndOrganizationIdAndActiveTrue(request.fundId(), organizationId)
                                 .orElseThrow(() -> new ResourceNotFoundException("Fund not found"));
 
-                validateNoOverlappingActiveAgreement(
+                validateNoActiveAgreementOverlap(
                                 organizationId,
                                 request.beneficiaryId(),
                                 request.fundId(),
@@ -96,20 +95,45 @@ public class SupportAgreementService {
         @Transactional(readOnly = true)
         public Page<SupportAgreementResponse> findAll(
                         UUID organizationId,
-                        Boolean active,
+                        SupportAgreementStatus status,
                         Pageable pageable) {
+
                 organizationAccessService.requireReadAccess(organizationId);
+
+                LocalDate referenceDate = LocalDate.now();
+
                 Page<SupportAgreement> agreements;
 
-                if (active == null) {
-                        agreements = repository.findAllByOrganizationId(organizationId, pageable);
-                } else if (active) {
-                        agreements = repository.findAllByOrganizationIdAndActiveTrue(organizationId, pageable);
+                if (status == null) {
+                        agreements = repository.findAllByOrganizationIdOrderByStartDateDesc(
+                                        organizationId,
+                                        pageable);
                 } else {
-                        agreements = repository.findAllByOrganizationIdAndActiveFalse(organizationId, pageable);
+                        agreements = switch (status) {
+                                case ACTIVE -> repository.findCurrentActive(
+                                                organizationId,
+                                                referenceDate,
+                                                pageable);
+
+                                case SCHEDULED -> repository.findScheduled(
+                                                organizationId,
+                                                referenceDate,
+                                                pageable);
+
+                                case EXPIRED -> repository.findExpired(
+                                                organizationId,
+                                                referenceDate,
+                                                pageable);
+
+                                case INACTIVE -> repository.findInactive(
+                                                organizationId,
+                                                pageable);
+                        };
                 }
 
-                return agreements.map(SupportAgreementMapper::toResponse);
+                return agreements.map(agreement -> SupportAgreementMapper.toResponse(
+                                agreement,
+                                referenceDate));
         }
 
         @Transactional(readOnly = true)
@@ -139,15 +163,15 @@ public class SupportAgreementService {
                                 .findByIdAndOrganizationIdAndActiveTrue(request.fundId(), organizationId)
                                 .orElseThrow(() -> new ResourceNotFoundException("Fund not found"));
 
-                boolean willBeActive = request.active() != null
+                boolean nextActive = request.active() != null
                                 ? request.active()
                                 : agreement.getActive();
 
-                if (willBeActive) {
-                        validateNoOverlappingActiveAgreement(
+                if (nextActive) {
+                        validateNoActiveAgreementOverlap(
                                         organizationId,
-                                        beneficiary.getId(),
-                                        fund.getId(),
+                                        request.beneficiaryId(),
+                                        request.fundId(),
                                         request.startDate(),
                                         request.endDate(),
                                         agreement.getId());
@@ -198,7 +222,7 @@ public class SupportAgreementService {
                                         "A nova vigência deve começar depois da data de início do compromisso atual.");
                 }
 
-                validateNoOverlappingActiveAgreement(
+                validateNoActiveAgreementOverlap(
                                 organizationId,
                                 previousAgreement.getBeneficiary().getId(),
                                 previousAgreement.getFund().getId(),
@@ -266,7 +290,13 @@ public class SupportAgreementService {
                         return SupportAgreementMapper.toResponse(agreement);
                 }
 
-                validateNoOverlappingActiveAgreement(
+                if (agreement.getEndDate() != null
+                                && agreement.getEndDate().isBefore(LocalDate.now())) {
+                        throw new BusinessException(
+                                        "Update the end date before reactivating an expired support agreement");
+                }
+
+                validateNoActiveAgreementOverlap(
                                 organizationId,
                                 agreement.getBeneficiary().getId(),
                                 agreement.getFund().getId(),
@@ -307,7 +337,9 @@ public class SupportAgreementService {
                                                 beneficiaryId,
                                                 effectiveReferenceDate)
                                 .stream()
-                                .map(SupportAgreementMapper::toResponse)
+                                .map(agreement -> SupportAgreementMapper.toResponse(
+                                                agreement,
+                                                effectiveReferenceDate))
                                 .toList();
         }
 
@@ -322,31 +354,26 @@ public class SupportAgreementService {
                 }
         }
 
-        private void validateNoOverlappingActiveAgreement(
+        private void validateNoActiveAgreementOverlap(
                         UUID organizationId,
                         UUID beneficiaryId,
                         UUID fundId,
-                        LocalDate candidateStartDate,
-                        LocalDate candidateEndDate,
-                        UUID agreementIdToIgnore) {
+                        LocalDate startDate,
+                        LocalDate endDate,
+                        UUID excludedId) {
 
-                LocalDate resolvedCandidateEndDate = candidateEndDate != null
-                                ? candidateEndDate
-                                : OPEN_ENDED_AGREEMENT_DATE;
-
-                boolean hasOverlap = repository.findActiveOverlappingAgreements(
-                                organizationId,
-                                beneficiaryId,
-                                fundId,
-                                candidateStartDate,
-                                resolvedCandidateEndDate)
-                                .stream()
-                                .anyMatch(existingAgreement -> !existingAgreement.getId().equals(agreementIdToIgnore));
+                boolean hasOverlap = repository
+                                .existsActiveAgreementOverlappingPeriod(
+                                                organizationId,
+                                                beneficiaryId,
+                                                fundId,
+                                                startDate,
+                                                endDate,
+                                                excludedId);
 
                 if (hasOverlap) {
                         throw new BusinessException(
-                                        "Já existe um compromisso ativo para este favorecido e fundo "
-                                                        + "em um período que se sobrepõe ao informado.");
+                                        "There is already an active support agreement for this beneficiary and fund during the selected period");
                 }
         }
 }

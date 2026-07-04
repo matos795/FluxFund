@@ -143,9 +143,10 @@ export function SupportAgreementForm({
           />
 
           <div>
-            <Label>Compromisso ativo</Label>
+            <Label>Manter compromisso ativo</Label>
             <p className="text-xs text-muted-foreground">
-              Compromissos inativos não entram nos relatórios.
+              Desative apenas quando quiser interromper o compromisso manualmente.
+              A data final encerra sua vigência automaticamente.
             </p>
           </div>
         </div>

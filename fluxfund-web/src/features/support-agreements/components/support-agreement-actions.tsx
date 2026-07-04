@@ -71,17 +71,19 @@ export function SupportAgreementActions({
             <CreateSupportAgreementVersionDialog agreement={agreement} />
           )}
 
-          {canFinanceWrite && agreement.active && (
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              onClick={() => setDeleteDialogOpen(true)}
-            >
-              <Trash2 className="mr-2 size-4" />
-              Desativar
-            </DropdownMenuItem>
-          )}
+          {canFinanceWrite &&
+            (agreement.status === "ACTIVE" ||
+              agreement.status === "SCHEDULED") && (
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => setDeleteDialogOpen(true)}
+              >
+                <Trash2 className="mr-2 size-4" />
+                Desativar
+              </DropdownMenuItem>
+            )}
 
-          {canFinanceWrite && !agreement.active && (
+          {canFinanceWrite && agreement.status === "INACTIVE" && (
             <DropdownMenuItem onClick={handleActivate}>
               <RotateCcw className="mr-2 size-4" />
               Reativar

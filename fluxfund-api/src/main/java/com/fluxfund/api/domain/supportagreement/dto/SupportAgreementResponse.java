@@ -7,18 +7,19 @@ import java.util.UUID;
 
 import com.fluxfund.api.domain.beneficiary.dto.BeneficiarySummaryResponse;
 import com.fluxfund.api.domain.fund.dto.FundSummaryResponse;
+import com.fluxfund.api.domain.supportagreement.SupportAgreementStatus;
 
 public record SupportAgreementResponse(
-        UUID id,
-        UUID organizationId,
-        BeneficiarySummaryResponse beneficiary,
-        FundSummaryResponse fund,
-        BigDecimal amount,
-        LocalDate startDate,
-        LocalDate endDate,
-        Boolean active,
-        String description,
-        OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
-) {
+                UUID id,
+                UUID organizationId,
+                BeneficiarySummaryResponse beneficiary,
+                FundSummaryResponse fund,
+                BigDecimal amount,
+                LocalDate startDate,
+                LocalDate endDate,
+                SupportAgreementStatus status,
+                Boolean active,
+                String description,
+                OffsetDateTime createdAt,
+                OffsetDateTime updatedAt) {
 }

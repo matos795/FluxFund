@@ -1,6 +1,12 @@
 import type { BeneficiarySummary } from "@/features/beneficiaries/beneficiary-types"
 import type { FundSummary } from "@/features/funds/fund-types"
 
+export type SupportAgreementStatus =
+  | "ACTIVE"
+  | "SCHEDULED"
+  | "EXPIRED"
+  | "INACTIVE"
+
 export type SupportAgreement = {
   id: string
   organizationId: string
@@ -9,6 +15,7 @@ export type SupportAgreement = {
   amount: number
   startDate: string
   endDate: string | null
+  status: SupportAgreementStatus
   active: boolean
   description: string | null
   createdAt: string
