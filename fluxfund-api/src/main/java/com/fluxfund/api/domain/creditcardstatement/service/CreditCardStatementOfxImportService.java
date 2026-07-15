@@ -29,6 +29,7 @@ import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.security.OrganizationAccessService;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
+import com.fluxfund.api.shared.ofx.OfxTextNormalizer;
 import com.webcohesion.ofx4j.domain.data.MessageSetType;
 import com.webcohesion.ofx4j.domain.data.ResponseEnvelope;
 import com.webcohesion.ofx4j.domain.data.banking.BankStatementResponse;
@@ -51,6 +52,7 @@ public class CreditCardStatementOfxImportService {
     private final CreditCardStatementRepository statementRepository;
     private final FinancialTransactionRepository financialTransactionRepository;
     private final OrganizationAccessService organizationAccessService;
+    private final OfxTextNormalizer ofxTextNormalizer;
 
     public CreditCardStatementImportResponse importOfx(
             UUID organizationId,
@@ -284,15 +286,31 @@ public class CreditCardStatementOfxImportService {
         return transaction.getId().trim();
     }
 
-    private String buildDescription(Transaction transaction) {
-        if (transaction.getMemo() != null && !transaction.getMemo().isBlank()) {
-            return transaction.getMemo().trim();
+    private String buildDescription(
+            Transaction transaction) {
+
+        if (transaction.getMemo() != null
+                && !transaction.getMemo().isBlank()) {
+
+            return normalizeDescription(
+                    transaction.getMemo());
         }
 
-        if (transaction.getName() != null && !transaction.getName().isBlank()) {
-            return transaction.getName().trim();
+        if (transaction.getName() != null
+                && !transaction.getName().isBlank()) {
+
+            return normalizeDescription(
+                    transaction.getName());
         }
 
         return "Item de cartão importado via OFX";
+    }
+
+    private String normalizeDescription(
+            String value) {
+
+        return ofxTextNormalizer
+                .normalize(value)
+                .trim();
     }
 }
