@@ -19,15 +19,21 @@ public interface AccountCashFlowProjection {
 
     BigDecimal getExpenseBefore();
 
+    BigDecimal getTransferBefore();
+
     BigDecimal getIncomeAmount();
 
     BigDecimal getExpenseAmount();
 
     BigDecimal getTransferAmount();
 
+    BigDecimal getTransferOutAmount();
+
     BigDecimal getIncomeUntilToday();
 
     BigDecimal getExpenseUntilToday();
+
+    BigDecimal getTransferUntilToday();
 
     Long getTransactionCount();
 }

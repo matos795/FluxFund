@@ -120,7 +120,11 @@ function toChartLabel(name: string) {
 }
 
 function getMovementAmount(item: AccountCashFlowItem) {
-    return item.incomeAmount + item.expenseAmount + item.transferAmount
+    return (
+        item.incomeAmount +
+        item.expenseAmount +
+        Math.abs(item.transferAmount)
+    )
 }
 
 function getPositiveOrNegativeLabel(value: number) {
@@ -525,7 +529,7 @@ export function AccountCashFlowReportPage() {
                 <MetricCard
                     title="Transferências"
                     value={report.transferTotal}
-                    description="Movimentação neutra"
+                    description="Saídas entre contas"
                     icon={ArrowRightLeft}
                 />
 
@@ -673,7 +677,7 @@ export function AccountCashFlowReportPage() {
                                             <TableHead className="text-right">Saldo inicial</TableHead>
                                             <TableHead className="text-right">Entradas</TableHead>
                                             <TableHead className="text-right">Saídas</TableHead>
-                                            <TableHead className="text-right">Transferências</TableHead>
+                                            <TableHead className="text-right">Transf. líquida</TableHead>
                                             <TableHead className="text-right">Resultado</TableHead>
                                             <TableHead className="text-right">Fim do período</TableHead>
                                             <TableHead className="text-right">Saldo atual</TableHead>
@@ -714,7 +718,15 @@ export function AccountCashFlowReportPage() {
                                                 </TableCell>
 
                                                 <TableCell className="text-right">
-                                                    {formatCurrency(item.transferAmount)}
+                                                    <span
+                                                        className={
+                                                            item.transferAmount < 0
+                                                                ? "text-destructive"
+                                                                : undefined
+                                                        }
+                                                    >
+                                                        {formatCurrency(item.transferAmount)}
+                                                    </span>
                                                 </TableCell>
 
                                                 <TableCell className="text-right">
@@ -786,9 +798,9 @@ export function AccountCashFlowReportPage() {
                     )}
 
                     <div className="mt-4 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
-                        Transferências são exibidas como movimentações neutras neste
-                        relatório. O saldo calculado considera receitas e despesas
-                        liquidadas, seguindo o modelo atual do sistema.
+                        Transferências não alteram o resultado operacional da organização,
+                        mas aumentam ou reduzem o saldo de cada conta conforme a direção
+                        da movimentação.
                     </div>
                 </CardContent>
             </Card>

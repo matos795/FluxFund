@@ -1261,11 +1261,13 @@ public class ReportService {
                         throw new BusinessException("End date cannot be before start date");
                 }
 
-                List<AccountCashFlowItemResponse> items = accountRepository
+                List<AccountCashFlowProjection> projections = accountRepository
                                 .findAccountCashFlowReport(
                                                 organizationId,
                                                 resolvedStartDate,
-                                                resolvedEndDate)
+                                                resolvedEndDate);
+
+                List<AccountCashFlowItemResponse> items = projections
                                 .stream()
                                 .map(this::toAccountCashFlowItemResponse)
                                 .toList();
@@ -1282,8 +1284,10 @@ public class ReportService {
                                 .map(AccountCashFlowItemResponse::expenseAmount)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                BigDecimal transferTotal = items.stream()
-                                .map(AccountCashFlowItemResponse::transferAmount)
+                BigDecimal transferTotal = projections.stream()
+                                .map(projection -> projection.getTransferOutAmount() != null
+                                                ? projection.getTransferOutAmount()
+                                                : BigDecimal.ZERO)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                 BigDecimal netTotal = incomeTotal.subtract(expenseTotal);
@@ -1650,6 +1654,10 @@ public class ReportService {
                                 ? projection.getExpenseBefore()
                                 : BigDecimal.ZERO;
 
+                BigDecimal transferBefore = projection.getTransferBefore() != null
+                                ? projection.getTransferBefore()
+                                : BigDecimal.ZERO;
+
                 BigDecimal incomeAmount = projection.getIncomeAmount() != null
                                 ? projection.getIncomeAmount()
                                 : BigDecimal.ZERO;
@@ -1670,17 +1678,26 @@ public class ReportService {
                                 ? projection.getExpenseUntilToday()
                                 : BigDecimal.ZERO;
 
+                BigDecimal transferUntilToday = projection.getTransferUntilToday() != null
+                                ? projection.getTransferUntilToday()
+                                : BigDecimal.ZERO;
+
                 BigDecimal openingBalance = initialBalance
                                 .add(incomeBefore)
-                                .subtract(expenseBefore);
+                                .subtract(expenseBefore)
+                                .add(transferBefore);
 
-                BigDecimal netAmount = incomeAmount.subtract(expenseAmount);
+                BigDecimal netAmount = incomeAmount
+                                .subtract(expenseAmount);
+
+                BigDecimal closingBalance = openingBalance
+                                .add(netAmount)
+                                .add(transferAmount);
 
                 BigDecimal currentBalance = initialBalance
                                 .add(incomeUntilToday)
-                                .subtract(expenseUntilToday);
-
-                BigDecimal closingBalance = openingBalance.add(netAmount);
+                                .subtract(expenseUntilToday)
+                                .add(transferUntilToday);
 
                 long transactionCount = projection.getTransactionCount() != null
                                 ? projection.getTransactionCount()
