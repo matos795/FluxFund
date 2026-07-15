@@ -1349,14 +1349,15 @@ public class ReportService {
                         case EXPENSE -> amount.negate();
 
                         case TRANSFER -> {
-                                if (transaction.getTransferDirection() == null) {
-                                        throw new BusinessException(
-                                                        "Transfer transaction has no direction configured");
+                                if (transaction.getTransferDirection() == TransferDirection.IN) {
+                                        yield amount;
                                 }
 
-                                yield transaction.getTransferDirection() == TransferDirection.IN
-                                                ? amount
-                                                : amount.negate();
+                                if (transaction.getTransferDirection() == TransferDirection.OUT) {
+                                        yield amount.negate();
+                                }
+
+                                yield BigDecimal.ZERO;
                         }
                 };
         }
