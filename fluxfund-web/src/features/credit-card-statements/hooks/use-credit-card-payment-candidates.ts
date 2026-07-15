@@ -33,9 +33,12 @@ function scoreCandidate(
   let score = 0
 
   const amount = getTransactionAmount(transaction)
-  const statementAmount = Math.abs(statement.totalAmount ?? 0)
+  const statementAmount =
+    Math.abs(
+      statement.outstandingAmount
+    )
 
-  if (amount === statementAmount) {
+  if (Math.abs(amount - statementAmount) < 0.01) {
     score += 100
   }
 
@@ -64,10 +67,10 @@ export function useCreditCardPaymentCandidates({
       "credit-card-payment-candidates",
       statement.id,
       paymentAccountId,
-      statement.totalAmount,
+      statement.outstandingAmount,
       statement.dueDate,
     ],
-    enabled: Boolean(paymentAccountId) && statement.totalAmount > 0,
+    enabled: Boolean(paymentAccountId) && statement.outstandingAmount > 0,
     queryFn: async () => {
       const result = await getFinancialTransactions({
         page: 0,
@@ -83,6 +86,7 @@ export function useCreditCardPaymentCandidates({
 
       const candidates = result.content
         .filter((transaction) => transaction.type !== "TRANSFER")
+        .filter((transaction) => getTransactionAmount(transaction) <= statement.outstandingAmount)
         .map((transaction) => ({
           transaction,
           score: scoreCandidate(transaction, statement),

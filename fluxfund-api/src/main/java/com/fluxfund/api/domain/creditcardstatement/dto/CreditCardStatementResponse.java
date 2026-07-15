@@ -6,6 +6,7 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import com.fluxfund.api.domain.account.dto.AccountSummaryResponse;
+import com.fluxfund.api.domain.creditcardstatement.CreditCardStatementPaymentStatus;
 import com.fluxfund.api.domain.creditcardstatement.CreditCardStatementStatus;
 
 public record CreditCardStatementResponse(
@@ -13,6 +14,7 @@ public record CreditCardStatementResponse(
         UUID id,
 
         AccountSummaryResponse creditCardAccount,
+
         AccountSummaryResponse paymentAccount,
 
         UUID paymentTransactionId,
@@ -20,17 +22,32 @@ public record CreditCardStatementResponse(
         String name,
 
         LocalDate closingDate,
+
         LocalDate dueDate,
+
         LocalDate paymentDate,
 
         CreditCardStatementStatus status,
 
+        CreditCardStatementPaymentStatus paymentStatus,
+
         CreditCardStatementDocumentResponse statementDocument,
 
         BigDecimal totalAmount,
+
+        BigDecimal paidAmount,
+
+        BigDecimal outstandingAmount,
+
         long itemCount,
 
-        OffsetDateTime createdAt,
-        OffsetDateTime updatedAt) {
+        long paymentCount,
 
+        LocalDate lastPaymentDate,
+
+        OffsetDateTime createdAt,
+
+        OffsetDateTime updatedAt
+
+) {
 }

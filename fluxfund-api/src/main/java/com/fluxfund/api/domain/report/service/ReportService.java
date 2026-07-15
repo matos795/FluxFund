@@ -21,6 +21,7 @@ import com.fluxfund.api.domain.account.AccountType;
 import com.fluxfund.api.domain.account.repository.AccountRepository;
 import com.fluxfund.api.domain.creditcardstatement.CreditCardStatement;
 import com.fluxfund.api.domain.creditcardstatement.CreditCardStatementStatus;
+import com.fluxfund.api.domain.creditcardstatement.repository.CreditCardStatementPaymentRepository;
 import com.fluxfund.api.domain.creditcardstatement.repository.CreditCardStatementRepository;
 import com.fluxfund.api.domain.dashboard.dto.DashboardTransactionActionItemProjection;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
@@ -93,6 +94,7 @@ public class ReportService {
         private final FundRepository fundRepository;
         private final CreditCardStatementRepository creditCardStatementRepository;
         private final AccountRepository accountRepository;
+        private final CreditCardStatementPaymentRepository creditCardStatementPaymentRepository;
 
         public CategoryResultReportResponse getCategoryResultReport(
                         UUID organizationId,
@@ -673,11 +675,17 @@ public class ReportService {
                                                                 entry.getKey())))
                                 .toList();
 
-                BigDecimal paidAmount = statement.getStatus() == CreditCardStatementStatus.PAID
-                                ? totalAmount
-                                : BigDecimal.ZERO;
+                BigDecimal paidAmount = creditCardStatementPaymentRepository
+                                .sumAmountByStatement(organizationId, statementId);
 
-                BigDecimal outstandingAmount = totalAmount.subtract(paidAmount);
+                if (paidAmount.compareTo(BigDecimal.ZERO) == 0
+                                && statement.getStatus() == CreditCardStatementStatus.PAID) {
+                        paidAmount = totalAmount;
+                }
+
+                BigDecimal outstandingAmount = totalAmount
+                                .subtract(paidAmount)
+                                .max(BigDecimal.ZERO);
 
                 return new CreditCardStatementReportResponse(
                                 statement.getId(),

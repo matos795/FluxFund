@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { AlertTriangle, CheckCircle2, CreditCard } from "lucide-react"
 import { useEffect, useMemo, useState, type ReactNode } from "react"
-import { useForm, useWatch } from "react-hook-form"
+import { Controller, useForm, useWatch } from "react-hook-form"
 import { toast } from "sonner"
 
 import { EntityCombobox } from "@/components/form/entity-combobox"
@@ -25,6 +25,7 @@ import { formatCurrency, formatDate } from "@/utils/formatters"
 import { getCreditCardStatementItemsSummary } from "../credit-card-statement-items-summary"
 import { useCreditCardStatementItems } from "../hooks/use-credit-card-statement-items"
 import { AppDialogBody, AppDialogContent, AppDialogFooter, AppDialogHeader } from "@/components/layout/app-dialog"
+import { CurrencyInput } from "@/components/form/currency-input"
 
 type PayCreditCardStatementDialogProps = {
   statement: CreditCardStatement
@@ -66,6 +67,7 @@ export function PayCreditCardStatementDialog({
     defaultValues: {
       paymentAccountId: "",
       paymentDate: new Date().toISOString().slice(0, 10),
+      amount: statement.outstandingAmount,
       paymentTransactionId: "",
     },
   })
@@ -137,6 +139,13 @@ export function PayCreditCardStatementDialog({
       return
     }
 
+    if (itemsQuery.isError) {
+      toast.error(
+        "Não foi possível conferir os itens da fatura. Tente novamente antes de registrar o pagamento.",
+      )
+      return
+    }
+
     if (hasNoItems) {
       toast.error("Não é possível pagar uma fatura sem itens.")
       return
@@ -147,32 +156,53 @@ export function PayCreditCardStatementDialog({
       return
     }
 
+    if (data.amount > statement.outstandingAmount) {
+      toast.error("O pagamento não pode ser maior que o saldo restante da fatura.")
+      return
+    }
+
     payStatementMutation.mutate(
       {
         statementId: statement.id,
         data: {
           paymentAccountId: data.paymentAccountId,
           paymentDate: data.paymentDate,
+          amount: data.amount,
           paymentTransactionId: data.paymentTransactionId || null,
         },
       },
       {
-        onSuccess: () => {
-          toast.success("Fatura marcada como paga.")
+        onSuccess: (updatedStatement) => {
+          if (updatedStatement.paymentStatus === "PAID") {
+            if (updatedStatement.status === "PAID") {
+              toast.success("Fatura quitada com sucesso.")
+            } else {
+              toast.success(
+                "Saldo atual da fatura quitado. A fatura continua aberta para novos lançamentos.",
+              )
+            }
+          } else {
+            toast.success("Pagamento parcial registrado.")
+          }
+
           handleOpenChange(false)
         },
         onError: () => {
-          toast.error("Não foi possível marcar a fatura como paga.")
+          toast.error("Não foi possível registrar o pagamento.")
         },
       },
     )
   }
 
-  const canPay = statement.status !== "PAID" && statement.status !== "CANCELED"
+  const canPay =
+    statement.status !== "PAID" &&
+    statement.status !== "CANCELED" &&
+    statement.outstandingAmount > 0
 
   const isPaymentDisabled =
     payStatementMutation.isPending ||
     itemsQuery.isLoading ||
+    itemsQuery.isError ||
     hasNoItems ||
     mustAcknowledgeReview
 
@@ -182,7 +212,7 @@ export function PayCreditCardStatementDialog({
         <DialogTrigger asChild>
           <Button size="sm" variant="outline" disabled={!canPay}>
             <CreditCard className="mr-2 size-4" />
-            Pagar
+            Registrar pagamento
           </Button>
         </DialogTrigger>
       ) : (
@@ -192,8 +222,8 @@ export function PayCreditCardStatementDialog({
       <AppDialogContent size="lg">
         <AppDialogHeader
           icon={<CreditCard className="size-4 text-muted-foreground" />}
-          title="Pagar fatura"
-          description="Informe a conta de pagamento e a data. Você pode vincular uma transação OFX existente para evitar duplicidade."
+          title="Registrar pagamento"
+          description="Registre um pagamento total ou parcial e vincule a movimentação bancária correspondente."
         />
 
         <form onSubmit={handleSubmit(handlePayStatement)} className="contents">
@@ -203,6 +233,74 @@ export function PayCreditCardStatementDialog({
                 Depois disso, os itens do cartão continuam sendo as despesas reais. A saída bancária da fatura deve ser tratada como transferência/pagamento de cartão.
               </p>
             </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border p-3">
+
+                <p className="text-xs text-muted-foreground">
+                  Total
+                </p>
+
+                <p className="font-semibold">
+                  {formatCurrency(
+                    statement.totalAmount,
+                  )}
+                </p>
+              </div>
+
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">
+                  Já pago
+                </p>
+                <p className="font-semibold">
+                  {formatCurrency(
+                    statement.paidAmount,
+                  )}
+                </p>
+              </div>
+
+              <div className="rounded-lg border p-3">
+
+                <p className="text-xs text-muted-foreground">
+                  Restante
+                </p>
+
+                <p className="font-semibold">
+                  {formatCurrency(
+                    statement.outstandingAmount,
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <Controller
+              control={control}
+              name="amount"
+              render={({ field }) => (
+
+                <div className="space-y-2">
+                  <Label htmlFor="paymentAmount">
+                    Valor deste pagamento
+                  </Label>
+
+                  <CurrencyInput
+                    id="paymentAmount"
+                    value={
+                      field.value as number | null | undefined
+                    }
+
+                    onValueChange={
+                      field.onChange
+                    }
+                  />
+                  {errors.amount && (
+                    <p className="text-sm text-destructive">
+                      {errors.amount.message}
+                    </p>
+                  )}
+                </div>
+              )}
+            />
 
             <div className="space-y-2">
               <Label>Conta de pagamento</Label>
@@ -218,11 +316,19 @@ export function PayCreditCardStatementDialog({
                 searchPlaceholder="Buscar conta..."
                 emptyMessage="Nenhuma conta de pagamento encontrada."
                 allowClear={false}
-                onChange={(value) =>
+                onChange={(value) => {
                   setValue("paymentAccountId", value, {
                     shouldValidate: true,
                   })
-                }
+
+                  setValue("paymentTransactionId", "", {
+                    shouldValidate: true,
+                  })
+
+                  setValue("amount", statement.outstandingAmount, {
+                    shouldValidate: true,
+                  })
+                }}
               />
               {errors.paymentAccountId && (
                 <p className="text-sm text-destructive">
@@ -284,6 +390,22 @@ export function PayCreditCardStatementDialog({
                     ({ transaction }) => transaction.id === value,
                   )
 
+                  const selectedAmount = Math.abs(
+
+                    selectedCandidate?.transaction.settledAmount ?? selectedCandidate
+                      ?.transaction
+                      .expectedAmount
+                    ?? 0
+                  )
+
+                  if (selectedAmount > 0) {
+                    setValue("amount", selectedAmount,
+                      {
+                        shouldValidate: true,
+                      },
+                    )
+                  }
+
                   if (selectedCandidate?.transaction.settlementDate) {
                     setValue("paymentDate", selectedCandidate.transaction.settlementDate, {
                       shouldValidate: true,
@@ -318,14 +440,34 @@ export function PayCreditCardStatementDialog({
                     variant="secondary"
                     className="mt-2"
                     onClick={() => {
-                      setValue("paymentTransactionId", bestCandidate.transaction.id, {
-                        shouldValidate: true,
-                      })
+                      setValue(
+                        "paymentTransactionId",
+                        bestCandidate.transaction.id,
+                        {
+                          shouldValidate: true,
+                        },
+                      )
 
-                      if (bestCandidate.transaction.settlementDate) {
-                        setValue("paymentDate", bestCandidate.transaction.settlementDate, {
+                      const suggestedAmount = Math.abs(
+                        bestCandidate.transaction.settledAmount ??
+                        bestCandidate.transaction.expectedAmount ??
+                        0,
+                      )
+
+                      if (suggestedAmount > 0) {
+                        setValue("amount", suggestedAmount, {
                           shouldValidate: true,
                         })
+                      }
+
+                      if (bestCandidate.transaction.settlementDate) {
+                        setValue(
+                          "paymentDate",
+                          bestCandidate.transaction.settlementDate,
+                          {
+                            shouldValidate: true,
+                          },
+                        )
                       }
                     }}
                   >
@@ -335,7 +477,7 @@ export function PayCreditCardStatementDialog({
               )}
 
               <p className="text-xs text-muted-foreground">
-                Se você selecionar uma transação OFX, o backend deve vinculá-la à fatura e transformá-la em transferência para evitar duplicidade de despesa.
+                Ao selecionar uma transação OFX, ela será vinculada à fatura e transformada em transferência para evitar duplicidade de despesa.
               </p>
             </div>
 
@@ -366,7 +508,7 @@ export function PayCreditCardStatementDialog({
 
                   {!itemsQuery.isLoading && !itemsQuery.isError && hasNoItems && (
                     <p className="text-sm text-amber-700">
-                      Esta fatura não possui itens. Revise antes de marcar como paga.
+                      Esta fatura não possui itens. Revise antes de registrar um pagamento.
                     </p>
                   )}
 
@@ -421,7 +563,7 @@ export function PayCreditCardStatementDialog({
                     />
 
                     <span>
-                      Entendo que esta fatura ainda possui pendências e desejo marcar como paga mesmo assim.
+                      Entendo que esta fatura ainda possui pendências e desejo registrar o pagamento mesmo assim.
                     </span>
                   </label>
                 )}
@@ -440,7 +582,7 @@ export function PayCreditCardStatementDialog({
             </Button>
 
             <Button type="submit" disabled={isPaymentDisabled}>
-              {payStatementMutation.isPending ? "Pagando..." : "Pagar fatura"}
+              {payStatementMutation.isPending ? "Registrando..." : "Registrar pagamento"}
             </Button>
           </AppDialogFooter>
         </form>

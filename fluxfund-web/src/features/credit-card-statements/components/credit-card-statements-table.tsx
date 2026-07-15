@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/table"
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { formatCurrency, formatDate } from "@/utils/formatters"
-import { creditCardStatementStatusLabels } from "../credit-card-statement-labels"
+import { creditCardStatementPaymentStatusLabels, creditCardStatementStatusLabels } from "../credit-card-statement-labels"
 import type { CreditCardStatement } from "../credit-card-statement-types"
 import { useCancelCreditCardStatement } from "../hooks/use-cancel-credit-card-statement"
 import { AddCreditCardStatementItemDialog } from "./add-credit-card-statement-item-dialog"
@@ -79,6 +79,20 @@ export function CreditCardStatementsTable({
   const cancelStatementMutation = useCancelCreditCardStatement()
 
   const exportCreditCardStatementPdfMutation = useExportCreditCardStatementPdf()
+
+  function getPaymentStatusBadgeVariant(
+    status: CreditCardStatement["paymentStatus"],
+  ) {
+    if (status === "PAID") {
+      return "default"
+    }
+
+    if (status === "PARTIALLY_PAID") {
+      return "secondary"
+    }
+
+    return "outline"
+  }
 
   function handleCancelStatement() {
     if (!statementToCancel) {
@@ -143,11 +157,19 @@ export function CreditCardStatementsTable({
   }
 
   function canPayStatement(statement: CreditCardStatement) {
-    return statement.status !== "PAID" && statement.status !== "CANCELED"
+    return (
+      statement.status !== "PAID" &&
+      statement.status !== "CANCELED" &&
+      statement.outstandingAmount > 0
+    )
   }
 
   function canCancelStatement(statement: CreditCardStatement) {
-    return statement.status !== "PAID" && statement.status !== "CANCELED"
+    return (
+      statement.paymentCount === 0 &&
+      statement.status !== "PAID" &&
+      statement.status !== "CANCELED"
+    )
   }
 
   return (
@@ -164,7 +186,7 @@ export function CreditCardStatementsTable({
                 <TableHead>Fechamento</TableHead>
                 <TableHead>Vencimento</TableHead>
                 <TableHead>Pagamento</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Ciclo / pagamento</TableHead>
                 <TableHead className="w-[72px] text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -190,7 +212,30 @@ export function CreditCardStatementsTable({
                     )}
                   </TableCell>
 
-                  <TableCell>{formatCurrency(statement.totalAmount)}</TableCell>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">
+                        {formatCurrency(
+                          statement.totalAmount,
+                        )}
+                      </div>
+
+                      {statement.paymentCount > 0 && (
+                        <div className="text-xs text-muted-foreground">
+                          Pago:{" "}
+                          {formatCurrency(
+                            statement.paidAmount,
+                          )}
+                          {" · "}
+                          Restante:{" "}
+                          {formatCurrency(
+                            statement.outstandingAmount,
+                          )}
+                        </div>
+                      )}
+
+                    </div>
+                  </TableCell>
 
                   <TableCell>
                     {statement.itemCount === 1
@@ -200,12 +245,26 @@ export function CreditCardStatementsTable({
 
                   <TableCell>{formatDate(statement.closingDate)}</TableCell>
                   <TableCell>{formatDate(statement.dueDate)}</TableCell>
-                  <TableCell>{formatDate(statement.paymentDate)}</TableCell>
+                  <TableCell>{formatDate(statement.lastPaymentDate)}</TableCell>
 
                   <TableCell>
-                    <Badge variant={getStatusBadgeVariant(statement.status)}>
-                      {creditCardStatementStatusLabels[statement.status]}
-                    </Badge>
+                    <div className="flex flex-col items-start gap-1">
+                      <Badge variant={getStatusBadgeVariant(statement.status)}>
+                        {creditCardStatementStatusLabels[statement.status]}
+                      </Badge>
+
+                      <Badge
+                        variant={getPaymentStatusBadgeVariant(
+                          statement.paymentStatus,
+                        )}
+                      >
+                        {
+                          creditCardStatementPaymentStatusLabels[
+                          statement.paymentStatus
+                          ]
+                        }
+                      </Badge>
+                    </div>
                   </TableCell>
 
                   <TableCell className="text-right">
@@ -280,7 +339,7 @@ export function CreditCardStatementsTable({
                               onSelect={() => setStatementToPay(statement)}
                             >
                               <CreditCard className="mr-2 size-4" />
-                              Pagar fatura
+                              Registrar pagamento
                             </DropdownMenuItem>
 
                             <DropdownMenuItem
@@ -382,9 +441,9 @@ export function CreditCardStatementsTable({
         title="Cancelar fatura?"
         description={
           <>
-            A fatura <strong>{statementToCancel?.name}</strong> será cancelada. Se
-            o backend estiver com a regra recomendada, os itens dessa fatura também
-            serão cancelados.
+            A fatura <strong>{statementToCancel?.name}</strong> e seus itens
+            serão cancelados. Essa ação não poderá ser realizada caso já
+            existam pagamentos vinculados.
           </>
         }
         confirmLabel="Cancelar fatura"

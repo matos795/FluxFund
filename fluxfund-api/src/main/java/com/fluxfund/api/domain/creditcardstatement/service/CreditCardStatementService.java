@@ -1,6 +1,7 @@
 package com.fluxfund.api.domain.creditcardstatement.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -11,24 +12,30 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fluxfund.api.domain.account.Account;
 import com.fluxfund.api.domain.account.AccountType;
+import com.fluxfund.api.domain.account.mapper.AccountMapper;
 import com.fluxfund.api.domain.account.repository.AccountRepository;
 import com.fluxfund.api.domain.category.Category;
 import com.fluxfund.api.domain.category.CategoryType;
 import com.fluxfund.api.domain.category.repository.CategoryRepository;
 import com.fluxfund.api.domain.creditcardstatement.CreditCardStatement;
+import com.fluxfund.api.domain.creditcardstatement.CreditCardStatementPayment;
+import com.fluxfund.api.domain.creditcardstatement.CreditCardStatementPaymentStatus;
 import com.fluxfund.api.domain.creditcardstatement.CreditCardStatementStatus;
 import com.fluxfund.api.domain.creditcardstatement.dto.CreateCreditCardItemRequest;
 import com.fluxfund.api.domain.creditcardstatement.dto.CreateCreditCardStatementRequest;
+import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementPaymentResponse;
 import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementResponse;
 import com.fluxfund.api.domain.creditcardstatement.dto.PayCreditCardStatementRequest;
 import com.fluxfund.api.domain.creditcardstatement.dto.UpdateCreditCardStatementRequest;
 import com.fluxfund.api.domain.creditcardstatement.mapper.CreditCardStatementMapper;
+import com.fluxfund.api.domain.creditcardstatement.repository.CreditCardStatementPaymentRepository;
 import com.fluxfund.api.domain.creditcardstatement.repository.CreditCardStatementRepository;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.FiscalDocumentPolicy;
+import com.fluxfund.api.domain.financialtransaction.TransferDirection;
 import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionResponse;
 import com.fluxfund.api.domain.financialtransaction.mapper.FinancialTransactionMapper;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
@@ -55,6 +62,7 @@ public class CreditCardStatementService {
     private final CategoryRepository categoryRepository;
     private final OrganizationAccessService organizationAccessService;
     private final FinancialTransactionDocumentPolicyService documentPolicyService;
+    private final CreditCardStatementPaymentRepository paymentRepository;
 
     public CreditCardStatementResponse create(UUID organizationId, CreateCreditCardStatementRequest request) {
 
@@ -231,54 +239,145 @@ public class CreditCardStatementService {
             UUID statementId,
             PayCreditCardStatementRequest request) {
 
-        organizationAccessService.requireFinanceWriteAccess(organizationId);
+        organizationAccessService
+                .requireFinanceWriteAccess(
+                        organizationId);
 
-        CreditCardStatement statement = findStatement(organizationId, statementId);
+        CreditCardStatement statement = findStatement(
+                organizationId,
+                statementId);
 
         if (statement.getStatus() == CreditCardStatementStatus.PAID) {
-            throw new BusinessException("Credit card statement is already paid");
+
+            throw new BusinessException(
+                    "Credit card statement is already paid");
+        }
+
+        if (statement.getStatus() == CreditCardStatementStatus.CANCELED) {
+
+            throw new BusinessException(
+                    "Canceled credit card statements cannot receive payments");
+        }
+
+        BigDecimal totalAmount = financialTransactionRepository
+                .sumCreditCardStatementTotal(
+                        organizationId,
+                        statementId);
+
+        if (totalAmount.compareTo(
+                BigDecimal.ZERO) <= 0) {
+
+            throw new BusinessException(
+                    "Credit card statement has no amount to pay");
+        }
+
+        BigDecimal paidBefore = paymentRepository
+                .sumAmountByStatement(
+                        organizationId,
+                        statementId);
+
+        BigDecimal outstandingBefore = totalAmount.subtract(
+                paidBefore);
+
+        BigDecimal paymentAmount = request.amount();
+
+        if (paymentAmount.compareTo(
+                outstandingBefore) > 0) {
+
+            throw new BusinessException(
+                    "Payment amount cannot be greater than the outstanding amount");
         }
 
         Account paymentAccount = accountRepository
-                .findByIdAndOrganizationIdAndActiveTrue(request.paymentAccountId(), organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Payment account not found"));
+                .findByIdAndOrganizationIdAndActiveTrue(
+                        request.paymentAccountId(),
+                        organizationId)
+
+                .orElseThrow(
+                        () -> new ResourceNotFoundException(
+                                "Payment account not found"));
 
         if (paymentAccount.getType() == AccountType.CREDIT_CARD) {
-            throw new BusinessException("Payment account cannot be a credit card");
+
+            throw new BusinessException(
+                    "Payment account cannot be a credit card");
         }
 
-        statement.setPaymentAccount(paymentAccount);
-        statement.setPaymentDate(request.paymentDate());
-        statement.setStatus(CreditCardStatementStatus.PAID);
+        FinancialTransaction paymentTransaction = resolvePaymentTransaction(
 
-        if (request.paymentTransactionId() != null) {
-            FinancialTransaction paymentTransaction = financialTransactionRepository
-                    .findByIdAndOrganizationId(request.paymentTransactionId(), organizationId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Payment transaction not found"));
+                organizationId,
 
-            paymentTransaction.setType(FinancialTransactionType.TRANSFER);
-            paymentTransaction.setCategory(null);
-            paymentTransaction.setDescription("Pagamento da fatura " + statement.getName());
-            paymentTransaction.setDocumentNumber(null);
+                statement,
 
-            statement.setPaymentTransaction(paymentTransaction);
+                paymentAccount,
+
+                request);
+
+        CreditCardStatementPayment payment = new CreditCardStatementPayment();
+
+        payment.setOrganization(
+                statement.getOrganization());
+
+        payment.setStatement(
+                statement);
+
+        payment.setPaymentAccount(
+                paymentAccount);
+
+        payment.setPaymentTransaction(
+                paymentTransaction);
+
+        payment.setPaymentDate(
+                request.paymentDate());
+
+        payment.setAmount(
+                paymentAmount);
+
+        paymentRepository.save(
+                payment);
+
+        BigDecimal paidAfter = paidBefore.add(
+                paymentAmount);
+
+        boolean currentBalanceFullyPaid =
+
+                paidAfter.compareTo(
+                        totalAmount) >= 0;
+
+        if (currentBalanceFullyPaid) {
+
+            settleStatementItems(
+
+                    organizationId,
+
+                    statement,
+
+                    request.paymentDate());
         }
 
-        List<FinancialTransaction> items = financialTransactionRepository
-                .findAllByCreditCardStatementIdAndOrganizationId(statementId, organizationId);
+        if (statement.getStatus() == CreditCardStatementStatus.CLOSED
 
-        for (FinancialTransaction item : items) {
-            item.setAccount(paymentAccount);
-            item.setSettlementDate(request.paymentDate());
-            item.setSettledAmount(item.getExpectedAmount());
-            item.setStatus(FinancialTransactionStatus.SETTLED);
+                && currentBalanceFullyPaid) {
+
+            statement.setStatus(
+                    CreditCardStatementStatus.PAID);
+
+            statement.setPaymentAccount(
+                    paymentAccount);
+
+            statement.setPaymentDate(
+                    request.paymentDate());
+
+            statement.setPaymentTransaction(
+                    paymentTransaction);
         }
 
-        financialTransactionRepository.saveAll(items);
+        CreditCardStatement savedStatement = statementRepository.save(
+                statement);
 
-        CreditCardStatement savedStatement = statementRepository.save(statement);
-
-        return toResponse(organizationId, savedStatement);
+        return toResponse(
+                organizationId,
+                savedStatement);
     }
 
     public void cancel(UUID organizationId, UUID id) {
@@ -288,6 +387,12 @@ public class CreditCardStatementService {
 
         if (statement.getStatus() == CreditCardStatementStatus.PAID) {
             throw new BusinessException("Paid credit card statements cannot be canceled");
+        }
+
+        long paymentCount = paymentRepository.countByOrganizationIdAndStatementId(organizationId, id);
+
+        if (paymentCount > 0) {
+            throw new BusinessException("Credit card statements with payments cannot be canceled");
         }
 
         statement.setStatus(CreditCardStatementStatus.CANCELED);
@@ -303,6 +408,58 @@ public class CreditCardStatementService {
         statementRepository.save(statement);
     }
 
+    @Transactional(readOnly = true)
+    public List<CreditCardStatementPaymentResponse> findPayments(
+
+            UUID organizationId,
+
+            UUID statementId) {
+
+        organizationAccessService
+                .requireReadAccess(
+                        organizationId);
+
+        findStatement(
+                organizationId,
+                statementId);
+
+        return paymentRepository
+
+                .findAllByOrganizationIdAndStatementIdOrderByPaymentDateAscCreatedAtAsc(
+
+                        organizationId,
+
+                        statementId)
+
+                .stream()
+
+                .map(payment ->
+
+                new CreditCardStatementPaymentResponse(
+
+                        payment.getId(),
+
+                        AccountMapper.toSummaryResponse(
+
+                                payment
+                                        .getPaymentAccount()),
+
+                        payment
+                                .getPaymentTransaction()
+                                .getId(),
+
+                        payment
+                                .getPaymentDate(),
+
+                        payment
+                                .getAmount(),
+
+                        payment
+                                .getCreatedAt()))
+
+                .toList();
+    }
+
     private CreditCardStatement findStatement(UUID organizationId, UUID id) {
         return statementRepository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Credit card statement not found"));
@@ -315,21 +472,100 @@ public class CreditCardStatementService {
     }
 
     private CreditCardStatementResponse toResponse(
+
             UUID organizationId,
+
             CreditCardStatement statement) {
 
-        BigDecimal totalAmount = financialTransactionRepository.sumCreditCardStatementTotal(
-                organizationId,
-                statement.getId());
+        BigDecimal totalAmount =
 
-        long itemCount = financialTransactionRepository.countCreditCardStatementItems(
-                organizationId,
-                statement.getId());
+                financialTransactionRepository
 
-        return CreditCardStatementMapper.toResponse(
-                statement,
-                totalAmount,
-                itemCount);
+                        .sumCreditCardStatementTotal(
+
+                                organizationId,
+
+                                statement.getId());
+
+        long itemCount =
+
+                financialTransactionRepository
+
+                        .countCreditCardStatementItems(
+
+                                organizationId,
+
+                                statement.getId());
+
+        BigDecimal paidAmount =
+
+                paymentRepository
+
+                        .sumAmountByStatement(
+
+                                organizationId,
+
+                                statement.getId());
+
+        long paymentCount =
+
+                paymentRepository
+
+                        .countByOrganizationIdAndStatementId(
+
+                                organizationId,
+
+                                statement.getId());
+
+        java.time.LocalDate lastPaymentDate =
+
+                paymentRepository
+
+                        .findFirstByOrganizationIdAndStatementIdOrderByPaymentDateDescCreatedAtDesc(
+
+                                organizationId,
+
+                                statement.getId())
+
+                        .map(
+                                CreditCardStatementPayment::getPaymentDate)
+
+                        .orElse(
+                                null);
+
+        /*
+         * Compatibilidade com faturas antigas.
+         *
+         * As faturas pagas antes da criação da
+         * tabela de pagamentos não possuem registros
+         * em credit_card_statement_payment.
+         */
+        if (paymentCount == 0
+
+                && statement.getStatus() == CreditCardStatementStatus.PAID) {
+
+            paidAmount = totalAmount;
+
+            paymentCount = 1;
+
+            lastPaymentDate = statement.getPaymentDate();
+        }
+
+        BigDecimal outstandingAmount = totalAmount
+                .subtract(paidAmount)
+                .max(BigDecimal.ZERO);
+
+        CreditCardStatementPaymentStatus paymentStatus = resolvePaymentStatus(totalAmount, paidAmount);
+
+        return CreditCardStatementMapper
+                .toResponse(statement,
+                        paymentStatus,
+                        totalAmount,
+                        paidAmount,
+                        outstandingAmount,
+                        itemCount,
+                        paymentCount,
+                        lastPaymentDate);
     }
 
     @Transactional(readOnly = true)
@@ -346,5 +582,278 @@ public class CreditCardStatementService {
                 .stream()
                 .map(FinancialTransactionMapper::toResponse)
                 .toList();
+    }
+
+    private FinancialTransaction resolvePaymentTransaction(
+
+            UUID organizationId,
+
+            CreditCardStatement statement,
+
+            Account paymentAccount,
+
+            PayCreditCardStatementRequest request) {
+
+        if (request.paymentTransactionId() == null) {
+
+            return createManualPaymentTransaction(
+
+                    statement,
+
+                    paymentAccount,
+
+                    request.paymentDate(),
+
+                    request.amount());
+        }
+
+        if (paymentRepository
+                .existsByOrganizationIdAndPaymentTransactionId(
+
+                        organizationId,
+
+                        request.paymentTransactionId())) {
+
+            throw new BusinessException(
+                    "Payment transaction is already linked to another payment");
+        }
+
+        FinancialTransaction transaction = financialTransactionRepository
+
+                .findByIdAndOrganizationId(
+
+                        request.paymentTransactionId(),
+
+                        organizationId)
+
+                .orElseThrow(
+
+                        () -> new ResourceNotFoundException(
+
+                                "Payment transaction not found"));
+
+        if (!transaction
+                .getAccount()
+                .getId()
+                .equals(
+                        paymentAccount.getId())) {
+
+            throw new BusinessException(
+                    "Payment transaction belongs to another account");
+        }
+
+        if (transaction.getStatus() != FinancialTransactionStatus.SETTLED) {
+
+            throw new BusinessException(
+                    "Payment transaction must be settled");
+        }
+
+        BigDecimal transactionAmount =
+
+                transaction.getSettledAmount() != null
+
+                        ? transaction
+                                .getSettledAmount()
+                                .abs()
+
+                        : transaction
+                                .getExpectedAmount()
+                                .abs();
+
+        if (transactionAmount.compareTo(
+                request.amount()) != 0) {
+
+            throw new BusinessException(
+                    "Payment amount must match the selected transaction amount");
+        }
+
+        if (transaction.getCategory() != null
+
+                || !transaction
+                        .getAllocations()
+                        .isEmpty()) {
+
+            throw new BusinessException(
+                    "Payment transaction must be unclassified before linking");
+        }
+
+        transaction.setType(
+                FinancialTransactionType.TRANSFER);
+
+        transaction.setCategory(
+                null);
+
+        transaction.setTransferDirection(
+                TransferDirection.OUT);
+
+        transaction.setTransferCounterpartyAccount(
+                statement.getCreditCardAccount());
+
+        if (transaction.getTransferGroupId() == null) {
+
+            transaction.setTransferGroupId(
+                    UUID.randomUUID());
+        }
+
+        transaction.setDescription(
+
+                "Pagamento da fatura "
+                        + statement.getName());
+
+        transaction.setDocumentNumber(
+                null);
+
+        transaction.setClassifiedAt(
+                LocalDateTime.now());
+
+        return financialTransactionRepository
+                .save(transaction);
+    }
+
+    private FinancialTransaction createManualPaymentTransaction(
+
+            CreditCardStatement statement,
+
+            Account paymentAccount,
+
+            java.time.LocalDate paymentDate,
+
+            BigDecimal amount) {
+
+        String description =
+
+                "Pagamento da fatura "
+                        + statement.getName();
+
+        FinancialTransaction transaction = new FinancialTransaction();
+
+        transaction.setOrganization(
+                statement.getOrganization());
+
+        transaction.setAccount(
+                paymentAccount);
+
+        transaction.setCategory(
+                null);
+
+        transaction.setType(
+                FinancialTransactionType.TRANSFER);
+
+        transaction.setSource(
+                FinancialTransactionSource.MANUAL);
+
+        transaction.setStatus(
+                FinancialTransactionStatus.SETTLED);
+
+        transaction.setDueDate(
+                paymentDate);
+
+        transaction.setSettlementDate(
+                paymentDate);
+
+        transaction.setExpectedAmount(
+                amount);
+
+        transaction.setSettledAmount(
+                amount);
+
+        transaction.setInterestAmount(
+                BigDecimal.ZERO);
+
+        transaction.setDiscountAmount(
+                BigDecimal.ZERO);
+
+        transaction.setDescription(
+                description);
+
+        transaction.setRawDescription(
+                description);
+
+        transaction.setTransferDirection(
+                TransferDirection.OUT);
+
+        transaction.setTransferCounterpartyAccount(
+                statement.getCreditCardAccount());
+
+        transaction.setTransferGroupId(
+                UUID.randomUUID());
+
+        transaction.setClassifiedAt(
+                LocalDateTime.now());
+
+        return financialTransactionRepository
+                .save(transaction);
+    }
+
+    private void settleStatementItems(
+
+            UUID organizationId,
+
+            CreditCardStatement statement,
+
+            java.time.LocalDate paymentDate) {
+
+        List<FinancialTransaction> items =
+
+                financialTransactionRepository
+
+                        .findAllByCreditCardStatementIdAndOrganizationId(
+
+                                statement.getId(),
+
+                                organizationId);
+
+        for (FinancialTransaction item : items) {
+
+            if (item.getStatus() == FinancialTransactionStatus.CANCELED) {
+
+                continue;
+            }
+
+            if (item.getStatus() == FinancialTransactionStatus.SETTLED) {
+
+                continue;
+            }
+
+            item.setAccount(
+
+                    statement.getCreditCardAccount());
+
+            item.setSettlementDate(
+
+                    paymentDate);
+
+            item.setSettledAmount(
+
+                    item.getExpectedAmount());
+
+            item.setStatus(
+
+                    FinancialTransactionStatus.SETTLED);
+        }
+
+        financialTransactionRepository
+                .saveAll(items);
+    }
+
+    private CreditCardStatementPaymentStatus resolvePaymentStatus(
+            BigDecimal totalAmount,
+            BigDecimal paidAmount) {
+
+        if (paidAmount == null
+
+                || paidAmount.compareTo(
+                        BigDecimal.ZERO) <= 0) {
+
+            return CreditCardStatementPaymentStatus.UNPAID;
+        }
+
+        if (paidAmount.compareTo(
+                totalAmount) >= 0) {
+
+            return CreditCardStatementPaymentStatus.PAID;
+        }
+
+        return CreditCardStatementPaymentStatus.PARTIALLY_PAID;
     }
 }

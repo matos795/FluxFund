@@ -6,6 +6,7 @@ import type {
   CreditCardStatement,
   CreditCardStatementDocument,
   CreditCardStatementImportResponse,
+  CreditCardStatementPayment,
   CreditCardStatementStatus,
   PayCreditCardStatementRequest,
 } from "./credit-card-statement-types"
@@ -178,6 +179,18 @@ export async function importCreditCardStatementFile({
         "Content-Type": "multipart/form-data",
       },
     },
+  )
+
+  return response.data
+}
+
+export async function getCreditCardStatementPayments(
+  statementId: string,
+) {
+  const response = await httpClient.get<
+    CreditCardStatementPayment[]
+  >(
+    `/api/v1/credit-card-statements/${statementId}/payments`,
   )
 
   return response.data

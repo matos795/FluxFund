@@ -15,8 +15,18 @@ export function usePayCreditCardStatement() {
   return useMutation({
     mutationFn: ({ statementId, data }: PayCreditCardStatementMutationData) =>
       payCreditCardStatement(statementId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] })
+    onSuccess: (_statement, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["credit-card-statements"],
+      })
+
+      queryClient.invalidateQueries({
+        queryKey: [
+          "credit-card-statement-payments",
+          variables.statementId,
+        ],
+      })
+
       invalidateFinancialData(queryClient)
     },
   })

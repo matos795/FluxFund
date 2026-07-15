@@ -20,6 +20,7 @@ import com.fluxfund.api.domain.creditcardstatement.dto.CreateCreditCardStatement
 import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementDocumentFile;
 import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementDocumentResponse;
 import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementImportResponse;
+import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementPaymentResponse;
 import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementResponse;
 import com.fluxfund.api.domain.creditcardstatement.dto.PayCreditCardStatementRequest;
 import com.fluxfund.api.domain.creditcardstatement.dto.UpdateCreditCardStatementRequest;
@@ -40,152 +41,160 @@ import static com.fluxfund.api.security.TenantHeaders.ORGANIZATION_ID;
 @RequiredArgsConstructor
 public class CreditCardStatementController {
 
-    private final CreditCardStatementService service;
-    private final CreditCardStatementOfxImportService ofxImportService;
-    private final CreditCardStatementSpreadsheetImportService spreadsheetImportService;
-    private final CreditCardStatementDocumentService documentService;
+        private final CreditCardStatementService service;
+        private final CreditCardStatementOfxImportService ofxImportService;
+        private final CreditCardStatementSpreadsheetImportService spreadsheetImportService;
+        private final CreditCardStatementDocumentService documentService;
 
-    @PostMapping
-    public ResponseEntity<CreditCardStatementResponse> create(
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @RequestBody @Valid CreateCreditCardStatementRequest request) {
+        @PostMapping
+        public ResponseEntity<CreditCardStatementResponse> create(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @RequestBody @Valid CreateCreditCardStatementRequest request) {
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(service.create(organizationId, request));
-    }
+                return ResponseEntity.status(HttpStatus.CREATED)
+                                .body(service.create(organizationId, request));
+        }
 
-    @GetMapping
-    public ResponseEntity<Page<CreditCardStatementResponse>> findAll(
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @RequestParam(required = false) UUID creditCardAccountId,
-            @RequestParam(required = false) CreditCardStatementStatus status,
-            Pageable pageable) {
+        @GetMapping
+        public ResponseEntity<Page<CreditCardStatementResponse>> findAll(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @RequestParam(required = false) UUID creditCardAccountId,
+                        @RequestParam(required = false) CreditCardStatementStatus status,
+                        Pageable pageable) {
 
-        return ResponseEntity.ok(
-                service.findAll(organizationId, creditCardAccountId, status, pageable));
-    }
+                return ResponseEntity.ok(
+                                service.findAll(organizationId, creditCardAccountId, status, pageable));
+        }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<CreditCardStatementResponse> findById(
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @PathVariable UUID id) {
+        @GetMapping("/{id}")
+        public ResponseEntity<CreditCardStatementResponse> findById(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID id) {
 
-        return ResponseEntity.ok(service.findById(organizationId, id));
-    }
+                return ResponseEntity.ok(service.findById(organizationId, id));
+        }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<CreditCardStatementResponse> update(
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @PathVariable UUID id,
-            @RequestBody @Valid UpdateCreditCardStatementRequest request) {
+        @PutMapping("/{id}")
+        public ResponseEntity<CreditCardStatementResponse> update(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID id,
+                        @RequestBody @Valid UpdateCreditCardStatementRequest request) {
 
-        return ResponseEntity.ok(service.update(organizationId, id, request));
-    }
+                return ResponseEntity.ok(service.update(organizationId, id, request));
+        }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> cancel(
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @PathVariable UUID id) {
+        @DeleteMapping("/{id}")
+        public ResponseEntity<Void> cancel(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID id) {
 
-        service.cancel(organizationId, id);
-        return ResponseEntity.noContent().build();
-    }
+                service.cancel(organizationId, id);
+                return ResponseEntity.noContent().build();
+        }
 
-    @PostMapping("/{id}/items")
-    public ResponseEntity<FinancialTransactionResponse> addItem(
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @PathVariable UUID id,
-            @RequestBody @Valid CreateCreditCardItemRequest request) {
+        @PostMapping("/{id}/items")
+        public ResponseEntity<FinancialTransactionResponse> addItem(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID id,
+                        @RequestBody @Valid CreateCreditCardItemRequest request) {
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(service.addItem(organizationId, id, request));
-    }
+                return ResponseEntity.status(HttpStatus.CREATED)
+                                .body(service.addItem(organizationId, id, request));
+        }
 
-    @PostMapping("/{id}/pay")
-    public ResponseEntity<CreditCardStatementResponse> pay(
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @PathVariable UUID id,
-            @RequestBody @Valid PayCreditCardStatementRequest request) {
+        @PostMapping("/{id}/pay")
+        public ResponseEntity<CreditCardStatementResponse> pay(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID id,
+                        @RequestBody @Valid PayCreditCardStatementRequest request) {
 
-        return ResponseEntity.ok(service.pay(organizationId, id, request));
-    }
+                return ResponseEntity.ok(service.pay(organizationId, id, request));
+        }
 
-    @PostMapping({ "/{id}/import-ofx", "/{id}/import/ofx" })
-    public ResponseEntity<CreditCardStatementImportResponse> importOfx(
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @PathVariable UUID id,
-            @RequestParam("file") MultipartFile file) {
+        @GetMapping("/{id}/payments")
+        public ResponseEntity<List<CreditCardStatementPaymentResponse>> findPayments(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID id) {
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ofxImportService.importOfx(organizationId, id, file));
-    }
+                return ResponseEntity.ok(service.findPayments(organizationId, id));
+        }
 
-    @GetMapping("/{id}/items")
-    public ResponseEntity<List<FinancialTransactionResponse>> findItems(
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @PathVariable UUID id) {
+        @PostMapping({ "/{id}/import-ofx", "/{id}/import/ofx" })
+        public ResponseEntity<CreditCardStatementImportResponse> importOfx(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID id,
+                        @RequestParam("file") MultipartFile file) {
 
-        return ResponseEntity.ok(service.findItems(organizationId, id));
-    }
+                return ResponseEntity.status(HttpStatus.CREATED)
+                                .body(ofxImportService.importOfx(organizationId, id, file));
+        }
 
-    @PostMapping(value = "/{id}/import/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<CreditCardStatementImportResponse> importFile(
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @PathVariable UUID id,
-            @RequestParam ImportProfile profile,
-            @RequestParam("file") MultipartFile file) {
+        @GetMapping("/{id}/items")
+        public ResponseEntity<List<FinancialTransactionResponse>> findItems(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID id) {
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(spreadsheetImportService.importFile(
-                        organizationId,
-                        id,
-                        profile,
-                        file));
-    }
+                return ResponseEntity.ok(service.findItems(organizationId, id));
+        }
 
-    @PostMapping(value = "/{id}/document", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<CreditCardStatementDocumentResponse> uploadDocument(
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @PathVariable UUID id,
-            @RequestParam("file") MultipartFile file) {
+        @PostMapping(value = "/{id}/import/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+        public ResponseEntity<CreditCardStatementImportResponse> importFile(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID id,
+                        @RequestParam ImportProfile profile,
+                        @RequestParam("file") MultipartFile file) {
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(documentService.upload(
-                        organizationId,
-                        id,
-                        file));
-    }
+                return ResponseEntity.status(HttpStatus.CREATED)
+                                .body(spreadsheetImportService.importFile(
+                                                organizationId,
+                                                id,
+                                                profile,
+                                                file));
+        }
 
-    @GetMapping("/{id}/document/download")
-    public ResponseEntity<byte[]> downloadDocument(
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @PathVariable UUID id) {
+        @PostMapping(value = "/{id}/document", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+        public ResponseEntity<CreditCardStatementDocumentResponse> uploadDocument(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID id,
+                        @RequestParam("file") MultipartFile file) {
 
-        CreditCardStatementDocumentFile file = documentService.download(
-                organizationId,
-                id);
+                return ResponseEntity.status(HttpStatus.CREATED)
+                                .body(documentService.upload(
+                                                organizationId,
+                                                id,
+                                                file));
+        }
 
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(file.contentType()))
-                .header(
-                        HttpHeaders.CONTENT_DISPOSITION,
-                        ContentDisposition.attachment()
-                                .filename(
-                                        file.filename(),
-                                        StandardCharsets.UTF_8)
-                                .build()
-                                .toString())
-                .header("X-Content-Type-Options", "nosniff")
-                .body(file.content());
-    }
+        @GetMapping("/{id}/document/download")
+        public ResponseEntity<byte[]> downloadDocument(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID id) {
 
-    @DeleteMapping("/{id}/document")
-    public ResponseEntity<Void> deleteDocument(
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @PathVariable UUID id) {
+                CreditCardStatementDocumentFile file = documentService.download(
+                                organizationId,
+                                id);
 
-        documentService.delete(organizationId, id);
+                return ResponseEntity.ok()
+                                .contentType(MediaType.parseMediaType(file.contentType()))
+                                .header(
+                                                HttpHeaders.CONTENT_DISPOSITION,
+                                                ContentDisposition.attachment()
+                                                                .filename(
+                                                                                file.filename(),
+                                                                                StandardCharsets.UTF_8)
+                                                                .build()
+                                                                .toString())
+                                .header("X-Content-Type-Options", "nosniff")
+                                .body(file.content());
+        }
 
-        return ResponseEntity.noContent().build();
-    }
+        @DeleteMapping("/{id}/document")
+        public ResponseEntity<Void> deleteDocument(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID id) {
+
+                documentService.delete(organizationId, id);
+
+                return ResponseEntity.noContent().build();
+        }
 }

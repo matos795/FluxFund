@@ -79,11 +79,34 @@ export const creditCardStatementItemFormSchema = z
     }
   })
 
-export const payCreditCardStatementFormSchema = z.object({
-  paymentAccountId: z.string().min(1, "Selecione a conta de pagamento."),
-  paymentDate: z.string().min(1, "Informe a data de pagamento."),
-  paymentTransactionId: z.string().optional(),
-})
+export const payCreditCardStatementFormSchema =
+  z.object({
+
+    paymentAccountId:
+      z.string()
+        .min(
+          1,
+          "Selecione a conta de pagamento.",
+        ),
+
+    paymentDate:
+      z.string()
+        .min(
+          1,
+          "Informe a data de pagamento.",
+        ),
+
+    amount:
+      z.coerce
+        .number()
+        .positive(
+          "Informe um valor maior que zero.",
+        ),
+
+    paymentTransactionId:
+      z.string()
+        .optional(),
+  })
 
 export type CreditCardStatementFormInput = z.input<
   typeof creditCardStatementFormSchema

@@ -60,14 +60,22 @@ export function LinkCreditCardPaymentDialog({
     return statements
       .filter(
         (statement) =>
-          statement.status !== "PAID" &&
-          statement.status !== "CANCELED" &&
-          statement.totalAmount > 0,
+          statement.status !== "PAID" && statement.status !== "CANCELED"
+          &&
+          statement.outstandingAmount > 0
+          &&
+          transactionAmount <= statement.outstandingAmount
       )
+
       .map((statement) => {
         let score = 0
+        if (
+          Math.abs(
+            statement.outstandingAmount
+            - transactionAmount
+          ) < 0.01
 
-        if (Math.abs(statement.totalAmount - transactionAmount) < 0.01) {
+        ) {
           score += 100
         }
 
@@ -109,6 +117,7 @@ export function LinkCreditCardPaymentDialog({
         data: {
           paymentAccountId: transaction.account.id,
           paymentDate,
+          amount: transactionAmount,
           paymentTransactionId: transaction.id,
         },
       },
@@ -167,10 +176,15 @@ export function LinkCreditCardPaymentDialog({
             <Label>Fatura</Label>
             <EntityCombobox
               value={statementId}
-              options={availableStatements.map(({ statement, score }, index) => ({
-                value: statement.id,
-                label: `${index === 0 && score > 0 ? "Sugestão: " : ""}${statement.name} · ${formatCurrency(statement.totalAmount)} · vence ${formatDate(statement.dueDate)}`,
-              }))}
+              options={availableStatements.map(
+                ({ statement, score }, index) => ({
+                  value: statement.id,
+                  label: `${index === 0 && score > 0 ? "Sugestão: " : ""
+                    }${statement.name} · restante ${formatCurrency(
+                      statement.outstandingAmount,
+                    )} · vence ${formatDate(statement.dueDate)}`,
+                }),
+              )}
               placeholder="Selecione a fatura paga por esta transação"
               searchPlaceholder="Buscar fatura..."
               emptyMessage="Nenhuma fatura candidata encontrada."
@@ -184,7 +198,10 @@ export function LinkCreditCardPaymentDialog({
               <p className="font-medium">Sugestão encontrada</p>
               <p className="text-muted-foreground">
                 {bestSuggestion.statement.name} ·{" "}
-                {formatCurrency(bestSuggestion.statement.totalAmount)} · vence{" "}
+                Restante:{" "}
+                {formatCurrency(
+                  bestSuggestion.statement.outstandingAmount,
+                )} · vence{" "}
                 {formatDate(bestSuggestion.statement.dueDate)}
               </p>
 
@@ -213,7 +230,10 @@ export function LinkCreditCardPaymentDialog({
 
           <Button
             type="button"
-            disabled={payStatementMutation.isPending}
+            disabled={
+              payStatementMutation.isPending ||
+              !statementId
+            }
             onClick={handleLink}
           >
             {payStatementMutation.isPending

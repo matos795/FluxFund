@@ -1,4 +1,4 @@
-import type { CreditCardStatementStatus } from "./credit-card-statement-types"
+import type { CreditCardStatementPaymentStatus, CreditCardStatementStatus } from "./credit-card-statement-types"
 
 export const creditCardStatementStatusLabels: Record<
   CreditCardStatementStatus,
@@ -8,4 +8,19 @@ export const creditCardStatementStatusLabels: Record<
   CLOSED: "Fechada",
   PAID: "Paga",
   CANCELED: "Cancelada",
+}
+
+export const creditCardStatementPaymentStatusLabels: Record<
+  CreditCardStatementPaymentStatus,
+  string
+> = {
+
+  UNPAID:
+    "Não paga",
+
+  PARTIALLY_PAID:
+    "Parcialmente paga",
+
+  PAID:
+    "Paga",
 }

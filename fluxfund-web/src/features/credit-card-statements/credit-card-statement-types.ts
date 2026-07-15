@@ -7,6 +7,11 @@ export type CreditCardStatementStatus =
   | "PAID"
   | "CANCELED"
 
+export type CreditCardStatementPaymentStatus =
+  | "UNPAID"
+  | "PARTIALLY_PAID"
+  | "PAID"
+
 export type CreditCardStatementDocument = {
   originalFilename: string
   contentType: string
@@ -24,11 +29,27 @@ export type CreditCardStatement = {
   dueDate: string
   paymentDate: string | null
   status: CreditCardStatementStatus
-  statementDocument: CreditCardStatementDocument | null
+  paymentStatus: CreditCardStatementPaymentStatus
+  statementDocument:
+  | CreditCardStatementDocument
+  | null
   totalAmount: number
+  paidAmount: number
+  outstandingAmount: number
   itemCount: number
+  paymentCount: number
+  lastPaymentDate: string | null
   createdAt: string
   updatedAt: string | null
+}
+
+export type CreditCardStatementPayment = {
+  id: string
+  paymentAccount: AccountSummary
+  paymentTransactionId: string
+  paymentDate: string
+  amount: number
+  createdAt: string
 }
 
 export type CreateCreditCardStatementRequest = {
@@ -59,6 +80,7 @@ export type CreateCreditCardItemRequest = {
 export type PayCreditCardStatementRequest = {
   paymentAccountId: string
   paymentDate: string
+  amount: number
   paymentTransactionId?: string | null
 }
 
