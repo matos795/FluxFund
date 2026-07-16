@@ -15,8 +15,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.fluxfund.api.domain.account.Account;
 import com.fluxfund.api.domain.creditcardstatement.CreditCardStatement;
+import com.fluxfund.api.domain.creditcardstatement.CreditCardStatementPayment;
 import com.fluxfund.api.domain.creditcardstatement.CreditCardStatementStatus;
 import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementImportResponse;
+import com.fluxfund.api.domain.creditcardstatement.repository.CreditCardStatementPaymentRepository;
 import com.fluxfund.api.domain.creditcardstatement.repository.CreditCardStatementRepository;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
@@ -53,6 +55,8 @@ public class CreditCardStatementOfxImportService {
     private final FinancialTransactionRepository financialTransactionRepository;
     private final OrganizationAccessService organizationAccessService;
     private final OfxTextNormalizer ofxTextNormalizer;
+    private final CreditCardStatementPaymentRepository paymentRepository;
+    private final CreditCardOfxEntryClassifier entryClassifier;
 
     public CreditCardStatementImportResponse importOfx(
             UUID organizationId,
@@ -75,10 +79,21 @@ public class CreditCardStatementOfxImportService {
         Account creditCardAccount = creditCardStatement.getCreditCardAccount();
 
         int imported = 0;
+
+        int detectedPayments = 0;
+
+        int reconciledPayments = 0;
+
         int ignoredDuplicates = 0;
+
+        int reviewRequired = 0;
+
         int failed = 0;
 
         List<FinancialTransactionResponse> importedItems = new ArrayList<>();
+
+        List<String> warnings = new ArrayList<>();
+
         List<String> errors = new ArrayList<>();
 
         try (InputStream inputStream = file.getInputStream()) {
@@ -98,28 +113,81 @@ public class CreditCardStatementOfxImportService {
                         continue;
                     }
 
-                    boolean alreadyExists = financialTransactionRepository
-                            .existsByOrganizationIdAndCreditCardStatementIdAndExternalId(
-                                    organizationId,
-                                    statementId,
+                    String description = buildDescription(ofxTransaction);
+
+                    CreditCardOfxEntryType entryType = entryClassifier.classify(
+                            ofxTransaction,
+                            description);
+
+                    switch (entryType) {
+
+                        case EXPENSE -> {
+
+                            boolean alreadyExists = financialTransactionRepository
+                                    .existsByOrganizationIdAndCreditCardStatementIdAndExternalId(
+                                            organizationId,
+                                            statementId,
+                                            externalId);
+
+                            if (alreadyExists) {
+                                ignoredDuplicates++;
+                                continue;
+                            }
+
+                            FinancialTransaction financialTransaction = createCreditCardItemFromOfx(
+                                    organization,
+                                    creditCardAccount,
+                                    creditCardStatement,
+                                    ofxTransaction,
                                     externalId);
 
-                    if (alreadyExists) {
-                        ignoredDuplicates++;
-                        continue;
+                            FinancialTransaction savedTransaction = financialTransactionRepository
+                                    .save(financialTransaction);
+
+                            importedItems.add(
+                                    FinancialTransactionMapper
+                                            .toResponse(savedTransaction));
+
+                            imported++;
+                        }
+
+                        case PAYMENT -> {
+
+                            PaymentImportResult result = importStatementPayment(
+                                    organizationId,
+                                    creditCardStatement,
+                                    ofxTransaction,
+                                    externalId,
+                                    description,
+                                    warnings);
+
+                            switch (result) {
+                                case CREATED ->
+                                    detectedPayments++;
+
+                                case RECONCILED ->
+                                    reconciledPayments++;
+
+                                case DUPLICATE ->
+                                    ignoredDuplicates++;
+
+                                case REVIEW_REQUIRED ->
+                                    reviewRequired++;
+                            }
+                        }
+
+                        case REVIEW_REQUIRED -> {
+
+                            reviewRequired++;
+
+                            warnings.add(
+                                    "Crédito da fatura precisa de revisão: "
+                                            + description
+                                            + " · valor "
+                                            + ofxTransaction.getBigDecimalAmount());
+                        }
                     }
 
-                    FinancialTransaction financialTransaction = createCreditCardItemFromOfx(
-                            organization,
-                            creditCardAccount,
-                            creditCardStatement,
-                            ofxTransaction,
-                            externalId);
-
-                    FinancialTransaction savedTransaction = financialTransactionRepository.save(financialTransaction);
-
-                    importedItems.add(FinancialTransactionMapper.toResponse(savedTransaction));
-                    imported++;
                 } catch (Exception exception) {
                     failed++;
                     errors.add("Erro ao importar transação: " + exception.getMessage());
@@ -128,9 +196,13 @@ public class CreditCardStatementOfxImportService {
 
             return new CreditCardStatementImportResponse(
                     imported,
+                    detectedPayments,
+                    reconciledPayments,
                     ignoredDuplicates,
                     importedItems,
+                    reviewRequired,
                     failed,
+                    warnings,
                     errors);
 
         } catch (BusinessException exception) {
@@ -219,13 +291,7 @@ public class CreditCardStatementOfxImportService {
             Transaction ofxTransaction,
             String externalId) {
 
-        Double amountDouble = ofxTransaction.getAmount();
-
-        if (amountDouble == null) {
-            throw new BusinessException("Transaction amount must be provided");
-        }
-
-        BigDecimal amount = BigDecimal.valueOf(amountDouble);
+        BigDecimal amount = requireAmount(ofxTransaction);
 
         if (amount.compareTo(BigDecimal.ZERO) == 0) {
             throw new BusinessException("Transaction amount must be different from zero");
@@ -312,5 +378,169 @@ public class CreditCardStatementOfxImportService {
         return ofxTextNormalizer
                 .normalize(value)
                 .trim();
+    }
+
+    private enum PaymentImportResult {
+        CREATED,
+        RECONCILED,
+        DUPLICATE,
+        REVIEW_REQUIRED
+    }
+
+    private PaymentImportResult importStatementPayment(
+
+            UUID organizationId,
+
+            CreditCardStatement statement,
+
+            Transaction ofxTransaction,
+
+            String externalId,
+
+            String description,
+
+            List<String> warnings) {
+
+        if (paymentRepository
+                .existsByOrganizationIdAndStatementIdAndStatementExternalId(
+                        organizationId,
+                        statement.getId(),
+                        externalId)) {
+
+            return PaymentImportResult.DUPLICATE;
+        }
+
+        var legacyItem = financialTransactionRepository
+                .findByOrganizationIdAndCreditCardStatementIdAndExternalId(
+                        organizationId,
+                        statement.getId(),
+                        externalId);
+
+        if (legacyItem.isPresent()
+
+                && legacyItem.get().getStatus() != FinancialTransactionStatus.CANCELED) {
+
+            warnings.add(
+                    "O pagamento \""
+                            + description
+                            + "\" ainda existe como item ativo da fatura. "
+                            + "Cancele esse item incorreto antes de reimportar.");
+
+            return PaymentImportResult.REVIEW_REQUIRED;
+        }
+
+        BigDecimal amount = requireAmount(ofxTransaction)
+                .abs();
+
+        LocalDate paymentDate = requirePostedDate(ofxTransaction);
+
+        List<CreditCardStatementPayment> possibleMatches = paymentRepository
+                .findPossibleStatementMatches(
+                        organizationId,
+                        statement.getId(),
+                        amount,
+                        paymentDate.minusDays(3),
+                        paymentDate.plusDays(3));
+
+        if (possibleMatches.size() > 1) {
+
+            warnings.add(
+                    "Mais de um pagamento existente pode corresponder a \""
+                            + description
+                            + "\". Faça a conciliação manual.");
+
+            return PaymentImportResult.REVIEW_REQUIRED;
+        }
+
+        if (possibleMatches.size() == 1) {
+
+            CreditCardStatementPayment existingPayment = possibleMatches.get(0);
+
+            fillStatementImportData(
+                    existingPayment,
+                    ofxTransaction,
+                    externalId,
+                    description);
+
+            paymentRepository.save(existingPayment);
+
+            return PaymentImportResult.RECONCILED;
+        }
+
+        CreditCardStatementPayment payment = new CreditCardStatementPayment();
+
+        payment.setOrganization(
+                statement.getOrganization());
+
+        payment.setStatement(statement);
+
+        payment.setPaymentDate(paymentDate);
+
+        payment.setAmount(amount);
+
+        fillStatementImportData(
+                payment,
+                ofxTransaction,
+                externalId,
+                description);
+
+        paymentRepository.save(payment);
+
+        return PaymentImportResult.CREATED;
+    }
+
+    private void fillStatementImportData(
+
+            CreditCardStatementPayment payment,
+
+            Transaction transaction,
+
+            String externalId,
+
+            String description) {
+
+        payment.setStatementExternalId(
+                externalId);
+
+        payment.setStatementRawDescription(
+                description);
+
+        payment.setStatementTransactionType(
+                transaction.getTransactionType() != null
+                        ? transaction
+                                .getTransactionType()
+                                .name()
+                        : null);
+    }
+
+    private BigDecimal requireAmount(
+            Transaction transaction) {
+
+        BigDecimal amount = transaction.getBigDecimalAmount();
+
+        if (amount == null
+                || amount.compareTo(BigDecimal.ZERO) == 0) {
+
+            throw new BusinessException(
+                    "Transaction amount must be different from zero");
+        }
+
+        return amount;
+    }
+
+    private LocalDate requirePostedDate(
+            Transaction transaction) {
+
+        if (transaction.getDatePosted() == null) {
+
+            throw new BusinessException(
+                    "Transaction date must be provided");
+        }
+
+        return transaction
+                .getDatePosted()
+                .toInstant()
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate();
     }
 }

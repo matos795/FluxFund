@@ -22,6 +22,7 @@ import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementDocume
 import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementImportResponse;
 import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementPaymentResponse;
 import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementResponse;
+import com.fluxfund.api.domain.creditcardstatement.dto.LinkCreditCardStatementPaymentRequest;
 import com.fluxfund.api.domain.creditcardstatement.dto.PayCreditCardStatementRequest;
 import com.fluxfund.api.domain.creditcardstatement.dto.UpdateCreditCardStatementRequest;
 import com.fluxfund.api.domain.creditcardstatement.service.CreditCardStatementDocumentService;
@@ -196,5 +197,20 @@ public class CreditCardStatementController {
                 documentService.delete(organizationId, id);
 
                 return ResponseEntity.noContent().build();
+        }
+
+        @PostMapping("/{statementId}/payments/{paymentId}/link")
+        public ResponseEntity<CreditCardStatementPaymentResponse> linkPayment(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID statementId,
+                        @PathVariable UUID paymentId,
+                        @RequestBody @Valid LinkCreditCardStatementPaymentRequest request) {
+
+                return ResponseEntity.ok(
+                                service.linkPayment(
+                                                organizationId,
+                                                statementId,
+                                                paymentId,
+                                                request));
         }
 }

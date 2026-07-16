@@ -105,9 +105,13 @@ public class CreditCardStatementSpreadsheetImportService {
 
         return new CreditCardStatementImportResponse(
                 imported,
+                0,
+                0,
                 ignoredDuplicates,
                 importedItems,
+                0,
                 failed,
+                List.of(),
                 errors);
     }
 

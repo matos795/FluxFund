@@ -22,6 +22,7 @@ public class CreditCardStatementMapper {
             BigDecimal outstandingAmount,
             long itemCount,
             long paymentCount,
+            long unlinkedPaymentCount,
             LocalDate lastPaymentDate) {
 
         return new CreditCardStatementResponse(
@@ -77,6 +78,8 @@ public class CreditCardStatementMapper {
                 itemCount,
 
                 paymentCount,
+
+                unlinkedPaymentCount,
 
                 lastPaymentDate,
 

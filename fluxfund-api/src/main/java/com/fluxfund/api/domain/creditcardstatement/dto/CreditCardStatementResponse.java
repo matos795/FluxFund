@@ -43,6 +43,8 @@ public record CreditCardStatementResponse(
 
         long paymentCount,
 
+        long unlinkedPaymentCount,
+
         LocalDate lastPaymentDate,
 
         OffsetDateTime createdAt,

@@ -19,6 +19,10 @@ public record CreditCardStatementPaymentResponse(
 
         BigDecimal amount,
 
+        String description,
+
+        boolean linked,
+
         OffsetDateTime createdAt
 
 ) {

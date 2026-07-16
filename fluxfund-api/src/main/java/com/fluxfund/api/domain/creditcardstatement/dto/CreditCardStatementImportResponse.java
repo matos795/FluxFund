@@ -6,9 +6,13 @@ import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionResp
 
 public record CreditCardStatementImportResponse(
         int importedCount,
+        int detectedPaymentCount,
+        int reconciledPaymentCount,
         int ignoredDuplicateCount,
         List<FinancialTransactionResponse> importedItems,
+        int reviewRequiredCount,
         int failedCount,
+        List<String> warnings,
         List<String> errors
 ) {
 }
