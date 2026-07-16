@@ -209,3 +209,14 @@ export async function linkCreditCardStatementPayment(
 
   return response.data
 }
+
+export async function markCreditCardStatementPaymentAsOpeningBalance(
+  statementId: string,
+  paymentId: string,
+) {
+  const response = await httpClient.post<CreditCardStatementPayment>(
+    `/api/v1/credit-card-statements/${statementId}/payments/${paymentId}/opening-balance`,
+  )
+
+  return response.data
+}

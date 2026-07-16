@@ -378,6 +378,12 @@ public class CreditCardStatementService {
                     "Credit card statement payment is already linked");
         }
 
+        if (payment.isOpeningBalance()) {
+
+            throw new BusinessException(
+                    "Opening balance payments cannot be linked to bank transactions");
+        }
+
         Account paymentAccount = accountRepository
                 .findByIdAndOrganizationIdAndActiveTrue(
                         request.paymentAccountId(),
@@ -489,6 +495,62 @@ public class CreditCardStatementService {
                 .toList();
     }
 
+    public CreditCardStatementPaymentResponse markPaymentAsOpeningBalance(
+            UUID organizationId,
+            UUID statementId,
+            UUID paymentId) {
+
+        organizationAccessService
+                .requireFinanceWriteAccess(
+                        organizationId);
+
+        CreditCardStatement statement = findStatement(
+                organizationId,
+                statementId);
+
+        if (statement.getStatus() == CreditCardStatementStatus.CANCELED) {
+
+            throw new BusinessException(
+                    "Canceled credit card statements cannot be changed");
+        }
+
+        if (statement.getStatus() == CreditCardStatementStatus.PAID) {
+
+            throw new BusinessException(
+                    "Paid credit card statements cannot be changed");
+        }
+
+        CreditCardStatementPayment payment = paymentRepository
+                .findByIdAndOrganizationIdAndStatementId(
+                        paymentId,
+                        organizationId,
+                        statementId)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException(
+                                "Credit card statement payment not found"));
+
+        if (payment.getPaymentTransaction() != null) {
+
+            throw new BusinessException(
+                    "Linked payments cannot be marked as opening balance");
+        }
+
+        if (payment.isOpeningBalance()) {
+            return toPaymentResponse(payment);
+        }
+
+        payment.setOpeningBalance(true);
+
+        CreditCardStatementPayment savedPayment = paymentRepository.save(payment);
+
+        refreshStatementPaymentState(
+                organizationId,
+                statement);
+
+        return toPaymentResponse(
+                savedPayment);
+    }
+
     private CreditCardStatement findStatement(UUID organizationId, UUID id) {
         return statementRepository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Credit card statement not found"));
@@ -541,7 +603,7 @@ public class CreditCardStatementService {
                                 statement.getId());
 
         long unlinkedPaymentCount = paymentRepository
-                .countByOrganizationIdAndStatementIdAndPaymentTransactionIsNull(
+                .countByOrganizationIdAndStatementIdAndPaymentTransactionIsNullAndOpeningBalanceFalse(
                         organizationId,
                         statement.getId());
 
@@ -914,6 +976,8 @@ public class CreditCardStatementService {
 
                 payment.getPaymentTransaction() != null,
 
+                payment.isOpeningBalance(),
+
                 payment.getCreatedAt());
     }
 
@@ -931,7 +995,7 @@ public class CreditCardStatementService {
                         statement.getId());
 
         long unlinkedPaymentCount = paymentRepository
-                .countByOrganizationIdAndStatementIdAndPaymentTransactionIsNull(
+                .countByOrganizationIdAndStatementIdAndPaymentTransactionIsNullAndOpeningBalanceFalse(
                         organizationId,
                         statement.getId());
 

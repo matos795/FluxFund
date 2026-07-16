@@ -56,6 +56,10 @@ public interface CreditCardStatementPaymentRepository
                         UUID organizationId,
                         UUID statementId);
 
+        long countByOrganizationIdAndStatementIdAndPaymentTransactionIsNullAndOpeningBalanceFalse(
+                        UUID organizationId,
+                        UUID statementId);
+
         @Query("""
                         select payment
                         from CreditCardStatementPayment payment

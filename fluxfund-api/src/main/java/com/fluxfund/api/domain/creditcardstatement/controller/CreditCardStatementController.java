@@ -213,4 +213,17 @@ public class CreditCardStatementController {
                                                 paymentId,
                                                 request));
         }
+
+        @PostMapping("/{statementId}/payments/{paymentId}/opening-balance")
+        public ResponseEntity<CreditCardStatementPaymentResponse> markPaymentAsOpeningBalance(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID statementId,
+                        @PathVariable UUID paymentId) {
+
+                return ResponseEntity.ok(
+                                service.markPaymentAsOpeningBalance(
+                                                organizationId,
+                                                statementId,
+                                                paymentId));
+        }
 }

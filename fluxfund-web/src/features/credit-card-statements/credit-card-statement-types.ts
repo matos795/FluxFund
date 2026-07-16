@@ -55,6 +55,7 @@ export type CreditCardStatementPayment = {
   amount: number
   description: string | null
   linked: boolean
+  openingBalance: boolean
   createdAt: string
 }
 

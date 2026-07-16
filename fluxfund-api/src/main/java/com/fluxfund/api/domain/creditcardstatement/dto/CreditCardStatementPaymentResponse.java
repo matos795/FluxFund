@@ -16,6 +16,7 @@ public record CreditCardStatementPaymentResponse(
         BigDecimal amount,
         String description,
         boolean linked,
+        boolean openingBalance,
         OffsetDateTime createdAt
 ) {
 }

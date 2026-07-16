@@ -56,4 +56,7 @@ public class CreditCardStatementPayment extends BaseEntity {
 
     @Column(name = "statement_transaction_type")
     private String statementTransactionType;
+
+    @Column(name = "opening_balance", nullable = false)
+    private boolean openingBalance;
 }
