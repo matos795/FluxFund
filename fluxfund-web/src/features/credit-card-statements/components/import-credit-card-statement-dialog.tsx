@@ -122,11 +122,19 @@ export function ImportCreditCardStatementDialog({
                 {
                     onSuccess: (result) => {
                         toast.success(
-                            `OFX importado: ${result.importedCount} itens importados, ${result.ignoredDuplicateCount} duplicados, ${result.failedCount} falhas.`,
+                            `OFX importado: ${result.importedCount} despesas, ${result.detectedPaymentCount} pagamentos detectados, ${result.reconciledPaymentCount} pagamentos conciliados e ${result.ignoredDuplicateCount} duplicados.`,
                         )
 
-                        if (result.errors.length > 0) {
-                            toast.warning("Alguns itens não foram importados.")
+                        if (result.reviewRequiredCount > 0) {
+                            toast.warning(
+                                `${result.reviewRequiredCount} créditos precisam de revisão.${result.warnings[0] ? ` ${result.warnings[0]}` : ""}`,
+                            )
+                        }
+
+                        if (result.failedCount > 0) {
+                            toast.warning(
+                                `${result.failedCount} lançamentos falharam na importação.`,
+                            )
                         }
 
                         handleOpenChange(false)
@@ -276,10 +284,21 @@ export function ImportCreditCardStatementDialog({
                             )}
                         </div>
 
-                        <div className="rounded-xl border bg-muted/30 p-3 text-xs text-muted-foreground">
-                            Os lançamentos importados entram como itens da fatura. Depois você
-                            pode revisar categoria, alocações, anexos e regra documental no
-                            workspace da transação.
+                        <div className="rounded-xl border bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground">
+                            {importKind === "CREDIT_CARD_OFX" ? (
+                                <>
+                                    Compras, tarifas e juros entram como despesas da fatura.
+                                    Pagamentos recebidos são registrados no histórico de
+                                    pagamentos. Créditos e estornos não reconhecidos ficam
+                                    sinalizados para revisão.
+                                </>
+                            ) : (
+                                <>
+                                    Os lançamentos importados entram como itens da fatura.
+                                    Depois você pode revisar categoria, alocações, anexos e
+                                    regra documental no workspace da transação.
+                                </>
+                            )}
                         </div>
                     </AppDialogBody>
 

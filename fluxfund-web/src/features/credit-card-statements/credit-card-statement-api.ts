@@ -7,6 +7,7 @@ import type {
   CreditCardStatementDocument,
   CreditCardStatementImportResponse,
   CreditCardStatementPayment,
+  LinkCreditCardStatementPaymentRequest,
   CreditCardStatementStatus,
   PayCreditCardStatementRequest,
 } from "./credit-card-statement-types"
@@ -191,6 +192,19 @@ export async function getCreditCardStatementPayments(
     CreditCardStatementPayment[]
   >(
     `/api/v1/credit-card-statements/${statementId}/payments`,
+  )
+
+  return response.data
+}
+
+export async function linkCreditCardStatementPayment(
+  statementId: string,
+  paymentId: string,
+  data: LinkCreditCardStatementPaymentRequest,
+) {
+  const response = await httpClient.post<CreditCardStatementPayment>(
+    `/api/v1/credit-card-statements/${statementId}/payments/${paymentId}/link`,
+    data,
   )
 
   return response.data

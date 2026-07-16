@@ -1,5 +1,8 @@
 import type { AccountSummary } from "../accounts/types"
-import type { FinancialTransaction, FiscalDocumentPolicy } from "../financial-transactions/financial-transaction-types"
+import type {
+  FinancialTransaction,
+  FiscalDocumentPolicy,
+} from "../financial-transactions/financial-transaction-types"
 
 export type CreditCardStatementStatus =
   | "OPEN"
@@ -30,14 +33,13 @@ export type CreditCardStatement = {
   paymentDate: string | null
   status: CreditCardStatementStatus
   paymentStatus: CreditCardStatementPaymentStatus
-  statementDocument:
-  | CreditCardStatementDocument
-  | null
+  statementDocument: CreditCardStatementDocument | null
   totalAmount: number
   paidAmount: number
   outstandingAmount: number
   itemCount: number
   paymentCount: number
+  unlinkedPaymentCount: number
   lastPaymentDate: string | null
   createdAt: string
   updatedAt: string | null
@@ -45,10 +47,12 @@ export type CreditCardStatement = {
 
 export type CreditCardStatementPayment = {
   id: string
-  paymentAccount: AccountSummary
-  paymentTransactionId: string
+  paymentAccount: AccountSummary | null
+  paymentTransactionId: string | null
   paymentDate: string
   amount: number
+  description: string | null
+  linked: boolean
   createdAt: string
 }
 
@@ -84,14 +88,23 @@ export type PayCreditCardStatementRequest = {
   paymentTransactionId?: string | null
 }
 
+export type LinkCreditCardStatementPaymentRequest = {
+  paymentAccountId: string
+  paymentTransactionId: string
+}
+
 export type CreditCardStatementWithItems = CreditCardStatement & {
   items?: FinancialTransaction[]
 }
 
 export type CreditCardStatementImportResponse = {
   importedCount: number
+  detectedPaymentCount: number
+  reconciledPaymentCount: number
   ignoredDuplicateCount: number
   importedItems: FinancialTransaction[]
+  reviewRequiredCount: number
   failedCount: number
+  warnings: string[]
   errors: string[]
 }

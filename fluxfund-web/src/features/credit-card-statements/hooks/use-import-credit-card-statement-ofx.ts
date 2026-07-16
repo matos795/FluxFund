@@ -14,8 +14,14 @@ export function useImportCreditCardStatementOfx() {
   return useMutation({
     mutationFn: ({ statementId, file }: ImportCreditCardStatementOfxData) =>
       importCreditCardStatementOfx({ statementId, file }),
-    onSuccess: () => {
+    onSuccess: (_result, variables) => {
       queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] })
+      queryClient.invalidateQueries({
+        queryKey: [
+          "credit-card-statement-payments",
+          variables.statementId,
+        ],
+      })
       invalidateFinancialData(queryClient)
     },
   })

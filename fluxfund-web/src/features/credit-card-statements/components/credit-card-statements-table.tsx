@@ -1,4 +1,4 @@
-import { CreditCard, FileDown, FileText, FileUp, ListChecks, MoreHorizontal, Plus, Trash2 } from "lucide-react"
+import { CreditCard, FileDown, FileText, FileUp, History, ListChecks, MoreHorizontal, Plus, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -27,6 +27,7 @@ import type { CreditCardStatement } from "../credit-card-statement-types"
 import { useCancelCreditCardStatement } from "../hooks/use-cancel-credit-card-statement"
 import { AddCreditCardStatementItemDialog } from "./add-credit-card-statement-item-dialog"
 import { PayCreditCardStatementDialog } from "./pay-credit-card-statement-dialog"
+import { CreditCardStatementPaymentsDialog } from "./credit-card-statement-payments-dialog"
 import { ViewCreditCardStatementItemsDialog } from "./view-credit-card-statement-items-dialog"
 import { ImportCreditCardStatementDialog } from "./import-credit-card-statement-dialog"
 import { ConfirmActionDialog } from "@/components/layout/confirm-action-dialog"
@@ -74,6 +75,9 @@ export function CreditCardStatementsTable({
     useState<CreditCardStatement | null>(null)
 
   const [statementToViewItems, setStatementToViewItems] =
+    useState<CreditCardStatement | null>(null)
+
+  const [statementToViewPayments, setStatementToViewPayments] =
     useState<CreditCardStatement | null>(null)
 
   const cancelStatementMutation = useCancelCreditCardStatement()
@@ -160,7 +164,8 @@ export function CreditCardStatementsTable({
     return (
       statement.status !== "PAID" &&
       statement.status !== "CANCELED" &&
-      statement.outstandingAmount > 0
+      statement.outstandingAmount > 0 &&
+      statement.unlinkedPaymentCount === 0
     )
   }
 
@@ -223,17 +228,20 @@ export function CreditCardStatementsTable({
                       {statement.paymentCount > 0 && (
                         <div className="text-xs text-muted-foreground">
                           Pago:{" "}
-                          {formatCurrency(
-                            statement.paidAmount,
-                          )}
+                          {formatCurrency(statement.paidAmount)}
                           {" · "}
                           Restante:{" "}
-                          {formatCurrency(
-                            statement.outstandingAmount,
-                          )}
+                          {formatCurrency(statement.outstandingAmount)}
                         </div>
                       )}
 
+                      {statement.unlinkedPaymentCount > 0 && (
+                        <div className="mt-1 text-xs font-medium text-amber-700">
+                          {statement.unlinkedPaymentCount === 1
+                            ? "1 pagamento aguardando vínculo bancário"
+                            : `${statement.unlinkedPaymentCount} pagamentos aguardando vínculo bancário`}
+                        </div>
+                      )}
                     </div>
                   </TableCell>
 
@@ -296,6 +304,16 @@ export function CreditCardStatementsTable({
                         >
                           <ListChecks className="mr-2 size-4" />
                           Ver itens da fatura
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem
+                          onSelect={() => setStatementToViewPayments(statement)}
+                        >
+                          <History className="mr-2 size-4" />
+                          Ver pagamentos
+                          {statement.unlinkedPaymentCount > 0
+                            ? ` (${statement.unlinkedPaymentCount} pendentes)`
+                            : ""}
                         </DropdownMenuItem>
 
                         <DropdownMenuItem
@@ -386,6 +404,21 @@ export function CreditCardStatementsTable({
           onOpenChange={(open) => {
             if (!open) {
               setStatementToViewItems(null)
+            }
+          }}
+          trigger={null}
+        />
+      )}
+
+
+      {statementToViewPayments && (
+        <CreditCardStatementPaymentsDialog
+          statement={statementToViewPayments}
+          canManage={canFinanceWrite}
+          open={Boolean(statementToViewPayments)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setStatementToViewPayments(null)
             }
           }}
           trigger={null}

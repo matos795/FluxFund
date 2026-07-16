@@ -3,25 +3,31 @@ import { useMemo, useState } from "react"
 import { toast } from "sonner"
 
 import { EntityCombobox } from "@/components/form/entity-combobox"
-import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+  AppDialogBody,
+  AppDialogContent,
+  AppDialogFooter,
+  AppDialogHeader,
+} from "@/components/layout/app-dialog"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import type { FinancialTransaction } from "@/features/financial-transactions/financial-transaction-types"
-import { formatCurrency, formatDate } from "@/utils/formatters"
-import { useCreditCardStatements } from "../hooks/use-credit-card-statements"
-import { usePayCreditCardStatement } from "../hooks/use-pay-credit-card-statement"
 import { getApiErrorMessage } from "@/utils/api-error"
-import { AppDialogBody, AppDialogContent, AppDialogFooter, AppDialogHeader } from "@/components/layout/app-dialog"
+import { formatCurrency, formatDate } from "@/utils/formatters"
+import { useCreditCardStatementPayments } from "../hooks/use-credit-card-statement-payments"
+import { useCreditCardStatements } from "../hooks/use-credit-card-statements"
+import { useLinkCreditCardStatementPayment } from "../hooks/use-link-credit-card-statement-payment"
+import { usePayCreditCardStatement } from "../hooks/use-pay-credit-card-statement"
 
 type LinkCreditCardPaymentDialogProps = {
   transaction: FinancialTransaction
 }
 
 function getTransactionAmount(transaction: FinancialTransaction) {
-  return Math.abs(transaction.settledAmount ?? transaction.expectedAmount ?? 0)
+  return Math.abs(
+    transaction.settledAmount ?? transaction.expectedAmount ?? 0,
+  )
 }
 
 function addDays(date: string, days: number) {
@@ -30,12 +36,12 @@ function addDays(date: string, days: number) {
   return parsedDate.toISOString().slice(0, 10)
 }
 
-function isNearDate(statementDueDate: string, transactionDate: string | null) {
-  if (!transactionDate) return false
+function isNearDate(referenceDate: string, transactionDate: string | null) {
+  if (!transactionDate) return true
 
   return (
-    transactionDate >= addDays(statementDueDate, -15) &&
-    transactionDate <= addDays(statementDueDate, 15)
+    transactionDate >= addDays(referenceDate, -15) &&
+    transactionDate <= addDays(referenceDate, 15)
   )
 }
 
@@ -49,8 +55,13 @@ export function LinkCreditCardPaymentDialog({
     page: 0,
     size: 100,
   })
+  const paymentsQuery = useCreditCardStatementPayments(
+    statementId,
+    open && Boolean(statementId),
+  )
 
   const payStatementMutation = usePayCreditCardStatement()
+  const linkPaymentMutation = useLinkCreditCardStatementPayment()
 
   const transactionAmount = getTransactionAmount(transaction)
 
@@ -60,23 +71,22 @@ export function LinkCreditCardPaymentDialog({
     return statements
       .filter(
         (statement) =>
-          statement.status !== "PAID" && statement.status !== "CANCELED"
-          &&
-          statement.outstandingAmount > 0
-          &&
-          transactionAmount <= statement.outstandingAmount
+          statement.status !== "PAID" &&
+          statement.status !== "CANCELED" &&
+          (statement.unlinkedPaymentCount > 0 ||
+            transactionAmount <= statement.outstandingAmount),
       )
-
       .map((statement) => {
         let score = 0
-        if (
-          Math.abs(
-            statement.outstandingAmount
-            - transactionAmount
-          ) < 0.01
 
+        if (
+          Math.abs(statement.outstandingAmount - transactionAmount) < 0.01
         ) {
           score += 100
+        }
+
+        if (statement.unlinkedPaymentCount > 0) {
+          score += 30
         }
 
         if (
@@ -92,17 +102,105 @@ export function LinkCreditCardPaymentDialog({
         }
       })
       .sort((a, b) => b.score - a.score)
-  }, [statementsQuery.data?.content, transactionAmount, transaction.settlementDate])
+  }, [
+    statementsQuery.data?.content,
+    transactionAmount,
+    transaction.settlementDate,
+  ])
+
+  const selectedStatement = availableStatements.find(
+    (item) => item.statement.id === statementId,
+  )?.statement
+
+  const matchingUnlinkedPayments = useMemo(() => {
+    const payments = paymentsQuery.data ?? []
+
+    return payments.filter(
+      (payment) =>
+        !payment.linked &&
+        Math.abs(payment.amount - transactionAmount) < 0.01 &&
+        isNearDate(payment.paymentDate, transaction.settlementDate),
+    )
+  }, [paymentsQuery.data, transactionAmount, transaction.settlementDate])
 
   const bestSuggestion = availableStatements[0]
+  const pending =
+    payStatementMutation.isPending || linkPaymentMutation.isPending
+
+  function resetDialog() {
+    setStatementId("")
+  }
+
+  function handleOpenChange(value: boolean) {
+    if (!value) {
+      resetDialog()
+    }
+
+    setOpen(value)
+  }
 
   function handleLink() {
-    const selectedStatement = availableStatements.find(
-      (item) => item.statement.id === statementId,
-    )?.statement
-
     if (!selectedStatement) {
       toast.error("Selecione uma fatura.")
+      return
+    }
+
+    if (paymentsQuery.isLoading || paymentsQuery.isFetching) {
+      toast.error("Aguarde a conferência dos pagamentos da fatura.")
+      return
+    }
+
+    if (paymentsQuery.isError) {
+      toast.error("Não foi possível conferir os pagamentos da fatura.")
+      return
+    }
+
+    if (matchingUnlinkedPayments.length > 1) {
+      toast.error(
+        "Há mais de um pagamento pendente com esse valor. Faça o vínculo em Faturas > Ver pagamentos.",
+      )
+      return
+    }
+
+    if (
+      selectedStatement.unlinkedPaymentCount > 0 &&
+      matchingUnlinkedPayments.length === 0
+    ) {
+      toast.error(
+        "A fatura possui pagamentos aguardando vínculo, mas nenhum corresponde a esta saída. Faça a conciliação em Faturas > Ver pagamentos.",
+      )
+      return
+    }
+
+    const existingPayment = matchingUnlinkedPayments[0]
+
+    if (existingPayment) {
+      linkPaymentMutation.mutate(
+        {
+          statementId: selectedStatement.id,
+          paymentId: existingPayment.id,
+          data: {
+            paymentAccountId: transaction.account.id,
+            paymentTransactionId: transaction.id,
+          },
+        },
+        {
+          onSuccess: () => {
+            toast.success(
+              "Pagamento detectado na fatura conciliado com a saída bancária.",
+            )
+            handleOpenChange(false)
+          },
+          onError: (error) => {
+            toast.error(
+              getApiErrorMessage(
+                error,
+                "Não foi possível conciliar o pagamento.",
+              ),
+            )
+          },
+        },
+      )
       return
     }
 
@@ -123,9 +221,8 @@ export function LinkCreditCardPaymentDialog({
       },
       {
         onSuccess: () => {
-          toast.success("Pagamento vinculado à fatura.")
-          setOpen(false)
-          setStatementId("")
+          toast.success("Novo pagamento registrado e vinculado à fatura.")
+          handleOpenChange(false)
         },
         onError: (error) => {
           toast.error(
@@ -145,7 +242,7 @@ export function LinkCreditCardPaymentDialog({
     "Transação OFX"
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
           <Link2 className="mr-2 size-4" />
@@ -157,7 +254,7 @@ export function LinkCreditCardPaymentDialog({
         <AppDialogHeader
           icon={<Link2 className="size-4 text-muted-foreground" />}
           title="Vincular pagamento de fatura"
-          description="Vincule esta transação bancária ao pagamento de uma fatura de cartão. O backend deve transformar essa transação em transferência para não duplicar a despesa."
+          description="O FluxFund procura primeiro um pagamento detectado no OFX do cartão. Quando encontra, apenas concilia a saída bancária, sem duplicar o valor pago."
         />
 
         <AppDialogBody className="space-y-4">
@@ -179,10 +276,15 @@ export function LinkCreditCardPaymentDialog({
               options={availableStatements.map(
                 ({ statement, score }, index) => ({
                   value: statement.id,
-                  label: `${index === 0 && score > 0 ? "Sugestão: " : ""
-                    }${statement.name} · restante ${formatCurrency(
-                      statement.outstandingAmount,
-                    )} · vence ${formatDate(statement.dueDate)}`,
+                  label: `${
+                    index === 0 && score > 0 ? "Sugestão: " : ""
+                  }${statement.name} · restante ${formatCurrency(
+                    statement.outstandingAmount,
+                  )}${
+                    statement.unlinkedPaymentCount > 0
+                      ? ` · ${statement.unlinkedPaymentCount} vínculo(s) pendente(s)`
+                      : ""
+                  } · vence ${formatDate(statement.dueDate)}`,
                 }),
               )}
               placeholder="Selecione a fatura paga por esta transação"
@@ -193,16 +295,39 @@ export function LinkCreditCardPaymentDialog({
             />
           </div>
 
+          {statementId && paymentsQuery.isLoading && (
+            <p className="text-sm text-muted-foreground">
+              Conferindo pagamentos detectados na fatura...
+            </p>
+          )}
+
+          {matchingUnlinkedPayments.length === 1 && (
+            <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">
+              Foi encontrado um pagamento detectado na fatura de{" "}
+              <strong>{formatCurrency(matchingUnlinkedPayments[0].amount)}</strong>{" "}
+              em {formatDate(matchingUnlinkedPayments[0].paymentDate)}. A ação
+              apenas conciliará essa saída bancária.
+            </div>
+          )}
+
+          {selectedStatement &&
+            selectedStatement.unlinkedPaymentCount > 0 &&
+            !paymentsQuery.isLoading &&
+            matchingUnlinkedPayments.length === 0 && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                Esta fatura possui pagamentos aguardando vínculo, mas nenhum
+                deles corresponde ao valor desta saída. Faça a conferência em
+                <strong> Faturas &gt; Ver pagamentos</strong>.
+              </div>
+            )}
+
           {bestSuggestion && !statementId && bestSuggestion.score > 0 && (
             <div className="rounded-lg border bg-muted/40 p-3 text-sm">
               <p className="font-medium">Sugestão encontrada</p>
               <p className="text-muted-foreground">
-                {bestSuggestion.statement.name} ·{" "}
-                Restante:{" "}
-                {formatCurrency(
-                  bestSuggestion.statement.outstandingAmount,
-                )} · vence{" "}
-                {formatDate(bestSuggestion.statement.dueDate)}
+                {bestSuggestion.statement.name} · Restante:{" "}
+                {formatCurrency(bestSuggestion.statement.outstandingAmount)} ·
+                vence {formatDate(bestSuggestion.statement.dueDate)}
               </p>
 
               <Button
@@ -222,8 +347,8 @@ export function LinkCreditCardPaymentDialog({
           <Button
             type="button"
             variant="outline"
-            disabled={payStatementMutation.isPending}
-            onClick={() => setOpen(false)}
+            disabled={pending}
+            onClick={() => handleOpenChange(false)}
           >
             Cancelar
           </Button>
@@ -231,14 +356,24 @@ export function LinkCreditCardPaymentDialog({
           <Button
             type="button"
             disabled={
-              payStatementMutation.isPending ||
-              !statementId
+              pending ||
+              !statementId ||
+              paymentsQuery.isLoading ||
+              paymentsQuery.isError ||
+              matchingUnlinkedPayments.length > 1 ||
+              Boolean(
+                selectedStatement &&
+                  selectedStatement.unlinkedPaymentCount > 0 &&
+                  matchingUnlinkedPayments.length === 0,
+              )
             }
             onClick={handleLink}
           >
-            {payStatementMutation.isPending
+            {pending
               ? "Vinculando..."
-              : "Vincular pagamento"}
+              : matchingUnlinkedPayments.length === 1
+                ? "Conciliar pagamento existente"
+                : "Registrar e vincular pagamento"}
           </Button>
         </AppDialogFooter>
       </AppDialogContent>

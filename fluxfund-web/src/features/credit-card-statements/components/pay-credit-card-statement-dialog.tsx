@@ -133,6 +133,12 @@ export function PayCreditCardStatementDialog({
   }
 
   function handlePayStatement(data: PayCreditCardStatementFormData) {
+    if (statement.unlinkedPaymentCount > 0) {
+      toast.error(
+        "Concilie primeiro os pagamentos detectados no OFX do cartão.",
+      )
+      return
+    }
 
     if (itemsQuery.isLoading) {
       toast.error("Aguarde a verificação dos itens da fatura.")
@@ -197,14 +203,16 @@ export function PayCreditCardStatementDialog({
   const canPay =
     statement.status !== "PAID" &&
     statement.status !== "CANCELED" &&
-    statement.outstandingAmount > 0
+    statement.outstandingAmount > 0 &&
+    statement.unlinkedPaymentCount === 0
 
   const isPaymentDisabled =
     payStatementMutation.isPending ||
     itemsQuery.isLoading ||
     itemsQuery.isError ||
     hasNoItems ||
-    mustAcknowledgeReview
+    mustAcknowledgeReview ||
+    statement.unlinkedPaymentCount > 0
 
   return (
     <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
@@ -230,9 +238,25 @@ export function PayCreditCardStatementDialog({
           <AppDialogBody className="space-y-4">
             <div className="space-y-2 rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
               <p>
-                Depois disso, os itens do cartão continuam sendo as despesas reais. A saída bancária da fatura deve ser tratada como transferência/pagamento de cartão.
+                Os itens do cartão continuam sendo as despesas reais. A saída
+                bancária da fatura será transformada em transferência para não
+                duplicar o gasto.
               </p>
             </div>
+
+            {statement.unlinkedPaymentCount > 0 && (
+              <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                <p>
+                  Esta fatura possui {statement.unlinkedPaymentCount}{" "}
+                  {statement.unlinkedPaymentCount === 1
+                    ? "pagamento detectado"
+                    : "pagamentos detectados"}{" "}
+                  aguardando vínculo bancário. Abra <strong>Ver pagamentos</strong>{" "}
+                  e faça a conciliação antes de registrar outro pagamento.
+                </p>
+              </div>
+            )}
 
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-lg border p-3">
