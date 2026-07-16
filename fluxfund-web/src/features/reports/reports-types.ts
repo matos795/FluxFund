@@ -167,16 +167,18 @@ export type AccountCashFlowItem = {
   accountId: string
   accountName: string
   accountType:
-    | "BANK"
-    | "CASH"
-    | "DIGITAL_WALLET"
-    | "CREDIT_CARD"
-    | "OTHER"
+  | "BANK"
+  | "CASH"
+  | "DIGITAL_WALLET"
+  | "CREDIT_CARD"
+  | "OTHER"
   bankName: string | null
   openingBalance: number
   incomeAmount: number
   expenseAmount: number
-  transferAmount: number
+  transferInAmount: number
+  transferOutAmount: number
+  transferNetAmount: number
   netAmount: number
   closingBalance: number
   currentBalance: number
@@ -189,7 +191,9 @@ export type AccountCashFlowReport = {
   openingBalanceTotal: number
   incomeTotal: number
   expenseTotal: number
-  transferTotal: number
+  transferInTotal: number
+  transferOutTotal: number
+  transferNetTotal: number
   netTotal: number
   closingBalanceTotal: number
   currentBalanceTotal: number

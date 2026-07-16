@@ -831,4 +831,48 @@ public interface FinancialTransactionRepository
                         UUID organizationId,
                         UUID accountId,
                         String externalId);
+
+        @Query("""
+                        select coalesce(sum(
+                            case
+                                when transaction.type =
+                                    com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.INCOME
+                                then abs(transaction.settledAmount)
+
+                                when transaction.type =
+                                    com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.EXPENSE
+                                then -abs(transaction.settledAmount)
+
+                                when transaction.type =
+                                    com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
+                                    and transaction.transferDirection =
+                                        com.fluxfund.api.domain.financialtransaction.TransferDirection.IN
+                                then abs(transaction.settledAmount)
+
+                                when transaction.type =
+                                    com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
+                                    and transaction.transferDirection =
+                                        com.fluxfund.api.domain.financialtransaction.TransferDirection.OUT
+                                then -abs(transaction.settledAmount)
+
+                                else 0
+                            end
+                        ), 0)
+                        from FinancialTransaction transaction
+                        where transaction.organization.id = :organizationId
+                          and transaction.account.active = true
+                          and transaction.account.type <>
+                              com.fluxfund.api.domain.account.AccountType.CREDIT_CARD
+                          and transaction.status =
+                              com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+                          and transaction.settlementDate <= :asOfDate
+                          and (
+                                transaction.account.initialBalanceDate is null
+                                or transaction.settlementDate >=
+                                    transaction.account.initialBalanceDate
+                          )
+                        """)
+        BigDecimal sumSignedSettledRealAccountMovementUntilDate(
+                        @Param("organizationId") UUID organizationId,
+                        @Param("asOfDate") LocalDate asOfDate);
 }

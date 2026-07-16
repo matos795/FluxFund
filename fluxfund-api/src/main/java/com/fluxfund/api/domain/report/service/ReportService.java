@@ -1292,10 +1292,16 @@ public class ReportService {
                                 .map(AccountCashFlowItemResponse::expenseAmount)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                BigDecimal transferTotal = projections.stream()
-                                .map(projection -> projection.getTransferOutAmount() != null
-                                                ? projection.getTransferOutAmount()
-                                                : BigDecimal.ZERO)
+                BigDecimal transferInTotal = items.stream()
+                                .map(AccountCashFlowItemResponse::transferInAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal transferOutTotal = items.stream()
+                                .map(AccountCashFlowItemResponse::transferOutAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal transferNetTotal = items.stream()
+                                .map(AccountCashFlowItemResponse::transferNetAmount)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                 BigDecimal netTotal = incomeTotal.subtract(expenseTotal);
@@ -1318,7 +1324,9 @@ public class ReportService {
                                 openingBalanceTotal,
                                 incomeTotal,
                                 expenseTotal,
-                                transferTotal,
+                                transferInTotal,
+                                transferOutTotal,
+                                transferNetTotal,
                                 netTotal,
                                 closingBalanceTotal,
                                 currentBalanceTotal,
@@ -1663,20 +1671,12 @@ public class ReportService {
                                 ? projection.getExpenseBefore()
                                 : BigDecimal.ZERO;
 
-                BigDecimal transferBefore = projection.getTransferBefore() != null
-                                ? projection.getTransferBefore()
-                                : BigDecimal.ZERO;
-
                 BigDecimal incomeAmount = projection.getIncomeAmount() != null
                                 ? projection.getIncomeAmount()
                                 : BigDecimal.ZERO;
 
                 BigDecimal expenseAmount = projection.getExpenseAmount() != null
                                 ? projection.getExpenseAmount()
-                                : BigDecimal.ZERO;
-
-                BigDecimal transferAmount = projection.getTransferAmount() != null
-                                ? projection.getTransferAmount()
                                 : BigDecimal.ZERO;
 
                 BigDecimal incomeUntilToday = projection.getIncomeUntilToday() != null
@@ -1687,26 +1687,41 @@ public class ReportService {
                                 ? projection.getExpenseUntilToday()
                                 : BigDecimal.ZERO;
 
-                BigDecimal transferUntilToday = projection.getTransferUntilToday() != null
-                                ? projection.getTransferUntilToday()
+                BigDecimal transferNetBefore = projection.getTransferNetBefore() != null
+                                ? projection.getTransferNetBefore()
+                                : BigDecimal.ZERO;
+
+                BigDecimal transferInAmount = projection.getTransferInAmount() != null
+                                ? projection.getTransferInAmount()
+                                : BigDecimal.ZERO;
+
+                BigDecimal transferOutAmount = projection.getTransferOutAmount() != null
+                                ? projection.getTransferOutAmount()
+                                : BigDecimal.ZERO;
+
+                BigDecimal transferNetAmount = projection.getTransferNetAmount() != null
+                                ? projection.getTransferNetAmount()
+                                : BigDecimal.ZERO;
+
+                BigDecimal transferNetUntilToday = projection.getTransferNetUntilToday() != null
+                                ? projection.getTransferNetUntilToday()
                                 : BigDecimal.ZERO;
 
                 BigDecimal openingBalance = initialBalance
                                 .add(incomeBefore)
                                 .subtract(expenseBefore)
-                                .add(transferBefore);
+                                .add(transferNetBefore);
 
-                BigDecimal netAmount = incomeAmount
-                                .subtract(expenseAmount);
+                BigDecimal netAmount = incomeAmount.subtract(expenseAmount);
 
                 BigDecimal closingBalance = openingBalance
                                 .add(netAmount)
-                                .add(transferAmount);
+                                .add(transferNetAmount);
 
                 BigDecimal currentBalance = initialBalance
                                 .add(incomeUntilToday)
                                 .subtract(expenseUntilToday)
-                                .add(transferUntilToday);
+                                .add(transferNetUntilToday);
 
                 long transactionCount = projection.getTransactionCount() != null
                                 ? projection.getTransactionCount()
@@ -1715,12 +1730,15 @@ public class ReportService {
                 return new AccountCashFlowItemResponse(
                                 projection.getAccountId(),
                                 projection.getAccountName(),
-                                AccountType.valueOf(projection.getAccountType()),
+                                AccountType.valueOf(
+                                                projection.getAccountType()),
                                 projection.getBankName(),
                                 openingBalance,
                                 incomeAmount,
                                 expenseAmount,
-                                transferAmount,
+                                transferInAmount,
+                                transferOutAmount,
+                                transferNetAmount,
                                 netAmount,
                                 closingBalance,
                                 currentBalance,

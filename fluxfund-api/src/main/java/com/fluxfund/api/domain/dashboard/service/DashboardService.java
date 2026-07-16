@@ -87,18 +87,17 @@ public class DashboardService {
                                 resolvedStartDate,
                                 resolvedEndDate);
 
-                BigDecimal allTimeIncomeTotal = financialTransactionRepository.sumSettledAmountByType(
-                                organizationId,
-                                FinancialTransactionStatus.SETTLED,
-                                FinancialTransactionType.INCOME);
-
-                BigDecimal allTimeExpenseTotal = financialTransactionRepository.sumSettledAmountByType(
-                                organizationId,
-                                FinancialTransactionStatus.SETTLED,
-                                FinancialTransactionType.EXPENSE);
+                LocalDate balanceDate = LocalDate.now();
 
                 BigDecimal accountsInitialBalance = accountRepository
-                                .sumInitialBalanceByOrganizationId(organizationId);
+                                .sumTrackedRealAccountInitialBalance(
+                                                organizationId,
+                                                balanceDate);
+
+                BigDecimal accountsMovementBalance = financialTransactionRepository
+                                .sumSignedSettledRealAccountMovementUntilDate(
+                                                organizationId,
+                                                balanceDate);
 
                 BigDecimal fundsInitialBalance = fundRepository
                                 .sumInitialBalanceByOrganizationId(organizationId);
@@ -112,8 +111,7 @@ public class DashboardService {
                 BigDecimal netTotal = incomeTotal.subtract(expenseTotal);
 
                 BigDecimal accountsTotalBalance = accountsInitialBalance
-                                .add(allTimeIncomeTotal)
-                                .subtract(allTimeExpenseTotal);
+                                .add(accountsMovementBalance);
 
                 BigDecimal fundsTotalBalance = fundsInitialBalance
                                 .add(fundsAllocationBalance)

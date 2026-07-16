@@ -123,7 +123,8 @@ function getMovementAmount(item: AccountCashFlowItem) {
     return (
         item.incomeAmount +
         item.expenseAmount +
-        Math.abs(item.transferAmount)
+        item.transferInAmount +
+        item.transferOutAmount
     )
 }
 
@@ -527,9 +528,9 @@ export function AccountCashFlowReportPage() {
                 />
 
                 <MetricCard
-                    title="Transferências"
-                    value={report.transferTotal}
-                    description="Saídas entre contas"
+                    title="Transferência líquida"
+                    value={report.transferNetTotal}
+                    description="Entradas menos saídas"
                     icon={ArrowRightLeft}
                 />
 
@@ -541,6 +542,28 @@ export function AccountCashFlowReportPage() {
                     variant={netIsPositive ? "positive" : "negative"}
                 />
             </section>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border bg-muted/30 p-3">
+                    <p className="text-xs text-muted-foreground">
+                        Transferências recebidas
+                    </p>
+
+                    <p className="mt-1 font-semibold">
+                        {formatCurrency(report.transferInTotal)}
+                    </p>
+                </div>
+
+                <div className="rounded-lg border bg-muted/30 p-3">
+                    <p className="text-xs text-muted-foreground">
+                        Transferências enviadas
+                    </p>
+
+                    <p className="mt-1 font-semibold">
+                        {formatCurrency(report.transferOutTotal)}
+                    </p>
+                </div>
+            </div>
 
             <section className="grid gap-4 xl:grid-cols-2">
                 <Card>
@@ -669,7 +692,7 @@ export function AccountCashFlowReportPage() {
                     ) : (
                         <div className="overflow-hidden rounded-md border">
                             <div className="w-full overflow-x-auto">
-                                <Table className="min-w-[1150px]">
+                                <Table className="min-w-[1350px]">
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Conta</TableHead>
@@ -677,6 +700,8 @@ export function AccountCashFlowReportPage() {
                                             <TableHead className="text-right">Saldo inicial</TableHead>
                                             <TableHead className="text-right">Entradas</TableHead>
                                             <TableHead className="text-right">Saídas</TableHead>
+                                            <TableHead className="text-right">Transf. recebidas</TableHead>
+                                            <TableHead className="text-right">Transf. enviadas</TableHead>
                                             <TableHead className="text-right">Transf. líquida</TableHead>
                                             <TableHead className="text-right">Resultado</TableHead>
                                             <TableHead className="text-right">Fim do período</TableHead>
@@ -718,14 +743,22 @@ export function AccountCashFlowReportPage() {
                                                 </TableCell>
 
                                                 <TableCell className="text-right">
+                                                    {formatCurrency(item.transferInAmount)}
+                                                </TableCell>
+
+                                                <TableCell className="text-right">
+                                                    {formatCurrency(item.transferOutAmount)}
+                                                </TableCell>
+
+                                                <TableCell className="text-right">
                                                     <span
                                                         className={
-                                                            item.transferAmount < 0
+                                                            item.transferNetAmount < 0
                                                                 ? "text-destructive"
                                                                 : undefined
                                                         }
                                                     >
-                                                        {formatCurrency(item.transferAmount)}
+                                                        {formatCurrency(item.transferNetAmount)}
                                                     </span>
                                                 </TableCell>
 
