@@ -826,4 +826,9 @@ public interface FinancialTransactionRepository
                         UUID organizationId,
                         UUID creditCardStatementId,
                         String externalId);
+
+        Optional<FinancialTransaction> findByOrganizationIdAndAccountIdAndExternalId(
+                        UUID organizationId,
+                        UUID accountId,
+                        String externalId);
 }

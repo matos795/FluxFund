@@ -123,14 +123,67 @@ public class CreditCardStatementOfxImportService {
 
                         case EXPENSE -> {
 
-                            boolean alreadyExists = financialTransactionRepository
-                                    .existsByOrganizationIdAndCreditCardStatementIdAndExternalId(
+                            var existingItem = financialTransactionRepository
+                                    .findByOrganizationIdAndAccountIdAndExternalId(
                                             organizationId,
-                                            statementId,
+                                            creditCardAccount.getId(),
                                             externalId);
 
-                            if (alreadyExists) {
-                                ignoredDuplicates++;
+                            if (existingItem.isPresent()) {
+
+                                FinancialTransaction existingTransaction = existingItem.get();
+
+                                boolean belongsToCurrentStatement = existingTransaction.getCreditCardStatement() != null
+
+                                        && existingTransaction
+                                                .getCreditCardStatement()
+                                                .getId()
+                                                .equals(statementId);
+
+                                if (belongsToCurrentStatement) {
+
+                                    ignoredDuplicates++;
+                                    continue;
+                                }
+
+                                boolean canRecoverFromCanceledStatement = existingTransaction
+                                        .getSource() == FinancialTransactionSource.CREDIT_CARD
+
+                                        && existingTransaction.getStatus() == FinancialTransactionStatus.CANCELED
+
+                                        && existingTransaction.getCreditCardStatement() != null
+
+                                        && existingTransaction
+                                                .getCreditCardStatement()
+                                                .getStatus() == CreditCardStatementStatus.CANCELED;
+
+                                if (!canRecoverFromCanceledStatement) {
+
+                                    reviewRequired++;
+
+                                    warnings.add(
+                                            "O lançamento \""
+                                                    + description
+                                                    + "\" já pertence a outra fatura ativa.");
+
+                                    continue;
+                                }
+
+                                restoreCanceledCreditCardItem(
+                                        existingTransaction,
+                                        creditCardAccount,
+                                        creditCardStatement,
+                                        ofxTransaction);
+
+                                FinancialTransaction restoredTransaction = financialTransactionRepository
+                                        .save(existingTransaction);
+
+                                importedItems.add(
+                                        FinancialTransactionMapper
+                                                .toResponse(restoredTransaction));
+
+                                imported++;
+
                                 continue;
                             }
 
@@ -188,9 +241,13 @@ public class CreditCardStatementOfxImportService {
                         }
                     }
 
-                } catch (Exception exception) {
+                } catch (BusinessException exception) {
+
                     failed++;
-                    errors.add("Erro ao importar transação: " + exception.getMessage());
+
+                    errors.add(
+                            "Erro ao importar transação: "
+                                    + exception.getMessage());
                 }
             }
 
@@ -542,5 +599,70 @@ public class CreditCardStatementOfxImportService {
                 .toInstant()
                 .atZone(ZoneId.systemDefault())
                 .toLocalDate();
+    }
+
+    private void restoreCanceledCreditCardItem(
+
+            FinancialTransaction transaction,
+
+            Account creditCardAccount,
+
+            CreditCardStatement statement,
+
+            Transaction ofxTransaction) {
+
+        BigDecimal amount = requireAmount(ofxTransaction)
+                .abs();
+
+        LocalDate purchaseDate = requirePostedDate(ofxTransaction);
+
+        transaction.setAccount(
+                creditCardAccount);
+
+        transaction.setCreditCardStatement(
+                statement);
+
+        transaction.setType(
+                FinancialTransactionType.EXPENSE);
+
+        transaction.setSource(
+                FinancialTransactionSource.CREDIT_CARD);
+
+        transaction.setStatus(
+                FinancialTransactionStatus.PENDING);
+
+        transaction.setTransferDirection(null);
+
+        transaction.setTransferGroupId(null);
+
+        transaction.setTransferCounterpartyAccount(null);
+
+        transaction.setPurchaseDate(
+                purchaseDate);
+
+        transaction.setDueDate(
+                statement.getDueDate());
+
+        transaction.setSettlementDate(null);
+
+        transaction.setExpectedAmount(
+                amount);
+
+        transaction.setSettledAmount(null);
+
+        transaction.setInterestAmount(
+                BigDecimal.ZERO);
+
+        transaction.setDiscountAmount(
+                BigDecimal.ZERO);
+
+        transaction.setRawDescription(
+                buildDescription(ofxTransaction));
+
+        transaction.setImportedAt(
+                LocalDateTime.now());
+
+        transaction.setDocumentNumber(
+                ofxTransaction.getCheckNumber());
     }
 }
