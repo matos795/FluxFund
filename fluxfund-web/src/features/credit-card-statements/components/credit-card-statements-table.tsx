@@ -225,6 +225,13 @@ export function CreditCardStatementsTable({
                         )}
                       </div>
 
+                      {statement.previousBalanceAmount > 0 && (
+                        <div className="text-xs text-muted-foreground">
+                          Inclui saldo anterior:{" "}
+                          {formatCurrency(statement.previousBalanceAmount)}
+                        </div>
+                      )}
+
                       {statement.paymentCount > 0 && (
                         <div className="text-xs text-muted-foreground">
                           Pago:{" "}

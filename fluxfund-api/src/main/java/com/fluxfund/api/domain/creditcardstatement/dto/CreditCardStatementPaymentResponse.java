@@ -8,22 +8,14 @@ import java.util.UUID;
 import com.fluxfund.api.domain.account.dto.AccountSummaryResponse;
 
 public record CreditCardStatementPaymentResponse(
-
         UUID id,
-
         AccountSummaryResponse paymentAccount,
-
         UUID paymentTransactionId,
-
+        String statementExternalId,
         LocalDate paymentDate,
-
         BigDecimal amount,
-
         String description,
-
         boolean linked,
-
         OffsetDateTime createdAt
-
 ) {
 }

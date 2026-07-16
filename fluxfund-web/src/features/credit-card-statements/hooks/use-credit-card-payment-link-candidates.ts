@@ -34,6 +34,13 @@ function scoreCandidate(
 ) {
   let score = 100
 
+  if (
+    payment.statementExternalId &&
+    transaction.externalId === payment.statementExternalId
+  ) {
+    score += 1000
+  }
+
   if (transaction.settlementDate === payment.paymentDate) {
     score += 40
   }
@@ -72,24 +79,26 @@ export function useCreditCardPaymentLinkCandidates({
 
       const result = await getFinancialTransactions({
         page: 0,
-        size: 100,
+        size: 200,
         accountId: paymentAccountId,
-        source: "OFX",
         status: "SETTLED",
         type: "EXPENSE",
         onlyUnclassified: true,
-        onlyUnallocated: true,
-        settlementDateFrom: addDays(payment.paymentDate, -15),
-        settlementDateTo: addDays(payment.paymentDate, 15),
+        settlementDateFrom: addDays(payment.paymentDate, -30),
+        settlementDateTo: addDays(payment.paymentDate, 30),
         sort: "settlementDate,desc",
       })
-
       return result.content
         .filter((transaction) => transaction.type !== "TRANSFER")
         .filter(
           (transaction) =>
+            (transaction.allocations?.length ?? 0) === 0,
+        )
+        .filter(
+          (transaction) =>
             Math.abs(
-              getTransactionAmount(transaction) - payment.amount,
+              getTransactionAmount(transaction) -
+              payment.amount,
             ) < 0.01,
         )
         .map((transaction) => ({

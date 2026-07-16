@@ -2,11 +2,16 @@ package com.fluxfund.api.domain.creditcardstatement.service;
 
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -51,6 +56,8 @@ import lombok.RequiredArgsConstructor;
 @Transactional
 public class CreditCardStatementOfxImportService {
 
+    private static final BigDecimal MONEY_TOLERANCE = new BigDecimal("0.02");
+
     private final CreditCardStatementRepository statementRepository;
     private final FinancialTransactionRepository financialTransactionRepository;
     private final OrganizationAccessService organizationAccessService;
@@ -90,6 +97,8 @@ public class CreditCardStatementOfxImportService {
 
         int failed = 0;
 
+        int ignoredPreviousStatementPayments = 0;
+
         List<FinancialTransactionResponse> importedItems = new ArrayList<>();
 
         List<String> warnings = new ArrayList<>();
@@ -101,7 +110,19 @@ public class CreditCardStatementOfxImportService {
 
             ResponseEnvelope envelope = unmarshaller.unmarshal(inputStream);
 
-            List<Transaction> transactions = extractTransactions(envelope);
+            StatementResponse ofxStatement = extractStatement(envelope);
+
+            List<Transaction> transactions = getTransactions(ofxStatement);
+
+            PaymentPeriodAnalysis paymentAnalysis = analyzePaymentPeriod(
+                    ofxStatement,
+                    transactions);
+
+            creditCardStatement.setPreviousBalanceAmount(
+                    paymentAnalysis.previousBalanceAmount());
+
+            statementRepository.save(
+                    creditCardStatement);
 
             for (Transaction ofxTransaction : transactions) {
                 try {
@@ -206,6 +227,40 @@ public class CreditCardStatementOfxImportService {
 
                         case PAYMENT -> {
 
+                            if (paymentAnalysis
+                                    .belongsToPreviousStatement(
+                                            externalId)) {
+
+                                ignoredPreviousStatementPayments++;
+
+                                warnings.add(
+                                        "Pagamento de "
+                                                + requireAmount(ofxTransaction)
+                                                        .abs()
+                                                + " em "
+                                                + requirePostedDate(ofxTransaction)
+                                                + " pertence ao saldo anterior "
+                                                + "e não foi incluído nesta fatura.");
+
+                                continue;
+                            }
+
+                            if (paymentAnalysis
+                                    .requiresReview(
+                                            externalId)) {
+
+                                reviewRequired++;
+
+                                warnings.add(
+                                        "O pagamento de "
+                                                + requireAmount(ofxTransaction)
+                                                        .abs()
+                                                + " pode abranger saldo anterior "
+                                                + "e saldo atual. Faça a revisão manual.");
+
+                                continue;
+                            }
+
                             PaymentImportResult result = importStatementPayment(
                                     organizationId,
                                     creditCardStatement,
@@ -255,6 +310,7 @@ public class CreditCardStatementOfxImportService {
                     imported,
                     detectedPayments,
                     reconciledPayments,
+                    ignoredPreviousStatementPayments,
                     ignoredDuplicates,
                     importedItems,
                     reviewRequired,
@@ -269,54 +325,240 @@ public class CreditCardStatementOfxImportService {
         }
     }
 
-    private List<Transaction> extractTransactions(ResponseEnvelope envelope) {
-        List<Transaction> creditCardTransactions = extractCreditCardTransactions(envelope);
+    private StatementResponse extractStatement(
+            ResponseEnvelope envelope) {
 
-        if (!creditCardTransactions.isEmpty()) {
-            return creditCardTransactions;
+        StatementResponse creditCardStatement = extractCreditCardStatement(envelope);
+
+        if (creditCardStatement != null) {
+            return creditCardStatement;
         }
 
-        List<Transaction> bankingTransactions = extractBankingTransactions(envelope);
+        StatementResponse bankingStatement = extractBankingStatement(envelope);
 
-        if (!bankingTransactions.isEmpty()) {
-            return bankingTransactions;
+        if (bankingStatement != null) {
+            return bankingStatement;
         }
 
-        throw new BusinessException("OFX file não contém transações de cartão de crédito.");
+        throw new BusinessException(
+                "OFX file não contém transações de cartão de crédito.");
     }
 
-    private List<Transaction> extractCreditCardTransactions(ResponseEnvelope envelope) {
-        CreditCardResponseMessageSet creditCardResponse = (CreditCardResponseMessageSet) envelope
-                .getMessageSet(MessageSetType.creditcard);
+    private StatementResponse extractCreditCardStatement(
+            ResponseEnvelope envelope) {
+
+        CreditCardResponseMessageSet creditCardResponse = (CreditCardResponseMessageSet) envelope.getMessageSet(
+                MessageSetType.creditcard);
 
         if (creditCardResponse == null
                 || creditCardResponse.getStatementResponses() == null
                 || creditCardResponse.getStatementResponses().isEmpty()) {
-            return List.of();
+
+            return null;
         }
 
-        CreditCardStatementResponseTransaction statementTransaction = creditCardResponse.getStatementResponses().get(0);
+        CreditCardStatementResponseTransaction statementTransaction = creditCardResponse
+                .getStatementResponses()
+                .get(0);
 
-        CreditCardStatementResponse statement = statementTransaction.getMessage();
-
-        return getTransactions(statement);
+        return statementTransaction.getMessage();
     }
 
-    private List<Transaction> extractBankingTransactions(ResponseEnvelope envelope) {
-        BankingResponseMessageSet bankResponse = (BankingResponseMessageSet) envelope
-                .getMessageSet(MessageSetType.banking);
+    private StatementResponse extractBankingStatement(
+            ResponseEnvelope envelope) {
+
+        BankingResponseMessageSet bankResponse = (BankingResponseMessageSet) envelope.getMessageSet(
+                MessageSetType.banking);
 
         if (bankResponse == null
                 || bankResponse.getStatementResponses() == null
                 || bankResponse.getStatementResponses().isEmpty()) {
-            return List.of();
+
+            return null;
         }
 
-        BankStatementResponseTransaction statementTransaction = bankResponse.getStatementResponses().get(0);
+        BankStatementResponseTransaction statementTransaction = bankResponse
+                .getStatementResponses()
+                .get(0);
 
-        BankStatementResponse statement = statementTransaction.getMessage();
+        return statementTransaction.getMessage();
+    }
 
-        return getTransactions(statement);
+    private PaymentPeriodAnalysis analyzePaymentPeriod(
+
+            StatementResponse statement,
+
+            List<Transaction> transactions) {
+
+        if (statement.getLedgerBalance() == null
+                || statement
+                        .getLedgerBalance()
+                        .getBigDecimalAmount() == null) {
+
+            return PaymentPeriodAnalysis.unavailable();
+        }
+
+        BigDecimal closingBalance = statement
+                .getLedgerBalance()
+                .getBigDecimalAmount();
+
+        BigDecimal netMovement = transactions.stream()
+
+                .map(Transaction::getBigDecimalAmount)
+
+                .filter(Objects::nonNull)
+
+                .reduce(
+                        BigDecimal.ZERO,
+                        BigDecimal::add);
+
+        /*
+         * saldo final = saldo inicial + movimentações
+         *
+         * portanto:
+         *
+         * saldo inicial = saldo final - movimentações
+         */
+        BigDecimal openingBalance = closingBalance.subtract(
+                netMovement);
+
+        /*
+         * No OFX do cartão Nubank, dívida aparece negativa.
+         */
+        BigDecimal remainingPreviousBalance = openingBalance.compareTo(
+                BigDecimal.ZERO) < 0
+
+                        ? openingBalance.abs()
+
+                        : BigDecimal.ZERO;
+
+        Set<String> previousStatementPayments = new HashSet<>();
+
+        Set<String> reviewRequiredPayments = new HashSet<>();
+
+        List<Transaction> payments = transactions.stream()
+
+                .filter(transaction ->
+
+                entryClassifier.classify(
+                        transaction,
+                        buildDescription(transaction))
+
+                        == CreditCardOfxEntryType.PAYMENT)
+
+                .sorted(
+                        Comparator.comparing(
+                                Transaction::getDatePosted,
+                                Comparator.nullsLast(
+                                        Comparator.naturalOrder())))
+
+                .toList();
+
+        for (Transaction payment : payments) {
+
+            /*
+             * Valores de até dois centavos são mantidos
+             * como saldo anterior remanescente, mas não
+             * fazem o próximo pagamento ser considerado
+             * parte da fatura anterior.
+             */
+            if (remainingPreviousBalance.compareTo(
+                    MONEY_TOLERANCE) <= 0) {
+
+                break;
+            }
+
+            BigDecimal paymentAmount = payment.getBigDecimalAmount();
+
+            String externalId = normalizeExternalId(payment);
+
+            if (paymentAmount == null
+                    || paymentAmount.compareTo(
+                            BigDecimal.ZERO) == 0
+                    || externalId == null
+                    || externalId.isBlank()) {
+
+                continue;
+            }
+
+            paymentAmount = paymentAmount.abs();
+
+            BigDecimal maximumPreviousPayment = remainingPreviousBalance.add(
+                    MONEY_TOLERANCE);
+
+            if (paymentAmount.compareTo(
+                    maximumPreviousPayment) <= 0) {
+
+                previousStatementPayments.add(
+                        externalId);
+
+                remainingPreviousBalance = remainingPreviousBalance
+                        .subtract(paymentAmount)
+                        .max(BigDecimal.ZERO);
+
+                continue;
+            }
+
+            /*
+             * Um único pagamento maior que o saldo
+             * anterior pode ter quitado duas faturas.
+             *
+             * Não fazemos divisão automática.
+             */
+            reviewRequiredPayments.add(
+                    externalId);
+
+            remainingPreviousBalance = BigDecimal.ZERO;
+
+            break;
+        }
+
+        return new PaymentPeriodAnalysis(
+
+                previousStatementPayments,
+
+                reviewRequiredPayments,
+
+                remainingPreviousBalance
+                        .setScale(
+                                2,
+                                RoundingMode.HALF_UP),
+
+                true);
+    }
+
+    private record PaymentPeriodAnalysis(
+
+            Set<String> previousStatementPaymentExternalIds,
+
+            Set<String> reviewRequiredPaymentExternalIds,
+
+            BigDecimal previousBalanceAmount,
+
+            boolean reliable) {
+
+        private static PaymentPeriodAnalysis unavailable() {
+
+            return new PaymentPeriodAnalysis(
+                    Set.of(),
+                    Set.of(),
+                    BigDecimal.ZERO,
+                    false);
+        }
+
+        private boolean belongsToPreviousStatement(
+                String externalId) {
+
+            return previousStatementPaymentExternalIds
+                    .contains(externalId);
+        }
+
+        private boolean requiresReview(
+                String externalId) {
+
+            return reviewRequiredPaymentExternalIds
+                    .contains(externalId);
+        }
     }
 
     private List<Transaction> getTransactions(StatementResponse statement) {

@@ -107,6 +107,7 @@ public class CreditCardStatementSpreadsheetImportService {
                 imported,
                 0,
                 0,
+                0,
                 ignoredDuplicates,
                 importedItems,
                 0,

@@ -122,7 +122,10 @@ export function ImportCreditCardStatementDialog({
                 {
                     onSuccess: (result) => {
                         toast.success(
-                            `OFX importado: ${result.importedCount} despesas, ${result.detectedPaymentCount} pagamentos detectados, ${result.reconciledPaymentCount} pagamentos conciliados e ${result.ignoredDuplicateCount} duplicados.`,
+                            `OFX importado: ${result.importedCount} despesas, ` +
+                            `${result.detectedPaymentCount} pagamentos atuais, ` +
+                            `${result.ignoredPreviousStatementPaymentCount} pagamentos da fatura anterior ignorados e ` +
+                            `${result.ignoredDuplicateCount} duplicados.`,
                         )
 
                         if (result.reviewRequiredCount > 0) {

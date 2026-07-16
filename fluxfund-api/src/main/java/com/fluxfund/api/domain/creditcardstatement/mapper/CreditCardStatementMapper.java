@@ -11,80 +11,84 @@ import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementRespon
 
 public class CreditCardStatementMapper {
 
-    private CreditCardStatementMapper() {
-    }
+        private CreditCardStatementMapper() {
+        }
 
-    public static CreditCardStatementResponse toResponse(
-            CreditCardStatement statement,
-            CreditCardStatementPaymentStatus paymentStatus,
-            BigDecimal totalAmount,
-            BigDecimal paidAmount,
-            BigDecimal outstandingAmount,
-            long itemCount,
-            long paymentCount,
-            long unlinkedPaymentCount,
-            LocalDate lastPaymentDate) {
+        public static CreditCardStatementResponse toResponse(
+                        CreditCardStatement statement,
+                        CreditCardStatementPaymentStatus paymentStatus,
+                        BigDecimal totalAmount,
+                        BigDecimal paidAmount,
+                        BigDecimal outstandingAmount,
+                        long itemCount,
+                        long paymentCount,
+                        long unlinkedPaymentCount,
+                        LocalDate lastPaymentDate) {
 
-        return new CreditCardStatementResponse(
+                return new CreditCardStatementResponse(
 
-                statement.getId(),
+                                statement.getId(),
 
-                statement.getCreditCardAccount() != null
-                        ? AccountMapper.toSummaryResponse(
-                                statement.getCreditCardAccount())
-                        : null,
+                                statement.getCreditCardAccount() != null
+                                                ? AccountMapper.toSummaryResponse(
+                                                                statement.getCreditCardAccount())
+                                                : null,
 
-                statement.getPaymentAccount() != null
-                        ? AccountMapper.toSummaryResponse(
-                                statement.getPaymentAccount())
-                        : null,
+                                statement.getPaymentAccount() != null
+                                                ? AccountMapper.toSummaryResponse(
+                                                                statement.getPaymentAccount())
+                                                : null,
 
-                statement.getPaymentTransaction() != null
-                        ? statement.getPaymentTransaction().getId()
-                        : null,
+                                statement.getPaymentTransaction() != null
+                                                ? statement.getPaymentTransaction().getId()
+                                                : null,
 
-                statement.getName(),
+                                statement.getName(),
 
-                statement.getClosingDate(),
+                                statement.getClosingDate(),
 
-                statement.getDueDate(),
+                                statement.getDueDate(),
 
-                statement.getPaymentDate(),
+                                statement.getPaymentDate(),
 
-                statement.getStatus(),
+                                statement.getStatus(),
 
-                paymentStatus,
+                                paymentStatus,
 
-                statement.getStatementPdfStorageKey() != null
-                        ? new CreditCardStatementDocumentResponse(
-                                statement.getStatementPdfOriginalFilename(),
-                                statement.getStatementPdfContentType(),
-                                statement.getStatementPdfSizeBytes(),
-                                statement.getStatementPdfUploadedAt())
-                        : null,
+                                statement.getStatementPdfStorageKey() != null
+                                                ? new CreditCardStatementDocumentResponse(
+                                                                statement.getStatementPdfOriginalFilename(),
+                                                                statement.getStatementPdfContentType(),
+                                                                statement.getStatementPdfSizeBytes(),
+                                                                statement.getStatementPdfUploadedAt())
+                                                : null,
 
-                totalAmount != null
-                        ? totalAmount
-                        : BigDecimal.ZERO,
+                                statement.getPreviousBalanceAmount() != null
+                                                ? statement.getPreviousBalanceAmount()
+                                                : BigDecimal.ZERO,
 
-                paidAmount != null
-                        ? paidAmount
-                        : BigDecimal.ZERO,
+                                totalAmount != null
+                                                ? totalAmount
+                                                : BigDecimal.ZERO,
 
-                outstandingAmount != null
-                        ? outstandingAmount
-                        : BigDecimal.ZERO,
+                                paidAmount != null
+                                                ? paidAmount
+                                                : BigDecimal.ZERO,
 
-                itemCount,
+                                outstandingAmount != null
+                                                ? outstandingAmount
+                                                : BigDecimal.ZERO,
 
-                paymentCount,
+                                itemCount,
 
-                unlinkedPaymentCount,
+                                paymentCount,
 
-                lastPaymentDate,
+                                unlinkedPaymentCount,
 
-                statement.getCreatedAt(),
+                                lastPaymentDate,
 
-                statement.getUpdatedAt());
-    }
+                                statement.getCreatedAt(),
+
+                                statement.getUpdatedAt());
+        }
 }

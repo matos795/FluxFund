@@ -1,5 +1,6 @@
 package com.fluxfund.api.domain.creditcardstatement;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
@@ -73,4 +74,7 @@ public class CreditCardStatement extends BaseEntity {
 
     @Column(name = "statement_pdf_uploaded_at")
     private OffsetDateTime statementPdfUploadedAt;
+
+    @Column(name = "previous_balance_amount", nullable = false, precision = 15, scale = 2)
+    private BigDecimal previousBalanceAmount = BigDecimal.ZERO;
 }

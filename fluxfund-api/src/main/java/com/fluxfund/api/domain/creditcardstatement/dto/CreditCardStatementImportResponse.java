@@ -8,6 +8,7 @@ public record CreditCardStatementImportResponse(
         int importedCount,
         int detectedPaymentCount,
         int reconciledPaymentCount,
+        int ignoredPreviousStatementPaymentCount,
         int ignoredDuplicateCount,
         List<FinancialTransactionResponse> importedItems,
         int reviewRequiredCount,

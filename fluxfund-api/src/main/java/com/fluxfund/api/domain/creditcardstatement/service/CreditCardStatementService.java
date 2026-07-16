@@ -260,10 +260,9 @@ public class CreditCardStatementService {
                     "Canceled credit card statements cannot receive payments");
         }
 
-        BigDecimal totalAmount = financialTransactionRepository
-                .sumCreditCardStatementTotal(
-                        organizationId,
-                        statementId);
+        BigDecimal totalAmount = calculateStatementTotal(
+                organizationId,
+                statement);
 
         if (totalAmount.compareTo(
                 BigDecimal.ZERO) <= 0) {
@@ -433,11 +432,21 @@ public class CreditCardStatementService {
             throw new BusinessException("Paid credit card statements cannot be canceled");
         }
 
-        long paymentCount = paymentRepository.countByOrganizationIdAndStatementId(organizationId, id);
+        long linkedPaymentCount = paymentRepository
+                .countByOrganizationIdAndStatementIdAndPaymentTransactionIsNotNull(
+                        organizationId,
+                        id);
 
-        if (paymentCount > 0) {
-            throw new BusinessException("Credit card statements with payments cannot be canceled");
+        if (linkedPaymentCount > 0) {
+
+            throw new BusinessException(
+                    "Credit card statements with reconciled payments cannot be canceled");
         }
+
+        paymentRepository
+                .deleteAllByOrganizationIdAndStatementIdAndPaymentTransactionIsNull(
+                        organizationId,
+                        id);
 
         statement.setStatus(CreditCardStatementStatus.CANCELED);
 
@@ -497,15 +506,9 @@ public class CreditCardStatementService {
 
             CreditCardStatement statement) {
 
-        BigDecimal totalAmount =
-
-                financialTransactionRepository
-
-                        .sumCreditCardStatementTotal(
-
-                                organizationId,
-
-                                statement.getId());
+        BigDecimal totalAmount = calculateStatementTotal(
+                organizationId,
+                statement);
 
         long itemCount =
 
@@ -901,6 +904,8 @@ public class CreditCardStatementService {
                         ? payment.getPaymentTransaction().getId()
                         : null,
 
+                payment.getStatementExternalId(),
+
                 payment.getPaymentDate(),
 
                 payment.getAmount(),
@@ -916,10 +921,9 @@ public class CreditCardStatementService {
             UUID organizationId,
             CreditCardStatement statement) {
 
-        BigDecimal totalAmount = financialTransactionRepository
-                .sumCreditCardStatementTotal(
-                        organizationId,
-                        statement.getId());
+        BigDecimal totalAmount = calculateStatementTotal(
+                organizationId,
+                statement);
 
         BigDecimal paidAmount = paymentRepository
                 .sumAmountByStatement(
@@ -981,5 +985,26 @@ public class CreditCardStatementService {
         }
 
         statementRepository.save(statement);
+    }
+
+    private BigDecimal calculateStatementTotal(
+
+            UUID organizationId,
+
+            CreditCardStatement statement) {
+
+        BigDecimal itemTotal = financialTransactionRepository
+                .sumCreditCardStatementTotal(
+                        organizationId,
+                        statement.getId());
+
+        BigDecimal previousBalance = statement.getPreviousBalanceAmount() != null
+
+                ? statement.getPreviousBalanceAmount()
+
+                : BigDecimal.ZERO;
+
+        return itemTotal.add(
+                previousBalance);
     }
 }

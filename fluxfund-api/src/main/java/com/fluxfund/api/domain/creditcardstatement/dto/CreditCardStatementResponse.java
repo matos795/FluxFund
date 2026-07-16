@@ -33,6 +33,8 @@ public record CreditCardStatementResponse(
 
         CreditCardStatementDocumentResponse statementDocument,
 
+        BigDecimal previousBalanceAmount,
+
         BigDecimal totalAmount,
 
         BigDecimal paidAmount,

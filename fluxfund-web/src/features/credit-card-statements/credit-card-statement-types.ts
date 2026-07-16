@@ -34,6 +34,7 @@ export type CreditCardStatement = {
   status: CreditCardStatementStatus
   paymentStatus: CreditCardStatementPaymentStatus
   statementDocument: CreditCardStatementDocument | null
+  previousBalanceAmount: number
   totalAmount: number
   paidAmount: number
   outstandingAmount: number
@@ -49,6 +50,7 @@ export type CreditCardStatementPayment = {
   id: string
   paymentAccount: AccountSummary | null
   paymentTransactionId: string | null
+  statementExternalId: string | null
   paymentDate: string
   amount: number
   description: string | null
@@ -101,6 +103,7 @@ export type CreditCardStatementImportResponse = {
   importedCount: number
   detectedPaymentCount: number
   reconciledPaymentCount: number
+  ignoredPreviousStatementPaymentCount: number
   ignoredDuplicateCount: number
   importedItems: FinancialTransaction[]
   reviewRequiredCount: number
