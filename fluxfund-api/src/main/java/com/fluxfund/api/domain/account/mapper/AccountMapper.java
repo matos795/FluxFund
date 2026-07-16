@@ -39,6 +39,7 @@ public class AccountMapper {
                 account.getAgency(),
                 account.getAccountNumber(),
                 account.getInitialBalance(),
+                account.getInitialBalanceDate(),
                 account.isActive(),
                 account.getCreatedAt(),
                 account.getUpdatedAt()

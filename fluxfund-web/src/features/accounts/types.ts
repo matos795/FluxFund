@@ -13,7 +13,7 @@ export type Account = {
   agency: string | null
   accountNumber: string | null
   initialBalance: number
-  initialBalanceDate?: string | null
+  initialBalanceDate: string | null
   active: boolean
   createdAt: string
   updatedAt: string

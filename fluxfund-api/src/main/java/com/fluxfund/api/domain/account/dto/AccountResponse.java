@@ -1,6 +1,7 @@
 package com.fluxfund.api.domain.account.dto;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -16,6 +17,7 @@ public record AccountResponse(
         String agency,
         String accountNumber,
         BigDecimal initialBalance,
+        LocalDate initialBalanceDate,
         boolean active,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt

@@ -86,9 +86,7 @@ export function EditAccountDialog({ account }: EditAccountDialogProps) {
                 agency: account.agency ?? "",
                 accountNumber: account.accountNumber ?? "",
                 initialBalance: account.initialBalance,
-                initialBalanceDate:
-                  account.initialBalanceDate ??
-                  new Date().toISOString().slice(0, 10),
+                initialBalanceDate: account.initialBalanceDate ?? "",
                 active: account.active,
               }}
               submitLabel="Salvar alterações"
