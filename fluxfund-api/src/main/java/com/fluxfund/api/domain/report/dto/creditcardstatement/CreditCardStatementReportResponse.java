@@ -22,6 +22,8 @@ public record CreditCardStatementReportResponse(
 
         CreditCardStatementStatus status,
 
+        BigDecimal previousBalanceAmount,
+
         BigDecimal totalAmount,
         BigDecimal paidAmount,
         BigDecimal outstandingAmount,

@@ -107,23 +107,41 @@ public interface FinancialTransactionRepository
 
         @Query("""
                         select new com.fluxfund.api.domain.report.dto.category.CategoryResultItemResponse(
-                            c.id,
-                            c.name,
+                            category.id,
+                            coalesce(category.name, 'Sem categoria'),
                             parent.id,
                             parent.name,
-                            t.type,
-                            coalesce(sum(abs(t.settledAmount)), 0),
-                            count(t)
+                            transaction.type,
+                            coalesce(sum(abs(transaction.settledAmount)), 0),
+                            count(transaction)
                         )
-                        from FinancialTransaction t
-                        join t.category c
-                        left join c.parent parent
-                        where t.organization.id = :organizationId
-                          and t.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
-                          and t.type <> com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
-                          and t.settlementDate between :startDate and :endDate
-                        group by c.id, c.name, parent.id, parent.name, t.type
-                        order by t.type asc, parent.name asc, c.name asc
+                        from FinancialTransaction transaction
+
+                        left join transaction.category category
+                        left join category.parent parent
+
+                        where transaction.organization.id = :organizationId
+
+                          and transaction.status =
+                              com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+
+                          and transaction.type <>
+                              com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
+
+                          and transaction.settlementDate
+                              between :startDate and :endDate
+
+                        group by
+                            category.id,
+                            category.name,
+                            parent.id,
+                            parent.name,
+                            transaction.type
+
+                        order by
+                            transaction.type asc,
+                            parent.name asc,
+                            category.name asc
                         """)
         List<CategoryResultItemResponse> findCategoryResultReport(
                         @Param("organizationId") UUID organizationId,

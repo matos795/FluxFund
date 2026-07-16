@@ -610,7 +610,12 @@ public class ReportService {
                                                 organizationId,
                                                 statementId);
 
-                BigDecimal totalAmount = BigDecimal.ZERO;
+                BigDecimal itemTotal = BigDecimal.ZERO;
+
+                BigDecimal previousBalanceAmount = statement.getPreviousBalanceAmount() != null
+                                ? statement.getPreviousBalanceAmount()
+                                : BigDecimal.ZERO;
+
                 long unclassifiedItemCount = 0;
 
                 List<CreditCardStatementReportItemResponse> items = new ArrayList<>();
@@ -632,7 +637,7 @@ public class ReportService {
                                 unclassifiedItemCount++;
                         }
 
-                        totalAmount = totalAmount.add(amount);
+                        itemTotal = itemTotal.add(amount);
 
                         categoryTotals.merge(
                                         categoryName,
@@ -654,6 +659,8 @@ public class ReportService {
                                         amount,
                                         classified));
                 }
+
+                BigDecimal totalAmount = itemTotal.add(previousBalanceAmount);
 
                 List<CreditCardStatementCategorySummaryResponse> categoryItems = categoryTotals.entrySet()
                                 .stream()
@@ -703,6 +710,8 @@ public class ReportService {
                                 statement.getPaymentDate(),
 
                                 statement.getStatus(),
+
+                                previousBalanceAmount,
 
                                 totalAmount,
                                 paidAmount,
@@ -1267,6 +1276,17 @@ public class ReportService {
 
                 if (resolvedEndDate.isBefore(resolvedStartDate)) {
                         throw new BusinessException("End date cannot be before start date");
+                }
+
+                LocalDate reportBaseline = accountRepository
+                                .findLatestRealAccountInitialBalanceDate(
+                                                organizationId);
+
+                if (reportBaseline != null
+                                && resolvedStartDate.isBefore(reportBaseline)) {
+
+                        throw new BusinessException(
+                                        "The selected period starts before the financial tracking date");
                 }
 
                 List<AccountCashFlowProjection> projections = accountRepository

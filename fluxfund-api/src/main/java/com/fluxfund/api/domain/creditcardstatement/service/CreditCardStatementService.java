@@ -1,6 +1,7 @@
 package com.fluxfund.api.domain.creditcardstatement.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -91,7 +92,6 @@ public class CreditCardStatementService {
         return toResponse(organizationId, savedStatement);
     }
 
-    @Transactional(readOnly = true)
     public Page<CreditCardStatementResponse> findAll(
             UUID organizationId,
             UUID creditCardAccountId,
@@ -122,14 +122,22 @@ public class CreditCardStatementService {
             statements = statementRepository.findAllByOrganizationId(organizationId, pageable);
         }
 
+        statements.forEach(
+                statement -> refreshStatementPaymentState(
+                        organizationId,
+                        statement));
+
         return statements.map(statement -> toResponse(organizationId, statement));
     }
 
-    @Transactional(readOnly = true)
     public CreditCardStatementResponse findById(UUID organizationId, UUID id) {
         organizationAccessService.requireReadAccess(organizationId);
 
         CreditCardStatement statement = findStatement(organizationId, id);
+
+        refreshStatementPaymentState(
+                organizationId,
+                statement);
 
         return toResponse(organizationId, statement);
     }
@@ -985,6 +993,29 @@ public class CreditCardStatementService {
             UUID organizationId,
             CreditCardStatement statement) {
 
+        if (statement.getStatus() == CreditCardStatementStatus.CANCELED) {
+            return;
+        }
+
+        if (statement.getStatus() == CreditCardStatementStatus.PAID) {
+            return;
+        }
+
+        boolean cycleEnded = hasStatementCycleEnded(
+                statement,
+                LocalDate.now());
+
+        /*
+         * Fecha automaticamente uma fatura cujo
+         * ciclo já terminou.
+         */
+        if (statement.getStatus() == CreditCardStatementStatus.OPEN
+                && cycleEnded) {
+
+            statement.setStatus(
+                    CreditCardStatementStatus.CLOSED);
+        }
+
         BigDecimal totalAmount = calculateStatementTotal(
                 organizationId,
                 statement);
@@ -1003,23 +1034,18 @@ public class CreditCardStatementService {
                 && paidAmount.compareTo(totalAmount) >= 0;
 
         /*
-         * Um pagamento detectado pelo OFX do cartão
-         * já reduz o saldo da dívida.
-         *
-         * Porém, os itens só serão liquidados quando
-         * todos os pagamentos estiverem conciliados
-         * com suas respectivas saídas bancárias.
+         * Pode fechar o ciclo mesmo sem estar paga.
          */
         if (!fullyPaid || unlinkedPaymentCount > 0) {
+
+            statementRepository.save(statement);
             return;
         }
 
         CreditCardStatementPayment latestPayment = paymentRepository
-
                 .findFirstByOrganizationIdAndStatementIdOrderByPaymentDateDescCreatedAtDesc(
                         organizationId,
                         statement.getId())
-
                 .orElseThrow(
                         () -> new BusinessException(
                                 "Paid statement has no payment records"));
@@ -1030,8 +1056,10 @@ public class CreditCardStatementService {
                 latestPayment.getPaymentDate());
 
         /*
-         * Uma fatura aberta pode estar com saldo zerado
-         * e depois receber novas compras.
+         * Fatura paga antecipadamente continua aberta
+         * enquanto o ciclo ainda não terminou.
+         *
+         * Fatura cujo ciclo terminou vira PAID.
          */
         if (statement.getStatus() == CreditCardStatementStatus.CLOSED) {
 
@@ -1070,5 +1098,17 @@ public class CreditCardStatementService {
 
         return itemTotal.add(
                 previousBalance);
+    }
+
+    private boolean hasStatementCycleEnded(
+            CreditCardStatement statement,
+            LocalDate referenceDate) {
+
+        LocalDate cycleEndDate = statement.getClosingDate() != null
+                ? statement.getClosingDate()
+                : statement.getDueDate();
+
+        return cycleEndDate != null
+                && cycleEndDate.isBefore(referenceDate);
     }
 }

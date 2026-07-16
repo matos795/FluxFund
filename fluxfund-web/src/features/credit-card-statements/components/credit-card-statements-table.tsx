@@ -268,17 +268,23 @@ export function CreditCardStatementsTable({
                         {creditCardStatementStatusLabels[statement.status]}
                       </Badge>
 
-                      <Badge
-                        variant={getPaymentStatusBadgeVariant(
-                          statement.paymentStatus,
-                        )}
-                      >
-                        {
-                          creditCardStatementPaymentStatusLabels[
-                          statement.paymentStatus
-                          ]
-                        }
-                      </Badge>
+                      {statement.status !== "PAID" && (
+                        <Badge
+                          variant={getPaymentStatusBadgeVariant(
+                            statement.paymentStatus,
+                          )}
+                        >
+                          {statement.paymentStatus === "PAID" &&
+                            statement.status === "OPEN"
+                            ? "Paga antecipadamente"
+                            : statement.paymentStatus === "PAID" &&
+                              statement.unlinkedPaymentCount > 0
+                              ? "Paga · conciliação pendente"
+                              : creditCardStatementPaymentStatusLabels[
+                              statement.paymentStatus
+                              ]}
+                        </Badge>
+                      )}
                     </div>
                   </TableCell>
 

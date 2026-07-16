@@ -1075,6 +1075,13 @@ public class ClosingDossierPdfGenerator {
                                 "Status",
                                 formatCreditCardStatementStatus(report.status()));
 
+                if (report.previousBalanceAmount().compareTo(BigDecimal.ZERO) > 0) {
+
+                        writer.writeMetric(
+                                        "Saldo anterior",
+                                        formatCurrency(report.previousBalanceAmount()));
+                }
+
                 writer.writeMetric(
                                 "Total da fatura",
                                 formatCurrency(report.totalAmount()));

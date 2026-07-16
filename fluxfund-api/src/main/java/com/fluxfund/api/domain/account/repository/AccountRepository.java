@@ -236,4 +236,15 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
     BigDecimal sumTrackedRealAccountInitialBalance(
             @Param("organizationId") UUID organizationId,
             @Param("asOfDate") LocalDate asOfDate);
+
+    @Query("""
+            select max(account.initialBalanceDate)
+            from Account account
+            where account.organization.id = :organizationId
+              and account.active = true
+              and account.type <>
+                  com.fluxfund.api.domain.account.AccountType.CREDIT_CARD
+            """)
+    LocalDate findLatestRealAccountInitialBalanceDate(
+            @Param("organizationId") UUID organizationId);
 }

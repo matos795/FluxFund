@@ -9,7 +9,10 @@ export function groupCategoryResultItems(
   const groups = new Map<string, CategoryResultGroup>()
 
   for (const item of items) {
-    const groupId = item.parentCategoryId ?? item.categoryId
+    const groupId =
+      item.parentCategoryId ??
+      item.categoryId ??
+      `unclassified-${item.type}`
     const groupName = item.parentCategoryName ?? item.categoryName
 
     const existingGroup = groups.get(groupId)

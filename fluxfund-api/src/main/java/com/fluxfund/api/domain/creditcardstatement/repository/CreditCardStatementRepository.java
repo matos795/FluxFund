@@ -60,13 +60,25 @@ public interface CreditCardStatementRepository extends JpaRepository<CreditCardS
           a.name as accountName,
           s.status as status,
           s.due_date as dueDate,
-          coalesce((
-              select sum(abs(coalesce(item.expected_amount, item.settled_amount, 0)))
-              from financial_transaction item
-              where item.credit_card_statement_id = s.id
-                and item.organization_id = :organizationId
-                and item.status <> 'CANCELED'
-          ), 0) as totalAmount,
+          (
+                coalesce(s.previous_balance_amount, 0)
+                +
+                coalesce((
+                    select sum(
+                        abs(
+                            coalesce(
+                                item.expected_amount,
+                                item.settled_amount,
+                                0
+                            )
+                        )
+                    )
+                    from financial_transaction item
+                    where item.credit_card_statement_id = s.id
+                    and item.organization_id = :organizationId
+                    and item.status <> 'CANCELED'
+                ), 0)
+            ) as totalAmount,
           (
               select count(*)
               from financial_transaction item

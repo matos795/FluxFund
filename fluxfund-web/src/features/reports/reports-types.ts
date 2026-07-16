@@ -1,5 +1,5 @@
 export type CategoryResultItem = {
-  categoryId: string
+  categoryId: string | null
   categoryName: string
   parentCategoryId: string | null
   parentCategoryName: string | null
