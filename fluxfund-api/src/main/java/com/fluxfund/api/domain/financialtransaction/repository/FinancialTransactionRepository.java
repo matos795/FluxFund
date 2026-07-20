@@ -1006,4 +1006,48 @@ List<FinancialTransaction> findTransferMatchCandidates(
         @Param("amount") BigDecimal amount,
         @Param("startDate") LocalDate startDate,
         @Param("endDate") LocalDate endDate);
+
+        @Query("""
+        select candidate
+        from FinancialTransaction candidate
+
+        join fetch candidate.account account
+
+        where candidate.organization.id =
+            :organizationId
+
+          and account.id <> :accountId
+
+          and account.type <>
+            com.fluxfund.api.domain.account.AccountType.CREDIT_CARD
+
+          and candidate.status =
+            com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+
+          and candidate.type = :oppositeType
+
+          and candidate.category is null
+
+          and candidate.allocations is empty
+
+          and candidate.transferGroupId is null
+
+          and candidate.settlementDate
+            between :startDate and :endDate
+
+          and abs(
+                coalesce(
+                    candidate.settledAmount,
+                    candidate.expectedAmount
+                )
+              ) = :amount
+        """)
+List<FinancialTransaction>
+        findDraftTransferMatchCandidates(
+                @Param("organizationId") UUID organizationId,
+                @Param("accountId") UUID accountId,
+                @Param("oppositeType") FinancialTransactionType oppositeType,
+                @Param("amount") BigDecimal amount,
+                @Param("startDate") LocalDate startDate,
+                @Param("endDate") LocalDate endDate);
 }

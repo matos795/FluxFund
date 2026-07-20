@@ -1,5 +1,6 @@
 package com.fluxfund.api.domain.financialtransaction.controller;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -27,6 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
+import com.fluxfund.api.domain.financialtransaction.TransferDirection;
 import com.fluxfund.api.domain.financialtransaction.dto.ClassifyFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.CreateAccountTransferRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.CreateFinancialTransactionRequest;
@@ -284,5 +286,22 @@ public class FinancialTransactionController {
                                                 organizationId,
                                                 id,
                                                 matchingId));
+        }
+
+        @GetMapping("/transfer-match-suggestion/draft")
+        public ResponseEntity<TransferMatchSuggestionResponse> getDraftTransferMatchSuggestion(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @RequestParam UUID accountId,
+                        @RequestParam TransferDirection direction,
+                        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate transferDate,
+                        @RequestParam BigDecimal amount) {
+
+                return ResponseEntity.ok(
+                                service.getDraftTransferMatchSuggestion(
+                                                organizationId,
+                                                accountId,
+                                                direction,
+                                                transferDate,
+                                                amount));
         }
 }

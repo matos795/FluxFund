@@ -11,7 +11,6 @@ import com.fluxfund.api.domain.transactionallocation.dto.CreateTransactionAlloca
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -24,7 +23,7 @@ public record CreateFinancialTransactionRequest(
         LocalDate settlementDate,
         @NotNull @DecimalMin(value = "0.01") BigDecimal expectedAmount,
         @DecimalMin(value = "0.00") BigDecimal settledAmount,
-        @NotBlank @Size(max = 500) String description,
+        @Size(max = 500) String description,
         @Size(max = 255) String documentNumber,
         FiscalDocumentPolicy fiscalDocumentPolicy,
         @Size(max = 500) String fiscalDocumentNote,

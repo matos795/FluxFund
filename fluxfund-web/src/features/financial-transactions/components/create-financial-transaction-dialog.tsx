@@ -7,58 +7,136 @@ import {
   Dialog,
 } from "@/components/ui/dialog"
 
-import type { FinancialTransactionFormData } from "@/features/financial-transactions/financial-transaction-schema"
-import { FinancialTransactionForm } from "@/features/financial-transactions/components/financial-transaction-form"
 import { useCreateFinancialTransaction } from "@/features/financial-transactions/hooks/use-create-financial-transaction"
 import { normalizeFiscalDocumentNote } from "../financial-transaction-labels"
 import { AppDialogBody, AppDialogContent, AppDialogHeader } from "@/components/layout/app-dialog"
+import { useCreateAccountTransfer } from "../hooks/use-create-account-transfer"
+import { getApiErrorMessage } from "@/utils/api-error"
+import { CreateManualTransactionForm, type CreateManualTransactionSubmission } from "./create-manual-transaction-form"
 
 export function CreateFinancialTransactionDialog() {
   const [open, setOpen] = useState(false)
 
   const createFinancialTransactionMutation = useCreateFinancialTransaction()
 
-  function handleCreateFinancialTransaction(data: FinancialTransactionFormData) {
-    createFinancialTransactionMutation.mutate(
-      {
-        accountId: data.accountId,
-        type: data.type,
-        categoryId: data.type === "TRANSFER" ? null : data.categoryId || null,
+  const createAccountTransferMutation = useCreateAccountTransfer()
 
-        dueDate: data.dueDate || null,
-        settlementDate: data.settlementDate || null,
+  async function handleCreateFinancialTransaction(
+    submission: CreateManualTransactionSubmission,
+  ) {
+    const {
+      data,
+      transferDirection,
+      transferCounterpartyAccountId,
+      matchingTransactionId,
+    } = submission
 
-        expectedAmount: data.expectedAmount,
-        settledAmount: data.settledAmount !== undefined && data.settledAmount !== null
-          ? data.settledAmount
-          : null,
+    try {
+      if (data.type === "TRANSFER") {
+        if (
+          !transferDirection ||
+          !transferCounterpartyAccountId ||
+          !data.settlementDate
+        ) {
+          toast.error(
+            "Informe direção, contraparte e data da transferência.",
+          )
 
-        description: data.description ?? "",
-        documentNumber: data.documentNumber || null,
+          return
+        }
 
-        fiscalDocumentPolicy:
-          data.type === "EXPENSE" ? data.fiscalDocumentPolicy : "CATEGORY",
+        const sourceAccountId =
+          transferDirection === "OUT"
+            ? data.accountId
+            : transferCounterpartyAccountId
 
-        fiscalDocumentNote:
-          data.type === "EXPENSE"
-            ? normalizeFiscalDocumentNote(
-              data.fiscalDocumentPolicy,
-              data.fiscalDocumentNote,
-            )
-            : null,
+        const destinationAccountId =
+          transferDirection === "OUT"
+            ? transferCounterpartyAccountId
+            : data.accountId
 
-        allocations: [],
-      },
-      {
-        onSuccess: () => {
-          toast.success("Transação criada com sucesso.")
-          setOpen(false)
-        },
-        onError: () => {
-          toast.error("Não foi possível criar a transação.")
-        },
-      },
-    )
+        await createAccountTransferMutation
+          .mutateAsync({
+            sourceAccountId,
+
+            destinationAccountId,
+
+            transferDate:
+              data.settlementDate,
+
+            amount:
+              data.expectedAmount,
+
+            description:
+              data.description?.trim() || null,
+
+            matchingTransactionId,
+          })
+
+        toast.success(
+          "Transferência criada com sucesso.",
+        )
+      } else {
+        await createFinancialTransactionMutation
+          .mutateAsync({
+            accountId:
+              data.accountId,
+
+            type:
+              data.type,
+
+            categoryId:
+              data.categoryId || null,
+
+            dueDate:
+              data.dueDate || null,
+
+            settlementDate:
+              data.settlementDate || null,
+
+            expectedAmount:
+              data.expectedAmount,
+
+            settledAmount:
+              data.settledAmount ?? null,
+
+            description:
+              data.description?.trim() || null,
+
+            documentNumber:
+              data.documentNumber || null,
+
+            fiscalDocumentPolicy:
+              data.type === "EXPENSE"
+                ? data.fiscalDocumentPolicy
+                : "CATEGORY",
+
+            fiscalDocumentNote:
+              data.type === "EXPENSE"
+                ? normalizeFiscalDocumentNote(
+                  data.fiscalDocumentPolicy,
+                  data.fiscalDocumentNote,
+                )
+                : null,
+
+            allocations: [],
+          })
+
+        toast.success(
+          "Transação criada com sucesso.",
+        )
+      }
+
+      setOpen(false)
+
+    } catch (error) {
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "Não foi possível criar a transação.",
+        ),
+      )
+    }
   }
 
   return (
@@ -69,17 +147,20 @@ export function CreateFinancialTransactionDialog() {
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <AppDialogContent size="lg">
+        <AppDialogContent size="xl">
           <AppDialogHeader
             icon={<Plus className="size-4 text-muted-foreground" />}
             title="Nova transação"
-            description="Cadastre uma transação manual com os dados principais. As alocações em fundos serão feitas depois."
+            description="Cadastre a transação e configure transferências em uma única etapa."
           />
 
           <AppDialogBody>
-            <FinancialTransactionForm
+            <CreateManualTransactionForm
               onSubmit={handleCreateFinancialTransaction}
-              isSubmitting={createFinancialTransactionMutation.isPending}
+              isSubmitting={
+                createFinancialTransactionMutation.isPending ||
+                createAccountTransferMutation.isPending
+              }
             />
           </AppDialogBody>
         </AppDialogContent>

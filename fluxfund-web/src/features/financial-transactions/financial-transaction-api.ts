@@ -1,6 +1,6 @@
 import { httpClient } from "@/api/http-client"
 import type { PageResponse } from "@/types/page-response"
-import type { ClassifyFinancialTransactionRequest, CreateAccountTransferRequest, CreateFinancialTransactionRequest, CreateTransactionAllocationRequest, FinancialTransaction, FinancialTransactionClassificationSuggestion, ImportCsvResponse, ImportOfxResponse, TransactionAllocation, TransferMatchSuggestion, UpdateFinancialTransactionRequest, UpdateTransactionAllocationRequest } from "./financial-transaction-types"
+import type { ClassifyFinancialTransactionRequest, CreateAccountTransferRequest, CreateFinancialTransactionRequest, CreateTransactionAllocationRequest, FinancialTransaction, FinancialTransactionClassificationSuggestion, ImportCsvResponse, ImportOfxResponse, TransactionAllocation, TransferDirection, TransferMatchSuggestion, UpdateFinancialTransactionRequest, UpdateTransactionAllocationRequest } from "./financial-transaction-types"
 import type { ImportProfile } from "@/utils/imports/import-profile"
 
 type GetFinancialTransactionsParams = {
@@ -272,6 +272,35 @@ export async function pairTransferTransactions(
   const response =
     await httpClient.post<FinancialTransaction[]>(
       `/api/v1/financial-transactions/${transactionId}/transfer-match/${matchingTransactionId}`,
+    )
+
+  return response.data
+}
+
+export type GetDraftTransferMatchSuggestionParams = {
+  accountId: string
+  direction: TransferDirection
+  transferDate: string
+  amount: number
+}
+
+export async function getDraftTransferMatchSuggestion({
+  accountId,
+  direction,
+  transferDate,
+  amount,
+}: GetDraftTransferMatchSuggestionParams) {
+  const response =
+    await httpClient.get<TransferMatchSuggestion>(
+      "/api/v1/financial-transactions/transfer-match-suggestion/draft",
+      {
+        params: {
+          accountId,
+          direction,
+          transferDate,
+          amount,
+        },
+      },
     )
 
   return response.data

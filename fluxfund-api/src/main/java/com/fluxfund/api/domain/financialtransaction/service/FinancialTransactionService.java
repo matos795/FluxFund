@@ -95,6 +95,10 @@ public class FinancialTransactionService {
     public FinancialTransactionResponse create(UUID organizationId, CreateFinancialTransactionRequest request) {
         organizationAccessService.requireFinanceWriteAccess(organizationId);
 
+        if (request.type() == FinancialTransactionType.TRANSFER) {
+            throw new BusinessException("Use the account transfer endpoint to create transfers");
+        }
+
         Organization organization = organizationRepository.findById(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
@@ -562,6 +566,14 @@ public class FinancialTransactionService {
             throw new BusinessException("Credit card accounts cannot be used in account transfers");
         }
 
+        if (request.matchingTransactionId() != null) {
+            return createAndPairManualTransfer(
+                    organizationId,
+                    request,
+                    sourceAccount,
+                    destinationAccount);
+        }
+
         UUID transferGroupId = UUID.randomUUID();
 
         String description = request.description() != null && !request.description().isBlank()
@@ -892,6 +904,72 @@ public class FinancialTransactionService {
                 .map(
                         FinancialTransactionMapper::toResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public TransferMatchSuggestionResponse getDraftTransferMatchSuggestion(
+            UUID organizationId,
+            UUID accountId,
+            TransferDirection direction,
+            LocalDate transferDate,
+            BigDecimal amount) {
+
+        organizationAccessService
+                .requireReadAccess(
+                        organizationId);
+
+        Account account = accountRepository
+                .findByIdAndOrganizationIdAndActiveTrue(
+                        accountId,
+                        organizationId)
+
+                .orElseThrow(
+                        () -> new ResourceNotFoundException(
+                                "Account not found"));
+
+        if (account.getType() == AccountType.CREDIT_CARD) {
+
+            throw new BusinessException(
+                    "Credit card accounts cannot be used in account transfers");
+        }
+
+        if (amount == null
+                || amount.compareTo(BigDecimal.ZERO) <= 0) {
+
+            return TransferMatchSuggestionResponse
+                    .unavailable();
+        }
+
+        FinancialTransactionType oppositeType = direction == TransferDirection.OUT
+                ? FinancialTransactionType.INCOME
+                : FinancialTransactionType.EXPENSE;
+
+        List<TransferMatchCandidateResponse> candidates = repository
+                .findDraftTransferMatchCandidates(
+                        organizationId,
+                        accountId,
+                        oppositeType,
+                        amount.abs(),
+                        transferDate.minusDays(3),
+                        transferDate.plusDays(3))
+                .stream()
+                .sorted(Comparator.comparingLong(
+                        candidate -> Math.abs(
+                                ChronoUnit.DAYS.between(transferDate, candidate.getSettlementDate()))))
+                .limit(5)
+                .map(candidate -> new TransferMatchCandidateResponse(
+                        candidate.getId(),
+                        AccountMapper.toSummaryResponse(candidate.getAccount()),
+                        candidate.getSettlementDate(),
+                        getSuggestionAmount(candidate),
+                        resolveSuggestionDescription(candidate),
+                        Math.abs(ChronoUnit.DAYS.between(transferDate, candidate.getSettlementDate()))))
+                .toList();
+
+        return new TransferMatchSuggestionResponse(
+                !candidates.isEmpty(),
+                direction,
+                candidates);
     }
 
     private TransactionAllocation buildAllocation(
@@ -1586,5 +1664,146 @@ public class FinancialTransactionService {
 
         transaction.setClassifiedAt(
                 LocalDateTime.now());
+    }
+
+    private List<FinancialTransactionResponse> createAndPairManualTransfer(
+            UUID organizationId,
+            CreateAccountTransferRequest request,
+            Account sourceAccount,
+            Account destinationAccount) {
+
+        FinancialTransaction matchingTransaction = repository
+                .findByIdAndOrganizationId(
+                        request.matchingTransactionId(),
+                        organizationId)
+
+                .orElseThrow(() -> new ResourceNotFoundException("Matching transaction not found"));
+
+        if (!isEligibleForTransferMatching(matchingTransaction)) {
+
+            throw new BusinessException("Matching transaction is no longer available");
+        }
+
+        BigDecimal amount = request.amount().abs();
+
+        if (getSuggestionAmount(matchingTransaction).compareTo(amount) != 0) {
+            throw new BusinessException(
+                    "Matching transaction amount is different");
+        }
+
+        long dateDistance = Math.abs(
+                ChronoUnit.DAYS.between(
+                        request.transferDate(),
+                        matchingTransaction.getSettlementDate()));
+
+        if (dateDistance > 3) {
+            throw new BusinessException("Matching transaction date is too far from the transfer date");
+        }
+
+        UUID transferGroupId = UUID.randomUUID();
+        FinancialTransaction outTransaction;
+        FinancialTransaction inTransaction;
+
+        /*
+         * O usuário está criando a saída.
+         * A entrada já veio no extrato da conta destino.
+         */
+        if (matchingTransaction
+                .getAccount()
+                .getId()
+                .equals(destinationAccount.getId())
+
+                && matchingTransaction.getType() == FinancialTransactionType.INCOME) {
+
+            outTransaction = buildManualTransferSide(
+                    sourceAccount,
+                    destinationAccount,
+                    TransferDirection.OUT,
+                    transferGroupId,
+                    request);
+
+            prepareTransferSide(
+                    matchingTransaction,
+                    TransferDirection.IN,
+                    sourceAccount,
+                    transferGroupId);
+
+            inTransaction = matchingTransaction;
+
+            /*
+             * O usuário está criando a entrada.
+             * A saída já veio no extrato da conta origem.
+             */
+        } else if (matchingTransaction
+                .getAccount()
+                .getId()
+                .equals(sourceAccount.getId())
+                && matchingTransaction.getType() == FinancialTransactionType.EXPENSE) {
+
+            prepareTransferSide(
+                    matchingTransaction,
+                    TransferDirection.OUT,
+                    destinationAccount,
+                    transferGroupId);
+
+            outTransaction = matchingTransaction;
+
+            inTransaction = buildManualTransferSide(
+                    destinationAccount,
+                    sourceAccount,
+                    TransferDirection.IN,
+                    transferGroupId,
+                    request);
+
+        } else {
+            throw new BusinessException(
+                    "Matching transaction does not belong to the expected account or direction");
+        }
+
+        repository.saveAll(List.of(outTransaction, inTransaction));
+
+        return List.of(
+                FinancialTransactionMapper.toResponse(outTransaction),
+                FinancialTransactionMapper.toResponse(inTransaction));
+    }
+
+    private FinancialTransaction buildManualTransferSide(
+            Account account,
+            Account counterpartyAccount,
+            TransferDirection direction,
+            UUID transferGroupId,
+            CreateAccountTransferRequest request) {
+
+        String description = request.description() != null
+                && !request.description().isBlank()
+                        ? request.description().trim()
+                        : "Transferência entre contas";
+
+        BigDecimal amount = request.amount().abs();
+
+        FinancialTransaction transaction = new FinancialTransaction();
+
+        transaction.setOrganization(account.getOrganization());
+        transaction.setAccount(account);
+        transaction.setType(FinancialTransactionType.TRANSFER);
+        transaction.setSource(FinancialTransactionSource.MANUAL);
+        transaction.setStatus(FinancialTransactionStatus.SETTLED);
+        transaction.setTransferDirection(direction);
+        transaction.setTransferGroupId(transferGroupId);
+        transaction.setTransferCounterpartyAccount(counterpartyAccount);
+        transaction.setCategory(null);
+        transaction.setDueDate(request.transferDate());
+        transaction.setSettlementDate(request.transferDate());
+        transaction.setExpectedAmount(amount);
+        transaction.setSettledAmount(amount);
+        transaction.setInterestAmount(BigDecimal.ZERO);
+        transaction.setDiscountAmount(BigDecimal.ZERO);
+        transaction.setDescription(description);
+        transaction.setRawDescription(description);
+        transaction.setFiscalDocumentPolicy(FiscalDocumentPolicy.CATEGORY);
+        transaction.setFiscalDocumentNote(null);
+        transaction.setClassifiedAt(LocalDateTime.now());
+
+        return transaction;
     }
 }

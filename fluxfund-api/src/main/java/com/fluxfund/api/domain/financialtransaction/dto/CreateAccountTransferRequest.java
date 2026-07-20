@@ -23,6 +23,8 @@ public record CreateAccountTransferRequest(
         BigDecimal amount,
 
         @Size(max = 255)
-        String description
+        String description,
+
+        UUID matchingTransactionId
 ) {
 }

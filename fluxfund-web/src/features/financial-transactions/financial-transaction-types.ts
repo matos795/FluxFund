@@ -94,6 +94,7 @@ export type CreateAccountTransferRequest = {
   transferDate: string
   amount: number
   description?: string | null
+  matchingTransactionId?: string | null
 }
 
 export type CreateFinancialTransactionRequest = {
@@ -113,7 +114,7 @@ export type CreateFinancialTransactionRequest = {
   fiscalDocumentPolicy?: FiscalDocumentPolicy
   fiscalDocumentNote?: string | null
 
-  allocations?: []
+  allocations?: CreateTransactionAllocationRequest[]
 }
 
 export type UpdateFinancialTransactionRequest = {
