@@ -47,7 +47,10 @@ public interface FinancialTransactionRepository
                         where t.organization.id = :organizationId
                           and t.status = :status
                           and t.type = :type
-                          and t.settlementDate between :startDate and :endDate
+                          and coalesce(
+                        t.purchaseDate,
+                        t.settlementDate
+                ) between :startDate and :endDate
                         """)
         BigDecimal sumSettledAmountByTypeAndPeriod(
                         @Param("organizationId") UUID organizationId,
@@ -68,11 +71,27 @@ public interface FinancialTransactionRepository
                         @Param("status") FinancialTransactionStatus status,
                         @Param("type") FinancialTransactionType type);
 
-        long countByOrganizationIdAndStatusNotAndSettlementDateBetween(
-                        UUID organizationId,
-                        FinancialTransactionStatus status,
-                        LocalDate startDate,
-                        LocalDate endDate);
+        @Query("""
+        select count(transaction)
+        from FinancialTransaction transaction
+
+        where transaction.organization.id =
+            :organizationId
+
+          and transaction.status <>
+            :canceledStatus
+
+          and coalesce(
+                transaction.purchaseDate,
+                transaction.settlementDate
+              )
+              between :startDate and :endDate
+        """)
+        long countByOrganizationIdAndReportDateBetween(
+                @Param("organizationId") UUID organizationId,
+                @Param("canceledStatus") FinancialTransactionStatus canceledStatus,
+                @Param("startDate") LocalDate startDate,
+                @Param("endDate") LocalDate endDate);
 
         @Query("""
                         select count(t)
@@ -128,8 +147,10 @@ public interface FinancialTransactionRepository
                           and transaction.type <>
                               com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
 
-                          and transaction.settlementDate
-                              between :startDate and :endDate
+                          and coalesce(
+                                transaction.purchaseDate,
+                                transaction.settlementDate
+                        ) between :startDate and :endDate
 
                         group by
                             category.id,
@@ -276,22 +297,65 @@ public interface FinancialTransactionRepository
                         @Param("endDate") LocalDate endDate);
 
         @Query(value = """
-                        select
-                            to_char(date_trunc('month', t.settlement_date), 'YYYY-MM') as month,
-                            coalesce(sum(case when t.type = 'INCOME' then abs(t.settled_amount) else 0 end), 0) as income,
-                            coalesce(sum(case when t.type = 'EXPENSE' then abs(t.settled_amount) else 0 end), 0) as expense
-                        from financial_transaction t
-                        where t.organization_id = :organizationId
-                          and t.status = 'SETTLED'
-                          and t.type in ('INCOME', 'EXPENSE')
-                          and t.settlement_date between :startDate and :endDate
-                        group by date_trunc('month', t.settlement_date)
-                        order by date_trunc('month', t.settlement_date)
-                        """, nativeQuery = true)
-        List<MonthlyCashFlowProjection> findMonthlyCashFlow(
-                        @Param("organizationId") UUID organizationId,
-                        @Param("startDate") LocalDate startDate,
-                        @Param("endDate") LocalDate endDate);
+        select
+            to_char(
+                date_trunc(
+                    'month',
+                    coalesce(
+                        t.purchase_date,
+                        t.settlement_date
+                    )
+                ),
+                'YYYY-MM'
+            ) as month,
+
+            coalesce(sum(
+                case
+                    when t.type = 'INCOME'
+                    then abs(t.settled_amount)
+                    else 0
+                end
+            ), 0) as income,
+
+            coalesce(sum(
+                case
+                    when t.type = 'EXPENSE'
+                    then abs(t.settled_amount)
+                    else 0
+                end
+            ), 0) as expense
+
+        from financial_transaction t
+
+        where t.organization_id = :organizationId
+          and t.status = 'SETTLED'
+          and t.type in ('INCOME', 'EXPENSE')
+
+          and coalesce(
+                t.purchase_date,
+                t.settlement_date
+              ) between :startDate and :endDate
+
+        group by date_trunc(
+            'month',
+            coalesce(
+                t.purchase_date,
+                t.settlement_date
+            )
+        )
+
+        order by date_trunc(
+            'month',
+            coalesce(
+                t.purchase_date,
+                t.settlement_date
+            )
+        )
+        """, nativeQuery = true)
+List<MonthlyCashFlowProjection> findMonthlyCashFlow(
+        @Param("organizationId") UUID organizationId,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate);
 
         @Query(value = """
                         select
@@ -304,7 +368,10 @@ public interface FinancialTransactionRepository
                           and t.status = 'SETTLED'
                           and t.type = 'EXPENSE'
                           and t.category_id is not null
-                          and t.settlement_date between :startDate and :endDate
+                          and coalesce(
+                                t.purchase_date,
+                                t.settlement_date
+                                ) between :startDate and :endDate
                         group by c.id, c.name
                         order by amount desc
                         limit :limit

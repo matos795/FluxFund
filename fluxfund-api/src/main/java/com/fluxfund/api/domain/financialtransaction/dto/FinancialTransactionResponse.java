@@ -32,6 +32,7 @@ public record FinancialTransactionResponse(
         Integer installmentNumber,
         Integer installmentCount,
 
+        LocalDate purchaseDate,
         LocalDate dueDate,
         LocalDate settlementDate,
 

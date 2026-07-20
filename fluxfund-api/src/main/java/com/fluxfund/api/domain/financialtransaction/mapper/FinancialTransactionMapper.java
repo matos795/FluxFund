@@ -65,6 +65,7 @@ public class FinancialTransactionMapper {
                         : null,
                 financialTransaction.getInstallmentNumber(),
                 financialTransaction.getInstallmentCount(),
+                financialTransaction.getPurchaseDate(),
                 financialTransaction.getDueDate(),
                 financialTransaction.getSettlementDate(),
                 financialTransaction.getExpectedAmount(),

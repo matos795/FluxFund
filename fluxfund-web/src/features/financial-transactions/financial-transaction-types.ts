@@ -54,6 +54,7 @@ export type FinancialTransaction = {
   installmentNumber: number | null
   installmentCount: number | null
 
+  purchaseDate: string | null
   dueDate: string | null
   settlementDate: string | null
 

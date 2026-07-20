@@ -266,7 +266,11 @@ export function ViewCreditCardStatementItemsDialog({
                     return (
                       <TableRow key={item.id}>
                         <TableCell>
-                          {formatDate(item.dueDate ?? item.settlementDate)}
+                          {formatDate(
+                            item.purchaseDate ??
+                            item.settlementDate ??
+                            item.dueDate,
+                          )}
                         </TableCell>
 
                         <TableCell>

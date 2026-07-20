@@ -118,7 +118,7 @@ public class DashboardService {
                                 .add(fundsTransferBalance);
 
                 long transactionCount = financialTransactionRepository
-                                .countByOrganizationIdAndStatusNotAndSettlementDateBetween(
+                                .countByOrganizationIdAndReportDateBetween(
                                                 organizationId,
                                                 FinancialTransactionStatus.CANCELED,
                                                 resolvedStartDate,

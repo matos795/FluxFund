@@ -161,6 +161,16 @@ export function FinancialTransactionsTable({
                       transaction.rawDescription?.trim() ||
                       "-"
 
+                    const isCreditCardItem = Boolean(
+                      transaction.creditCardStatementId,
+                    )
+                    const displayDate = isCreditCardItem
+                      ? transaction.purchaseDate ??
+                      transaction.settlementDate ??
+                      transaction.dueDate
+                      : transaction.settlementDate ??
+                      transaction.dueDate
+
                     return (
                       <TableRow
                         key={transaction.id}
@@ -193,13 +203,21 @@ export function FinancialTransactionsTable({
                         <TableCell>
                           <div className="flex flex-col">
                             <span className="font-medium">
-                              {formatDate(transaction.settlementDate) ?? "-"}
+                              {formatDate(displayDate) ?? "-"}
                             </span>
-                            {transaction.dueDate && (
+
+                            {isCreditCardItem && transaction.purchaseDate ? (
                               <span className="flex items-center text-xs text-muted-foreground">
                                 <CalendarDays className="mr-1 size-3" />
-                                venc. {formatDate(transaction.dueDate)}
+                                data da compra
                               </span>
+                            ) : (
+                              transaction.dueDate && (
+                                <span className="flex items-center text-xs text-muted-foreground">
+                                  <CalendarDays className="mr-1 size-3" />
+                                  venc. {formatDate(transaction.dueDate)}
+                                </span>
+                              )
                             )}
                           </div>
                         </TableCell>

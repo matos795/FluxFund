@@ -18,7 +18,7 @@ import {
   getFinancialTransactionStatusBadgeClass,
   getFinancialTransactionTypeBadgeClass,
 } from "../financial-transaction-badge-styles"
-import { formatCurrency, formatReferenceMonth } from "@/utils/formatters"
+import { formatCurrency, formatDate, formatReferenceMonth } from "@/utils/formatters"
 
 type TransactionOverviewPanelProps = {
   transaction: FinancialTransaction
@@ -110,6 +110,27 @@ export function TransactionOverviewPanel({
         </div>
       </AppDialogSection>
 
+      <AppDialogSection title="Datas">
+        <div className="grid gap-4 md:grid-cols-3">
+          {transaction.purchaseDate && (
+            <DetailItem
+              label="Data da compra"
+              value={formatDate(transaction.purchaseDate) ?? "-"}
+            />
+          )}
+
+          <DetailItem
+            label="Vencimento"
+            value={formatDate(transaction.dueDate) ?? "-"}
+          />
+
+          <DetailItem
+            label="Data de baixa"
+            value={formatDate(transaction.settlementDate) ?? "-"}
+          />
+        </div>
+      </AppDialogSection>
+
       <AppDialogSection title="Documento e descrição">
         <div className="grid gap-4">
           <DetailItem
@@ -123,7 +144,7 @@ export function TransactionOverviewPanel({
                 label="Regra do documento fiscal"
                 value={
                   fiscalDocumentPolicyLabels[
-                    transaction.fiscalDocumentPolicy ?? "CATEGORY"
+                  transaction.fiscalDocumentPolicy ?? "CATEGORY"
                   ]
                 }
               />
