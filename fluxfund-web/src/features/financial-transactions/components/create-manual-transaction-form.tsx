@@ -771,31 +771,6 @@ export function CreateManualTransactionForm({
           </div>
         )}
 
-      {showFiscalDocumentPolicy && selectedType === "EXPENSE" && (
-        <FiscalDocumentPolicyField
-          value={fiscalDocumentPolicy ?? "CATEGORY"}
-          note={fiscalDocumentNote ?? ""}
-          policyError={errors.fiscalDocumentPolicy?.message}
-          noteError={errors.fiscalDocumentNote?.message}
-          onValueChange={(value) => {
-            setValue("fiscalDocumentPolicy", value, {
-              shouldValidate: true,
-            })
-
-            if (value === "CATEGORY" || value === "REQUIRED") {
-              setValue("fiscalDocumentNote", "", {
-                shouldValidate: true,
-              })
-            }
-          }}
-          onNoteChange={(value) =>
-            setValue("fiscalDocumentNote", value, {
-              shouldValidate: true,
-            })
-          }
-        />
-      )}
-
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="dueDate">Data de vencimento</Label>
@@ -854,158 +829,6 @@ export function CreateManualTransactionForm({
           )}
         </div>
 
-        {selectedType !== "TRANSFER" && (
-          <div className="space-y-4 rounded-xl border p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-sm font-medium">
-                  Alocações
-                </h3>
-
-                <p className="text-xs text-muted-foreground">
-                  Distribua o valor baixado entre fundos e
-                  favorecidos. Sem alocação manual, o sistema
-                  utiliza o fundo padrão da organização.
-                </p>
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={
-                  !selectedSettlementDate ||
-                  allocationBaseAmount <= 0
-                }
-                onClick={handleAddAllocation}
-              >
-                <Plus className="mr-2 size-4" />
-                Adicionar
-              </Button>
-            </div>
-
-            {!selectedSettlementDate ? (
-              <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                Informe a data e o valor da baixa para
-                adicionar alocações.
-              </div>
-            ) : allocations.length === 0 ? (
-              <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                Nenhuma alocação manual. O fundo padrão será
-                utilizado quando aplicável.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {allocations.map((allocation) => (
-                  <div
-                    key={allocation.id}
-                    className="grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-2 xl:grid-cols-[1fr_1fr_160px_150px_auto]"
-                  >
-                    <div className="space-y-2">
-                      <Label>Fundo</Label>
-
-                      <FundComboboxWithCreate
-                        value={allocation.fundId}
-                        allowClear={false}
-                        onChange={(value) =>
-                          handleChangeAllocation(
-                            allocation.id,
-                            "fundId",
-                            value,
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Favorecido</Label>
-
-                      <BeneficiaryComboboxWithCreate
-                        value={allocation.beneficiaryId}
-                        allowClear
-                        clearLabel="Sem favorecido"
-                        onChange={(value) =>
-                          handleChangeAllocation(
-                            allocation.id,
-                            "beneficiaryId",
-                            value,
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Competência</Label>
-
-                      <Input
-                        type="month"
-                        value={allocation.referenceMonth}
-                        onChange={(event) =>
-                          handleChangeAllocation(
-                            allocation.id,
-                            "referenceMonth",
-                            event.target.value,
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Valor</Label>
-
-                      <CurrencyInput
-                        value={Number(
-                          allocation.amount || 0,
-                        )}
-                        onValueChange={(value) =>
-                          handleChangeAllocation(
-                            allocation.id,
-                            "amount",
-                            String(value ?? 0),
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div className="flex items-end">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() =>
-                          handleRemoveAllocation(
-                            allocation.id,
-                          )
-                        }
-                      >
-                        <Trash2 className="size-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex flex-col gap-1 border-t pt-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-              <span className="text-muted-foreground">
-                Total alocado:{" "}
-                {formatCurrency(totalAllocated)}
-              </span>
-
-              <span
-                className={
-                  remainingAmount < 0
-                    ? "font-medium text-destructive"
-                    : "text-muted-foreground"
-                }
-              >
-                Restante:{" "}
-                {formatCurrency(remainingAmount)}
-              </span>
-            </div>
-          </div>
-        )}
-
         <div className="space-y-2">
           <Label htmlFor="settledAmount">Valor baixado</Label>
           <Controller
@@ -1055,6 +878,183 @@ export function CreateManualTransactionForm({
           </p>
         )}
       </div>
+
+      {selectedType !== "TRANSFER" && (
+        <div className="space-y-4 rounded-xl border p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-medium">
+                Alocações
+              </h3>
+
+              <p className="text-xs text-muted-foreground">
+                Distribua o valor baixado entre fundos e
+                favorecidos. Sem alocação manual, o sistema
+                utiliza o fundo padrão da organização.
+              </p>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={
+                !selectedSettlementDate ||
+                allocationBaseAmount <= 0
+              }
+              onClick={handleAddAllocation}
+            >
+              <Plus className="mr-2 size-4" />
+              Adicionar
+            </Button>
+          </div>
+
+          {!selectedSettlementDate ? (
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              Informe a data e o valor da baixa para
+              adicionar alocações.
+            </div>
+          ) : allocations.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+              Nenhuma alocação manual. O fundo padrão será
+              utilizado quando aplicável.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {allocations.map((allocation) => (
+                <div
+                  key={allocation.id}
+                  className="grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-2 xl:grid-cols-[1fr_1fr_160px_150px_auto]"
+                >
+                  <div className="space-y-2">
+                    <Label>Fundo</Label>
+
+                    <FundComboboxWithCreate
+                      value={allocation.fundId}
+                      allowClear={false}
+                      onChange={(value) =>
+                        handleChangeAllocation(
+                          allocation.id,
+                          "fundId",
+                          value,
+                        )
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Favorecido</Label>
+
+                    <BeneficiaryComboboxWithCreate
+                      value={allocation.beneficiaryId}
+                      allowClear
+                      clearLabel="Sem favorecido"
+                      onChange={(value) =>
+                        handleChangeAllocation(
+                          allocation.id,
+                          "beneficiaryId",
+                          value,
+                        )
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Competência</Label>
+
+                    <Input
+                      type="month"
+                      value={allocation.referenceMonth}
+                      onChange={(event) =>
+                        handleChangeAllocation(
+                          allocation.id,
+                          "referenceMonth",
+                          event.target.value,
+                        )
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Valor</Label>
+
+                    <CurrencyInput
+                      value={Number(
+                        allocation.amount || 0,
+                      )}
+                      onValueChange={(value) =>
+                        handleChangeAllocation(
+                          allocation.id,
+                          "amount",
+                          String(value ?? 0),
+                        )
+                      }
+                    />
+                  </div>
+
+                  <div className="flex items-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() =>
+                        handleRemoveAllocation(
+                          allocation.id,
+                        )
+                      }
+                    >
+                      <Trash2 className="size-4 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-1 border-t pt-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-muted-foreground">
+              Total alocado:{" "}
+              {formatCurrency(totalAllocated)}
+            </span>
+
+            <span
+              className={
+                remainingAmount < 0
+                  ? "font-medium text-destructive"
+                  : "text-muted-foreground"
+              }
+            >
+              Restante:{" "}
+              {formatCurrency(remainingAmount)}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {showFiscalDocumentPolicy && selectedType === "EXPENSE" && (
+        <FiscalDocumentPolicyField
+          value={fiscalDocumentPolicy ?? "CATEGORY"}
+          note={fiscalDocumentNote ?? ""}
+          policyError={errors.fiscalDocumentPolicy?.message}
+          noteError={errors.fiscalDocumentNote?.message}
+          onValueChange={(value) => {
+            setValue("fiscalDocumentPolicy", value, {
+              shouldValidate: true,
+            })
+
+            if (value === "CATEGORY" || value === "REQUIRED") {
+              setValue("fiscalDocumentNote", "", {
+                shouldValidate: true,
+              })
+            }
+          }}
+          onNoteChange={(value) =>
+            setValue("fiscalDocumentNote", value, {
+              shouldValidate: true,
+            })
+          }
+        />
+      )}
 
       <div className="space-y-3 rounded-xl border p-4">
         <div className="flex items-start justify-between gap-4">
