@@ -960,4 +960,50 @@ List<MonthlyCashFlowProjection> findMonthlyCashFlow(
         BigDecimal sumSignedSettledRealAccountMovementUntilDate(
                         @Param("organizationId") UUID organizationId,
                         @Param("asOfDate") LocalDate asOfDate);
+
+                        @Query("""
+        select candidate
+        from FinancialTransaction candidate
+
+        join fetch candidate.account account
+
+        where candidate.organization.id =
+            :organizationId
+
+          and candidate.id <> :transactionId
+
+          and account.id <> :accountId
+
+          and account.type <>
+            com.fluxfund.api.domain.account.AccountType.CREDIT_CARD
+
+          and candidate.status =
+            com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+
+          and candidate.type = :oppositeType
+
+          and candidate.category is null
+
+          and candidate.allocations is empty
+
+          and candidate.transferGroupId is null
+
+          and candidate.settlementDate
+            between :startDate and :endDate
+
+          and abs(
+                coalesce(
+                    candidate.settledAmount,
+                    candidate.expectedAmount
+                )
+              ) = :amount
+        """)
+List<FinancialTransaction> findTransferMatchCandidates(
+        @Param("organizationId") UUID organizationId,
+        @Param("transactionId") UUID transactionId,
+        @Param("accountId") UUID accountId,
+        @Param("oppositeType") FinancialTransactionType oppositeType,
+        @Param("amount") BigDecimal amount,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate);
 }

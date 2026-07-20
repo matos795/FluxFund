@@ -1,129 +1,167 @@
-import { useEffect, useMemo, useRef, useState } from "react"
-import { AlertTriangle, Paperclip, Plus, Trash2 } from "lucide-react"
-import { toast } from "sonner"
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+    AlertTriangle,
+    ArrowRightLeft,
+    Paperclip,
+    Plus,
+    Trash2,
+} from "lucide-react";
+import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 
-import type { FinancialTransaction } from "../financial-transaction-types"
-import { useClassifyFinancialTransaction } from "../hooks/use-classify-financial-transaction"
-import type { AttachmentType } from "@/features/attachments/attachment-types"
-import { useUploadAttachment } from "@/features/attachments/hooks/use-upload-attachment"
-import { attachmentTypeLabels } from "@/features/attachments/attachment-labels"
-import { CurrencyInput } from "@/components/form/currency-input"
-import { CategoryComboboxWithCreate } from "@/features/categories/components/category-combobox-with-create"
-import { FundComboboxWithCreate } from "@/features/funds/components/fund-combobox-with-create"
-import { BeneficiaryComboboxWithCreate } from "@/features/beneficiaries/components/beneficiary-combobox-with-create"
-import { useFundOptions } from "@/features/funds/hooks/use-fund-options"
-import { useOrganizationSettings } from "@/features/organization-settings/hooks/use-organization-settings"
-import { getDefaultFundReallocationSuggestion } from "@/utils/fund-reallocation"
-import { formatCents, formatCurrency, fromCents } from "@/utils/formatters"
-import { getApiErrorMessage } from "@/utils/api-error"
-import { SupportAgreementSuggestionCard } from "@/features/support-agreements/components/support-agreement-suggestion-card"
-import { useAccounts } from "@/features/accounts/hooks/use-accounts"
-import { EntityCombobox } from "@/components/form/entity-combobox"
-import { fiscalDocumentPolicyRequiresNote, normalizeFiscalDocumentNote } from "../financial-transaction-labels"
-import { FiscalDocumentPolicyField } from "./fiscal-document-policy-field"
-import { getAttachmentAcceptAttribute, getAttachmentRulesDescription, validateAttachmentFile } from "@/features/attachments/attachment-validation"
-import { useClassificationSuggestion } from "../hooks/use-classification-suggestion"
+import type { FinancialTransaction } from "../financial-transaction-types";
+import { useClassifyFinancialTransaction } from "../hooks/use-classify-financial-transaction";
+import type { AttachmentType } from "@/features/attachments/attachment-types";
+import { useUploadAttachment } from "@/features/attachments/hooks/use-upload-attachment";
+import { attachmentTypeLabels } from "@/features/attachments/attachment-labels";
+import { CurrencyInput } from "@/components/form/currency-input";
+import { CategoryComboboxWithCreate } from "@/features/categories/components/category-combobox-with-create";
+import { FundComboboxWithCreate } from "@/features/funds/components/fund-combobox-with-create";
+import { BeneficiaryComboboxWithCreate } from "@/features/beneficiaries/components/beneficiary-combobox-with-create";
+import { useFundOptions } from "@/features/funds/hooks/use-fund-options";
+import { useOrganizationSettings } from "@/features/organization-settings/hooks/use-organization-settings";
+import { getDefaultFundReallocationSuggestion } from "@/utils/fund-reallocation";
+import { formatCents, formatCurrency, fromCents } from "@/utils/formatters";
+import { getApiErrorMessage } from "@/utils/api-error";
+import { SupportAgreementSuggestionCard } from "@/features/support-agreements/components/support-agreement-suggestion-card";
+import { useAccounts } from "@/features/accounts/hooks/use-accounts";
+import { EntityCombobox } from "@/components/form/entity-combobox";
+import {
+    fiscalDocumentPolicyRequiresNote,
+    normalizeFiscalDocumentNote,
+} from "../financial-transaction-labels";
+import { FiscalDocumentPolicyField } from "./fiscal-document-policy-field";
+import {
+    getAttachmentAcceptAttribute,
+    getAttachmentRulesDescription,
+    validateAttachmentFile,
+} from "@/features/attachments/attachment-validation";
+import { useClassificationSuggestion } from "../hooks/use-classification-suggestion";
+import { useTransferMatchSuggestion } from "../hooks/use-transfer-match-suggestion";
+import { usePairTransferTransactions } from "../hooks/use-pair-transfer-transactions";
 
 type AllocationFormItem = {
-    fundId: string
-    beneficiaryId: string
-    referenceMonth: string
-    amount: string
-}
+    fundId: string;
+    beneficiaryId: string;
+    referenceMonth: string;
+    amount: string;
+};
 
 type PendingAttachmentItem = {
-    id: string
-    type: AttachmentType
-    file: File | null
-}
+    id: string;
+    type: AttachmentType;
+    file: File | null;
+};
 
 type TransactionClassifyPanelProps = {
-    transaction: FinancialTransaction
-    enabled?: boolean
-    onSaved?: () => void
-}
+    transaction: FinancialTransaction;
+    enabled?: boolean;
+    onSaved?: () => void;
+};
 
 export function TransactionClassifyPanel({
     transaction,
     enabled = true,
     onSaved,
 }: TransactionClassifyPanelProps) {
+    const dialogOpen = enabled;
 
-    const dialogOpen = enabled
-
-    const [type, setType] = useState(transaction.type)
-    const [categoryId, setCategoryId] = useState(transaction.category?.id ?? "")
-    const [description, setDescription] = useState(transaction.description ?? "")
+    const [type, setType] = useState(transaction.type);
+    const [categoryId, setCategoryId] = useState(transaction.category?.id ?? "");
+    const [description, setDescription] = useState(transaction.description ?? "");
 
     const [fiscalDocumentPolicy, setFiscalDocumentPolicy] = useState(
         transaction.fiscalDocumentPolicy ?? "CATEGORY",
-    )
+    );
 
     const [fiscalDocumentNote, setFiscalDocumentNote] = useState(
         transaction.fiscalDocumentNote ?? "",
-    )
+    );
 
     const [settlementDate, setSettlementDate] = useState(
         transaction.settlementDate ?? "",
-    )
+    );
     const [settledAmount, setSettledAmount] = useState(
-        String(Math.abs(transaction.settledAmount ?? transaction.expectedAmount ?? 0)),
-    )
+        String(
+            Math.abs(transaction.settledAmount ?? transaction.expectedAmount ?? 0),
+        ),
+    );
 
-    const [allocations, setAllocations] = useState<AllocationFormItem[]>([])
+    const [allocations, setAllocations] = useState<AllocationFormItem[]>([]);
 
-    const [pendingAttachments, setPendingAttachments] = useState<PendingAttachmentItem[]>([])
+    const [pendingAttachments, setPendingAttachments] = useState<
+        PendingAttachmentItem[]
+    >([]);
 
     const [transferDirection, setTransferDirection] = useState<
         FinancialTransaction["transferDirection"]
     >(
         transaction.transferDirection ??
         (transaction.type === "INCOME" ? "IN" : "OUT"),
-    )
+    );
 
     const [transferCounterpartyAccountId, setTransferCounterpartyAccountId] =
-        useState(transaction.transferCounterpartyAccount?.id ?? "")
+        useState(transaction.transferCounterpartyAccount?.id ?? "");
 
-    const classifyTransaction = useClassifyFinancialTransaction()
+    const [selectedTransferMatchId, setSelectedTransferMatchId] = useState("");
 
-    const uploadAttachmentMutation = useUploadAttachment(transaction.id)
+    const classifyTransaction = useClassifyFinancialTransaction();
 
-    const { data: funds = [] } = useFundOptions()
-    const { data: settings } = useOrganizationSettings()
+    const uploadAttachmentMutation = useUploadAttachment(transaction.id);
 
-    const autoFillEnabled =
-        settings?.autoFillClassificationSuggestions === true
+    const { data: funds = [] } = useFundOptions();
+    const { data: settings } = useOrganizationSettings();
+
+    const autoFillEnabled = settings?.autoFillClassificationSuggestions === true;
 
     const classificationSuggestionQuery = useClassificationSuggestion(
         transaction.id,
         {
-            enabled:
-                dialogOpen &&
-                autoFillEnabled &&
-                !transaction.category,
+            enabled: dialogOpen && autoFillEnabled && !transaction.category,
         },
-    )
+    );
 
-    const appliedSuggestionKeyRef = useRef<string | null>(null)
+    const appliedSuggestionKeyRef = useRef<string | null>(null);
 
-    const hasManualChangesRef = useRef(false)
+    const hasManualChangesRef = useRef(false);
 
     function markAsManuallyEdited() {
-        hasManualChangesRef.current = true
+        hasManualChangesRef.current = true;
     }
 
-    const accountsQuery = useAccounts({ page: 0, size: 200 })
+    const accountsQuery = useAccounts({ page: 0, size: 200 });
+
+    const transferMatchQuery = useTransferMatchSuggestion(transaction.id, {
+        enabled:
+            dialogOpen &&
+            transaction.status === "SETTLED" &&
+            transaction.account.type !== "CREDIT_CARD" &&
+            !transaction.category,
+    });
+
+    const pairTransferMutation = usePairTransferTransactions();
+
+    const transferCandidates = transferMatchQuery.data?.candidates ?? [];
+
+    const automaticTransferMatchId =
+        transferCandidates.length === 1 ? transferCandidates[0].transactionId : "";
+
+    const currentTransferMatchId =
+        selectedTransferMatchId || automaticTransferMatchId;
+
+    const selectedTransferCandidate = transferCandidates.find(
+        (candidate) => candidate.transactionId === currentTransferMatchId,
+    );
 
     const transferCounterpartyAccountOptions =
         accountsQuery.data?.content
@@ -138,42 +176,42 @@ export function TransactionClassifyPanel({
                 label: account.bankName
                     ? `${account.name} · ${account.bankName}`
                     : account.name,
-            })) ?? []
+            })) ?? [];
 
     const totalAllocated = useMemo(() => {
         const totalInCents = allocations.reduce(
             (total, allocation) => total + formatCents(allocation.amount),
             0,
-        )
+        );
 
-        return fromCents(totalInCents)
-    }, [allocations])
+        return fromCents(totalInCents);
+    }, [allocations]);
 
-    const amountNumber = fromCents(formatCents(settledAmount))
+    const amountNumber = fromCents(formatCents(settledAmount));
 
     const remainingAmount = fromCents(
         formatCents(amountNumber) - formatCents(totalAllocated),
-    )
+    );
 
     function handleAddAllocation() {
-        markAsManuallyEdited()
+        markAsManuallyEdited();
 
         setAllocations((current) => [
             ...current,
             {
                 fundId: "",
                 beneficiaryId: "",
-                referenceMonth: settlementDate
-                    ? settlementDate.slice(0, 7)
-                    : "",
+                referenceMonth: settlementDate ? settlementDate.slice(0, 7) : "",
                 amount: remainingAmount > 0 ? String(remainingAmount) : "",
             },
-        ])
+        ]);
     }
 
     function handleRemoveAllocation(index: number) {
-        markAsManuallyEdited()
-        setAllocations((current) => current.filter((_, itemIndex) => itemIndex !== index))
+        markAsManuallyEdited();
+        setAllocations((current) =>
+            current.filter((_, itemIndex) => itemIndex !== index),
+        );
     }
 
     function handleChangeAllocation(
@@ -181,7 +219,7 @@ export function TransactionClassifyPanel({
         field: keyof AllocationFormItem,
         value: string,
     ) {
-        markAsManuallyEdited()
+        markAsManuallyEdited();
 
         setAllocations((current) =>
             current.map((allocation, itemIndex) =>
@@ -192,14 +230,13 @@ export function TransactionClassifyPanel({
                     }
                     : allocation,
             ),
-        )
+        );
     }
 
     function handleApplyReallocationSuggestion(index: number) {
+        markAsManuallyEdited();
 
-        markAsManuallyEdited()
-
-        const allocation = allocations[index]
+        const allocation = allocations[index];
 
         const suggestion = getDefaultFundReallocationSuggestion({
             fundId: allocation.fundId,
@@ -207,31 +244,31 @@ export function TransactionClassifyPanel({
             transactionType: type,
             funds,
             settings,
-        })
+        });
 
         if (!suggestion) {
-            return
+            return;
         }
 
         setAllocations((current) => {
-            const updated = [...current]
+            const updated = [...current];
 
             updated[index] = {
                 ...updated[index],
                 amount: String(fromCents(formatCents(suggestion.selectedFundAmount))),
-            }
+            };
 
             updated.splice(index + 1, 0, {
                 fundId: suggestion.defaultFund.id,
                 beneficiaryId: allocation.beneficiaryId,
                 referenceMonth: allocation.referenceMonth,
                 amount: String(fromCents(formatCents(suggestion.defaultFundAmount))),
-            })
+            });
 
-            return updated
-        })
+            return updated;
+        });
 
-        toast.info("Sugestão aplicada. Revise as alocações antes de salvar.")
+        toast.info("Sugestão aplicada. Revise as alocações antes de salvar.");
     }
 
     function handleAddPendingAttachment() {
@@ -242,19 +279,16 @@ export function TransactionClassifyPanel({
                 type: "PROOF_OF_PAYMENT",
                 file: null,
             },
-        ])
+        ]);
     }
 
     function handleRemovePendingAttachment(id: string) {
         setPendingAttachments((current) =>
             current.filter((attachment) => attachment.id !== id),
-        )
+        );
     }
 
-    function handleChangePendingAttachmentType(
-        id: string,
-        type: AttachmentType,
-    ) {
+    function handleChangePendingAttachmentType(id: string, type: AttachmentType) {
         setPendingAttachments((current) =>
             current.map((attachment) =>
                 attachment.id === id
@@ -264,19 +298,16 @@ export function TransactionClassifyPanel({
                     }
                     : attachment,
             ),
-        )
+        );
     }
 
-    function handleChangePendingAttachmentFile(
-        id: string,
-        file: File | null,
-    ) {
+    function handleChangePendingAttachmentFile(id: string, file: File | null) {
         if (file) {
-            const validationError = validateAttachmentFile(file)
+            const validationError = validateAttachmentFile(file);
 
             if (validationError) {
-                toast.error(validationError)
-                return
+                toast.error(validationError);
+                return;
             }
         }
 
@@ -289,47 +320,49 @@ export function TransactionClassifyPanel({
                     }
                     : attachment,
             ),
-        )
+        );
     }
 
-    async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-        event.preventDefault()
+    async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
 
         if (!type) {
-            toast.error("Selecione o tipo da transação.")
-            return
+            toast.error("Selecione o tipo da transação.");
+            return;
         }
 
         if (type !== "TRANSFER" && !categoryId) {
-            toast.error("Selecione uma categoria.")
-            return
+            toast.error("Selecione uma categoria.");
+            return;
         }
 
         if (type === "TRANSFER") {
             if (!transferDirection) {
-                toast.error("Selecione se a transferência é entrada ou saída.")
-                return
+                toast.error("Selecione se a transferência é entrada ou saída.");
+                return;
             }
 
             if (!transferCounterpartyAccountId) {
-                toast.error("Selecione a conta contraparte da transferência.")
-                return
+                toast.error("Selecione a conta contraparte da transferência.");
+                return;
             }
 
             if (transferCounterpartyAccountId === transaction.account.id) {
-                toast.error("A conta contraparte deve ser diferente da conta da transação.")
-                return
+                toast.error(
+                    "A conta contraparte deve ser diferente da conta da transação.",
+                );
+                return;
             }
         }
 
         if (!settlementDate) {
-            toast.error("Informe a data de baixa.")
-            return
+            toast.error("Informe a data de baixa.");
+            return;
         }
 
         if (!amountNumber || amountNumber <= 0) {
-            toast.error("Informe um valor válido.")
-            return
+            toast.error("Informe um valor válido.");
+            return;
         }
 
         if (
@@ -337,71 +370,69 @@ export function TransactionClassifyPanel({
             fiscalDocumentPolicyRequiresNote(fiscalDocumentPolicy) &&
             !fiscalDocumentNote.trim()
         ) {
-            toast.error("Informe o motivo da regra documental.")
-            return
+            toast.error("Informe o motivo da regra documental.");
+            return;
         }
 
-        const validAllocations = type === "TRANSFER"
-            ? []
-            : allocations
-                .filter(
-                    (allocation) =>
-                        allocation.fundId &&
-                        Number(allocation.amount || 0) > 0,
-                )
-                .map((allocation) => ({
-                    fundId: allocation.fundId,
-                    beneficiaryId: allocation.beneficiaryId || null,
-                    referenceMonth: allocation.referenceMonth
-                        ? `${allocation.referenceMonth}-01`
-                        : null,
-                    amount: Math.abs(Number(allocation.amount)),
-                }))
+        const validAllocations =
+            type === "TRANSFER"
+                ? []
+                : allocations
+                    .filter(
+                        (allocation) =>
+                            allocation.fundId && Number(allocation.amount || 0) > 0,
+                    )
+                    .map((allocation) => ({
+                        fundId: allocation.fundId,
+                        beneficiaryId: allocation.beneficiaryId || null,
+                        referenceMonth: allocation.referenceMonth
+                            ? `${allocation.referenceMonth}-01`
+                            : null,
+                        amount: Math.abs(Number(allocation.amount)),
+                    }));
 
         const hasIncompleteAllocation =
             type !== "TRANSFER" &&
             allocations.some((allocation) => {
-                const amount = Number(allocation.amount || 0)
+                const amount = Number(allocation.amount || 0);
 
-                return amount > 0 && !allocation.fundId
-            })
+                return amount > 0 && !allocation.fundId;
+            });
 
         if (hasIncompleteAllocation) {
-            toast.error("Selecione um fundo para todas as alocações com valor.")
-            return
+            toast.error("Selecione um fundo para todas as alocações com valor.");
+            return;
         }
 
         const allocatedAbsTotal = validAllocations.reduce(
             (total, allocation) => total + Math.abs(allocation.amount),
             0,
-        )
+        );
 
         if (allocatedAbsTotal > amountNumber) {
-            toast.error(
-                "O valor alocado não pode ultrapassar o valor da transação.",
-            )
-            return
+            toast.error("O valor alocado não pode ultrapassar o valor da transação.");
+            return;
         }
 
         if (allocatedAbsTotal > 0 && allocatedAbsTotal < amountNumber) {
             const confirmed = window.confirm(
                 "O valor foi parcialmente alocado. O restante continuará pendente e poderá ser alocado depois pelo botão de alocar restante. Deseja salvar mesmo assim?",
-            )
+            );
 
             if (!confirmed) {
-                return
+                return;
             }
         }
 
         const hasIncompleteAttachment = pendingAttachments.some(
             (attachment) => !attachment.file,
-        )
+        );
 
         if (hasIncompleteAttachment) {
             toast.error(
                 "Selecione um arquivo em todos os anexos ou remova a linha vazia.",
-            )
-            return
+            );
+            return;
         }
 
         const attachmentsToUpload =
@@ -412,7 +443,7 @@ export function TransactionClassifyPanel({
                         attachment,
                     ): attachment is PendingAttachmentItem & { file: File } =>
                         attachment.file !== null,
-                )
+                );
 
         try {
             await classifyTransaction.mutateAsync({
@@ -440,16 +471,16 @@ export function TransactionClassifyPanel({
                         type === "TRANSFER" ? transferCounterpartyAccountId : null,
                     allocations: validAllocations,
                 },
-            })
+            });
 
             if (attachmentsToUpload.length === 0) {
-                toast.success("Transação classificada com sucesso.")
-                setPendingAttachments([])
-                onSaved?.()
-                return
+                toast.success("Transação classificada com sucesso.");
+                setPendingAttachments([]);
+                onSaved?.();
+                return;
             }
 
-            const failedFiles: string[] = []
+            const failedFiles: string[] = [];
 
             for (const attachment of attachmentsToUpload) {
                 try {
@@ -457,9 +488,9 @@ export function TransactionClassifyPanel({
                         transactionId: transaction.id,
                         type: attachment.type,
                         file: attachment.file,
-                    })
+                    });
                 } catch {
-                    failedFiles.push(attachment.file.name)
+                    failedFiles.push(attachment.file.name);
                 }
             }
 
@@ -468,104 +499,113 @@ export function TransactionClassifyPanel({
                     attachmentsToUpload.length === 1
                         ? "Transação classificada e anexo enviado com sucesso."
                         : "Transação classificada e anexos enviados com sucesso.",
-                )
+                );
             } else if (failedFiles.length === attachmentsToUpload.length) {
                 toast.warning(
                     "A transação foi classificada, mas nenhum anexo foi enviado. Envie novamente pela ação Anexos.",
-                )
+                );
             } else {
                 toast.warning(
                     `A transação foi classificada, mas alguns anexos falharam: ${failedFiles.join(", ")}.`,
-                )
+                );
             }
 
-            setPendingAttachments([])
-            onSaved?.()
+            setPendingAttachments([]);
+            onSaved?.();
         } catch (error) {
             toast.error(
-                getApiErrorMessage(
-                    error,
-                    "Não foi possível classificar a transação.",
-                ),
-            )
+                getApiErrorMessage(error, "Não foi possível classificar a transação."),
+            );
         }
     }
 
     useEffect(() => {
         if (!dialogOpen) {
-            return
+            return;
         }
 
         const resetForm = () => {
-            hasManualChangesRef.current = false
-            setType(transaction.type)
-            setCategoryId(transaction.category?.id ?? "")
-            setDescription(transaction.description ?? "")
-            setSettlementDate(transaction.settlementDate ?? "")
+            hasManualChangesRef.current = false;
+            setType(transaction.type);
+            setCategoryId(transaction.category?.id ?? "");
+            setDescription(transaction.description ?? "");
+            setSettlementDate(transaction.settlementDate ?? "");
             setSettledAmount(
                 String(
                     Math.abs(
-                        transaction.settledAmount ??
-                        transaction.expectedAmount ??
-                        0,
+                        transaction.settledAmount ?? transaction.expectedAmount ?? 0,
                     ),
                 ),
-            )
-            setFiscalDocumentPolicy(transaction.fiscalDocumentPolicy ?? "CATEGORY")
-            setFiscalDocumentNote(transaction.fiscalDocumentNote ?? "")
-            setAllocations([])
-            setPendingAttachments([])
+            );
+            setFiscalDocumentPolicy(transaction.fiscalDocumentPolicy ?? "CATEGORY");
+            setFiscalDocumentNote(transaction.fiscalDocumentNote ?? "");
+            setAllocations([]);
+            setPendingAttachments([]);
             setTransferDirection(
                 transaction.transferDirection ??
                 (transaction.type === "INCOME" ? "IN" : "OUT"),
-            )
+            );
 
             setTransferCounterpartyAccountId(
                 transaction.transferCounterpartyAccount?.id ?? "",
-            )
-        }
+            );
+            setSelectedTransferMatchId("");
+        };
 
-        const timeoutId = window.setTimeout(resetForm, 0)
-        return () => window.clearTimeout(timeoutId)
-    }, [dialogOpen, transaction.id, transaction.type, transaction.category?.id, transaction.description, transaction.settlementDate, transaction.settledAmount, transaction.expectedAmount, transaction.fiscalDocumentPolicy, transaction.fiscalDocumentNote, transaction.transferDirection, transaction.transferCounterpartyAccount?.id])
+        const timeoutId = window.setTimeout(resetForm, 0);
+        return () => window.clearTimeout(timeoutId);
+    }, [
+        dialogOpen,
+        transaction.id,
+        transaction.type,
+        transaction.category?.id,
+        transaction.description,
+        transaction.settlementDate,
+        transaction.settledAmount,
+        transaction.expectedAmount,
+        transaction.fiscalDocumentPolicy,
+        transaction.fiscalDocumentNote,
+        transaction.transferDirection,
+        transaction.transferCounterpartyAccount?.id,
+    ]);
 
     useEffect(() => {
         if (!dialogOpen || !autoFillEnabled) {
-            return
+            return;
         }
 
-        const suggestion = classificationSuggestionQuery.data
+        const suggestion = classificationSuggestionQuery.data;
 
         if (!suggestion?.available || !suggestion.type || !suggestion.category) {
-            return
+            return;
         }
 
         if (hasManualChangesRef.current) {
-            return
+            return;
         }
 
-        const suggestionKey = `${transaction.id}:${suggestion.basedOnTransactionId}`
+        const suggestionKey = `${transaction.id}:${suggestion.basedOnTransactionId}`;
 
         if (appliedSuggestionKeyRef.current === suggestionKey) {
-            return
+            return;
         }
 
         const timeoutId = window.setTimeout(() => {
             if (hasManualChangesRef.current) {
-                return
+                return;
             }
 
-            appliedSuggestionKeyRef.current = suggestionKey
-            setType(suggestion.type!)
-            setCategoryId(suggestion.category!.id)
+            appliedSuggestionKeyRef.current = suggestionKey;
+            setType(suggestion.type!);
+            setCategoryId(suggestion.category!.id);
 
             if (!description.trim() && suggestion.description) {
-                setDescription(suggestion.description)
+                setDescription(suggestion.description);
             }
 
             const defaultReferenceMonth = settlementDate
                 ? settlementDate.slice(0, 7)
-                : ""
+                : "";
 
             setAllocations(
                 suggestion.allocations.map((allocation) => ({
@@ -574,13 +614,13 @@ export function TransactionClassifyPanel({
                     referenceMonth: defaultReferenceMonth,
                     amount: String(Math.abs(Number(allocation.amount))),
                 })),
-            )
+            );
             toast.info(
                 "Sugestão aplicada com base no histórico. A competência foi iniciada no mês da baixa.",
-            )
-        }, 0)
+            );
+        }, 0);
 
-        return () => window.clearTimeout(timeoutId)
+        return () => window.clearTimeout(timeoutId);
     }, [
         autoFillEnabled,
         classificationSuggestionQuery.data,
@@ -588,30 +628,68 @@ export function TransactionClassifyPanel({
         dialogOpen,
         settlementDate,
         transaction.id,
-    ])
+    ]);
+
+    function handlePairTransfer() {
+        if (!currentTransferMatchId) {
+            toast.error("Selecione a movimentação correspondente.");
+            return;
+        }
+
+        const confirmed = window.confirm(
+            "As duas movimentações serão classificadas como transferência e vinculadas entre si. Deseja continuar?",
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        pairTransferMutation.mutate(
+            {
+                transactionId: transaction.id,
+                matchingTransactionId: currentTransferMatchId,
+            },
+            {
+                onSuccess: () => {
+                    toast.success(
+                        "As duas pontas da transferência foram classificadas e vinculadas.",
+                    );
+
+                    onSaved?.();
+                },
+
+                onError: (error) => {
+                    toast.error(
+                        getApiErrorMessage(
+                            error,
+                            "Não foi possível vincular as movimentações.",
+                        ),
+                    );
+                },
+            },
+        );
+    }
 
     useEffect(() => {
-        appliedSuggestionKeyRef.current = null
-    }, [transaction.id])
+        appliedSuggestionKeyRef.current = null;
+    }, [transaction.id]);
 
     function getMaxAmountForAllocation(index: number) {
         const totalOfOtherAllocationsInCents = allocations.reduce(
             (total, allocation, allocationIndex) => {
                 if (allocationIndex === index) {
-                    return total
+                    return total;
                 }
 
-                return total + formatCents(allocation.amount)
+                return total + formatCents(allocation.amount);
             },
             0,
-        )
+        );
 
         return Math.max(
-            fromCents(
-                formatCents(amountNumber) - totalOfOtherAllocationsInCents,
-            ),
+            fromCents(formatCents(amountNumber) - totalOfOtherAllocationsInCents),
             0,
-        )
+        );
     }
 
     return (
@@ -622,9 +700,75 @@ export function TransactionClassifyPanel({
                 </p>
 
                 <p className="mt-2 break-words text-sm">
-                    {transaction.rawDescription || transaction.description || "Sem descrição original"}
+                    {transaction.rawDescription ||
+                        transaction.description ||
+                        "Sem descrição original"}
                 </p>
             </div>
+
+            {transferMatchQuery.data?.available && (
+                <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                    <div className="flex items-start gap-3">
+                        <ArrowRightLeft className="mt-0.5 size-5 text-blue-700" />
+
+                        <div>
+                            <p className="font-medium text-blue-950">
+                                Possível transferência entre contas
+                            </p>
+
+                            <p className="text-sm text-blue-800">
+                                Encontramos uma movimentação de mesmo valor, em outra conta, com
+                                sentido oposto.
+                            </p>
+                        </div>
+                    </div>
+
+                    <EntityCombobox
+                        value={currentTransferMatchId}
+                        options={transferCandidates.map((candidate) => ({
+                            value: candidate.transactionId,
+
+                            label:
+                                `${candidate.account.name} · ` +
+                                `${formatCurrency(candidate.amount)} · ` +
+                                `${candidate.settlementDate} · ` +
+                                candidate.description,
+                        }))}
+                        placeholder="Selecione a outra ponta"
+                        searchPlaceholder="Buscar movimentação..."
+                        emptyMessage="Nenhuma candidata encontrada."
+                        allowClear={false}
+                        onChange={setSelectedTransferMatchId}
+                    />
+
+                    {selectedTransferCandidate && (
+                        <p className="text-sm text-blue-900">
+                            Esta transação será{" "}
+                            <strong>
+                                {transferMatchQuery.data.suggestedDirection === "OUT"
+                                    ? "saída"
+                                    : "entrada"}
+                            </strong>{" "}
+                            e a movimentação em{" "}
+                            <strong>{selectedTransferCandidate.account.name}</strong> será a
+                            ponta oposta.
+                        </p>
+                    )}
+
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={!currentTransferMatchId || pairTransferMutation.isPending}
+                        onClick={handlePairTransfer}
+                    >
+                        <ArrowRightLeft className="mr-2 size-4" />
+
+                        {pairTransferMutation.isPending
+                            ? "Vinculando..."
+                            : "Classificar e vincular as duas"}
+                    </Button>
+                </div>
+            )}
 
             <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
@@ -632,25 +776,25 @@ export function TransactionClassifyPanel({
                     <Select
                         value={type}
                         onValueChange={(value) => {
-                            const nextType = value as FinancialTransaction["type"]
+                            const nextType = value as FinancialTransaction["type"];
 
-                            markAsManuallyEdited()
+                            markAsManuallyEdited();
 
-                            setType(nextType)
-                            setCategoryId("")
+                            setType(nextType);
+                            setCategoryId("");
 
                             if (nextType !== "EXPENSE") {
-                                setFiscalDocumentPolicy("CATEGORY")
-                                setFiscalDocumentNote("")
+                                setFiscalDocumentPolicy("CATEGORY");
+                                setFiscalDocumentNote("");
                             }
 
                             if (nextType === "TRANSFER") {
-                                setAllocations([])
-                                setPendingAttachments([])
+                                setAllocations([]);
+                                setPendingAttachments([]);
 
                                 setTransferDirection(
                                     transaction.type === "INCOME" ? "IN" : "OUT",
-                                )
+                                );
                             }
                         }}
                     >
@@ -673,10 +817,10 @@ export function TransactionClassifyPanel({
                         <Select
                             value={transferDirection ?? ""}
                             onValueChange={(value) => {
-                                markAsManuallyEdited()
+                                markAsManuallyEdited();
                                 setTransferDirection(
                                     value as FinancialTransaction["transferDirection"],
-                                )
+                                );
                             }}
                         >
                             <SelectTrigger>
@@ -700,11 +844,11 @@ export function TransactionClassifyPanel({
                             emptyMessage="Nenhuma categoria encontrada."
                             allowClear={false}
                             onChange={(value) => {
-                                markAsManuallyEdited()
-                                setCategoryId(value)
+                                markAsManuallyEdited();
+                                setCategoryId(value);
 
                                 if (!value) {
-                                    setPendingAttachments([])
+                                    setPendingAttachments([]);
                                 }
                             }}
                         />
@@ -717,8 +861,8 @@ export function TransactionClassifyPanel({
                         type="date"
                         value={settlementDate}
                         onChange={(event) => {
-                            markAsManuallyEdited()
-                            setSettlementDate(event.target.value)
+                            markAsManuallyEdited();
+                            setSettlementDate(event.target.value);
                         }}
                     />
                 </div>
@@ -729,8 +873,8 @@ export function TransactionClassifyPanel({
                         id="settledAmount"
                         value={amountNumber}
                         onValueChange={(value) => {
-                            markAsManuallyEdited()
-                            setSettledAmount(String(value ?? 0))
+                            markAsManuallyEdited();
+                            setSettledAmount(String(value ?? 0));
                         }}
                     />
                 </div>
@@ -741,8 +885,8 @@ export function TransactionClassifyPanel({
                         value={description}
                         placeholder="Ex: Compra de material, oferta destinada, repasse..."
                         onChange={(event) => {
-                            markAsManuallyEdited()
-                            setDescription(event.target.value)
+                            markAsManuallyEdited();
+                            setDescription(event.target.value);
                         }}
                     />
                 </div>
@@ -759,15 +903,15 @@ export function TransactionClassifyPanel({
                             emptyMessage="Nenhuma conta encontrada."
                             allowClear={false}
                             onChange={(value) => {
-                                markAsManuallyEdited()
-                                setTransferCounterpartyAccountId(value)
+                                markAsManuallyEdited();
+                                setTransferCounterpartyAccountId(value);
                             }}
                         />
 
                         <p className="text-xs text-muted-foreground">
-                            Escolha a outra conta envolvida nesta transferência. Se a transação atual
-                            é uma saída, esta será a conta de destino. Se é uma entrada, esta será a
-                            conta de origem.
+                            Escolha a outra conta envolvida nesta transferência. Se a
+                            transação atual é uma saída, esta será a conta de destino. Se é
+                            uma entrada, esta será a conta de origem.
                         </p>
                     </div>
                 )}
@@ -785,17 +929,17 @@ export function TransactionClassifyPanel({
                     value={fiscalDocumentPolicy}
                     note={fiscalDocumentNote}
                     onValueChange={(value) => {
-                        markAsManuallyEdited()
+                        markAsManuallyEdited();
 
-                        setFiscalDocumentPolicy(value)
+                        setFiscalDocumentPolicy(value);
 
                         if (value === "CATEGORY" || value === "REQUIRED") {
-                            setFiscalDocumentNote("")
+                            setFiscalDocumentNote("");
                         }
                     }}
                     onNoteChange={(value) => {
-                        markAsManuallyEdited()
-                        setFiscalDocumentNote(value)
+                        markAsManuallyEdited();
+                        setFiscalDocumentNote(value);
                     }}
                 />
             )}
@@ -806,7 +950,8 @@ export function TransactionClassifyPanel({
                         <h3 className="text-sm font-medium">Alocações</h3>
                         <p className="text-xs text-muted-foreground">
                             Se nenhuma alocação for informada, o sistema usará o fundo padrão.
-                            Se houver alocação parcial, o restante continuará pendente para alocação.
+                            Se houver alocação parcial, o restante continuará pendente para
+                            alocação.
                         </p>
                     </div>
 
@@ -823,9 +968,9 @@ export function TransactionClassifyPanel({
 
                 {allocations.length === 0 ? (
                     <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                        Se nenhuma alocação manual for informada, o sistema usará o fundo padrão da
-                        organização. Se você informar uma alocação parcial, o restante continuará
-                        pendente e poderá ser alocado depois.
+                        Se nenhuma alocação manual for informada, o sistema usará o fundo
+                        padrão da organização. Se você informar uma alocação parcial, o
+                        restante continuará pendente e poderá ser alocado depois.
                     </div>
                 ) : (
                     <div className="space-y-4">
@@ -836,7 +981,7 @@ export function TransactionClassifyPanel({
                                 transactionType: type,
                                 funds,
                                 settings,
-                            })
+                            });
 
                             return (
                                 <div key={index} className="space-y-3">
@@ -868,7 +1013,11 @@ export function TransactionClassifyPanel({
                                             <Label>Competência</Label>
                                             <Input
                                                 type="month"
-                                                value={allocation.referenceMonth ? allocation.referenceMonth : ""}
+                                                value={
+                                                    allocation.referenceMonth
+                                                        ? allocation.referenceMonth
+                                                        : ""
+                                                }
                                                 onChange={(event) =>
                                                     handleChangeAllocation(
                                                         index,
@@ -878,7 +1027,8 @@ export function TransactionClassifyPanel({
                                                 }
                                             />
                                             <p className="text-xs text-muted-foreground">
-                                                Padrão: mês da baixa. Altere somente se este repasse quitar outro mês.
+                                                Padrão: mês da baixa. Altere somente se este repasse
+                                                quitar outro mês.
                                             </p>
                                         </div>
 
@@ -887,7 +1037,11 @@ export function TransactionClassifyPanel({
                                             <CurrencyInput
                                                 value={Number(allocation.amount || 0)}
                                                 onValueChange={(value) =>
-                                                    handleChangeAllocation(index, "amount", String(value ?? 0))
+                                                    handleChangeAllocation(
+                                                        index,
+                                                        "amount",
+                                                        String(value ?? 0),
+                                                    )
                                                 }
                                             />
                                         </div>
@@ -913,10 +1067,26 @@ export function TransactionClassifyPanel({
                                         maxAmount={getMaxAmountForAllocation(index)}
                                         autoApply={false}
                                         onApply={(suggestion) => {
-                                            handleChangeAllocation(index, "fundId", suggestion.fundId)
-                                            handleChangeAllocation(index, "beneficiaryId", suggestion.beneficiaryId)
-                                            handleChangeAllocation(index, "referenceMonth", suggestion.referenceMonth)
-                                            handleChangeAllocation(index, "amount", String(suggestion.amount))
+                                            handleChangeAllocation(
+                                                index,
+                                                "fundId",
+                                                suggestion.fundId,
+                                            );
+                                            handleChangeAllocation(
+                                                index,
+                                                "beneficiaryId",
+                                                suggestion.beneficiaryId,
+                                            );
+                                            handleChangeAllocation(
+                                                index,
+                                                "referenceMonth",
+                                                suggestion.referenceMonth,
+                                            );
+                                            handleChangeAllocation(
+                                                index,
+                                                "amount",
+                                                String(suggestion.amount),
+                                            );
                                         }}
                                     />
 
@@ -934,27 +1104,38 @@ export function TransactionClassifyPanel({
                                                         Saldo disponível em{" "}
                                                         <strong>{suggestion.selectedFund.label}</strong>:{" "}
                                                         {formatCurrency(
-                                                            Math.max(suggestion.selectedFund.currentBalance, 0),
-                                                        )}.
+                                                            Math.max(
+                                                                suggestion.selectedFund.currentBalance,
+                                                                0,
+                                                            ),
+                                                        )}
+                                                        .
                                                     </p>
 
                                                     <p>
                                                         Sugestão: alocar{" "}
-                                                        <strong>{formatCurrency(suggestion.selectedFundAmount)}</strong>{" "}
+                                                        <strong>
+                                                            {formatCurrency(suggestion.selectedFundAmount)}
+                                                        </strong>{" "}
                                                         em {suggestion.selectedFund.label} e{" "}
-                                                        <strong>{formatCurrency(suggestion.defaultFundAmount)}</strong>{" "}
+                                                        <strong>
+                                                            {formatCurrency(suggestion.defaultFundAmount)}
+                                                        </strong>{" "}
                                                         em {suggestion.defaultFund.label}.
                                                     </p>
 
                                                     <p className="text-xs">
-                                                        Nada será salvo automaticamente. Clique em aplicar, revise e depois salve a classificação.
+                                                        Nada será salvo automaticamente. Clique em aplicar,
+                                                        revise e depois salve a classificação.
                                                     </p>
 
                                                     <Button
                                                         type="button"
                                                         size="sm"
                                                         variant="outline"
-                                                        onClick={() => handleApplyReallocationSuggestion(index)}
+                                                        onClick={() =>
+                                                            handleApplyReallocationSuggestion(index)
+                                                        }
                                                     >
                                                         Aplicar sugestão
                                                     </Button>
@@ -963,7 +1144,7 @@ export function TransactionClassifyPanel({
                                         </div>
                                     )}
                                 </div>
-                            )
+                            );
                         })}
                     </div>
                 )}
@@ -994,12 +1175,13 @@ export function TransactionClassifyPanel({
                             <div>
                                 <h3 className="text-sm font-medium">Anexos opcionais</h3>
                                 <p className="text-xs text-muted-foreground">
-                                    Os arquivos serão enviados somente depois que a classificação for salva.
+                                    Os arquivos serão enviados somente depois que a classificação
+                                    for salva.
                                 </p>
                             </div>
                         </div>
 
-                        {(categoryId) && (
+                        {categoryId && (
                             <Button
                                 type="button"
                                 variant="outline"
@@ -1018,8 +1200,8 @@ export function TransactionClassifyPanel({
                         </div>
                     ) : pendingAttachments.length === 0 ? (
                         <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                            Nenhum anexo selecionado. Você pode salvar a classificação sem anexos
-                            ou adicionar comprovantes e documentos agora.
+                            Nenhum anexo selecionado. Você pode salvar a classificação sem
+                            anexos ou adicionar comprovantes e documentos agora.
                         </div>
                     ) : (
                         <div className="space-y-3">
@@ -1109,19 +1291,14 @@ export function TransactionClassifyPanel({
             )}
 
             <div className="flex justify-end gap-2 border-t pt-4">
-                <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => { }}
-                >
+                <Button type="button" variant="outline" onClick={() => { }}>
                     Cancelar
                 </Button>
 
                 <Button
                     type="submit"
                     disabled={
-                        classifyTransaction.isPending ||
-                        uploadAttachmentMutation.isPending
+                        classifyTransaction.isPending || uploadAttachmentMutation.isPending
                     }
                 >
                     {classifyTransaction.isPending
@@ -1132,5 +1309,5 @@ export function TransactionClassifyPanel({
                 </Button>
             </div>
         </form>
-    )
+    );
 }

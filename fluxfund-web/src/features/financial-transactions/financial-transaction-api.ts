@@ -1,6 +1,6 @@
 import { httpClient } from "@/api/http-client"
 import type { PageResponse } from "@/types/page-response"
-import type { ClassifyFinancialTransactionRequest, CreateAccountTransferRequest, CreateFinancialTransactionRequest, CreateTransactionAllocationRequest, FinancialTransaction, FinancialTransactionClassificationSuggestion, ImportCsvResponse, ImportOfxResponse, TransactionAllocation, UpdateFinancialTransactionRequest, UpdateTransactionAllocationRequest } from "./financial-transaction-types"
+import type { ClassifyFinancialTransactionRequest, CreateAccountTransferRequest, CreateFinancialTransactionRequest, CreateTransactionAllocationRequest, FinancialTransaction, FinancialTransactionClassificationSuggestion, ImportCsvResponse, ImportOfxResponse, TransactionAllocation, TransferMatchSuggestion, UpdateFinancialTransactionRequest, UpdateTransactionAllocationRequest } from "./financial-transaction-types"
 import type { ImportProfile } from "@/utils/imports/import-profile"
 
 type GetFinancialTransactionsParams = {
@@ -249,6 +249,29 @@ export async function getClassificationSuggestion(transactionId: string) {
   const response =
     await httpClient.get<FinancialTransactionClassificationSuggestion>(
       `/api/v1/financial-transactions/${transactionId}/classification-suggestion`,
+    )
+
+  return response.data
+}
+
+export async function getTransferMatchSuggestion(
+  transactionId: string,
+) {
+  const response =
+    await httpClient.get<TransferMatchSuggestion>(
+      `/api/v1/financial-transactions/${transactionId}/transfer-match-suggestion`,
+    )
+
+  return response.data
+}
+
+export async function pairTransferTransactions(
+  transactionId: string,
+  matchingTransactionId: string,
+) {
+  const response =
+    await httpClient.post<FinancialTransaction[]>(
+      `/api/v1/financial-transactions/${transactionId}/transfer-match/${matchingTransactionId}`,
     )
 
   return response.data

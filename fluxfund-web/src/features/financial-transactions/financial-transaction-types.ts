@@ -199,3 +199,18 @@ export type FinancialTransactionClassificationSuggestion = {
   description: string | null
   allocations: ClassificationSuggestionAllocation[]
 }
+
+export type TransferMatchCandidate = {
+  transactionId: string
+  account: AccountSummary
+  settlementDate: string
+  amount: number
+  description: string
+  dateDistanceDays: number
+}
+
+export type TransferMatchSuggestion = {
+  available: boolean
+  suggestedDirection: TransferDirection | null
+  candidates: TransferMatchCandidate[]
+}

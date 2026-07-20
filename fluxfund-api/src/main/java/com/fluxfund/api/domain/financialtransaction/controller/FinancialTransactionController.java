@@ -33,6 +33,7 @@ import com.fluxfund.api.domain.financialtransaction.dto.CreateFinancialTransacti
 import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionClassificationSuggestionResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.ImportOfxResponse;
+import com.fluxfund.api.domain.financialtransaction.dto.TransferMatchSuggestionResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.UpdateFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.export.FinancialTransactionExcelExportService;
 import com.fluxfund.api.domain.financialtransaction.service.FinancialTransactionCsvImportService;
@@ -259,5 +260,29 @@ public class FinancialTransactionController {
 
                 service.cancelAccountTransfer(organizationId, id);
                 return ResponseEntity.noContent().build();
+        }
+
+        @GetMapping("/{id}/transfer-match-suggestion")
+        public ResponseEntity<TransferMatchSuggestionResponse> getTransferMatchSuggestion(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID id) {
+
+                return ResponseEntity.ok(
+                                service.getTransferMatchSuggestion(
+                                                organizationId,
+                                                id));
+        }
+
+        @PostMapping("/{id}/transfer-match/{matchingId}")
+        public ResponseEntity<List<FinancialTransactionResponse>> pairTransferTransactions(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID id,
+                        @PathVariable UUID matchingId) {
+
+                return ResponseEntity.ok(
+                                service.pairTransferTransactions(
+                                                organizationId,
+                                                id,
+                                                matchingId));
         }
 }

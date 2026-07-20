@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fluxfund.api.domain.account.Account;
 import com.fluxfund.api.domain.account.AccountType;
+import com.fluxfund.api.domain.account.mapper.AccountMapper;
 import com.fluxfund.api.domain.account.repository.AccountRepository;
 import com.fluxfund.api.domain.attachment.dto.AttachmentCountByTransactionProjection;
 import com.fluxfund.api.domain.attachment.repository.AttachmentRepository;
@@ -44,6 +47,8 @@ import com.fluxfund.api.domain.financialtransaction.dto.CreateAccountTransferReq
 import com.fluxfund.api.domain.financialtransaction.dto.CreateFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionClassificationSuggestionResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionResponse;
+import com.fluxfund.api.domain.financialtransaction.dto.TransferMatchCandidateResponse;
+import com.fluxfund.api.domain.financialtransaction.dto.TransferMatchSuggestionResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.UpdateFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.mapper.FinancialTransactionMapper;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
@@ -715,6 +720,180 @@ public class FinancialTransactionService {
                 suggestedAllocations);
     }
 
+    @Transactional(readOnly = true)
+    public TransferMatchSuggestionResponse getTransferMatchSuggestion(
+
+            UUID organizationId,
+            UUID transactionId) {
+
+        organizationAccessService
+                .requireReadAccess(
+                        organizationId);
+
+        FinancialTransaction current = findFinancialTransactionById(
+                organizationId,
+                transactionId);
+
+        if (!isEligibleForTransferMatching(current)) {
+
+            return TransferMatchSuggestionResponse
+                    .unavailable();
+        }
+
+        FinancialTransactionType oppositeType = current.getType() == FinancialTransactionType.EXPENSE
+
+                ? FinancialTransactionType.INCOME
+
+                : FinancialTransactionType.EXPENSE;
+
+        TransferDirection suggestedDirection = current.getType() == FinancialTransactionType.EXPENSE
+
+                ? TransferDirection.OUT
+
+                : TransferDirection.IN;
+
+        BigDecimal amount = getSuggestionAmount(current);
+
+        LocalDate currentDate = current.getSettlementDate();
+
+        List<TransferMatchCandidateResponse> candidates = repository
+                .findTransferMatchCandidates(
+                        organizationId,
+                        current.getId(),
+                        current.getAccount().getId(),
+                        oppositeType,
+                        amount,
+                        currentDate.minusDays(3),
+                        currentDate.plusDays(3))
+                .stream()
+                .sorted(Comparator.comparingLong(candidate -> Math.abs(
+                        ChronoUnit.DAYS.between(currentDate, candidate.getSettlementDate()))))
+                .limit(5)
+                .map(candidate -> new TransferMatchCandidateResponse(
+
+                        candidate.getId(),
+
+                        AccountMapper
+                                .toSummaryResponse(
+                                        candidate.getAccount()),
+
+                        candidate.getSettlementDate(),
+
+                        getSuggestionAmount(
+                                candidate),
+
+                        resolveSuggestionDescription(
+                                candidate),
+
+                        Math.abs(
+                                ChronoUnit.DAYS
+                                        .between(
+                                                currentDate,
+                                                candidate
+                                                        .getSettlementDate()))))
+                .toList();
+
+        return new TransferMatchSuggestionResponse(
+                !candidates.isEmpty(),
+                suggestedDirection,
+                candidates);
+    }
+
+    public List<FinancialTransactionResponse> pairTransferTransactions(
+
+            UUID organizationId,
+
+            UUID transactionId,
+
+            UUID matchingTransactionId) {
+
+        organizationAccessService
+                .requireFinanceWriteAccess(
+                        organizationId);
+
+        FinancialTransaction current = findFinancialTransactionById(
+                organizationId,
+                transactionId);
+
+        FinancialTransaction matching = findFinancialTransactionById(
+                organizationId,
+                matchingTransactionId);
+
+        validateTransferPair(
+                current,
+                matching);
+
+        TransferDirection currentDirection = current.getType() == FinancialTransactionType.EXPENSE
+
+                ? TransferDirection.OUT
+
+                : TransferDirection.IN;
+
+        TransferDirection matchingDirection = currentDirection == TransferDirection.OUT
+
+                ? TransferDirection.IN
+
+                : TransferDirection.OUT;
+
+        UUID transferGroupId = UUID.randomUUID();
+
+        prepareTransferSide(
+
+                current,
+
+                currentDirection,
+
+                matching.getAccount(),
+
+                transferGroupId);
+
+        prepareTransferSide(
+
+                matching,
+
+                matchingDirection,
+
+                current.getAccount(),
+
+                transferGroupId);
+
+        List<FinancialTransaction> saved = repository.saveAll(
+                List.of(
+                        current,
+                        matching));
+
+        auditLogService.record(
+
+                organizationId,
+
+                AuditEntityType.FINANCIAL_TRANSACTION,
+
+                current.getId(),
+
+                AuditAction.CLASSIFY,
+
+                "Matched account transfer with transaction "
+                        + matching.getId());
+
+        auditLogService.record(
+
+                organizationId,
+
+                AuditEntityType.FINANCIAL_TRANSACTION,
+
+                matching.getId(),
+
+                AuditAction.CLASSIFY,
+
+                "Matched account transfer with transaction "
+                        + current.getId());
+
+        return saved.stream()
+                .map(
+                        FinancialTransactionMapper::toResponse)
+                .toList();
+    }
+
     private TransactionAllocation buildAllocation(
             UUID organizationId,
             FinancialTransaction financialTransaction,
@@ -1241,5 +1420,171 @@ public class FinancialTransactionService {
         }
 
         return suggestions;
+    }
+
+    private boolean isEligibleForTransferMatching(
+            FinancialTransaction transaction) {
+
+        if (transaction.getStatus() != FinancialTransactionStatus.SETTLED) {
+
+            return false;
+        }
+
+        if (transaction.getAccount().getType() == AccountType.CREDIT_CARD) {
+
+            return false;
+        }
+
+        if (transaction.getType() != FinancialTransactionType.INCOME
+                && transaction.getType() != FinancialTransactionType.EXPENSE) {
+
+            return false;
+        }
+
+        if (transaction.getCategory() != null) {
+            return false;
+        }
+
+        if (transaction.getSettlementDate() == null) {
+            return false;
+        }
+
+        return transaction.getAllocations() == null
+                || transaction.getAllocations().isEmpty();
+    }
+
+    private String resolveSuggestionDescription(
+            FinancialTransaction transaction) {
+
+        if (transaction.getDescription() != null
+                && !transaction
+                        .getDescription()
+                        .isBlank()) {
+
+            return transaction
+                    .getDescription()
+                    .trim();
+        }
+
+        if (transaction.getRawDescription() != null
+                && !transaction
+                        .getRawDescription()
+                        .isBlank()) {
+
+            return transaction
+                    .getRawDescription()
+                    .trim();
+        }
+
+        return "Transferência sem descrição";
+    }
+
+    private void validateTransferPair(
+
+            FinancialTransaction current,
+
+            FinancialTransaction matching) {
+
+        if (current.getId().equals(
+                matching.getId())) {
+
+            throw new BusinessException(
+                    "A transaction cannot be paired with itself");
+        }
+
+        if (!isEligibleForTransferMatching(current)
+                || !isEligibleForTransferMatching(
+                        matching)) {
+
+            throw new BusinessException(
+                    "Both transactions must be settled and unclassified");
+        }
+
+        if (current.getAccount().getId().equals(
+                matching.getAccount().getId())) {
+
+            throw new BusinessException(
+                    "Transfer transactions must belong to different accounts");
+        }
+
+        boolean oppositeTypes = current.getType() == FinancialTransactionType.EXPENSE
+                && matching.getType() == FinancialTransactionType.INCOME
+
+                || current.getType() == FinancialTransactionType.INCOME
+                        && matching.getType() == FinancialTransactionType.EXPENSE;
+
+        if (!oppositeTypes) {
+
+            throw new BusinessException(
+                    "Transfer transactions must have opposite movements");
+        }
+
+        BigDecimal currentAmount = getSuggestionAmount(current);
+
+        BigDecimal matchingAmount = getSuggestionAmount(matching);
+
+        if (currentAmount.compareTo(
+                matchingAmount) != 0) {
+
+            throw new BusinessException(
+                    "Transfer transaction amounts must match");
+        }
+
+        long dateDistance = Math.abs(
+                ChronoUnit.DAYS.between(
+
+                        current.getSettlementDate(),
+
+                        matching.getSettlementDate()));
+
+        if (dateDistance > 3) {
+
+            throw new BusinessException(
+                    "Transfer transaction dates are too far apart");
+        }
+    }
+
+    private void prepareTransferSide(
+
+            FinancialTransaction transaction,
+
+            TransferDirection direction,
+
+            Account counterpartyAccount,
+
+            UUID transferGroupId) {
+
+        BigDecimal amount = getSuggestionAmount(
+                transaction);
+
+        transaction.setType(
+                FinancialTransactionType.TRANSFER);
+
+        transaction.setCategory(null);
+
+        transaction.getAllocations().clear();
+
+        transaction.setTransferDirection(
+                direction);
+
+        transaction.setTransferCounterpartyAccount(
+                counterpartyAccount);
+
+        transaction.setTransferGroupId(
+                transferGroupId);
+
+        transaction.setExpectedAmount(
+                amount);
+
+        transaction.setSettledAmount(
+                amount);
+
+        transaction.setFiscalDocumentPolicy(
+                FiscalDocumentPolicy.CATEGORY);
+
+        transaction.setFiscalDocumentNote(null);
+
+        transaction.setClassifiedAt(
+                LocalDateTime.now());
     }
 }
