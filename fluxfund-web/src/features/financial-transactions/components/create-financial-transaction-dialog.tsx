@@ -13,6 +13,7 @@ import { AppDialogBody, AppDialogContent, AppDialogHeader } from "@/components/l
 import { useCreateAccountTransfer } from "../hooks/use-create-account-transfer"
 import { getApiErrorMessage } from "@/utils/api-error"
 import { CreateManualTransactionForm, type CreateManualTransactionSubmission } from "./create-manual-transaction-form"
+import { useUploadAttachment } from "@/features/attachments/hooks/use-upload-attachment"
 
 export function CreateFinancialTransactionDialog() {
   const [open, setOpen] = useState(false)
@@ -21,17 +22,24 @@ export function CreateFinancialTransactionDialog() {
 
   const createAccountTransferMutation = useCreateAccountTransfer()
 
+  const uploadAttachmentMutation = useUploadAttachment()
+
   async function handleCreateFinancialTransaction(
     submission: CreateManualTransactionSubmission,
   ) {
     const {
       data,
+      allocations,
+      attachments,
       transferDirection,
       transferCounterpartyAccountId,
       matchingTransactionId,
     } = submission
 
     try {
+
+      let attachmentTargetTransactionId: string
+
       if (data.type === "TRANSFER") {
         if (
           !transferDirection ||
@@ -55,75 +63,93 @@ export function CreateFinancialTransactionDialog() {
             ? transferCounterpartyAccountId
             : data.accountId
 
-        await createAccountTransferMutation
+        const createdTransfers = await createAccountTransferMutation
           .mutateAsync({
             sourceAccountId,
-
             destinationAccountId,
-
-            transferDate:
-              data.settlementDate,
-
-            amount:
-              data.expectedAmount,
-
-            description:
-              data.description?.trim() || null,
-
+            transferDate: data.settlementDate,
+            amount: data.expectedAmount,
+            description: data.description?.trim() || null,
             matchingTransactionId,
           })
 
+        const selectedAccountSide =
+          createdTransfers.find(
+            (transaction) =>
+              transaction.account.id ===
+              data.accountId,
+          )
+
+        if (!selectedAccountSide) {
+          throw new Error(
+            "A ponta selecionada da transferência não foi retornada.",
+          )
+        }
+
+        attachmentTargetTransactionId = selectedAccountSide.id
+
+      } else {
+        const createdTransaction = await createFinancialTransactionMutation
+            .mutateAsync({
+              accountId: data.accountId,
+              type: data.type,
+              categoryId: data.categoryId || null,
+              dueDate: data.dueDate || null,
+              settlementDate: data.settlementDate || null,
+              expectedAmount: data.expectedAmount,
+              settledAmount: data.settledAmount ?? null,
+              description: data.description?.trim() || null,
+              documentNumber: data.documentNumber || null,
+              fiscalDocumentPolicy:
+                data.type === "EXPENSE"
+                  ? data.fiscalDocumentPolicy
+                  : "CATEGORY",
+              fiscalDocumentNote:
+                data.type === "EXPENSE"
+                  ? normalizeFiscalDocumentNote(
+                    data.fiscalDocumentPolicy,
+                    data.fiscalDocumentNote,
+                  )
+                  : null,
+              allocations,
+            })
+
+        attachmentTargetTransactionId = createdTransaction.id
+
+      }
+
+      const failedFiles: string[] = []
+
+      for (const attachment of attachments) {
+        try {
+          await uploadAttachmentMutation.mutateAsync({
+            transactionId:
+              attachmentTargetTransactionId,
+            type: attachment.type,
+            file: attachment.file,
+          })
+        } catch {
+          failedFiles.push(
+            attachment.file.name,
+          )
+        }
+      }
+
+      if (failedFiles.length === 0) {
         toast.success(
-          "Transferência criada com sucesso.",
+          data.type === "TRANSFER"
+            ? "Transferência criada com sucesso."
+            : "Transação criada com sucesso.",
+        )
+      } else if (
+        failedFiles.length === attachments.length
+      ) {
+        toast.warning(
+          "A transação foi criada, mas nenhum anexo foi enviado. Envie os arquivos novamente pela ação Anexos.",
         )
       } else {
-        await createFinancialTransactionMutation
-          .mutateAsync({
-            accountId:
-              data.accountId,
-
-            type:
-              data.type,
-
-            categoryId:
-              data.categoryId || null,
-
-            dueDate:
-              data.dueDate || null,
-
-            settlementDate:
-              data.settlementDate || null,
-
-            expectedAmount:
-              data.expectedAmount,
-
-            settledAmount:
-              data.settledAmount ?? null,
-
-            description:
-              data.description?.trim() || null,
-
-            documentNumber:
-              data.documentNumber || null,
-
-            fiscalDocumentPolicy:
-              data.type === "EXPENSE"
-                ? data.fiscalDocumentPolicy
-                : "CATEGORY",
-
-            fiscalDocumentNote:
-              data.type === "EXPENSE"
-                ? normalizeFiscalDocumentNote(
-                  data.fiscalDocumentPolicy,
-                  data.fiscalDocumentNote,
-                )
-                : null,
-
-            allocations: [],
-          })
-
-        toast.success(
-          "Transação criada com sucesso.",
+        toast.warning(
+          `A transação foi criada, mas alguns anexos falharam: ${failedFiles.join(", ")}.`,
         )
       }
 
@@ -151,7 +177,7 @@ export function CreateFinancialTransactionDialog() {
           <AppDialogHeader
             icon={<Plus className="size-4 text-muted-foreground" />}
             title="Nova transação"
-            description="Cadastre a transação e configure transferências em uma única etapa."
+            description="Cadastre, classifique, aloque e anexe os documentos da transação em uma única etapa."
           />
 
           <AppDialogBody>
@@ -159,7 +185,8 @@ export function CreateFinancialTransactionDialog() {
               onSubmit={handleCreateFinancialTransaction}
               isSubmitting={
                 createFinancialTransactionMutation.isPending ||
-                createAccountTransferMutation.isPending
+                createAccountTransferMutation.isPending ||
+                uploadAttachmentMutation.isPending
               }
             />
           </AppDialogBody>

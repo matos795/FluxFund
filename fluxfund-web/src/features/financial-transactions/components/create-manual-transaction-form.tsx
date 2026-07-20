@@ -20,21 +20,46 @@ import {
 } from "@/features/financial-transactions/financial-transaction-schema"
 import { financialTransactionTypeLabels } from "@/features/financial-transactions/financial-transaction-labels"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useAccountOptions } from "@/features/accounts/hooks/use-account-options"
 import { CurrencyInput } from "@/components/form/currency-input"
 import { CategoryComboboxWithCreate } from "@/features/categories/components/category-combobox-with-create"
 import { AccountComboboxWithCreate } from "@/features/accounts/components/account-combobox-with-create"
 import { FiscalDocumentPolicyField } from "./fiscal-document-policy-field"
-import type { TransferDirection } from "../financial-transaction-types"
+import type { CreateTransactionAllocationRequest, TransferDirection } from "../financial-transaction-types"
 import { useAccounts } from "@/features/accounts/hooks/use-accounts"
 import { useDraftTransferMatchSuggestion } from "../hooks/use-draft-transfer-match-suggestion"
 import { EntityCombobox } from "@/components/form/entity-combobox"
-import { formatCurrency } from "@/utils/formatters"
+import { formatCents, formatCurrency, fromCents } from "@/utils/formatters"
 import { toast } from "sonner"
+import type { AttachmentType } from "@/features/attachments/attachment-types"
+import { Paperclip, Plus, Trash2 } from "lucide-react"
+import { BeneficiaryComboboxWithCreate } from "@/features/beneficiaries/components/beneficiary-combobox-with-create"
+import { FundComboboxWithCreate } from "@/features/funds/components/fund-combobox-with-create"
+import { attachmentTypeLabels } from "@/features/attachments/attachment-labels"
+import { getAttachmentAcceptAttribute, getAttachmentRulesDescription, validateAttachmentFile } from "@/features/attachments/attachment-validation"
+
+type AllocationFormItem = {
+  id: string
+  fundId: string
+  beneficiaryId: string
+  referenceMonth: string
+  amount: string
+}
+
+type PendingManualAttachment = {
+  id: string
+  type: AttachmentType
+  file: File | null
+}
 
 export type CreateManualTransactionSubmission = {
   data: FinancialTransactionFormData
+  allocations: CreateTransactionAllocationRequest[]
+  attachments: {
+    type: AttachmentType
+    file: File
+  }[]
   transferDirection: TransferDirection | null
   transferCounterpartyAccountId: string | null
   matchingTransactionId: string | null
@@ -138,6 +163,11 @@ export function CreateManualTransactionForm({
     name: "expectedAmount",
   })
 
+  const selectedSettledAmount = useWatch({
+    control,
+    name: "settledAmount",
+  })
+
   const [transferDirection, setTransferDirection] =
     useState<TransferDirection>("OUT")
 
@@ -150,6 +180,12 @@ export function CreateManualTransactionForm({
   const [matchingTransactionId, setMatchingTransactionId] = useState<
     string | null
   >(null)
+
+  const [allocations, setAllocations] =
+    useState<AllocationFormItem[]>([])
+
+  const [pendingAttachments, setPendingAttachments] =
+    useState<PendingManualAttachment[]>([])
 
   const accountsQuery = useAccounts({
     page: 0,
@@ -195,8 +231,8 @@ export function CreateManualTransactionForm({
 
   const manuallySelectedTransferCandidate = matchingTransactionId
     ? transferCandidates.find(
-        (candidate) => candidate.transactionId === matchingTransactionId,
-      )
+      (candidate) => candidate.transactionId === matchingTransactionId,
+    )
     : undefined
 
   const selectedTransferCandidate =
@@ -211,6 +247,150 @@ export function CreateManualTransactionForm({
     selectedTransferCandidate?.account.id ?? transferCounterpartyAccountId
 
   const accountOptionsQuery = useAccountOptions()
+
+  const allocationBaseAmount =
+    selectedSettlementDate
+      ? fromCents(
+        formatCents(
+          Number(selectedSettledAmount ?? 0),
+        ),
+      )
+      : 0
+
+  const totalAllocated = useMemo(() => {
+    const totalInCents = allocations.reduce(
+      (total, allocation) =>
+        total + formatCents(allocation.amount),
+      0,
+    )
+
+    return fromCents(totalInCents)
+  }, [allocations])
+
+  const remainingAmount = fromCents(
+    formatCents(allocationBaseAmount) -
+    formatCents(totalAllocated),
+  )
+
+  function handleAddAllocation() {
+    if (!selectedSettlementDate) {
+      toast.error(
+        "Informe a data de baixa antes de adicionar alocações.",
+      )
+      return
+    }
+
+    if (
+      !selectedSettledAmount ||
+      Number(selectedSettledAmount) <= 0
+    ) {
+      toast.error(
+        "Informe o valor baixado antes de adicionar alocações.",
+      )
+      return
+    }
+
+    setAllocations((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        fundId: "",
+        beneficiaryId: "",
+        referenceMonth:
+          selectedSettlementDate.slice(0, 7),
+        amount:
+          remainingAmount > 0
+            ? String(remainingAmount)
+            : "",
+      },
+    ])
+  }
+
+  function handleRemoveAllocation(id: string) {
+    setAllocations((current) =>
+      current.filter(
+        (allocation) => allocation.id !== id,
+      ),
+    )
+  }
+
+  function handleChangeAllocation(
+    id: string,
+    field: keyof Omit<AllocationFormItem, "id">,
+    value: string,
+  ) {
+    setAllocations((current) =>
+      current.map((allocation) =>
+        allocation.id === id
+          ? {
+            ...allocation,
+            [field]: value,
+          }
+          : allocation,
+      ),
+    )
+  }
+
+  function handleAddAttachment() {
+    setPendingAttachments((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        type: "PROOF_OF_PAYMENT",
+        file: null,
+      },
+    ])
+  }
+
+  function handleRemoveAttachment(id: string) {
+    setPendingAttachments((current) =>
+      current.filter(
+        (attachment) => attachment.id !== id,
+      ),
+    )
+  }
+
+  function handleChangeAttachmentType(
+    id: string,
+    type: AttachmentType,
+  ) {
+    setPendingAttachments((current) =>
+      current.map((attachment) =>
+        attachment.id === id
+          ? {
+            ...attachment,
+            type,
+          }
+          : attachment,
+      ),
+    )
+  }
+
+  function handleChangeAttachmentFile(
+    id: string,
+    file: File | null,
+  ) {
+    if (file) {
+      const validationError =
+        validateAttachmentFile(file)
+
+      if (validationError) {
+        toast.error(validationError)
+        return
+      }
+    }
+
+    setPendingAttachments((current) =>
+      current.map((attachment) =>
+        attachment.id === id
+          ? {
+            ...attachment,
+            file,
+          }
+          : attachment,
+      ),
+    )
+  }
 
   function handleManualSubmit(
     data: FinancialTransactionFormData,
@@ -252,19 +432,117 @@ export function CreateManualTransactionForm({
       }
     }
 
+    const validAllocations =
+      data.type === "TRANSFER"
+        ? []
+        : allocations
+          .filter(
+            (allocation) =>
+              allocation.fundId &&
+              Number(allocation.amount || 0) > 0,
+          )
+          .map((allocation) => ({
+            fundId: allocation.fundId,
+
+            beneficiaryId:
+              allocation.beneficiaryId || null,
+
+            referenceMonth:
+              allocation.referenceMonth
+                ? `${allocation.referenceMonth}-01`
+                : null,
+
+            amount: Math.abs(
+              Number(allocation.amount),
+            ),
+          }))
+
+    const hasIncompleteAllocation =
+      data.type !== "TRANSFER" &&
+      allocations.some(
+        (allocation) =>
+          Number(allocation.amount || 0) > 0 &&
+          !allocation.fundId,
+      )
+
+    if (hasIncompleteAllocation) {
+      toast.error(
+        "Selecione um fundo para todas as alocações com valor.",
+      )
+      return
+    }
+
+    if (validAllocations.length > 0 &&
+      (!data.settlementDate ||
+        !data.settledAmount ||
+        data.settledAmount <= 0)
+    ) {
+      toast.error(
+        "Somente transações baixadas podem receber alocações.",
+      )
+      return
+    }
+
+    const allocatedTotal =
+      validAllocations.reduce(
+        (total, allocation) =>
+          total + Math.abs(allocation.amount),
+        0,
+      )
+
+    const settledAmount =
+      Number(data.settledAmount ?? 0)
+
+    if (allocatedTotal > settledAmount) {
+      toast.error(
+        "O valor alocado não pode ultrapassar o valor baixado.",
+      )
+      return
+    }
+
+    if (
+      allocatedTotal > 0 &&
+      allocatedTotal < settledAmount
+    ) {
+      const confirmed = window.confirm(
+        "A transação ficará parcialmente alocada. O restante poderá ser alocado posteriormente. Deseja continuar?",
+      )
+
+      if (!confirmed) {
+        return
+      }
+    }
+
+    const hasIncompleteAttachment =
+      pendingAttachments.some(
+        (attachment) => !attachment.file,
+      )
+
+    if (hasIncompleteAttachment) {
+      toast.error(
+        "Selecione um arquivo em todos os anexos ou remova a linha vazia.",
+      )
+      return
+    }
+
+    const validAttachments =
+      pendingAttachments.map((attachment) => ({
+        type: attachment.type,
+        file: attachment.file!,
+      }))
+
     onSubmit({
       data,
-
+      allocations: validAllocations,
+      attachments: validAttachments,
       transferDirection:
         data.type === "TRANSFER"
           ? transferDirection
           : null,
-
       transferCounterpartyAccountId:
         data.type === "TRANSFER"
           ? currentTransferCounterpartyAccountId
           : null,
-
       matchingTransactionId:
         data.type === "TRANSFER"
           ? currentMatchingTransactionId || null
@@ -322,7 +600,18 @@ export function CreateManualTransactionForm({
                 setValue(
                   "settledAmount",
                   Number(selectedExpectedAmount ?? 0),
-                  { shouldValidate: true },
+                  {
+                    shouldValidate: true,
+                  },
+                )
+
+                setAllocations([])
+
+                setPendingAttachments((current) =>
+                  current.map((attachment) => ({
+                    ...attachment,
+                    type: "PROOF_OF_PAYMENT",
+                  })),
                 )
               }
 
@@ -565,6 +854,158 @@ export function CreateManualTransactionForm({
           )}
         </div>
 
+        {selectedType !== "TRANSFER" && (
+          <div className="space-y-4 rounded-xl border p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-sm font-medium">
+                  Alocações
+                </h3>
+
+                <p className="text-xs text-muted-foreground">
+                  Distribua o valor baixado entre fundos e
+                  favorecidos. Sem alocação manual, o sistema
+                  utiliza o fundo padrão da organização.
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={
+                  !selectedSettlementDate ||
+                  allocationBaseAmount <= 0
+                }
+                onClick={handleAddAllocation}
+              >
+                <Plus className="mr-2 size-4" />
+                Adicionar
+              </Button>
+            </div>
+
+            {!selectedSettlementDate ? (
+              <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                Informe a data e o valor da baixa para
+                adicionar alocações.
+              </div>
+            ) : allocations.length === 0 ? (
+              <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                Nenhuma alocação manual. O fundo padrão será
+                utilizado quando aplicável.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {allocations.map((allocation) => (
+                  <div
+                    key={allocation.id}
+                    className="grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-2 xl:grid-cols-[1fr_1fr_160px_150px_auto]"
+                  >
+                    <div className="space-y-2">
+                      <Label>Fundo</Label>
+
+                      <FundComboboxWithCreate
+                        value={allocation.fundId}
+                        allowClear={false}
+                        onChange={(value) =>
+                          handleChangeAllocation(
+                            allocation.id,
+                            "fundId",
+                            value,
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Favorecido</Label>
+
+                      <BeneficiaryComboboxWithCreate
+                        value={allocation.beneficiaryId}
+                        allowClear
+                        clearLabel="Sem favorecido"
+                        onChange={(value) =>
+                          handleChangeAllocation(
+                            allocation.id,
+                            "beneficiaryId",
+                            value,
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Competência</Label>
+
+                      <Input
+                        type="month"
+                        value={allocation.referenceMonth}
+                        onChange={(event) =>
+                          handleChangeAllocation(
+                            allocation.id,
+                            "referenceMonth",
+                            event.target.value,
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Valor</Label>
+
+                      <CurrencyInput
+                        value={Number(
+                          allocation.amount || 0,
+                        )}
+                        onValueChange={(value) =>
+                          handleChangeAllocation(
+                            allocation.id,
+                            "amount",
+                            String(value ?? 0),
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() =>
+                          handleRemoveAllocation(
+                            allocation.id,
+                          )
+                        }
+                      >
+                        <Trash2 className="size-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1 border-t pt-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+              <span className="text-muted-foreground">
+                Total alocado:{" "}
+                {formatCurrency(totalAllocated)}
+              </span>
+
+              <span
+                className={
+                  remainingAmount < 0
+                    ? "font-medium text-destructive"
+                    : "text-muted-foreground"
+                }
+              >
+                Restante:{" "}
+                {formatCurrency(remainingAmount)}
+              </span>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-2">
           <Label htmlFor="settledAmount">Valor baixado</Label>
           <Controller
@@ -612,6 +1053,137 @@ export function CreateManualTransactionForm({
           <p className="text-sm text-destructive">
             {errors.documentNumber.message}
           </p>
+        )}
+      </div>
+
+      <div className="space-y-3 rounded-xl border p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-2">
+            <Paperclip className="mt-0.5 size-4 text-muted-foreground" />
+
+            <div>
+              <h3 className="text-sm font-medium">
+                Anexos
+              </h3>
+
+              <p className="text-xs text-muted-foreground">
+                Os arquivos serão enviados depois que a
+                transação for criada.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleAddAttachment}
+          >
+            <Plus className="mr-2 size-4" />
+            Adicionar anexo
+          </Button>
+        </div>
+
+        {pendingAttachments.length === 0 ? (
+          <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+            Nenhum arquivo selecionado. A transação pode ser
+            criada sem anexos.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {pendingAttachments.map((attachment) => (
+              <div
+                key={attachment.id}
+                className="grid gap-3 rounded-lg border border-dashed p-3 md:grid-cols-[190px_minmax(0,1fr)_auto] md:items-end"
+              >
+                <div className="space-y-2">
+                  <Label>Tipo</Label>
+
+                  <Select
+                    value={attachment.type}
+                    onValueChange={(value) =>
+                      handleChangeAttachmentType(
+                        attachment.id,
+                        value as AttachmentType,
+                      )
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      <SelectItem value="PROOF_OF_PAYMENT">
+                        {
+                          attachmentTypeLabels
+                            .PROOF_OF_PAYMENT
+                        }
+                      </SelectItem>
+
+                      {selectedType !== "TRANSFER" && (
+                        <>
+                          <SelectItem value="RECEIPT">
+                            {attachmentTypeLabels.RECEIPT}
+                          </SelectItem>
+
+                          <SelectItem value="INVOICE">
+                            {attachmentTypeLabels.INVOICE}
+                          </SelectItem>
+
+                          <SelectItem value="CONTRACT">
+                            {attachmentTypeLabels.CONTRACT}
+                          </SelectItem>
+                        </>
+                      )}
+
+                      <SelectItem value="OTHER">
+                        {attachmentTypeLabels.OTHER}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Arquivo</Label>
+
+                  <Input
+                    type="file"
+                    accept={getAttachmentAcceptAttribute()}
+                    onChange={(event) =>
+                      handleChangeAttachmentFile(
+                        attachment.id,
+                        event.target.files?.[0] ??
+                        null,
+                      )
+                    }
+                  />
+
+                  {attachment.file && (
+                    <p className="text-xs text-muted-foreground">
+                      {attachment.file.name}
+                      {" · "}
+                      {getAttachmentRulesDescription()}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-end">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() =>
+                      handleRemoveAttachment(
+                        attachment.id,
+                      )
+                    }
+                  >
+                    <Trash2 className="size-4 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
