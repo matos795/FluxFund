@@ -12,7 +12,6 @@ import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { useCategoryOptions } from "@/features/categories/hooks/use-category-options"
 import { useAccountOptions } from "@/features/accounts/hooks/use-account-options"
 import { useFinancialTransaction } from "@/features/financial-transactions/hooks/use-financial-transaction"
-import { CreateAccountTransferDialog } from "@/features/financial-transactions/components/create-account-transfer-dialog"
 import type { TransactionWorkspaceTab } from "@/features/financial-transactions/transaction-workspace-types"
 import { needsFinancialTransactionClassification } from "@/features/financial-transactions/financial-transaction-rules"
 import { TransactionWorkspaceDialog } from "@/features/financial-transactions/components/transaction-workspace-dialog"
@@ -209,7 +208,6 @@ export function TransactionsPage() {
           {canFinanceWrite && (
             <>
               <ImportFinancialTransactionsDialog />
-              <CreateAccountTransferDialog />
               <CreateFinancialTransactionDialog />
             </>
           )}
