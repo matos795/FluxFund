@@ -541,7 +541,7 @@ List<MonthlyCashFlowProjection> findMonthlyCashFlow(
                         UUID organizationId,
                         UUID creditCardStatementId,
                         String externalId);
-
+                        
         @Query("""
                         select ft
                         from FinancialTransaction ft

@@ -146,9 +146,9 @@ public class CreditCardStatementOfxImportService {
                                                 case EXPENSE -> {
 
                                                         var existingItem = financialTransactionRepository
-                                                                        .findByOrganizationIdAndAccountIdAndExternalId(
+                                                                        .findByOrganizationIdAndCreditCardStatementIdAndExternalId(
                                                                                         organizationId,
-                                                                                        creditCardAccount.getId(),
+                                                                                        statementId,
                                                                                         externalId);
 
                                                         if (existingItem.isPresent()) {
@@ -156,59 +156,25 @@ public class CreditCardStatementOfxImportService {
                                                                 FinancialTransaction existingTransaction = existingItem
                                                                                 .get();
 
-                                                                boolean belongsToCurrentStatement = existingTransaction
-                                                                                .getCreditCardStatement() != null
+                                                                if (existingTransaction
+                                                                                .getStatus() == FinancialTransactionStatus.CANCELED) {
 
-                                                                                && existingTransaction
-                                                                                                .getCreditCardStatement()
-                                                                                                .getId()
-                                                                                                .equals(statementId);
+                                                                        restoreCanceledCreditCardItem(
+                                                                                        existingTransaction,
+                                                                                        creditCardAccount,
+                                                                                        creditCardStatement,
+                                                                                        ofxTransaction);
 
-                                                                if (belongsToCurrentStatement) {
-
+                                                                        FinancialTransaction restoredTransaction = financialTransactionRepository
+                                                                                        .save(existingTransaction);
+                                                                        importedItems.add(FinancialTransactionMapper
+                                                                                        .toResponse(restoredTransaction));
+                                                                        imported++;
+                                                                        warnings.add("O lançamento \"" + description
+                                                                                        + "\" estava cancelado e foi restaurado.");
+                                                                } else {
                                                                         ignoredDuplicates++;
-                                                                        continue;
                                                                 }
-
-                                                                boolean canRecoverFromCanceledStatement = existingTransaction
-                                                                                .getSource() == FinancialTransactionSource.CREDIT_CARD
-
-                                                                                && existingTransaction
-                                                                                                .getStatus() == FinancialTransactionStatus.CANCELED
-
-                                                                                && existingTransaction
-                                                                                                .getCreditCardStatement() != null
-
-                                                                                && existingTransaction
-                                                                                                .getCreditCardStatement()
-                                                                                                .getStatus() == CreditCardStatementStatus.CANCELED;
-
-                                                                if (!canRecoverFromCanceledStatement) {
-
-                                                                        reviewRequired++;
-
-                                                                        warnings.add(
-                                                                                        "O lançamento \""
-                                                                                                        + description
-                                                                                                        + "\" já pertence a outra fatura ativa.");
-
-                                                                        continue;
-                                                                }
-
-                                                                restoreCanceledCreditCardItem(
-                                                                                existingTransaction,
-                                                                                creditCardAccount,
-                                                                                creditCardStatement,
-                                                                                ofxTransaction);
-
-                                                                FinancialTransaction restoredTransaction = financialTransactionRepository
-                                                                                .save(existingTransaction);
-
-                                                                importedItems.add(
-                                                                                FinancialTransactionMapper
-                                                                                                .toResponse(restoredTransaction));
-
-                                                                imported++;
 
                                                                 continue;
                                                         }
@@ -453,8 +419,7 @@ public class CreditCardStatementOfxImportService {
                                         return amount != null && amount.compareTo(BigDecimal.ZERO) > 0;
                                 })
 
-                                .filter(transaction ->
-                                entryClassifier.classify(transaction,
+                                .filter(transaction -> entryClassifier.classify(transaction,
                                                 buildDescription(transaction)) == CreditCardOfxEntryType.PAYMENT)
                                 .sorted(Comparator.comparing(
                                                 Transaction::getDatePosted,
