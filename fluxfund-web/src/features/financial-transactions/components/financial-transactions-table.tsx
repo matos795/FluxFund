@@ -15,8 +15,8 @@ import { formatCurrency, formatDate } from "@/utils/formatters"
 import type { FinancialTransaction } from "../financial-transaction-types"
 import {
   financialTransactionSourceLabels,
-  financialTransactionStatusLabels,
   financialTransactionTypeLabels,
+  getFinancialTransactionStatusLabel,
   transferDirectionLabels,
 } from "../financial-transaction-labels"
 import {
@@ -190,7 +190,7 @@ export function FinancialTransactionsTable({
                                   transaction.status,
                                 )}
                               >
-                                {financialTransactionStatusLabels[transaction.status]}
+                                {getFinancialTransactionStatusLabel(transaction,)}
                               </Badge>
                             )}
 

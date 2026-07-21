@@ -74,6 +74,11 @@ export function TransactionClassifyPanel({
     enabled = true,
     onSaved,
 }: TransactionClassifyPanelProps) {
+
+    const isCreditCardItem =
+        transaction.source === "CREDIT_CARD" &&
+        Boolean(transaction.creditCardStatementId)
+
     const dialogOpen = enabled;
 
     const [type, setType] = useState(transaction.type);
@@ -88,9 +93,14 @@ export function TransactionClassifyPanel({
         transaction.fiscalDocumentNote ?? "",
     );
 
-    const [settlementDate, setSettlementDate] = useState(
-        transaction.settlementDate ?? "",
-    );
+    const [settlementDate, setSettlementDate] =
+        useState(
+            isCreditCardItem
+                ? transaction.purchaseDate ??
+                transaction.settlementDate ??
+                ""
+                : transaction.settlementDate ?? "",
+        )
     const [settledAmount, setSettledAmount] = useState(
         String(
             Math.abs(transaction.settledAmount ?? transaction.expectedAmount ?? 0),
@@ -451,8 +461,9 @@ export function TransactionClassifyPanel({
                 data: {
                     type,
                     categoryId: type === "TRANSFER" ? null : categoryId,
-                    dueDate: settlementDate,
-                    settlementDate,
+                    dueDate: isCreditCardItem ? transaction.dueDate ?? undefined : settlementDate,
+                    settlementDate: isCreditCardItem
+                        ? transaction.purchaseDate ?? transaction.settlementDate ?? settlementDate : settlementDate,
                     expectedAmount: amountNumber,
                     settledAmount: amountNumber,
                     description: description || undefined,
@@ -856,15 +867,29 @@ export function TransactionClassifyPanel({
                 )}
 
                 <div className="space-y-2">
-                    <Label>Data de baixa</Label>
+                    <Label htmlFor="settlementDate">
+                        {isCreditCardItem
+                            ? "Data da compra"
+                            : "Data de baixa"}
+                    </Label>
+
                     <Input
+                        id="settlementDate"
                         type="date"
                         value={settlementDate}
+                        disabled={isCreditCardItem}
                         onChange={(event) => {
-                            markAsManuallyEdited();
-                            setSettlementDate(event.target.value);
+                            markAsManuallyEdited()
+                            setSettlementDate(event.target.value)
                         }}
                     />
+
+                    {isCreditCardItem && (
+                        <p className="text-xs text-muted-foreground">
+                            A compra já foi efetivada nesta data.
+                            O pagamento será controlado pela fatura.
+                        </p>
+                    )}
                 </div>
 
                 <div className="space-y-2">

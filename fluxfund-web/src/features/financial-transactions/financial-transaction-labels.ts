@@ -1,4 +1,4 @@
-import type { FinancialTransactionSource, FinancialTransactionStatus, FinancialTransactionType, FiscalDocumentPolicy, TransferDirection } from "./financial-transaction-types"
+import type { FinancialTransaction, FinancialTransactionSource, FinancialTransactionStatus, FinancialTransactionType, FiscalDocumentPolicy, TransferDirection } from "./financial-transaction-types"
 
 export const financialTransactionTypeLabels: Record<FinancialTransactionType, string> = {
   INCOME: "Receita",
@@ -60,4 +60,28 @@ export function normalizeFiscalDocumentNote(
   const normalizedNote = note?.trim()
 
   return normalizedNote ? normalizedNote : null
+}
+
+export function getFinancialTransactionStatusLabel(
+  transaction: Pick<
+    FinancialTransaction,
+    | "status"
+    | "source"
+    | "creditCardStatementId"
+  >,
+) {
+  const isCreditCardItem =
+    transaction.source === "CREDIT_CARD" &&
+    Boolean(transaction.creditCardStatementId)
+
+  if (
+    isCreditCardItem &&
+    transaction.status === "SETTLED"
+  ) {
+    return "Compra lançada"
+  }
+
+  return financialTransactionStatusLabels[
+    transaction.status
+  ]
 }

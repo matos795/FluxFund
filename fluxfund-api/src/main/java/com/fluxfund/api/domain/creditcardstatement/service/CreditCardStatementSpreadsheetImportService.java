@@ -137,14 +137,15 @@ public class CreditCardStatementSpreadsheetImportService {
         transaction.setCategory(null);
         transaction.setType(FinancialTransactionType.EXPENSE);
         transaction.setSource(FinancialTransactionSource.CREDIT_CARD);
-        transaction.setStatus(FinancialTransactionStatus.PENDING);
+
+        BigDecimal absoluteAmount = amount.abs();
+        transaction.setStatus(FinancialTransactionStatus.SETTLED);
 
         transaction.setPurchaseDate(row.date());
         transaction.setDueDate(statement.getDueDate());
-        transaction.setSettlementDate(null);
-
-        transaction.setExpectedAmount(amount.abs());
-        transaction.setSettledAmount(null);
+        transaction.setSettlementDate(row.date());
+        transaction.setExpectedAmount(absoluteAmount);
+        transaction.setSettledAmount(absoluteAmount);
 
         transaction.setInterestAmount(BigDecimal.ZERO);
         transaction.setDiscountAmount(BigDecimal.ZERO);

@@ -15,7 +15,7 @@ import { formatCurrency, formatDate } from "@/utils/formatters"
 
 import type { FinancialTransaction } from "../financial-transaction-types"
 import type { TransactionWorkspaceTab } from "../transaction-workspace-types"
-import { financialTransactionStatusLabels } from "../financial-transaction-labels"
+import { getFinancialTransactionStatusLabel } from "../financial-transaction-labels"
 import { TransactionAllocationsPanel } from "./transaction-allocations-panel"
 import { TransactionAttachmentsPanel } from "./transaction-attachments-panel"
 import { TransactionEditPanel } from "./transaction-edit-panel"
@@ -99,7 +99,7 @@ export function TransactionWorkspaceDialog({
         transaction.rawDescription?.trim() ||
         "Transação financeira"
 
-    const dateLabel = transaction.settlementDate ?? transaction.dueDate
+    const dateLabel = transaction.purchaseDate ?? transaction.settlementDate ?? transaction.dueDate
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -124,7 +124,7 @@ export function TransactionWorkspaceDialog({
                     }
                     aside={
                         <Badge variant="secondary">
-                            {financialTransactionStatusLabels[transaction.status]}
+                            {getFinancialTransactionStatusLabel(transaction,)}
                         </Badge>
                     }
                 />

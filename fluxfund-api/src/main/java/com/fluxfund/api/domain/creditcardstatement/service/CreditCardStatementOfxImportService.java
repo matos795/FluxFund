@@ -620,14 +620,14 @@ public class CreditCardStatementOfxImportService {
         financialTransaction.setType(FinancialTransactionType.EXPENSE);
         financialTransaction.setSource(FinancialTransactionSource.CREDIT_CARD);
 
-        financialTransaction.setStatus(FinancialTransactionStatus.PENDING);
+        financialTransaction.setStatus(FinancialTransactionStatus.SETTLED);
 
         financialTransaction.setPurchaseDate(purchaseDate);
         financialTransaction.setDueDate(creditCardStatement.getDueDate());
-        financialTransaction.setSettlementDate(null);
+        financialTransaction.setSettlementDate(purchaseDate);
 
         financialTransaction.setExpectedAmount(absoluteAmount);
-        financialTransaction.setSettledAmount(null);
+        financialTransaction.setSettledAmount(absoluteAmount);
 
         financialTransaction.setInterestAmount(BigDecimal.ZERO);
         financialTransaction.setDiscountAmount(BigDecimal.ZERO);
@@ -853,25 +853,19 @@ public class CreditCardStatementOfxImportService {
 
             Transaction ofxTransaction) {
 
-        BigDecimal amount = requireAmount(ofxTransaction)
-                .abs();
+        BigDecimal amount = requireAmount(ofxTransaction).abs();
 
         LocalDate purchaseDate = requirePostedDate(ofxTransaction);
 
-        transaction.setAccount(
-                creditCardAccount);
+        transaction.setAccount(creditCardAccount);
 
-        transaction.setCreditCardStatement(
-                statement);
+        transaction.setCreditCardStatement(statement);
 
-        transaction.setType(
-                FinancialTransactionType.EXPENSE);
+        transaction.setType(FinancialTransactionType.EXPENSE);
 
-        transaction.setSource(
-                FinancialTransactionSource.CREDIT_CARD);
+        transaction.setSource(FinancialTransactionSource.CREDIT_CARD);
 
-        transaction.setStatus(
-                FinancialTransactionStatus.PENDING);
+        transaction.setStatus(FinancialTransactionStatus.SETTLED);
 
         transaction.setTransferDirection(null);
 
@@ -879,32 +873,24 @@ public class CreditCardStatementOfxImportService {
 
         transaction.setTransferCounterpartyAccount(null);
 
-        transaction.setPurchaseDate(
-                purchaseDate);
+        transaction.setPurchaseDate(purchaseDate);
 
-        transaction.setDueDate(
-                statement.getDueDate());
+        transaction.setDueDate(statement.getDueDate());
 
-        transaction.setSettlementDate(null);
+        transaction.setSettlementDate(purchaseDate);
 
-        transaction.setExpectedAmount(
-                amount);
+        transaction.setExpectedAmount(amount);
 
-        transaction.setSettledAmount(null);
+        transaction.setSettledAmount(amount);
 
-        transaction.setInterestAmount(
-                BigDecimal.ZERO);
+        transaction.setInterestAmount(BigDecimal.ZERO);
 
-        transaction.setDiscountAmount(
-                BigDecimal.ZERO);
+        transaction.setDiscountAmount(BigDecimal.ZERO);
 
-        transaction.setRawDescription(
-                buildDescription(ofxTransaction));
+        transaction.setRawDescription(buildDescription(ofxTransaction));
 
-        transaction.setImportedAt(
-                LocalDateTime.now());
+        transaction.setImportedAt(LocalDateTime.now());
 
-        transaction.setDocumentNumber(
-                ofxTransaction.getCheckNumber());
+        transaction.setDocumentNumber(ofxTransaction.getCheckNumber());
     }
 }

@@ -10,9 +10,9 @@ import { TransactionAttachmentsSection } from "@/features/attachments/components
 import type { FinancialTransaction } from "../financial-transaction-types"
 import {
   financialTransactionSourceLabels,
-  financialTransactionStatusLabels,
   financialTransactionTypeLabels,
   fiscalDocumentPolicyLabels,
+  getFinancialTransactionStatusLabel,
 } from "../financial-transaction-labels"
 import {
   getFinancialTransactionStatusBadgeClass,
@@ -96,7 +96,7 @@ export function TransactionOverviewPanel({
                   transaction.status,
                 )}
               >
-                {financialTransactionStatusLabels[transaction.status]}
+                {getFinancialTransactionStatusLabel(transaction,)}
               </Badge>
             }
           />

@@ -21,19 +21,13 @@ import { useCreditCardStatementItems } from "../hooks/use-credit-card-statement-
 import { FinancialTransactionActions } from "@/features/financial-transactions/components/financial-transaction-actions"
 import { getCreditCardStatementItemsSummary } from "../credit-card-statement-items-summary"
 import { AppDialogBody, AppDialogContent, AppDialogHeader } from "@/components/layout/app-dialog"
+import { getFinancialTransactionStatusLabel } from "@/features/financial-transactions/financial-transaction-labels"
 
 type ViewCreditCardStatementItemsDialogProps = {
   statement: CreditCardStatement
   open?: boolean
   onOpenChange?: (open: boolean) => void
   trigger?: ReactNode | null
-}
-
-function getStatusLabel(status: string) {
-  if (status === "PENDING") return "Pendente"
-  if (status === "SETTLED") return "Pago"
-  if (status === "CANCELED") return "Cancelado"
-  return status
 }
 
 type SummaryCardProps = {
@@ -291,7 +285,7 @@ export function ViewCreditCardStatementItemsDialog({
                         </TableCell>
 
                         <TableCell>
-                          <Badge variant="outline">{getStatusLabel(item.status)}</Badge>
+                          <Badge variant="outline">{getFinancialTransactionStatusLabel(item)}</Badge>
                         </TableCell>
 
                         <TableCell className="text-right">
