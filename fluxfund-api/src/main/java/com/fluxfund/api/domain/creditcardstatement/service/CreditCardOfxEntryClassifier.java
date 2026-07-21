@@ -18,7 +18,9 @@ public class CreditCardOfxEntryClassifier {
 
         BigDecimal amount = transaction.getBigDecimalAmount();
 
-        if (amount == null) {
+        if (amount == null
+                || amount.compareTo(BigDecimal.ZERO) == 0) {
+
             return CreditCardOfxEntryType.REVIEW_REQUIRED;
         }
 
@@ -26,22 +28,44 @@ public class CreditCardOfxEntryClassifier {
 
         String normalizedDescription = normalize(description);
 
+        /*
+         * Em uma fatura de cartão:
+         *
+         * valor negativo = compra, tarifa ou encargo;
+         * valor positivo = pagamento, estorno ou ajuste.
+         *
+         * Alguns bancos usam TRNTYPE=PAYMENT também
+         * para compras feitas em estabelecimentos.
+         * Por isso o sinal deve ter prioridade sobre
+         * o tipo informado no OFX.
+         */
+        if (amount.compareTo(BigDecimal.ZERO) < 0) {
+
+            return CreditCardOfxEntryType.EXPENSE;
+        }
+
         boolean paymentDescription = containsPaymentDescription(
                 normalizedDescription);
 
+        /*
+         * Neste ponto o valor já é obrigatoriamente
+         * positivo.
+         */
         if (transactionType == TransactionType.PAYMENT) {
-            return CreditCardOfxEntryType.PAYMENT;
-        }
-
-        if (paymentDescription
-                && (amount.compareTo(BigDecimal.ZERO) > 0
-                        || isCreditType(transactionType))) {
 
             return CreditCardOfxEntryType.PAYMENT;
         }
 
-        if (isDebitType(transactionType)
-                || amount.compareTo(BigDecimal.ZERO) < 0) {
+        if (paymentDescription) {
+
+            return CreditCardOfxEntryType.PAYMENT;
+        }
+
+        /*
+         * Alguns arquivos podem representar uma compra
+         * positiva usando um tipo explicitamente de débito.
+         */
+        if (isDebitType(transactionType)) {
 
             return CreditCardOfxEntryType.EXPENSE;
         }
@@ -54,7 +78,7 @@ public class CreditCardOfxEntryClassifier {
          * - ajuste;
          * - pagamento com descrição incomum.
          *
-         * Nunca deve virar despesa automaticamente.
+         * Não deve virar pagamento automaticamente.
          */
         return CreditCardOfxEntryType.REVIEW_REQUIRED;
     }
@@ -74,25 +98,6 @@ public class CreditCardOfxEntryClassifier {
                     "SRVCHG",
                     "OUT",
                     "DIRECTDEBIT" ->
-                true;
-
-            default -> false;
-        };
-    }
-
-    private boolean isCreditType(
-            TransactionType transactionType) {
-
-        if (transactionType == null) {
-            return false;
-        }
-
-        return switch (transactionType.name()) {
-
-            case "CREDIT",
-                    "IN",
-                    "DEP",
-                    "PAYMENT" ->
                 true;
 
             default -> false;
