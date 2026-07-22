@@ -746,16 +746,16 @@ public class ClosingDossierPdfGenerator {
 
                 PDPage coverPage = writer.startCoverPage(
                                 "RELATÓRIO AUTOMÁTICO",
-                                "Despesas Liquidadas",
+                                "Despesas Reconhecidas",
                                 List.of(
                                                 "Período: " + formatPeriod(
                                                                 settledExpenseReport.startDate(),
                                                                 settledExpenseReport.endDate()),
-                                                "Despesas liquidadas: "
+                                                "Despesas reconhecidas: "
                                                                 + settledExpenseReport.transactionCount(),
-                                                "Total pago no período: "
-                                                                + formatCurrency(
-                                                                                settledExpenseReport.totalPaidAmount()),
+                                                "Total reconhecido no período: "
+                                                                + formatCurrency(settledExpenseReport
+                                                                                .totalExpenseAmount()),
                                                 "Categorias principais com movimentação: "
                                                                 + categorySummaries.size()));
 
@@ -765,9 +765,9 @@ public class ClosingDossierPdfGenerator {
 
                 writer.writeSectionTitle("Resumo financeiro");
 
-                writer.writeParagraph(
-                                "Demonstrativo automático das despesas efetivamente "
-                                                + "liquidadas no período selecionado.");
+                writer.writeParagraph("Demonstrativo automático das despesas reconhecidas "
+                                + "no período selecionado, incluindo compras "
+                                + "realizadas no cartão de crédito.");
 
                 writer.writeMetric(
                                 "Quantidade de despesas",
@@ -775,9 +775,8 @@ public class ClosingDossierPdfGenerator {
                                                 settledExpenseReport.transactionCount()));
 
                 writer.writeHighlightedMetric(
-                                "Total de despesas liquidadas",
-                                formatCurrency(
-                                                settledExpenseReport.totalPaidAmount()));
+                                "Total de despesas reconhecidas",
+                                formatCurrency(settledExpenseReport.totalExpenseAmount()));
 
                 writer.closeCurrentPage();
 
@@ -791,7 +790,7 @@ public class ClosingDossierPdfGenerator {
 
                 if (categorySummaries.isEmpty()) {
                         writer.writeParagraph(
-                                        "Nenhuma despesa liquidada foi encontrada para este período.");
+                                        "Nenhuma despesa reconhecida foi encontrada para este período.");
                 } else {
                         writer.writeCategoryHierarchy(
                                         categorySummaries,
@@ -804,15 +803,13 @@ public class ClosingDossierPdfGenerator {
 
                 writer.startPage();
 
-                writer.writeSectionTitle("Detalhamento das despesas liquidadas");
+                writer.writeSectionTitle("Detalhamento das despesas reconhecidas");
 
-                writer.writeParagraph(
-                                "Relação cronológica das despesas efetivamente pagas "
-                                                + "no período selecionado.");
+                writer.writeParagraph("Relação cronológica das despesas reconhecidas "
+        + "no período selecionado.");
 
                 if (settledExpenseReport.items().isEmpty()) {
-                        writer.writeParagraph(
-                                        "Nenhuma despesa liquidada foi encontrada para este período.");
+                        writer.writeParagraph("Nenhuma despesa reconhecida foi encontrada para este período.");
                 } else {
                         writer.writeSettledExpenseDetailTable(
                                         settledExpenseReport.items());

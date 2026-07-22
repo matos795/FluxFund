@@ -541,7 +541,7 @@ List<MonthlyCashFlowProjection> findMonthlyCashFlow(
                         UUID organizationId,
                         UUID creditCardStatementId,
                         String externalId);
-                        
+
         @Query("""
                         select ft
                         from FinancialTransaction ft
@@ -691,6 +691,10 @@ List<MonthlyCashFlowProjection> findMonthlyCashFlow(
                                 then 'Documento fiscal obrigatório ausente'
 
                                 when coalesce(c.requires_payment_proof, false) = true
+                                and not (
+                                    t.source = 'CREDIT_CARD'
+                                    and t.credit_card_statement_id is not null
+                                )
                                  and not exists (
                                     select 1
                                     from attachment att
@@ -757,6 +761,10 @@ List<MonthlyCashFlowProjection> findMonthlyCashFlow(
                                 or
                                 (
                                     coalesce(c.requires_payment_proof, false) = true
+                                    and not (
+                                        t.source = 'CREDIT_CARD'
+                                        and t.credit_card_statement_id is not null
+                                    )
                                     and not exists (
                                         select 1
                                         from attachment att
@@ -830,6 +838,10 @@ List<MonthlyCashFlowProjection> findMonthlyCashFlow(
                                 or
                                 (
                                     coalesce(c.requires_payment_proof, false) = true
+                                    and not (
+                                        t.source = 'CREDIT_CARD'
+                                        and t.credit_card_statement_id is not null
+                                    )
                                     and not exists (
                                         select 1
                                         from attachment att

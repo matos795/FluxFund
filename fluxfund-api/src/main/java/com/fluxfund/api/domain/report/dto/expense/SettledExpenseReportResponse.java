@@ -9,7 +9,7 @@ import com.fluxfund.api.domain.report.dto.category.CategoryResultItemResponse;
 public record SettledExpenseReportResponse(
         LocalDate startDate,
         LocalDate endDate,
-        BigDecimal totalPaidAmount,
+        BigDecimal totalExpenseAmount,
         long transactionCount,
         List<CategoryResultItemResponse> categoryItems,
         List<SettledExpenseReportItemResponse> items

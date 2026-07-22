@@ -39,6 +39,10 @@ export function getTransactionDocumentationStatus(
 
     const category = transaction.category
 
+    const isCreditCardItem =
+        transaction.source === "CREDIT_CARD" &&
+        Boolean(transaction.creditCardStatementId)
+
     const fiscalDocumentPolicy =
         transaction.fiscalDocumentPolicy ?? "CATEGORY"
 
@@ -70,6 +74,7 @@ export function getTransactionDocumentationStatus(
         )
 
     const requiresPaymentProof =
+        !isCreditCardItem &&
         Boolean(category?.requiresPaymentProof)
 
     const requiresIncomeProof =

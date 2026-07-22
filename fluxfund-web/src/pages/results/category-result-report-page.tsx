@@ -78,11 +78,11 @@ export function CategoryResultReportPage() {
                 onSuccess: (blob) => {
                     downloadFile(
                         blob,
-                        `despesas-liquidadas-${startDate}-${endDate}.pdf`,
+                        `despesas-reconhecidas-${startDate}-${endDate}.pdf`,
                     )
 
                     toast.success(
-                        "Relatório de despesas liquidadas exportado com sucesso.",
+                        "Relatório de despesas reconhecidas exportado com sucesso.",
                     )
                 },
                 onError: () => {
@@ -196,7 +196,7 @@ export function CategoryResultReportPage() {
 
                     <p className="text-sm text-muted-foreground">
                         Gere documentos com resumo por categoria e detalhamento
-                        cronológico das movimentações liquidadas.
+                        cronológico das receitas recebidas e despesas reconhecidas.
                     </p>
                 </div>
 

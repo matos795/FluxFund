@@ -474,8 +474,8 @@ export function ClosingDossierReportPage() {
 
                             <DocumentTypeOption
                                 checked={includePayablesReport}
-                                label="Despesas liquidadas"
-                                description="Inclui resumo por categoria e detalhamento das despesas efetivamente pagas no período."
+                                label="Despesas reconhecidas"
+                                description="Inclui resumo por categoria e detalhamento das despesas reconhecidas no período, inclusive compras no cartão."
                                 onCheckedChange={setIncludePayablesReport}
                             />
 
@@ -558,7 +558,7 @@ export function ClosingDossierReportPage() {
 
                             {preview.includesPayablesReport && (
                                 <Badge variant="outline">
-                                    Despesas liquidadas incluídas
+                                    Despesas reconhecidas incluídas
                                 </Badge>
                             )}
 

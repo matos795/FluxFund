@@ -170,7 +170,7 @@ public class ReportController {
                                                 resolvedStartDate,
                                                 resolvedEndDate);
 
-                String filename = "despesas-liquidadas-%s-a-%s.pdf"
+                String filename = "despesas-reconhecidas-%s-a-%s.pdf"
                                 .formatted(
                                                 resolvedStartDate,
                                                 resolvedEndDate);

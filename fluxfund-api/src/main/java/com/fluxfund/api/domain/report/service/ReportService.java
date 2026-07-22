@@ -178,14 +178,14 @@ public class ReportService {
                                 .filter(item -> item.type() == FinancialTransactionType.EXPENSE)
                                 .toList();
 
-                BigDecimal totalPaidAmount = items.stream()
+                BigDecimal totalExpenseAmount = items.stream()
                                 .map(SettledExpenseReportItemResponse::amount)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                 return new SettledExpenseReportResponse(
                                 resolvedStartDate,
                                 resolvedEndDate,
-                                totalPaidAmount,
+                                totalExpenseAmount,
                                 items.size(),
                                 categoryItems,
                                 items);

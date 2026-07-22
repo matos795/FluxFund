@@ -28,6 +28,7 @@ import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierDocumentIssueTyp
 import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierPreviewRequest;
 import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierPreviewResponse;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
+import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.FiscalDocumentPolicy;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
@@ -342,8 +343,14 @@ public class ClosingDossierService {
         private boolean requiresPaymentProof(
                         FinancialTransaction transaction) {
 
-                return transaction.getCategory() != null
-                                && transaction.getCategory().isRequiresPaymentProof();
+                boolean isCreditCardItem = transaction.getSource() == FinancialTransactionSource.CREDIT_CARD
+                                && transaction.getCreditCardStatement() != null;
+
+                if (isCreditCardItem) {
+                        return false;
+                }
+
+                return transaction.getCategory() != null && transaction.getCategory().isRequiresPaymentProof();
         }
 
         private ClosingDossierDocumentIssueType resolveFiscalDocumentIssueType(
