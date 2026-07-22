@@ -36,7 +36,7 @@ import { getApiErrorMessage } from "@/utils/api-error"
 import { ClosingDossierExtraDocumentsSection } from "@/features/closing-dossier/components/closing-dossier-extra-documents-section"
 import { getDateRangeForPreset, type DateRangeValue } from "@/components/filters/date-range-presets"
 import { DateRangePresetFilter } from "@/components/filters/date-range-preset-filter"
-import { formatDate } from "@/utils/formatters"
+import { formatCurrency, formatDate } from "@/utils/formatters"
 
 const ACCOUNT_PAGE_SIZE = 100
 
