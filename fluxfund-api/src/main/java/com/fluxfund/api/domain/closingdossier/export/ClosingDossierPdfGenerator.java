@@ -80,8 +80,13 @@ public class ClosingDossierPdfGenerator {
                         Organization organization,
                         ClosingDossierPreviewRequest request,
                         ClosingDossierPreviewResponse preview,
+
                         List<ClosingDossierExportAccount> accounts,
+
+                        List<ClosingDossierCreditCardStatement> standaloneCreditCardStatements,
+
                         List<ClosingDossierExportExtraDocument> extraDocuments,
+
                         AccountabilityReportResponse supportReport,
                         SettledExpenseReportResponse settledExpenseReport,
                         SettledIncomeReportResponse settledIncomeReport,
@@ -103,6 +108,7 @@ public class ClosingDossierPdfGenerator {
                                         request,
                                         preview,
                                         accounts.size(),
+                                        standaloneCreditCardStatements.size(),
                                         extraDocuments.size());
 
                         int tableOfContentsEntryCount = accounts.size() + 1;
@@ -154,7 +160,7 @@ public class ClosingDossierPdfGenerator {
 
                                 tableOfContentsEntries.add(
                                                 new TableOfContentsEntry(
-                                                                "Relatório de Despesas Liquidadas",
+                                                                "Relatório de Despesas Reconhecidas",
                                                                 0,
                                                                 settledExpenseReportStartPage));
                         }
@@ -189,6 +195,32 @@ public class ClosingDossierPdfGenerator {
                                                 writer,
                                                 extraDocuments,
                                                 tableOfContentsEntries);
+                        }
+
+                        for (ClosingDossierCreditCardStatement creditCardStatement : standaloneCreditCardStatements) {
+
+                                PDPage statementStartPage = writeCreditCardStatementSection(
+                                                document,
+                                                writer,
+                                                null,
+                                                creditCardStatement);
+
+                                tableOfContentsEntries.add(
+                                                new TableOfContentsEntry(
+                                                                "Fatura - "
+                                                                                + creditCardStatement
+                                                                                                .statement()
+                                                                                                .getCreditCardAccount()
+                                                                                                .getName()
+
+                                                                                + " - "
+
+                                                                                + creditCardStatement
+                                                                                                .statement()
+                                                                                                .getName(),
+
+                                                                0,
+                                                                statementStartPage));
                         }
 
                         for (ClosingDossierExportAccount accountData : accounts) {
@@ -409,6 +441,7 @@ public class ClosingDossierPdfGenerator {
                         ClosingDossierPreviewRequest request,
                         ClosingDossierPreviewResponse preview,
                         int includedAccountCount,
+                        int includedCreditCardStatementCount,
                         int extraDocumentCount) throws IOException {
 
                 List<String> details = new ArrayList<>();
@@ -435,6 +468,7 @@ public class ClosingDossierPdfGenerator {
                                                 + formatDate(OffsetDateTime.now().toLocalDate()));
 
                 details.add("Contas incluídas: " + includedAccountCount);
+                details.add("Faturas de cartão incluídas: " + includedCreditCardStatementCount);
                 details.add("Documentos complementares: " + extraDocumentCount);
                 details.add("Movimentações: " + preview.totalTransactionCount());
 
@@ -806,7 +840,7 @@ public class ClosingDossierPdfGenerator {
                 writer.writeSectionTitle("Detalhamento das despesas reconhecidas");
 
                 writer.writeParagraph("Relação cronológica das despesas reconhecidas "
-        + "no período selecionado.");
+                                + "no período selecionado.");
 
                 if (settledExpenseReport.items().isEmpty()) {
                         writer.writeParagraph("Nenhuma despesa reconhecida foi encontrada para este período.");
@@ -1485,57 +1519,109 @@ public class ClosingDossierPdfGenerator {
                 writer.closeCurrentPage();
         }
 
-        private void writeCreditCardStatementSection(
+        private PDPage writeCreditCardStatementSection(
+
                         PDDocument document,
+
                         PdfWriter writer,
+
                         FinancialTransaction paymentTransaction,
+
                         ClosingDossierCreditCardStatement creditCardStatement)
+
                         throws IOException {
 
                 var statement = creditCardStatement.statement();
 
-                writer.startPage();
-                writer.writeSectionTitle("Pagamento de fatura");
+                var report = creditCardStatement.report();
 
-                writer.writeMetric(
-                                "Cartão",
-                                statement.getCreditCardAccount().getName());
+                List<String> details = new ArrayList<>();
 
-                writer.writeMetric(
-                                "Fatura",
-                                statement.getName());
+                details.add(
+                                "Cartão: "
+                                                + report.creditCardAccountName());
 
-                writer.writeMetric(
-                                "Vencimento",
-                                formatDate(statement.getDueDate()));
+                if (hasText(report.bankName())) {
 
-                writer.writeMetric(
-                                "Data do pagamento",
-                                formatDate(paymentTransaction.getSettlementDate()));
+                        details.add(
+                                        "Instituição: "
+                                                        + report.bankName());
+                }
 
-                writer.writeMetric(
-                                "Valor pago",
-                                formatCurrency(getTransactionAmount(paymentTransaction)));
+                details.add(
+                                "Situação: "
+                                                + formatCreditCardStatementStatus(
+                                                                report.status()));
 
-                writer.writeMetric(
-                                "Itens da fatura",
-                                String.valueOf(creditCardStatement.items().size()));
+                details.add(
+                                "Fechamento: "
+                                                + formatOptionalDate(
+                                                                report.closingDate()));
+
+                details.add(
+                                "Vencimento: "
+                                                + formatOptionalDate(
+                                                                report.dueDate()));
+
+                details.add(
+                                "Total da fatura: "
+                                                + formatCurrency(
+                                                                report.totalAmount()));
+
+                details.add(
+                                "Valor pago: "
+                                                + formatCurrency(
+                                                                report.paidAmount()));
+
+                details.add(
+                                "Valor pendente: "
+                                                + formatCurrency(
+                                                                report.outstandingAmount()));
+
+                details.add(
+                                "Itens da fatura: "
+                                                + report.itemCount());
+
+                details.add(
+                                "Itens sem categoria: "
+                                                + report.unclassifiedItemCount());
+
+                if (paymentTransaction != null) {
+
+                        details.add(
+                                        "Pagamento bancário: "
+                                                        + formatDate(
+                                                                        paymentTransaction
+                                                                                        .getSettlementDate())
+
+                                                        + " | "
+
+                                                        + formatCurrency(
+                                                                        getTransactionAmount(
+                                                                                        paymentTransaction)));
+                }
 
                 boolean hasStatementPdf = statement.getStatementPdfStorageKey() != null
-                                && !statement.getStatementPdfStorageKey().isBlank();
 
-                if (hasStatementPdf) {
-                        writer.writeParagraph(
-                                        "PDF oficial da fatura incluído a seguir: "
-                                                        + statement.getStatementPdfOriginalFilename());
-                } else {
-                        writer.writeParagraph(
-                                        "PDF oficial da fatura não foi enviado.");
-                }
+                                && !statement
+                                                .getStatementPdfStorageKey()
+                                                .isBlank();
+
+                details.add(
+                                "PDF oficial: "
+                                                + (hasStatementPdf
+                                                                ? "Disponível"
+                                                                : "Pendente"));
+
+                PDPage startPage = writer.startCoverPage(
+                                "FATURA DE CARTÃO",
+                                statement.getName(),
+                                details);
 
                 writer.closeCurrentPage();
 
                 if (hasStatementPdf) {
+
                         appendPdfFromStorage(
                                         document,
                                         writer,
@@ -1548,13 +1634,17 @@ public class ClosingDossierPdfGenerator {
                                 creditCardStatement);
 
                 for (FinancialTransaction item : creditCardStatement.items()) {
+
                         writeExpenseSection(
                                         document,
                                         writer,
                                         item,
-                                        creditCardStatement.getAttachments(item),
+                                        creditCardStatement
+                                                        .getAttachments(item),
                                         "Item da fatura");
                 }
+
+                return startPage;
         }
 
         private void writeCreditCardStatementItemsList(

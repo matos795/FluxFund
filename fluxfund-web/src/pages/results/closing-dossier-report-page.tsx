@@ -36,6 +36,7 @@ import { getApiErrorMessage } from "@/utils/api-error"
 import { ClosingDossierExtraDocumentsSection } from "@/features/closing-dossier/components/closing-dossier-extra-documents-section"
 import { getDateRangeForPreset, type DateRangeValue } from "@/components/filters/date-range-presets"
 import { DateRangePresetFilter } from "@/components/filters/date-range-preset-filter"
+import { formatDate } from "@/utils/formatters"
 
 const ACCOUNT_PAGE_SIZE = 100
 
@@ -45,6 +46,13 @@ const accountTypeLabels: Record<Account["type"], string> = {
     DIGITAL_WALLET: "Conta digital",
     CREDIT_CARD: "Cartão de crédito",
 }
+
+const creditCardStatementStatusLabels = {
+    OPEN: "Aberta",
+    CLOSED: "Fechada",
+    PAID: "Paga",
+    CANCELED: "Cancelada",
+} as const
 
 export function ClosingDossierReportPage() {
     const { canFinanceWrite, canExportReports } = usePermissions()
@@ -136,6 +144,7 @@ export function ClosingDossierReportPage() {
 
     const totalDossierIssues = preview
         ? preview.accountsWithoutBankStatementCount +
+        preview.creditCardStatementsWithoutPdfCount +
         preview.expensesWithoutPaymentProofCount +
         preview.expensesWithoutFiscalDocumentCount
         : 0
@@ -353,8 +362,9 @@ export function ClosingDossierReportPage() {
                                 <Label>Contas incluídas</Label>
 
                                 <p className="mt-1 text-xs text-muted-foreground">
-                                    Cartões de crédito não entram neste MVP porque possuem fluxo
-                                    próprio de faturas.
+                                    Contas de cartão não são selecionadas aqui.
+                                    As faturas com compras no período são incluídas
+                                    automaticamente.
                                 </p>
                             </div>
 
@@ -576,12 +586,32 @@ export function ClosingDossierReportPage() {
                         </div>
                     </div>
 
-                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                         <PreviewMetric
                             label="Movimentações"
                             value={String(preview.totalTransactionCount)}
                             description="Transações no período"
                             isHealthy
+                        />
+
+                        <PreviewMetric
+                            label="Faturas de cartão"
+                            value={String(
+                                preview.creditCardStatementCount,
+                            )}
+                            description={`${preview.creditCardStatementItemCount} item(ns) incluído(s)`}
+                            isHealthy
+                        />
+
+                        <PreviewMetric
+                            label="PDFs de fatura pendentes"
+                            value={String(
+                                preview.creditCardStatementsWithoutPdfCount,
+                            )}
+                            description="Faturas sem documento oficial"
+                            isHealthy={
+                                preview.creditCardStatementsWithoutPdfCount === 0
+                            }
                         />
 
                         <PreviewMetric
@@ -619,6 +649,125 @@ export function ClosingDossierReportPage() {
                     )}
 
                     <div className="space-y-4">
+                        {preview.creditCardStatements.length > 0 && (
+                            <section className="space-y-4">
+                                <div>
+                                    <h2 className="text-lg font-semibold">
+                                        Faturas de cartão incluídas automaticamente
+                                    </h2>
+
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                        Faturas que possuem compras no período ou
+                                        pagamentos vinculados às contas selecionadas.
+                                    </p>
+                                </div>
+
+                                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                    {preview.creditCardStatements.map(
+                                        (statement) => (
+                                            <Card key={statement.statementId}>
+                                                <CardHeader>
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div>
+                                                            <CardTitle className="text-base">
+                                                                {statement.statementName}
+                                                            </CardTitle>
+
+                                                            <p className="mt-1 text-sm text-muted-foreground">
+                                                                {statement.creditCardAccountName}
+                                                            </p>
+                                                        </div>
+
+                                                        <Badge variant="outline">
+                                                            {
+                                                                creditCardStatementStatusLabels[
+                                                                statement.status
+                                                                ]
+                                                            }
+                                                        </Badge>
+                                                    </div>
+                                                </CardHeader>
+
+                                                <CardContent className="space-y-3 text-sm">
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                Vencimento
+                                                            </p>
+
+                                                            <p className="font-medium">
+                                                                {formatDate(statement.dueDate)}
+                                                            </p>
+                                                        </div>
+
+                                                        <div>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                Total
+                                                            </p>
+
+                                                            <p className="font-medium">
+                                                                {formatCurrency(
+                                                                    statement.totalAmount,
+                                                                )}
+                                                            </p>
+                                                        </div>
+
+                                                        <div>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                Itens
+                                                            </p>
+
+                                                            <p className="font-medium">
+                                                                {statement.itemCount}
+                                                            </p>
+                                                        </div>
+
+                                                        <div>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                Sem categoria
+                                                            </p>
+
+                                                            <p className="font-medium">
+                                                                {
+                                                                    statement.unclassifiedItemCount
+                                                                }
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex flex-wrap gap-2 border-t pt-3">
+                                                        <Badge
+                                                            variant={
+                                                                statement.hasOfficialPdf
+                                                                    ? "secondary"
+                                                                    : "destructive"
+                                                            }
+                                                        >
+                                                            {statement.hasOfficialPdf
+                                                                ? "PDF oficial disponível"
+                                                                : "PDF oficial pendente"}
+                                                        </Badge>
+
+                                                        {statement.fiscalDocumentIssues.length >
+                                                            0 && (
+                                                                <Badge variant="destructive">
+                                                                    {
+                                                                        statement
+                                                                            .fiscalDocumentIssues
+                                                                            .length
+                                                                    }{" "}
+                                                                    pendência(s) fiscal(is)
+                                                                </Badge>
+                                                            )}
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        ),
+                                    )}
+                                </div>
+                            </section>
+                        )}
+
                         {preview.accounts.map((account) => (
                             <ClosingDossierAccountCard
                                 key={account.accountId}

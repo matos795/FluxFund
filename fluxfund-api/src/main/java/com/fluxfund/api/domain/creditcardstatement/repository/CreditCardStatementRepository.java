@@ -1,5 +1,6 @@
 package com.fluxfund.api.domain.creditcardstatement.repository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -12,6 +13,7 @@ import org.springframework.data.repository.query.Param;
 
 import com.fluxfund.api.domain.creditcardstatement.CreditCardStatement;
 import com.fluxfund.api.domain.creditcardstatement.CreditCardStatementStatus;
+import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.report.projection.PendingCreditCardStatementProjection;
 
 public interface CreditCardStatementRepository extends JpaRepository<CreditCardStatement, UUID> {
@@ -120,6 +122,66 @@ public interface CreditCardStatementRepository extends JpaRepository<CreditCardS
       """, nativeQuery = true)
   long countPendingCreditCardStatements(
       @Param("organizationId") UUID organizationId);
+
+      @Query("""
+    select distinct statement
+
+    from CreditCardStatement statement
+
+    join fetch statement.creditCardAccount
+
+    left join fetch statement.paymentAccount
+
+    left join fetch statement.paymentTransaction
+
+    where statement.organization.id =
+        :organizationId
+
+      and statement.status <>
+        :canceledStatementStatus
+
+      and exists (
+
+          select item.id
+
+          from FinancialTransaction item
+
+          where item.creditCardStatement =
+              statement
+
+            and item.organization.id =
+              :organizationId
+
+            and item.status <>
+              :canceledTransactionStatus
+
+            and coalesce(
+                  item.purchaseDate,
+                  item.settlementDate,
+                  item.dueDate
+                )
+                between :startDate and :endDate
+      )
+
+    order by
+        statement.dueDate asc,
+        statement.name asc
+    """)
+List<CreditCardStatement>
+        findForClosingDossierByItemPeriod(
+            @Param("organizationId")
+            UUID organizationId,
+            @Param("startDate")
+            LocalDate startDate,
+            @Param("endDate")
+            LocalDate endDate,
+            @Param("canceledStatementStatus")
+            CreditCardStatementStatus
+                    canceledStatementStatus,
+            @Param("canceledTransactionStatus")
+            FinancialTransactionStatus
+                    canceledTransactionStatus
+        );
 
   @Query("""
       select distinct statement

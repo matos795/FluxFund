@@ -1,6 +1,8 @@
 package com.fluxfund.api.domain.closingdossier.service;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -106,6 +108,7 @@ public class ClosingDossierExportService {
 
                 List<CreditCardStatement> creditCardStatements = loadCreditCardStatementsForDossier(
                                 organizationId,
+                                request,
                                 transactions);
 
                 List<FinancialTransaction> creditCardStatementItems = loadCreditCardStatementItems(
@@ -120,10 +123,30 @@ public class ClosingDossierExportService {
                                 organizationId,
                                 transactionsWithDocuments);
 
-                Map<UUID, ClosingDossierCreditCardStatement> creditCardStatementsByPaymentTransactionId = buildCreditCardStatementsByPaymentTransactionId(
+                List<ClosingDossierCreditCardStatement> creditCardDossiers = buildCreditCardStatementDossiers(
+                                organizationId,
                                 creditCardStatements,
                                 creditCardStatementItems,
                                 attachmentsByTransactionId);
+
+                Set<UUID> selectedTransactionIds = transactions.stream()
+                                .map(FinancialTransaction::getId)
+                                .collect(Collectors.toSet());
+
+                Map<UUID, ClosingDossierCreditCardStatement> creditCardStatementsByPaymentTransactionId = buildCreditCardStatementsByPaymentTransactionId(
+                                creditCardDossiers,
+                                selectedTransactionIds);
+
+                Set<UUID> embeddedStatementIds = creditCardStatementsByPaymentTransactionId
+                                .values()
+                                .stream()
+                                .map(statement -> statement.statement().getId())
+                                .collect(Collectors.toSet());
+
+                List<ClosingDossierCreditCardStatement> standaloneCreditCardStatements = creditCardDossiers.stream()
+                                .filter(statement -> !embeddedStatementIds.contains(
+                                                statement.statement().getId()))
+                                .toList();
 
                 Set<UUID> creditCardStatementItemIds = creditCardStatementItems.stream()
                                 .map(FinancialTransaction::getId)
@@ -220,6 +243,7 @@ public class ClosingDossierExportService {
                                 request,
                                 preview,
                                 exportAccounts,
+                                standaloneCreditCardStatements,
                                 extraDocuments,
                                 supportReport,
                                 settledExpenseReport,
@@ -303,22 +327,56 @@ public class ClosingDossierExportService {
         }
 
         private List<CreditCardStatement> loadCreditCardStatementsForDossier(
+
                         UUID organizationId,
+
+                        ClosingDossierPreviewRequest request,
+
                         List<FinancialTransaction> transactions) {
+
+                Map<UUID, CreditCardStatement> statementsById = new LinkedHashMap<>();
+
+                boolean includeExpenses = request.includeExpenses() == null
+
+                                || Boolean.TRUE.equals(
+                                                request.includeExpenses());
+
+                if (includeExpenses) {
+
+                        creditCardStatementRepository
+                                        .findForClosingDossierByItemPeriod(
+                                                        organizationId,
+                                                        request.periodStartDate(),
+                                                        request.periodEndDate(),
+                                                        CreditCardStatementStatus.CANCELED,
+                                                        FinancialTransactionStatus.CANCELED)
+                                        .forEach(statement -> statementsById.put(
+                                                        statement.getId(),
+                                                        statement));
+                }
 
                 List<UUID> paymentTransactionIds = transactions.stream()
                                 .map(FinancialTransaction::getId)
                                 .toList();
 
-                if (paymentTransactionIds.isEmpty()) {
-                        return List.of();
+                if (!paymentTransactionIds.isEmpty()) {
+
+                        creditCardStatementRepository
+                                        .findPaidForClosingDossier(
+                                                        organizationId,
+                                                        CreditCardStatementStatus.PAID,
+                                                        paymentTransactionIds)
+                                        .forEach(statement -> statementsById.put(
+                                                        statement.getId(),
+                                                        statement));
                 }
 
-                return creditCardStatementRepository
-                                .findPaidForClosingDossier(
-                                                organizationId,
-                                                CreditCardStatementStatus.PAID,
-                                                paymentTransactionIds);
+                return statementsById.values()
+                                .stream()
+                                .sorted(Comparator.comparing(CreditCardStatement::getDueDate)
+                                                .thenComparing(CreditCardStatement::getName,
+                                                                String.CASE_INSENSITIVE_ORDER))
+                                .toList();
         }
 
         private List<FinancialTransaction> loadCreditCardStatementItems(
@@ -340,28 +398,59 @@ public class ClosingDossierExportService {
                                                 FinancialTransactionStatus.CANCELED);
         }
 
-        private Map<UUID, ClosingDossierCreditCardStatement> buildCreditCardStatementsByPaymentTransactionId(
+        private List<ClosingDossierCreditCardStatement> buildCreditCardStatementDossiers(
+                        UUID organizationId,
                         List<CreditCardStatement> statements,
                         List<FinancialTransaction> items,
                         Map<UUID, List<Attachment>> attachmentsByTransactionId) {
 
                 Map<UUID, List<FinancialTransaction>> itemsByStatementId = items.stream()
-                                .collect(Collectors.groupingBy(
-                                                item -> item.getCreditCardStatement().getId()));
+                                .collect(Collectors.groupingBy(item -> item.getCreditCardStatement().getId()));
+
+                return statements.stream().map(statement -> new ClosingDossierCreditCardStatement(
+                                statement, reportService.getCreditCardStatementReport(
+                                                organizationId, statement.getId()),
+
+                                itemsByStatementId.getOrDefault(
+                                                statement.getId(),
+                                                List.of()),
+
+                                attachmentsByTransactionId))
+                                .toList();
+        }
+
+        private Map<UUID, ClosingDossierCreditCardStatement> buildCreditCardStatementsByPaymentTransactionId(
+
+                        List<ClosingDossierCreditCardStatement> statements,
+
+                        Set<UUID> selectedTransactionIds) {
 
                 return statements.stream()
-                                .collect(Collectors.toMap(
-                                                statement -> statement.getPaymentTransaction().getId(),
-                                                statement -> new ClosingDossierCreditCardStatement(
-                                                                statement,
-                                                                itemsByStatementId.getOrDefault(
-                                                                                statement.getId(),
-                                                                                List.of()),
-                                                                attachmentsByTransactionId),
-                                                (first, second) -> {
-                                                        throw new BusinessException(
-                                                                        "More than one credit card statement is linked "
-                                                                                        + "to the same payment transaction");
-                                                }));
+
+                                .filter(statement -> statement.statement()
+                                                .getPaymentTransaction() != null)
+
+                                .filter(statement -> selectedTransactionIds.contains(
+
+                                                statement.statement()
+                                                                .getPaymentTransaction()
+                                                                .getId()))
+
+                                .collect(
+                                                Collectors.toMap(
+
+                                                                statement -> statement.statement()
+                                                                                .getPaymentTransaction()
+                                                                                .getId(),
+
+                                                                statement -> statement,
+
+                                                                (first, second) -> {
+
+                                                                        throw new BusinessException(
+                                                                                        "More than one credit card statement "
+                                                                                                        + "is linked to the same "
+                                                                                                        + "payment transaction");
+                                                                }));
         }
 }

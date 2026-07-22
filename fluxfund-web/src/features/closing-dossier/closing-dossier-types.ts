@@ -93,6 +93,13 @@ export type ClosingDossierPreview = {
   expensesWithoutPaymentProofCount: number
   expensesWithoutFiscalDocumentCount: number
 
+  creditCardStatementCount: number
+  creditCardStatementItemCount: number
+  creditCardStatementsWithoutPdfCount: number
+
+  creditCardStatements:
+  ClosingDossierCreditCardStatementPreview[]
+
   accounts: ClosingDossierAccountPreview[]
 }
 
@@ -117,4 +124,26 @@ export type ClosingDossierExtraDocument = {
   sortOrder: number
   createdAt: string
   updatedAt: string | null
+}
+
+export type ClosingDossierCreditCardStatementPreview = {
+  statementId: string
+  statementName: string
+
+  creditCardAccountId: string
+  creditCardAccountName: string
+
+  status: "OPEN" | "CLOSED" | "PAID" | "CANCELED"
+
+  closingDate: string | null
+  dueDate: string
+
+  totalAmount: number
+
+  itemCount: number
+  unclassifiedItemCount: number
+
+  hasOfficialPdf: boolean
+
+  fiscalDocumentIssues: ClosingDossierDocumentIssue[]
 }
