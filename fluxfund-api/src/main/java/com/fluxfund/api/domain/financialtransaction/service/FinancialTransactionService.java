@@ -724,16 +724,6 @@ public class FinancialTransactionService {
                                                         + "transferGroupId="
                                                         + transaction.getTransferGroupId());
                 }
-
-                repository.saveAll(transferTransactions);
-
-                auditLogService.record(
-                                organizationId,
-                                AuditEntityType.FINANCIAL_TRANSACTION,
-                                transaction.getId(),
-                                AuditAction.CANCEL,
-                                "Account transfer canceled. transferGroupId=%s"
-                                                .formatted(transaction.getTransferGroupId()));
         }
 
         @Transactional(readOnly = true)

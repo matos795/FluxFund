@@ -129,9 +129,17 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
 
                             coalesce(sum(
                                 case
-                                    when ft.settlementDate >= :historyStartDate
-             and ft.settlementDate < :startDate
-            then a.amount
+                                    when coalesce(
+                                            a.referenceMonth,
+                                            ft.settlementDate
+                                        ) >= :historyStartDate
+
+                                    and coalesce(
+                                            a.referenceMonth,
+                                            ft.settlementDate
+                                        ) < :startDate
+
+                                    then a.amount
 
                                     else 0
                                 end
@@ -182,17 +190,10 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
                                     join a.beneficiary b
                                     where a.organization.id = :organizationId
                           and ft.status <> com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.CANCELED
-                          and (
-                                (
-                                  a.amount > 0
-                                  and ft.settlementDate between :startDate and :endDate
-                                )
-                                or
-                                (
-                                  a.amount < 0
-            and ft.settlementDate between :startDate and :endDate
-                                )
-                              )
+                          and coalesce(
+                            a.referenceMonth,
+                            ft.settlementDate
+                        ) between :startDate and :endDate
                         group by b.id, b.name, f.id, f.name
                         order by b.name asc, f.name asc
                                     """)
@@ -236,17 +237,10 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
                                     join a.beneficiary b
                                     where a.organization.id = :organizationId
                           and ft.status <> com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.CANCELED
-                          and (
-                                (
-                                  a.amount > 0
-                                  and ft.settlementDate between :startDate and :endDate
-                                )
-                                or
-                                (
-                                  a.amount < 0
-            and ft.settlementDate between :startDate and :endDate
-                                )
-                              )
+                          and coalesce(
+                                a.referenceMonth,
+                                ft.settlementDate
+                            ) between :startDate and :endDate
                         group by b.id, b.name, f.id, f.name, acc.id, acc.name, acc.bankName
                         order by b.name asc, f.name asc, acc.name asc
                                     """)
