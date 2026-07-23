@@ -34,6 +34,7 @@ export function CreateFinancialTransactionDialog() {
       transferDirection,
       transferCounterpartyAccountId,
       matchingTransactionId,
+      allowUnmatchedCreation,
     } = submission
 
     try {
@@ -71,6 +72,7 @@ export function CreateFinancialTransactionDialog() {
             amount: data.expectedAmount,
             description: data.description?.trim() || null,
             matchingTransactionId,
+            allowUnmatchedCreation,
           })
 
         const selectedAccountSide =

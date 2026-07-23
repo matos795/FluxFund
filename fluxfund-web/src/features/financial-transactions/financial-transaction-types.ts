@@ -95,6 +95,7 @@ export type CreateAccountTransferRequest = {
   amount: number
   description?: string | null
   matchingTransactionId?: string | null
+  allowUnmatchedCreation?: boolean
 }
 
 export type CreateFinancialTransactionRequest = {

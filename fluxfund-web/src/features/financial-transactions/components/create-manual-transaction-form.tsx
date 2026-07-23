@@ -63,6 +63,7 @@ export type CreateManualTransactionSubmission = {
   transferDirection: TransferDirection | null
   transferCounterpartyAccountId: string | null
   matchingTransactionId: string | null
+  allowUnmatchedCreation: boolean
 }
 
 type CreateManualTransactionFormProps = {
@@ -395,6 +396,9 @@ export function CreateManualTransactionForm({
   function handleManualSubmit(
     data: FinancialTransactionFormData,
   ) {
+
+    let allowUnmatchedCreation = false
+
     if (data.type === "TRANSFER") {
       if (!transferDirection) {
         toast.error(
@@ -429,6 +433,25 @@ export function CreateManualTransactionForm({
         )
 
         return
+      }
+
+      const hasCompatibleTransactionIgnored =
+        transferCandidates.length > 0 &&
+        !currentMatchingTransactionId
+
+      if (hasCompatibleTransactionIgnored) {
+        const confirmed = window.confirm(
+          "Existe uma movimentação compatível em outra conta.\n\n" +
+          "Continuar sem vinculá-la criará uma nova movimentação " +
+          "e poderá duplicar o saldo.\n\n" +
+          "Deseja criar a transferência mesmo assim?",
+        )
+
+        if (!confirmed) {
+          return
+        }
+
+        allowUnmatchedCreation = true
       }
     }
 
@@ -547,6 +570,7 @@ export function CreateManualTransactionForm({
         data.type === "TRANSFER"
           ? currentMatchingTransactionId || null
           : null,
+          allowUnmatchedCreation
     })
   }
 

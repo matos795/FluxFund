@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -78,1732 +79,1875 @@ import lombok.RequiredArgsConstructor;
 @Transactional
 public class FinancialTransactionService {
 
-    private final FinancialTransactionRepository repository;
-    private final TransactionAllocationRepository allocationRepository;
-    private final OrganizationRepository organizationRepository;
-    private final AccountRepository accountRepository;
-    private final CategoryRepository categoryRepository;
-    private final FundRepository fundRepository;
-    private final BeneficiaryRepository beneficiaryRepository;
-    private final OrganizationSettingsRepository organizationSettingsRepository;
-    private final AttachmentRepository attachmentRepository;
-    private final OrganizationAccessService organizationAccessService;
-    private final AuditLogService auditLogService;
-    private final FundTransferRepository fundTransferRepository;
-    private final FinancialTransactionDocumentPolicyService documentPolicyService;
-
-    public FinancialTransactionResponse create(UUID organizationId, CreateFinancialTransactionRequest request) {
-        organizationAccessService.requireFinanceWriteAccess(organizationId);
-
-        if (request.type() == FinancialTransactionType.TRANSFER) {
-            throw new BusinessException("Use the account transfer endpoint to create transfers");
-        }
-
-        Organization organization = organizationRepository.findById(organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
-
-        Account account = accountRepository.findByIdAndOrganizationIdAndActiveTrue(request.accountId(), organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
-
-        Category category = null;
-
-        if (request.categoryId() != null) {
-            category = categoryRepository.findByIdAndOrganizationIdAndActiveTrue(request.categoryId(), organizationId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
-        }
-
-        validateCategoryMatchesTransactionType(request.type(), category);
-
-        FinancialTransaction financialTransaction = FinancialTransactionMapper.createEntity(request, organization,
-                account, category);
-
-        normalizeTransactionStatusAndAmounts(financialTransaction);
-
-        documentPolicyService.normalizeAndValidate(financialTransaction);
-
-        addInitialAllocations(organizationId, financialTransaction, request.allocations());
-
-        addDefaultFundAllocationIfNeeded(organizationId, financialTransaction);
-
-        validateTotalAllocatedAmount(financialTransaction);
-
-        validateFundNegativePolicy(
-                organizationId,
-                financialTransaction.getId(),
-                Map.of(),
-                toImpactByFund(financialTransaction.getAllocations()));
-
-        repository.save(financialTransaction);
-
-        auditLogService.record(
-                organizationId,
-                AuditEntityType.FINANCIAL_TRANSACTION,
-                financialTransaction.getId(),
-                AuditAction.CREATE,
-                "Manual financial transaction created");
-
-        return FinancialTransactionMapper.toResponse(financialTransaction);
-    }
+        private final FinancialTransactionRepository repository;
+        private final TransactionAllocationRepository allocationRepository;
+        private final OrganizationRepository organizationRepository;
+        private final AccountRepository accountRepository;
+        private final CategoryRepository categoryRepository;
+        private final FundRepository fundRepository;
+        private final BeneficiaryRepository beneficiaryRepository;
+        private final OrganizationSettingsRepository organizationSettingsRepository;
+        private final AttachmentRepository attachmentRepository;
+        private final OrganizationAccessService organizationAccessService;
+        private final AuditLogService auditLogService;
+        private final FundTransferRepository fundTransferRepository;
+        private final FinancialTransactionDocumentPolicyService documentPolicyService;
+
+        public FinancialTransactionResponse create(UUID organizationId, CreateFinancialTransactionRequest request) {
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
+
+                if (request.type() == FinancialTransactionType.TRANSFER) {
+                        throw new BusinessException("Use the account transfer endpoint to create transfers");
+                }
+
+                Organization organization = organizationRepository.findById(organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+
+                Account account = accountRepository
+                                .findByIdAndOrganizationIdAndActiveTrue(request.accountId(), organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
+
+                Category category = null;
+
+                if (request.categoryId() != null) {
+                        category = categoryRepository
+                                        .findByIdAndOrganizationIdAndActiveTrue(request.categoryId(), organizationId)
+                                        .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+                }
+
+                validateCategoryMatchesTransactionType(request.type(), category);
+
+                FinancialTransaction financialTransaction = FinancialTransactionMapper.createEntity(request,
+                                organization,
+                                account, category);
+
+                normalizeTransactionStatusAndAmounts(financialTransaction);
+
+                documentPolicyService.normalizeAndValidate(financialTransaction);
+
+                addInitialAllocations(organizationId, financialTransaction, request.allocations());
+
+                addDefaultFundAllocationIfNeeded(organizationId, financialTransaction);
+
+                validateTotalAllocatedAmount(financialTransaction);
+
+                validateFundNegativePolicy(
+                                organizationId,
+                                financialTransaction.getId(),
+                                Map.of(),
+                                toImpactByFund(financialTransaction.getAllocations()));
+
+                repository.save(financialTransaction);
+
+                auditLogService.record(
+                                organizationId,
+                                AuditEntityType.FINANCIAL_TRANSACTION,
+                                financialTransaction.getId(),
+                                AuditAction.CREATE,
+                                "Manual financial transaction created");
+
+                return FinancialTransactionMapper.toResponse(financialTransaction);
+        }
+
+        @Transactional(readOnly = true)
+        public Page<FinancialTransactionResponse> findAll(
+                        UUID organizationId,
+                        FinancialTransactionType type,
+                        FinancialTransactionStatus status,
+                        FinancialTransactionSource source,
+                        UUID accountId,
+                        UUID categoryId,
+                        String description,
+                        LocalDate settlementDateFrom,
+                        LocalDate settlementDateTo,
+                        Boolean onlyUnclassified,
+                        Boolean onlyUnallocated,
+                        UUID fundId,
+                        Pageable pageable) {
+                organizationAccessService.requireReadAccess(organizationId);
 
-    @Transactional(readOnly = true)
-    public Page<FinancialTransactionResponse> findAll(
-            UUID organizationId,
-            FinancialTransactionType type,
-            FinancialTransactionStatus status,
-            FinancialTransactionSource source,
-            UUID accountId,
-            UUID categoryId,
-            String description,
-            LocalDate settlementDateFrom,
-            LocalDate settlementDateTo,
-            Boolean onlyUnclassified,
-            Boolean onlyUnallocated,
-            UUID fundId,
-            Pageable pageable) {
-        organizationAccessService.requireReadAccess(organizationId);
+                Page<FinancialTransaction> transactions = repository
+                                .findAll(FinancialTransactionSpecification.withFilters(
+                                                organizationId,
+                                                type,
+                                                status,
+                                                source,
+                                                accountId,
+                                                categoryId,
+                                                description,
+                                                settlementDateFrom,
+                                                settlementDateTo,
+                                                onlyUnclassified,
+                                                onlyUnallocated,
+                                                fundId),
+                                                pageable);
 
-        Page<FinancialTransaction> transactions = repository
-                .findAll(FinancialTransactionSpecification.withFilters(
-                        organizationId,
-                        type,
-                        status,
-                        source,
-                        accountId,
-                        categoryId,
-                        description,
-                        settlementDateFrom,
-                        settlementDateTo,
-                        onlyUnclassified,
-                        onlyUnallocated,
-                        fundId),
-                        pageable);
+                List<UUID> transactionIds = transactions.getContent()
+                                .stream()
+                                .map(FinancialTransaction::getId)
+                                .toList();
 
-        List<UUID> transactionIds = transactions.getContent()
-                .stream()
-                .map(FinancialTransaction::getId)
-                .toList();
+                Map<UUID, AttachmentCountByTransactionProjection> attachmentCounts = transactionIds.isEmpty()
+                                ? Map.of()
+                                : attachmentRepository.countByTransactionIds(organizationId, transactionIds)
+                                                .stream()
+                                                .collect(Collectors.toMap(
+                                                                AttachmentCountByTransactionProjection::financialTransactionId,
+                                                                Function.identity()));
 
-        Map<UUID, AttachmentCountByTransactionProjection> attachmentCounts = transactionIds.isEmpty()
-                ? Map.of()
-                : attachmentRepository.countByTransactionIds(organizationId, transactionIds)
-                        .stream()
-                        .collect(Collectors.toMap(
-                                AttachmentCountByTransactionProjection::financialTransactionId,
-                                Function.identity()));
+                return transactions.map(transaction -> {
+                        AttachmentCountByTransactionProjection count = attachmentCounts.get(transaction.getId());
 
-        return transactions.map(transaction -> {
-            AttachmentCountByTransactionProjection count = attachmentCounts.get(transaction.getId());
-
-            return FinancialTransactionMapper.toResponse(
-                    transaction,
-                    count != null ? count.totalCount() : 0,
-                    count != null ? count.paymentProofCount() : 0,
-                    count != null ? count.fiscalCount() : 0);
-        });
-    }
-
-    @Transactional(readOnly = true)
-    public FinancialTransactionResponse findById(UUID organizationId, UUID id) {
-        organizationAccessService.requireReadAccess(organizationId);
-
-        FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
-
-        return FinancialTransactionMapper.toResponse(financialTransaction);
-    }
-
-    public FinancialTransactionResponse update(
-            UUID organizationId,
-            UUID id,
-            UpdateFinancialTransactionRequest request) {
-        organizationAccessService.requireFinanceWriteAccess(organizationId);
+                        return FinancialTransactionMapper.toResponse(
+                                        transaction,
+                                        count != null ? count.totalCount() : 0,
+                                        count != null ? count.paymentProofCount() : 0,
+                                        count != null ? count.fiscalCount() : 0);
+                });
+        }
 
-        FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
+        @Transactional(readOnly = true)
+        public FinancialTransactionResponse findById(UUID organizationId, UUID id) {
+                organizationAccessService.requireReadAccess(organizationId);
 
-        FinancialTransactionType type = Objects.requireNonNullElse(request.type(), financialTransaction.getType());
-        Category category = financialTransaction.getCategory();
+                FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
-        if (request.categoryId() != null) {
-            category = categoryRepository
-                    .findByIdAndOrganizationIdAndActiveTrue(request.categoryId(), organizationId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+                return FinancialTransactionMapper.toResponse(financialTransaction);
         }
 
-        validateTypeChangeAllowed(financialTransaction, type);
+        public FinancialTransactionResponse update(
+                        UUID organizationId,
+                        UUID id,
+                        UpdateFinancialTransactionRequest request) {
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
-        validateCategoryMatchesTransactionType(type, category);
+                FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
-        validateSettlementRemovalAllowed(financialTransaction, request);
+                FinancialTransactionType type = Objects.requireNonNullElse(request.type(),
+                                financialTransaction.getType());
+                Category category = financialTransaction.getCategory();
 
-        FinancialTransactionMapper.updateEntity(financialTransaction, request, type, category);
+                if (request.categoryId() != null) {
+                        category = categoryRepository
+                                        .findByIdAndOrganizationIdAndActiveTrue(request.categoryId(), organizationId)
+                                        .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+                }
 
-        normalizeTransactionStatusAndAmounts(financialTransaction);
+                validateTypeChangeAllowed(financialTransaction, type);
 
-        documentPolicyService.normalizeAndValidate(financialTransaction);
+                validateCategoryMatchesTransactionType(type, category);
 
-        validateTotalAllocatedAmount(financialTransaction);
+                validateSettlementRemovalAllowed(financialTransaction, request);
 
-        repository.save(financialTransaction);
+                FinancialTransactionMapper.updateEntity(financialTransaction, request, type, category);
 
-        auditLogService.record(
-                organizationId,
-                AuditEntityType.FINANCIAL_TRANSACTION,
-                financialTransaction.getId(),
-                AuditAction.UPDATE,
-                "Financial transaction updated");
+                normalizeTransactionStatusAndAmounts(financialTransaction);
 
-        return FinancialTransactionMapper.toResponse(financialTransaction);
-    }
+                documentPolicyService.normalizeAndValidate(financialTransaction);
 
-    public void delete(UUID organizationId, UUID id) {
-        organizationAccessService.requireFinanceWriteAccess(organizationId);
+                validateTotalAllocatedAmount(financialTransaction);
 
-        FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
+                repository.save(financialTransaction);
 
-        if (financialTransaction.getStatus() == FinancialTransactionStatus.CANCELED) {
-            throw new BusinessException("Transaction already canceled");
-        }
+                auditLogService.record(
+                                organizationId,
+                                AuditEntityType.FINANCIAL_TRANSACTION,
+                                financialTransaction.getId(),
+                                AuditAction.UPDATE,
+                                "Financial transaction updated");
 
-        financialTransaction.setStatus(FinancialTransactionStatus.CANCELED);
-        repository.save(financialTransaction);
+                return FinancialTransactionMapper.toResponse(financialTransaction);
+        }
 
-        auditLogService.record(
-                organizationId,
-                AuditEntityType.FINANCIAL_TRANSACTION,
-                financialTransaction.getId(),
-                AuditAction.CANCEL,
-                "Financial transaction canceled");
-    }
+        public void delete(UUID organizationId, UUID id) {
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
-    private FinancialTransaction findFinancialTransactionById(
-            UUID organizationId,
-            UUID id) {
-        return repository.findByIdAndOrganizationId(id, organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("FinancialTransaction not found"));
-    }
+                FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
-    public FinancialTransactionResponse classify(
-            UUID organizationId,
-            UUID id,
-            ClassifyFinancialTransactionRequest request) {
-        organizationAccessService.requireFinanceWriteAccess(organizationId);
+                if (financialTransaction.getStatus() == FinancialTransactionStatus.CANCELED) {
+                        throw new BusinessException("Transaction already canceled");
+                }
 
-        FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
+                financialTransaction.setStatus(FinancialTransactionStatus.CANCELED);
+                repository.save(financialTransaction);
 
-        if (financialTransaction.getStatus() == FinancialTransactionStatus.CANCELED) {
-            throw new BusinessException("Canceled transactions cannot be classified");
+                auditLogService.record(
+                                organizationId,
+                                AuditEntityType.FINANCIAL_TRANSACTION,
+                                financialTransaction.getId(),
+                                AuditAction.CANCEL,
+                                "Financial transaction canceled");
         }
 
-        if (request.type() == FinancialTransactionType.TRANSFER) {
-            return classifyAsTransfer(organizationId, financialTransaction, request);
+        private FinancialTransaction findFinancialTransactionById(
+                        UUID organizationId,
+                        UUID id) {
+                return repository.findByIdAndOrganizationId(id, organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("FinancialTransaction not found"));
         }
-
-        Category category = null;
 
-        if (request.type() != FinancialTransactionType.TRANSFER) {
-            if (request.categoryId() == null) {
-                throw new BusinessException("Category is required for income and expense transactions");
-            }
+        public FinancialTransactionResponse classify(
+                        UUID organizationId,
+                        UUID id,
+                        ClassifyFinancialTransactionRequest request) {
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
-            category = categoryRepository.findByIdAndOrganizationIdAndActiveTrue(request.categoryId(), organizationId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
-        }
+                FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
-        if (request.type() == FinancialTransactionType.TRANSFER && request.categoryId() != null) {
-            throw new BusinessException("Transfer transactions cannot have a category");
-        }
+                if (financialTransaction.getStatus() == FinancialTransactionStatus.CANCELED) {
+                        throw new BusinessException("Canceled transactions cannot be classified");
+                }
 
-        validateCategoryMatchesTransactionType(request.type(), category);
+                if (request.type() == FinancialTransactionType.TRANSFER) {
+                        return classifyAsTransfer(organizationId, financialTransaction, request);
+                }
 
-        financialTransaction.setType(request.type());
-        financialTransaction.setCategory(category);
-        financialTransaction.setDueDate(request.dueDate());
-        financialTransaction.setSettlementDate(request.settlementDate());
-        financialTransaction.setTransferDirection(null);
-        financialTransaction.setTransferGroupId(null);
-        financialTransaction.setTransferCounterpartyAccount(null);
+                Category category = null;
 
-        BigDecimal expectedAmount = Objects.requireNonNullElse(
-                request.expectedAmount(),
-                financialTransaction.getExpectedAmount());
+                if (request.type() != FinancialTransactionType.TRANSFER) {
+                        if (request.categoryId() == null) {
+                                throw new BusinessException("Category is required for income and expense transactions");
+                        }
 
-        financialTransaction.setExpectedAmount(expectedAmount);
+                        category = categoryRepository
+                                        .findByIdAndOrganizationIdAndActiveTrue(request.categoryId(), organizationId)
+                                        .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+                }
 
-        financialTransaction.setSettledAmount(
-                Objects.requireNonNullElse(request.settledAmount(), expectedAmount));
+                if (request.type() == FinancialTransactionType.TRANSFER && request.categoryId() != null) {
+                        throw new BusinessException("Transfer transactions cannot have a category");
+                }
 
-        if (request.description() != null) {
-            financialTransaction.setDescription(request.description());
-        }
+                validateCategoryMatchesTransactionType(request.type(), category);
 
-        financialTransaction.setDocumentNumber(request.documentNumber());
+                financialTransaction.setType(request.type());
+                financialTransaction.setCategory(category);
+                financialTransaction.setDueDate(request.dueDate());
+                financialTransaction.setSettlementDate(request.settlementDate());
+                financialTransaction.setTransferDirection(null);
+                financialTransaction.setTransferGroupId(null);
+                financialTransaction.setTransferCounterpartyAccount(null);
 
-        if (request.fiscalDocumentPolicy() != null) {
-            financialTransaction.setFiscalDocumentPolicy(request.fiscalDocumentPolicy());
-        }
+                BigDecimal expectedAmount = Objects.requireNonNullElse(
+                                request.expectedAmount(),
+                                financialTransaction.getExpectedAmount());
 
-        financialTransaction.setFiscalDocumentNote(request.fiscalDocumentNote());
+                financialTransaction.setExpectedAmount(expectedAmount);
 
-        normalizeTransactionStatusAndAmounts(financialTransaction);
+                financialTransaction.setSettledAmount(
+                                Objects.requireNonNullElse(request.settledAmount(), expectedAmount));
 
-        documentPolicyService.normalizeAndValidate(financialTransaction);
+                if (request.description() != null) {
+                        financialTransaction.setDescription(request.description());
+                }
 
-        Map<UUID, BigDecimal> oldImpactByFund = toImpactByFund(
-                financialTransaction.getAllocations());
+                financialTransaction.setDocumentNumber(request.documentNumber());
 
-        financialTransaction.getAllocations().clear();
+                if (request.fiscalDocumentPolicy() != null) {
+                        financialTransaction.setFiscalDocumentPolicy(request.fiscalDocumentPolicy());
+                }
 
-        addInitialAllocations(organizationId, financialTransaction, request.allocations());
+                financialTransaction.setFiscalDocumentNote(request.fiscalDocumentNote());
 
-        addDefaultFundAllocationIfNeeded(organizationId, financialTransaction);
+                normalizeTransactionStatusAndAmounts(financialTransaction);
 
-        validateTotalAllocatedAmount(financialTransaction);
+                documentPolicyService.normalizeAndValidate(financialTransaction);
 
-        validateFundNegativePolicy(
-                organizationId,
-                financialTransaction.getId(),
-                oldImpactByFund,
-                toImpactByFund(financialTransaction.getAllocations()));
+                Map<UUID, BigDecimal> oldImpactByFund = toImpactByFund(
+                                financialTransaction.getAllocations());
 
-        repository.save(financialTransaction);
+                financialTransaction.getAllocations().clear();
 
-        auditLogService.record(
-                organizationId,
-                AuditEntityType.FINANCIAL_TRANSACTION,
-                financialTransaction.getId(),
-                AuditAction.CLASSIFY,
-                "Financial transaction classified with category " + (category != null ? category.getId() : "<none>"));
+                addInitialAllocations(organizationId, financialTransaction, request.allocations());
 
-        return FinancialTransactionMapper.toResponse(financialTransaction);
-    }
+                addDefaultFundAllocationIfNeeded(organizationId, financialTransaction);
 
-    public TransactionAllocationResponse addAllocation(UUID organizationId, UUID id,
-            CreateTransactionAllocationRequest request) {
-        organizationAccessService.requireFinanceWriteAccess(organizationId);
+                validateTotalAllocatedAmount(financialTransaction);
 
-        FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
+                validateFundNegativePolicy(
+                                organizationId,
+                                financialTransaction.getId(),
+                                oldImpactByFund,
+                                toImpactByFund(financialTransaction.getAllocations()));
 
-        TransactionAllocation allocation = buildAllocation(
-                organizationId,
-                financialTransaction,
-                request);
+                repository.save(financialTransaction);
 
-        validateAllocationRules(allocation);
+                auditLogService.record(
+                                organizationId,
+                                AuditEntityType.FINANCIAL_TRANSACTION,
+                                financialTransaction.getId(),
+                                AuditAction.CLASSIFY,
+                                "Financial transaction classified with category "
+                                                + (category != null ? category.getId() : "<none>"));
 
-        validateFundNegativePolicy(
-                organizationId,
-                financialTransaction.getId(),
-                Map.of(),
-                singleImpact(allocation));
+                return FinancialTransactionMapper.toResponse(financialTransaction);
+        }
 
-        financialTransaction.addAllocation(allocation);
+        public TransactionAllocationResponse addAllocation(UUID organizationId, UUID id,
+                        CreateTransactionAllocationRequest request) {
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
-        TransactionAllocation savedAllocation = allocationRepository.saveAndFlush(allocation);
+                FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
-        auditLogService.record(
-                organizationId,
-                AuditEntityType.TRANSACTION_ALLOCATION,
-                savedAllocation.getId(),
-                AuditAction.ADD_ALLOCATION,
-                "Allocation added to transaction " + financialTransaction.getId());
+                TransactionAllocation allocation = buildAllocation(
+                                organizationId,
+                                financialTransaction,
+                                request);
 
-        return TransactionAllocationMapper.toResponse(savedAllocation);
-    }
+                validateAllocationRules(allocation);
 
-    public List<TransactionAllocationResponse> addAllocationsBatch(
-            UUID organizationId,
-            UUID id,
-            List<CreateTransactionAllocationRequest> requests) {
+                validateFundNegativePolicy(
+                                organizationId,
+                                financialTransaction.getId(),
+                                Map.of(),
+                                singleImpact(allocation));
 
-        organizationAccessService.requireFinanceWriteAccess(organizationId);
+                financialTransaction.addAllocation(allocation);
 
-        FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
+                TransactionAllocation savedAllocation = allocationRepository.saveAndFlush(allocation);
 
-        List<TransactionAllocation> allocations = requests.stream()
-                .map(request -> buildAllocation(
-                        organizationId,
-                        financialTransaction,
-                        request))
-                .toList();
+                auditLogService.record(
+                                organizationId,
+                                AuditEntityType.TRANSACTION_ALLOCATION,
+                                savedAllocation.getId(),
+                                AuditAction.ADD_ALLOCATION,
+                                "Allocation added to transaction " + financialTransaction.getId());
 
-        for (TransactionAllocation allocation : allocations) {
-            validateBasicAllocationRules(allocation);
-            financialTransaction.addAllocation(allocation);
+                return TransactionAllocationMapper.toResponse(savedAllocation);
         }
-
-        validateTotalAllocatedAmount(financialTransaction);
 
-        validateFundNegativePolicy(
-                organizationId,
-                financialTransaction.getId(),
-                Map.of(),
-                toImpactByFund(allocations));
+        public List<TransactionAllocationResponse> addAllocationsBatch(
+                        UUID organizationId,
+                        UUID id,
+                        List<CreateTransactionAllocationRequest> requests) {
 
-        List<TransactionAllocation> savedAllocations = allocationRepository.saveAllAndFlush(allocations);
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
-        for (TransactionAllocation allocation : savedAllocations) {
-            auditLogService.record(
-                    organizationId,
-                    AuditEntityType.TRANSACTION_ALLOCATION,
-                    allocation.getId(),
-                    AuditAction.ADD_ALLOCATION,
-                    "Allocation added through batch to transaction "
-                            + financialTransaction.getId());
-        }
+                FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
-        return savedAllocations.stream()
-                .map(TransactionAllocationMapper::toResponse)
-                .toList();
-    }
+                List<TransactionAllocation> allocations = requests.stream()
+                                .map(request -> buildAllocation(
+                                                organizationId,
+                                                financialTransaction,
+                                                request))
+                                .toList();
 
-    public TransactionAllocationResponse updateAllocation(UUID organizationId, UUID id, UUID allocationId,
-            UpdateTransactionAllocationRequest request) {
-        organizationAccessService.requireFinanceWriteAccess(organizationId);
+                for (TransactionAllocation allocation : allocations) {
+                        validateBasicAllocationRules(allocation);
+                        financialTransaction.addAllocation(allocation);
+                }
 
-        FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
+                validateTotalAllocatedAmount(financialTransaction);
 
-        TransactionAllocation allocation = financialTransaction.getAllocations().stream()
-                .filter(a -> a.getId().equals(allocationId))
-                .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("TransactionAllocation not found"));
+                validateFundNegativePolicy(
+                                organizationId,
+                                financialTransaction.getId(),
+                                Map.of(),
+                                toImpactByFund(allocations));
 
-        Map<UUID, BigDecimal> oldImpactByFund = singleImpact(allocation);
+                List<TransactionAllocation> savedAllocations = allocationRepository.saveAllAndFlush(allocations);
 
-        Fund fund = null;
-        if (request.fundId() != null) {
-            fund = fundRepository.findByIdAndOrganizationIdAndActiveTrue(request.fundId(), organizationId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Fund not found"));
-        }
+                for (TransactionAllocation allocation : savedAllocations) {
+                        auditLogService.record(
+                                        organizationId,
+                                        AuditEntityType.TRANSACTION_ALLOCATION,
+                                        allocation.getId(),
+                                        AuditAction.ADD_ALLOCATION,
+                                        "Allocation added through batch to transaction "
+                                                        + financialTransaction.getId());
+                }
 
-        Beneficiary beneficiary = null;
-        if (request.beneficiaryId() != null) {
-            beneficiary = beneficiaryRepository
-                    .findByIdAndOrganizationIdAndActiveTrue(request.beneficiaryId(), organizationId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Beneficiary not found"));
+                return savedAllocations.stream()
+                                .map(TransactionAllocationMapper::toResponse)
+                                .toList();
         }
 
-        TransactionAllocationMapper.updateEntity(allocation, request, fund, beneficiary);
+        public TransactionAllocationResponse updateAllocation(UUID organizationId, UUID id, UUID allocationId,
+                        UpdateTransactionAllocationRequest request) {
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
-        validateBasicAllocationRules(allocation);
-        validateTotalAllocatedAmount(financialTransaction);
+                FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
-        validateFundNegativePolicy(
-                organizationId,
-                financialTransaction.getId(),
-                oldImpactByFund,
-                singleImpact(allocation));
+                TransactionAllocation allocation = financialTransaction.getAllocations().stream()
+                                .filter(a -> a.getId().equals(allocationId))
+                                .findFirst()
+                                .orElseThrow(() -> new ResourceNotFoundException("TransactionAllocation not found"));
 
-        repository.save(financialTransaction);
+                Map<UUID, BigDecimal> oldImpactByFund = singleImpact(allocation);
 
-        auditLogService.record(
-                organizationId,
-                AuditEntityType.TRANSACTION_ALLOCATION,
-                allocation.getId(),
-                AuditAction.UPDATE_ALLOCATION,
-                "Allocation updated for transaction " + financialTransaction.getId());
+                Fund fund = null;
+                if (request.fundId() != null) {
+                        fund = fundRepository.findByIdAndOrganizationIdAndActiveTrue(request.fundId(), organizationId)
+                                        .orElseThrow(() -> new ResourceNotFoundException("Fund not found"));
+                }
 
-        return TransactionAllocationMapper.toResponse(allocation);
-    }
+                Beneficiary beneficiary = null;
+                if (request.beneficiaryId() != null) {
+                        beneficiary = beneficiaryRepository
+                                        .findByIdAndOrganizationIdAndActiveTrue(request.beneficiaryId(), organizationId)
+                                        .orElseThrow(() -> new ResourceNotFoundException("Beneficiary not found"));
+                }
 
-    public void removeAllocation(UUID organizationId, UUID id, UUID allocationId) {
-        organizationAccessService.requireFinanceWriteAccess(organizationId);
+                TransactionAllocationMapper.updateEntity(allocation, request, fund, beneficiary);
 
-        FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
+                validateBasicAllocationRules(allocation);
+                validateTotalAllocatedAmount(financialTransaction);
 
-        TransactionAllocation allocation = financialTransaction.getAllocations().stream()
-                .filter(a -> a.getId().equals(allocationId))
-                .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("TransactionAllocation not found"));
+                validateFundNegativePolicy(
+                                organizationId,
+                                financialTransaction.getId(),
+                                oldImpactByFund,
+                                singleImpact(allocation));
 
-        financialTransaction.removeAllocation(allocation);
+                repository.save(financialTransaction);
 
-        repository.save(financialTransaction);
+                auditLogService.record(
+                                organizationId,
+                                AuditEntityType.TRANSACTION_ALLOCATION,
+                                allocation.getId(),
+                                AuditAction.UPDATE_ALLOCATION,
+                                "Allocation updated for transaction " + financialTransaction.getId());
 
-        auditLogService.record(
-                organizationId,
-                AuditEntityType.TRANSACTION_ALLOCATION,
-                allocationId,
-                AuditAction.REMOVE_ALLOCATION,
-                "Allocation removed from transaction " + financialTransaction.getId());
-    }
+                return TransactionAllocationMapper.toResponse(allocation);
+        }
 
-    @Transactional(readOnly = true)
-    public List<TransactionAllocationResponse> findAllByTransaction(
-            UUID organizationId,
-            UUID transactionId) {
-        organizationAccessService.requireReadAccess(organizationId);
+        public void removeAllocation(UUID organizationId, UUID id, UUID allocationId) {
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
-        FinancialTransaction transaction = repository
-                .findByIdAndOrganizationId(transactionId, organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Financial transaction not found"));
+                FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
-        return transaction.getAllocations()
-                .stream()
-                .map(TransactionAllocationMapper::toResponse)
-                .toList();
-    }
+                TransactionAllocation allocation = financialTransaction.getAllocations().stream()
+                                .filter(a -> a.getId().equals(allocationId))
+                                .findFirst()
+                                .orElseThrow(() -> new ResourceNotFoundException("TransactionAllocation not found"));
 
-    @Transactional
-    public List<FinancialTransactionResponse> createAccountTransfer(
-            UUID organizationId,
-            CreateAccountTransferRequest request) {
+                financialTransaction.removeAllocation(allocation);
 
-        organizationAccessService.requireFinanceWriteAccess(organizationId);
+                repository.save(financialTransaction);
 
-        if (request.sourceAccountId().equals(request.destinationAccountId())) {
-            throw new BusinessException("Source and destination accounts must be different");
+                auditLogService.record(
+                                organizationId,
+                                AuditEntityType.TRANSACTION_ALLOCATION,
+                                allocationId,
+                                AuditAction.REMOVE_ALLOCATION,
+                                "Allocation removed from transaction " + financialTransaction.getId());
         }
 
-        Account sourceAccount = accountRepository
-                .findByIdAndOrganizationIdAndActiveTrue(request.sourceAccountId(), organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Source account not found"));
+        @Transactional(readOnly = true)
+        public List<TransactionAllocationResponse> findAllByTransaction(
+                        UUID organizationId,
+                        UUID transactionId) {
+                organizationAccessService.requireReadAccess(organizationId);
 
-        Account destinationAccount = accountRepository
-                .findByIdAndOrganizationIdAndActiveTrue(request.destinationAccountId(), organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Destination account not found"));
+                FinancialTransaction transaction = repository
+                                .findByIdAndOrganizationId(transactionId, organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Financial transaction not found"));
 
-        if (sourceAccount.getType() == AccountType.CREDIT_CARD
-                || destinationAccount.getType() == AccountType.CREDIT_CARD) {
-            throw new BusinessException("Credit card accounts cannot be used in account transfers");
+                return transaction.getAllocations()
+                                .stream()
+                                .map(TransactionAllocationMapper::toResponse)
+                                .toList();
         }
 
-        if (request.matchingTransactionId() != null) {
-            return createAndPairManualTransfer(
-                    organizationId,
-                    request,
-                    sourceAccount,
-                    destinationAccount);
-        }
+        @Transactional
+        public List<FinancialTransactionResponse> createAccountTransfer(
+                        UUID organizationId,
+                        CreateAccountTransferRequest request) {
 
-        UUID transferGroupId = UUID.randomUUID();
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
-        String description = request.description() != null && !request.description().isBlank()
-                ? request.description().trim()
-                : "Transferência entre contas";
+                if (request.sourceAccountId().equals(request.destinationAccountId())) {
+                        throw new BusinessException("Source and destination accounts must be different");
+                }
 
-        FinancialTransaction outTransaction = new FinancialTransaction();
+                Account sourceAccount = accountRepository
+                                .findByIdAndOrganizationIdAndActiveTrue(request.sourceAccountId(), organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Source account not found"));
 
-        outTransaction.setOrganization(sourceAccount.getOrganization());
-        outTransaction.setAccount(sourceAccount);
-        outTransaction.setType(FinancialTransactionType.TRANSFER);
-        outTransaction.setSource(FinancialTransactionSource.MANUAL);
-        outTransaction.setStatus(FinancialTransactionStatus.SETTLED);
-        outTransaction.setTransferDirection(TransferDirection.OUT);
-        outTransaction.setTransferGroupId(transferGroupId);
-        outTransaction.setTransferCounterpartyAccount(destinationAccount);
-        outTransaction.setCategory(null);
-        outTransaction.setDueDate(request.transferDate());
-        outTransaction.setSettlementDate(request.transferDate());
-        outTransaction.setExpectedAmount(request.amount());
-        outTransaction.setSettledAmount(request.amount());
-        outTransaction.setInterestAmount(BigDecimal.ZERO);
-        outTransaction.setDiscountAmount(BigDecimal.ZERO);
-        outTransaction.setDescription(description);
-        outTransaction.setRawDescription(description);
-        outTransaction.setClassifiedAt(null);
+                Account destinationAccount = accountRepository
+                                .findByIdAndOrganizationIdAndActiveTrue(request.destinationAccountId(), organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Destination account not found"));
 
-        FinancialTransaction inTransaction = new FinancialTransaction();
+                if (sourceAccount.getType() == AccountType.CREDIT_CARD
+                                || destinationAccount.getType() == AccountType.CREDIT_CARD) {
+                        throw new BusinessException("Credit card accounts cannot be used in account transfers");
+                }
 
-        inTransaction.setOrganization(sourceAccount.getOrganization());
-        inTransaction.setAccount(destinationAccount);
-        inTransaction.setType(FinancialTransactionType.TRANSFER);
-        inTransaction.setSource(FinancialTransactionSource.MANUAL);
-        inTransaction.setStatus(FinancialTransactionStatus.SETTLED);
-        inTransaction.setTransferDirection(TransferDirection.IN);
-        inTransaction.setTransferGroupId(transferGroupId);
-        inTransaction.setTransferCounterpartyAccount(sourceAccount);
-        inTransaction.setCategory(null);
-        inTransaction.setDueDate(request.transferDate());
-        inTransaction.setSettlementDate(request.transferDate());
-        inTransaction.setExpectedAmount(request.amount());
-        inTransaction.setSettledAmount(request.amount());
-        inTransaction.setInterestAmount(BigDecimal.ZERO);
-        inTransaction.setDiscountAmount(BigDecimal.ZERO);
-        inTransaction.setDescription(description);
-        inTransaction.setRawDescription(description);
-        inTransaction.setClassifiedAt(null);
+                if (request.matchingTransactionId() != null) {
+                        return createAndPairManualTransfer(
+                                        organizationId,
+                                        request,
+                                        sourceAccount,
+                                        destinationAccount);
+                }
 
-        FinancialTransaction savedOut = repository.save(outTransaction);
-        FinancialTransaction savedIn = repository.save(inTransaction);
+                if (!request.allowUnmatchedCreation()
+                                && hasCompatibleTransferMovement(
+                                                organizationId,
+                                                sourceAccount,
+                                                destinationAccount,
+                                                request.transferDate(),
+                                                request.amount())) {
+                        throw new BusinessException(
+                                        "Existe uma movimentação compatível em outra conta. "
+                                                        + "Vincule a movimentação ou confirme explicitamente "
+                                                        + "a criação sem correspondência.");
+                }
 
-        return List.of(
-                FinancialTransactionMapper.toResponse(savedOut),
-                FinancialTransactionMapper.toResponse(savedIn));
-    }
+                UUID transferGroupId = UUID.randomUUID();
 
-    @Transactional
-    public void cancelAccountTransfer(UUID organizationId, UUID transactionId) {
-        organizationAccessService.requireFinanceWriteAccess(organizationId);
+                String description = request.description() != null && !request.description().isBlank()
+                                ? request.description().trim()
+                                : "Transferência entre contas";
 
-        FinancialTransaction transaction = repository
-                .findByIdAndOrganizationId(transactionId, organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Financial transaction not found"));
+                FinancialTransaction outTransaction = new FinancialTransaction();
 
-        if (transaction.getType() != FinancialTransactionType.TRANSFER) {
-            throw new BusinessException("Transaction is not an account transfer");
-        }
+                outTransaction.setOrganization(sourceAccount.getOrganization());
+                outTransaction.setAccount(sourceAccount);
+                outTransaction.setType(FinancialTransactionType.TRANSFER);
+                outTransaction.setSource(FinancialTransactionSource.MANUAL);
+                outTransaction.setStatus(FinancialTransactionStatus.SETTLED);
+                outTransaction.setTransferDirection(TransferDirection.OUT);
+                outTransaction.setTransferGroupId(transferGroupId);
+                outTransaction.setTransferCounterpartyAccount(destinationAccount);
+                outTransaction.setCategory(null);
+                outTransaction.setDueDate(request.transferDate());
+                outTransaction.setSettlementDate(request.transferDate());
+                outTransaction.setExpectedAmount(request.amount());
+                outTransaction.setSettledAmount(request.amount());
+                outTransaction.setInterestAmount(BigDecimal.ZERO);
+                outTransaction.setDiscountAmount(BigDecimal.ZERO);
+                outTransaction.setDescription(description);
+                outTransaction.setRawDescription(description);
+                outTransaction.setClassifiedAt(null);
 
-        if (transaction.getTransferGroupId() == null) {
-            throw new BusinessException("Transfer group not found");
-        }
+                FinancialTransaction inTransaction = new FinancialTransaction();
 
-        List<FinancialTransaction> transferTransactions = repository.findAllByOrganizationIdAndTransferGroupId(
-                organizationId,
-                transaction.getTransferGroupId());
+                inTransaction.setOrganization(sourceAccount.getOrganization());
+                inTransaction.setAccount(destinationAccount);
+                inTransaction.setType(FinancialTransactionType.TRANSFER);
+                inTransaction.setSource(FinancialTransactionSource.MANUAL);
+                inTransaction.setStatus(FinancialTransactionStatus.SETTLED);
+                inTransaction.setTransferDirection(TransferDirection.IN);
+                inTransaction.setTransferGroupId(transferGroupId);
+                inTransaction.setTransferCounterpartyAccount(sourceAccount);
+                inTransaction.setCategory(null);
+                inTransaction.setDueDate(request.transferDate());
+                inTransaction.setSettlementDate(request.transferDate());
+                inTransaction.setExpectedAmount(request.amount());
+                inTransaction.setSettledAmount(request.amount());
+                inTransaction.setInterestAmount(BigDecimal.ZERO);
+                inTransaction.setDiscountAmount(BigDecimal.ZERO);
+                inTransaction.setDescription(description);
+                inTransaction.setRawDescription(description);
+                inTransaction.setClassifiedAt(null);
 
-        if (transferTransactions.isEmpty()) {
-            throw new BusinessException("No transactions found for this transfer group");
-        }
+                FinancialTransaction savedOut = repository.save(outTransaction);
+                FinancialTransaction savedIn = repository.save(inTransaction);
+
+                auditLogService.record(
+                                organizationId,
+                                AuditEntityType.FINANCIAL_TRANSACTION,
+                                savedOut.getId(),
+                                AuditAction.CREATE,
+                                "Manual account transfer side created. "
+                                                + "direction=OUT; "
+                                                + "transferGroupId="
+                                                + transferGroupId
+                                                + "; counterpartyTransactionId="
+                                                + savedIn.getId());
 
-        for (FinancialTransaction transferTransaction : transferTransactions) {
-            if (transferTransaction.getStatus() == FinancialTransactionStatus.CANCELED) {
-                continue;
-            }
+                auditLogService.record(
+                                organizationId,
+                                AuditEntityType.FINANCIAL_TRANSACTION,
+                                savedIn.getId(),
+                                AuditAction.CREATE,
+                                "Manual account transfer side created. "
+                                                + "direction=IN; "
+                                                + "transferGroupId="
+                                                + transferGroupId
+                                                + "; counterpartyTransactionId="
+                                                + savedOut.getId());
 
-            transferTransaction.setStatus(FinancialTransactionStatus.CANCELED);
+                return List.of(
+                                FinancialTransactionMapper.toResponse(savedOut),
+                                FinancialTransactionMapper.toResponse(savedIn));
         }
 
-        repository.saveAll(transferTransactions);
+        @Transactional
+        public void cancelAccountTransfer(UUID organizationId, UUID transactionId) {
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
-        auditLogService.record(
-                organizationId,
-                AuditEntityType.FINANCIAL_TRANSACTION,
-                transaction.getId(),
-                AuditAction.CANCEL,
-                "Account transfer canceled. transferGroupId=%s"
-                        .formatted(transaction.getTransferGroupId()));
-    }
+                FinancialTransaction transaction = repository
+                                .findByIdAndOrganizationId(transactionId, organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Financial transaction not found"));
 
-    @Transactional(readOnly = true)
-    public FinancialTransactionClassificationSuggestionResponse getClassificationSuggestion(
-            UUID organizationId,
-            UUID id) {
-        organizationAccessService.requireReadAccess(organizationId);
+                if (transaction.getType() != FinancialTransactionType.TRANSFER) {
+                        throw new BusinessException("Transaction is not an account transfer");
+                }
 
-        FinancialTransaction currentTransaction = findFinancialTransactionById(
-                organizationId,
-                id);
+                if (transaction.getTransferGroupId() == null) {
+                        throw new BusinessException("Transfer group not found");
+                }
 
-        if (currentTransaction.getStatus() == FinancialTransactionStatus.CANCELED) {
-            return FinancialTransactionClassificationSuggestionResponse.unavailable();
-        }
+                List<FinancialTransaction> transferTransactions = repository.findAllByOrganizationIdAndTransferGroupId(
+                                organizationId,
+                                transaction.getTransferGroupId());
 
-        if (currentTransaction.getCategory() != null) {
-            return FinancialTransactionClassificationSuggestionResponse.unavailable();
-        }
+                if (transferTransactions.isEmpty()) {
+                        throw new BusinessException("No transactions found for this transfer group");
+                }
 
-        String rawDescription = normalizeSuggestionText(
-                currentTransaction.getRawDescription());
+                List<FinancialTransaction> canceledTransactions = new ArrayList<>();
 
-        if (rawDescription == null) {
-            return FinancialTransactionClassificationSuggestionResponse.unavailable();
-        }
+                for (FinancialTransaction transferTransaction : transferTransactions) {
+                        if (transferTransaction.getStatus() == FinancialTransactionStatus.CANCELED) {
+                                continue;
+                        }
+
+                        transferTransaction.setStatus(
+                                        FinancialTransactionStatus.CANCELED);
+
+                        canceledTransactions.add(
+                                        transferTransaction);
+                }
 
-        List<FinancialTransaction> candidates = repository.findClassificationSuggestionCandidates(
-                organizationId,
-                currentTransaction.getId(),
-                rawDescription,
-                PageRequest.of(0, 1));
+                repository.saveAll(canceledTransactions);
 
-        System.out.println("=== CLASSIFICATION SUGGESTION DEBUG ===");
-        System.out.println("Current transaction id: " + currentTransaction.getId());
-        System.out.println("Current category: " + currentTransaction.getCategory());
-        System.out.println("Current rawDescription: [" + currentTransaction.getRawDescription() + "]");
-        System.out.println("Normalized rawDescription: [" + rawDescription + "]");
-        System.out.println("Candidates found: " + candidates.size());
+                for (FinancialTransaction canceledTransaction : canceledTransactions) {
+                        auditLogService.record(
+                                        organizationId,
+                                        AuditEntityType.FINANCIAL_TRANSACTION,
+                                        canceledTransaction.getId(),
+                                        AuditAction.CANCEL,
+                                        "Account transfer side canceled. "
+                                                        + "transferGroupId="
+                                                        + transaction.getTransferGroupId());
+                }
 
-        if (candidates.isEmpty()) {
-            return FinancialTransactionClassificationSuggestionResponse.unavailable();
+                repository.saveAll(transferTransactions);
+
+                auditLogService.record(
+                                organizationId,
+                                AuditEntityType.FINANCIAL_TRANSACTION,
+                                transaction.getId(),
+                                AuditAction.CANCEL,
+                                "Account transfer canceled. transferGroupId=%s"
+                                                .formatted(transaction.getTransferGroupId()));
         }
 
-        FinancialTransaction baseTransaction = candidates.get(0);
+        @Transactional(readOnly = true)
+        public FinancialTransactionClassificationSuggestionResponse getClassificationSuggestion(
+                        UUID organizationId,
+                        UUID id) {
+                organizationAccessService.requireReadAccess(organizationId);
 
-        BigDecimal currentAmount = getSuggestionAmount(currentTransaction);
+                FinancialTransaction currentTransaction = findFinancialTransactionById(
+                                organizationId,
+                                id);
 
-        List<ClassificationSuggestionAllocationResponse> suggestedAllocations = buildSuggestedAllocations(
-                baseTransaction, currentAmount);
+                if (currentTransaction.getStatus() == FinancialTransactionStatus.CANCELED) {
+                        return FinancialTransactionClassificationSuggestionResponse.unavailable();
+                }
 
-        return new FinancialTransactionClassificationSuggestionResponse(
-                true,
-                "HISTORY",
-                baseTransaction.getId(),
-                baseTransaction.getType(),
-                CategoryMapper.toSummary(baseTransaction.getCategory()),
-                baseTransaction.getDescription(),
-                suggestedAllocations);
-    }
+                if (currentTransaction.getCategory() != null) {
+                        return FinancialTransactionClassificationSuggestionResponse.unavailable();
+                }
 
-    @Transactional(readOnly = true)
-    public TransferMatchSuggestionResponse getTransferMatchSuggestion(
+                String rawDescription = normalizeSuggestionText(
+                                currentTransaction.getRawDescription());
 
-            UUID organizationId,
-            UUID transactionId) {
+                if (rawDescription == null) {
+                        return FinancialTransactionClassificationSuggestionResponse.unavailable();
+                }
 
-        organizationAccessService
-                .requireReadAccess(
-                        organizationId);
+                List<FinancialTransaction> candidates = repository.findClassificationSuggestionCandidates(
+                                organizationId,
+                                currentTransaction.getId(),
+                                rawDescription,
+                                PageRequest.of(0, 1));
 
-        FinancialTransaction current = findFinancialTransactionById(
-                organizationId,
-                transactionId);
+                if (candidates.isEmpty()) {
+                        return FinancialTransactionClassificationSuggestionResponse.unavailable();
+                }
 
-        if (!isEligibleForTransferMatching(current)) {
+                FinancialTransaction baseTransaction = candidates.get(0);
 
-            return TransferMatchSuggestionResponse
-                    .unavailable();
-        }
+                BigDecimal currentAmount = getSuggestionAmount(currentTransaction);
 
-        FinancialTransactionType oppositeType = current.getType() == FinancialTransactionType.EXPENSE
+                List<ClassificationSuggestionAllocationResponse> suggestedAllocations = buildSuggestedAllocations(
+                                baseTransaction, currentAmount);
 
-                ? FinancialTransactionType.INCOME
+                return new FinancialTransactionClassificationSuggestionResponse(
+                                true,
+                                "HISTORY",
+                                baseTransaction.getId(),
+                                baseTransaction.getType(),
+                                CategoryMapper.toSummary(baseTransaction.getCategory()),
+                                baseTransaction.getDescription(),
+                                suggestedAllocations);
+        }
 
-                : FinancialTransactionType.EXPENSE;
+        @Transactional(readOnly = true)
+        public TransferMatchSuggestionResponse getTransferMatchSuggestion(
 
-        TransferDirection suggestedDirection = current.getType() == FinancialTransactionType.EXPENSE
+                        UUID organizationId,
+                        UUID transactionId) {
 
-                ? TransferDirection.OUT
+                organizationAccessService
+                                .requireReadAccess(
+                                                organizationId);
 
-                : TransferDirection.IN;
+                FinancialTransaction current = findFinancialTransactionById(
+                                organizationId,
+                                transactionId);
 
-        BigDecimal amount = getSuggestionAmount(current);
+                if (!isEligibleForTransferMatching(current)) {
 
-        LocalDate currentDate = current.getSettlementDate();
+                        return TransferMatchSuggestionResponse
+                                        .unavailable();
+                }
 
-        List<TransferMatchCandidateResponse> candidates = repository
-                .findTransferMatchCandidates(
-                        organizationId,
-                        current.getId(),
-                        current.getAccount().getId(),
-                        oppositeType,
-                        amount,
-                        currentDate.minusDays(3),
-                        currentDate.plusDays(3))
-                .stream()
-                .sorted(Comparator.comparingLong(candidate -> Math.abs(
-                        ChronoUnit.DAYS.between(currentDate, candidate.getSettlementDate()))))
-                .limit(5)
-                .map(candidate -> new TransferMatchCandidateResponse(
+                FinancialTransactionType oppositeType = current.getType() == FinancialTransactionType.EXPENSE
 
-                        candidate.getId(),
+                                ? FinancialTransactionType.INCOME
 
-                        AccountMapper
-                                .toSummaryResponse(
-                                        candidate.getAccount()),
+                                : FinancialTransactionType.EXPENSE;
 
-                        candidate.getSettlementDate(),
+                TransferDirection suggestedDirection = current.getType() == FinancialTransactionType.EXPENSE
 
-                        getSuggestionAmount(
-                                candidate),
+                                ? TransferDirection.OUT
 
-                        resolveSuggestionDescription(
-                                candidate),
+                                : TransferDirection.IN;
 
-                        Math.abs(
-                                ChronoUnit.DAYS
-                                        .between(
-                                                currentDate,
-                                                candidate
-                                                        .getSettlementDate()))))
-                .toList();
+                BigDecimal amount = getSuggestionAmount(current);
 
-        return new TransferMatchSuggestionResponse(
-                !candidates.isEmpty(),
-                suggestedDirection,
-                candidates);
-    }
+                LocalDate currentDate = current.getSettlementDate();
 
-    public List<FinancialTransactionResponse> pairTransferTransactions(
+                List<TransferMatchCandidateResponse> candidates = repository
+                                .findTransferMatchCandidates(
+                                                organizationId,
+                                                current.getId(),
+                                                current.getAccount().getId(),
+                                                oppositeType,
+                                                amount,
+                                                currentDate.minusDays(3),
+                                                currentDate.plusDays(3))
+                                .stream()
+                                .sorted(Comparator.comparingLong(candidate -> Math.abs(
+                                                ChronoUnit.DAYS.between(currentDate, candidate.getSettlementDate()))))
+                                .limit(5)
+                                .map(candidate -> new TransferMatchCandidateResponse(
 
-            UUID organizationId,
+                                                candidate.getId(),
 
-            UUID transactionId,
+                                                AccountMapper
+                                                                .toSummaryResponse(
+                                                                                candidate.getAccount()),
 
-            UUID matchingTransactionId) {
+                                                candidate.getSettlementDate(),
 
-        organizationAccessService
-                .requireFinanceWriteAccess(
-                        organizationId);
+                                                getSuggestionAmount(
+                                                                candidate),
 
-        FinancialTransaction current = findFinancialTransactionById(
-                organizationId,
-                transactionId);
+                                                resolveSuggestionDescription(
+                                                                candidate),
 
-        FinancialTransaction matching = findFinancialTransactionById(
-                organizationId,
-                matchingTransactionId);
+                                                Math.abs(
+                                                                ChronoUnit.DAYS
+                                                                                .between(
+                                                                                                currentDate,
+                                                                                                candidate
+                                                                                                                .getSettlementDate()))))
+                                .toList();
 
-        validateTransferPair(
-                current,
-                matching);
+                return new TransferMatchSuggestionResponse(
+                                !candidates.isEmpty(),
+                                suggestedDirection,
+                                candidates);
+        }
 
-        TransferDirection currentDirection = current.getType() == FinancialTransactionType.EXPENSE
+        public List<FinancialTransactionResponse> pairTransferTransactions(
 
-                ? TransferDirection.OUT
+                        UUID organizationId,
 
-                : TransferDirection.IN;
+                        UUID transactionId,
 
-        TransferDirection matchingDirection = currentDirection == TransferDirection.OUT
+                        UUID matchingTransactionId) {
 
-                ? TransferDirection.IN
+                organizationAccessService
+                                .requireFinanceWriteAccess(
+                                                organizationId);
 
-                : TransferDirection.OUT;
+                FinancialTransaction current = findFinancialTransactionById(
+                                organizationId,
+                                transactionId);
 
-        UUID transferGroupId = UUID.randomUUID();
+                FinancialTransaction matching = findFinancialTransactionById(
+                                organizationId,
+                                matchingTransactionId);
 
-        prepareTransferSide(
+                validateTransferPair(
+                                current,
+                                matching);
 
-                current,
+                TransferDirection currentDirection = current.getType() == FinancialTransactionType.EXPENSE
 
-                currentDirection,
+                                ? TransferDirection.OUT
 
-                matching.getAccount(),
+                                : TransferDirection.IN;
 
-                transferGroupId);
+                TransferDirection matchingDirection = currentDirection == TransferDirection.OUT
 
-        prepareTransferSide(
+                                ? TransferDirection.IN
 
-                matching,
+                                : TransferDirection.OUT;
 
-                matchingDirection,
+                UUID transferGroupId = UUID.randomUUID();
 
-                current.getAccount(),
+                prepareTransferSide(
 
-                transferGroupId);
+                                current,
 
-        List<FinancialTransaction> saved = repository.saveAll(
-                List.of(
-                        current,
-                        matching));
+                                currentDirection,
 
-        auditLogService.record(
+                                matching.getAccount(),
 
-                organizationId,
+                                transferGroupId);
 
-                AuditEntityType.FINANCIAL_TRANSACTION,
+                prepareTransferSide(
 
-                current.getId(),
+                                matching,
 
-                AuditAction.CLASSIFY,
+                                matchingDirection,
 
-                "Matched account transfer with transaction "
-                        + matching.getId());
+                                current.getAccount(),
 
-        auditLogService.record(
+                                transferGroupId);
 
-                organizationId,
+                List<FinancialTransaction> saved = repository.saveAll(
+                                List.of(
+                                                current,
+                                                matching));
 
-                AuditEntityType.FINANCIAL_TRANSACTION,
+                auditLogService.record(
 
-                matching.getId(),
+                                organizationId,
 
-                AuditAction.CLASSIFY,
+                                AuditEntityType.FINANCIAL_TRANSACTION,
 
-                "Matched account transfer with transaction "
-                        + current.getId());
+                                current.getId(),
 
-        return saved.stream()
-                .map(
-                        FinancialTransactionMapper::toResponse)
-                .toList();
-    }
+                                AuditAction.CLASSIFY,
 
-    @Transactional(readOnly = true)
-    public TransferMatchSuggestionResponse getDraftTransferMatchSuggestion(
-            UUID organizationId,
-            UUID accountId,
-            TransferDirection direction,
-            LocalDate transferDate,
-            BigDecimal amount) {
+                                "Matched account transfer with transaction "
+                                                + matching.getId());
 
-        organizationAccessService
-                .requireReadAccess(
-                        organizationId);
+                auditLogService.record(
 
-        Account account = accountRepository
-                .findByIdAndOrganizationIdAndActiveTrue(
-                        accountId,
-                        organizationId)
+                                organizationId,
 
-                .orElseThrow(
-                        () -> new ResourceNotFoundException(
-                                "Account not found"));
+                                AuditEntityType.FINANCIAL_TRANSACTION,
 
-        if (account.getType() == AccountType.CREDIT_CARD) {
+                                matching.getId(),
 
-            throw new BusinessException(
-                    "Credit card accounts cannot be used in account transfers");
-        }
+                                AuditAction.CLASSIFY,
 
-        if (amount == null
-                || amount.compareTo(BigDecimal.ZERO) <= 0) {
+                                "Matched account transfer with transaction "
+                                                + current.getId());
 
-            return TransferMatchSuggestionResponse
-                    .unavailable();
+                return saved.stream()
+                                .map(
+                                                FinancialTransactionMapper::toResponse)
+                                .toList();
         }
 
-        FinancialTransactionType oppositeType = direction == TransferDirection.OUT
-                ? FinancialTransactionType.INCOME
-                : FinancialTransactionType.EXPENSE;
+        @Transactional(readOnly = true)
+        public TransferMatchSuggestionResponse getDraftTransferMatchSuggestion(
+                        UUID organizationId,
+                        UUID accountId,
+                        TransferDirection direction,
+                        LocalDate transferDate,
+                        BigDecimal amount) {
 
-        List<TransferMatchCandidateResponse> candidates = repository
-                .findDraftTransferMatchCandidates(
-                        organizationId,
-                        accountId,
-                        oppositeType,
-                        amount.abs(),
-                        transferDate.minusDays(3),
-                        transferDate.plusDays(3))
-                .stream()
-                .sorted(Comparator.comparingLong(
-                        candidate -> Math.abs(
-                                ChronoUnit.DAYS.between(transferDate, candidate.getSettlementDate()))))
-                .limit(5)
-                .map(candidate -> new TransferMatchCandidateResponse(
-                        candidate.getId(),
-                        AccountMapper.toSummaryResponse(candidate.getAccount()),
-                        candidate.getSettlementDate(),
-                        getSuggestionAmount(candidate),
-                        resolveSuggestionDescription(candidate),
-                        Math.abs(ChronoUnit.DAYS.between(transferDate, candidate.getSettlementDate()))))
-                .toList();
+                organizationAccessService
+                                .requireReadAccess(
+                                                organizationId);
 
-        return new TransferMatchSuggestionResponse(
-                !candidates.isEmpty(),
-                direction,
-                candidates);
-    }
+                Account account = accountRepository
+                                .findByIdAndOrganizationIdAndActiveTrue(
+                                                accountId,
+                                                organizationId)
 
-    private TransactionAllocation buildAllocation(
-            UUID organizationId,
-            FinancialTransaction financialTransaction,
-            CreateTransactionAllocationRequest request) {
+                                .orElseThrow(
+                                                () -> new ResourceNotFoundException(
+                                                                "Account not found"));
 
-        Fund fund = fundRepository
-                .findByIdAndOrganizationIdAndActiveTrue(request.fundId(), organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Fund not found"));
+                if (account.getType() == AccountType.CREDIT_CARD) {
 
-        Beneficiary beneficiary = null;
+                        throw new BusinessException(
+                                        "Credit card accounts cannot be used in account transfers");
+                }
 
-        if (request.beneficiaryId() != null) {
-            beneficiary = beneficiaryRepository
-                    .findByIdAndOrganizationIdAndActiveTrue(request.beneficiaryId(), organizationId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Beneficiary not found"));
-        }
+                if (amount == null
+                                || amount.compareTo(BigDecimal.ZERO) <= 0) {
 
-        return TransactionAllocationMapper.createEntity(request, financialTransaction, fund, beneficiary);
-    }
+                        return TransferMatchSuggestionResponse
+                                        .unavailable();
+                }
 
-    private void addInitialAllocations(
-            UUID organizationId,
-            FinancialTransaction financialTransaction,
-            List<CreateTransactionAllocationRequest> allocations) {
+                FinancialTransactionType oppositeType = direction == TransferDirection.OUT
+                                ? FinancialTransactionType.INCOME
+                                : FinancialTransactionType.EXPENSE;
 
-        if (allocations == null || allocations.isEmpty()) {
-            return;
-        }
+                List<TransferMatchCandidateResponse> candidates = repository
+                                .findDraftTransferMatchCandidates(
+                                                organizationId,
+                                                accountId,
+                                                oppositeType,
+                                                amount.abs(),
+                                                transferDate.minusDays(3),
+                                                transferDate.plusDays(3))
+                                .stream()
+                                .sorted(Comparator.comparingLong(
+                                                candidate -> Math.abs(
+                                                                ChronoUnit.DAYS.between(transferDate,
+                                                                                candidate.getSettlementDate()))))
+                                .limit(5)
+                                .map(candidate -> new TransferMatchCandidateResponse(
+                                                candidate.getId(),
+                                                AccountMapper.toSummaryResponse(candidate.getAccount()),
+                                                candidate.getSettlementDate(),
+                                                getSuggestionAmount(candidate),
+                                                resolveSuggestionDescription(candidate),
+                                                Math.abs(ChronoUnit.DAYS.between(transferDate,
+                                                                candidate.getSettlementDate()))))
+                                .toList();
 
-        for (CreateTransactionAllocationRequest allocationRequest : allocations) {
-            TransactionAllocation allocation = buildAllocation(
-                    organizationId,
-                    financialTransaction,
-                    allocationRequest);
+                return new TransferMatchSuggestionResponse(
+                                !candidates.isEmpty(),
+                                direction,
+                                candidates);
+        }
 
-            validateBasicAllocationRules(allocation);
+        private TransactionAllocation buildAllocation(
+                        UUID organizationId,
+                        FinancialTransaction financialTransaction,
+                        CreateTransactionAllocationRequest request) {
 
-            financialTransaction.addAllocation(allocation);
-        }
-    }
+                Fund fund = fundRepository
+                                .findByIdAndOrganizationIdAndActiveTrue(request.fundId(), organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Fund not found"));
 
-    private void normalizeTransactionStatusAndAmounts(FinancialTransaction transaction) {
+                Beneficiary beneficiary = null;
 
-        if (transaction.getCategory() != null && transaction.getClassifiedAt() == null) {
-            transaction.setClassifiedAt(LocalDateTime.now());
-        }
+                if (request.beneficiaryId() != null) {
+                        beneficiary = beneficiaryRepository
+                                        .findByIdAndOrganizationIdAndActiveTrue(request.beneficiaryId(), organizationId)
+                                        .orElseThrow(() -> new ResourceNotFoundException("Beneficiary not found"));
+                }
 
-        if (transaction.getSettlementDate() == null) {
-            transaction.setStatus(FinancialTransactionStatus.PENDING);
-            transaction.setSettledAmount(null);
-            transaction.setInterestAmount(BigDecimal.ZERO);
-            transaction.setDiscountAmount(BigDecimal.ZERO);
-            return;
+                return TransactionAllocationMapper.createEntity(request, financialTransaction, fund, beneficiary);
         }
 
-        transaction.setStatus(FinancialTransactionStatus.SETTLED);
+        private void addInitialAllocations(
+                        UUID organizationId,
+                        FinancialTransaction financialTransaction,
+                        List<CreateTransactionAllocationRequest> allocations) {
 
-        BigDecimal settled = Objects.requireNonNullElse(
-                transaction.getSettledAmount(),
-                transaction.getExpectedAmount());
+                if (allocations == null || allocations.isEmpty()) {
+                        return;
+                }
 
-        transaction.setSettledAmount(settled);
+                for (CreateTransactionAllocationRequest allocationRequest : allocations) {
+                        TransactionAllocation allocation = buildAllocation(
+                                        organizationId,
+                                        financialTransaction,
+                                        allocationRequest);
 
-        BigDecimal difference = settled.subtract(transaction.getExpectedAmount());
+                        validateBasicAllocationRules(allocation);
 
-        if (difference.compareTo(BigDecimal.ZERO) > 0) {
-            transaction.setInterestAmount(difference);
-            transaction.setDiscountAmount(BigDecimal.ZERO);
-        } else if (difference.compareTo(BigDecimal.ZERO) < 0) {
-            transaction.setDiscountAmount(difference.abs());
-            transaction.setInterestAmount(BigDecimal.ZERO);
-        } else {
-            transaction.setInterestAmount(BigDecimal.ZERO);
-            transaction.setDiscountAmount(BigDecimal.ZERO);
+                        financialTransaction.addAllocation(allocation);
+                }
         }
-    }
 
-    private void validateAllocationRules(TransactionAllocation allocation) {
+        private void normalizeTransactionStatusAndAmounts(FinancialTransaction transaction) {
 
-        if (allocation.getFinancialTransaction().getType() == FinancialTransactionType.TRANSFER) {
-            throw new BusinessException(
-                    "Transfer transactions cannot have allocations");
-        }
+                if (transaction.getCategory() != null && transaction.getClassifiedAt() == null) {
+                        transaction.setClassifiedAt(LocalDateTime.now());
+                }
 
-        if (allocation.getAmount().abs().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BusinessException("Amount must be greater than zero");
-        }
+                if (transaction.getSettlementDate() == null) {
+                        transaction.setStatus(FinancialTransactionStatus.PENDING);
+                        transaction.setSettledAmount(null);
+                        transaction.setInterestAmount(BigDecimal.ZERO);
+                        transaction.setDiscountAmount(BigDecimal.ZERO);
+                        return;
+                }
 
-        BigDecimal allocatedAmount = allocationRepository.sumAmountByFinancialTransactionId(
-                allocation.getFinancialTransaction().getId());
+                transaction.setStatus(FinancialTransactionStatus.SETTLED);
 
-        BigDecimal newTotal = allocatedAmount.add(allocation.getAmount().abs());
+                BigDecimal settled = Objects.requireNonNullElse(
+                                transaction.getSettledAmount(),
+                                transaction.getExpectedAmount());
 
-        if (allocation.getFinancialTransaction().getStatus() != FinancialTransactionStatus.SETTLED) {
-            throw new BusinessException(
-                    "Only settled transactions can receive allocations");
-        }
+                transaction.setSettledAmount(settled);
 
-        if (newTotal.compareTo(
-                allocation.getFinancialTransaction().getSettledAmount().abs()) > 0) {
+                BigDecimal difference = settled.subtract(transaction.getExpectedAmount());
 
-            throw new BusinessException(
-                    "Allocated amount exceeds transaction amount");
+                if (difference.compareTo(BigDecimal.ZERO) > 0) {
+                        transaction.setInterestAmount(difference);
+                        transaction.setDiscountAmount(BigDecimal.ZERO);
+                } else if (difference.compareTo(BigDecimal.ZERO) < 0) {
+                        transaction.setDiscountAmount(difference.abs());
+                        transaction.setInterestAmount(BigDecimal.ZERO);
+                } else {
+                        transaction.setInterestAmount(BigDecimal.ZERO);
+                        transaction.setDiscountAmount(BigDecimal.ZERO);
+                }
         }
-    }
 
-    private void validateBasicAllocationRules(TransactionAllocation allocation) {
+        private void validateAllocationRules(TransactionAllocation allocation) {
 
-        if (allocation.getFinancialTransaction().getType() == FinancialTransactionType.TRANSFER) {
-            throw new BusinessException("Transfer transactions cannot have allocations");
-        }
+                if (allocation.getFinancialTransaction().getType() == FinancialTransactionType.TRANSFER) {
+                        throw new BusinessException(
+                                        "Transfer transactions cannot have allocations");
+                }
 
-        if (allocation.getAmount().abs().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BusinessException("Amount must be greater than zero");
-        }
+                if (allocation.getAmount().abs().compareTo(BigDecimal.ZERO) <= 0) {
+                        throw new BusinessException("Amount must be greater than zero");
+                }
 
-        if (allocation.getFinancialTransaction().getStatus() != FinancialTransactionStatus.SETTLED) {
-            throw new BusinessException("Only settled transactions can receive allocations");
-        }
-    }
+                BigDecimal allocatedAmount = allocationRepository.sumAmountByFinancialTransactionId(
+                                allocation.getFinancialTransaction().getId());
 
-    private void validateTotalAllocatedAmount(FinancialTransaction transaction) {
+                BigDecimal newTotal = allocatedAmount.add(allocation.getAmount().abs());
 
-        if (transaction.getAllocations() == null || transaction.getAllocations().isEmpty()) {
-            return;
-        }
+                if (allocation.getFinancialTransaction().getStatus() != FinancialTransactionStatus.SETTLED) {
+                        throw new BusinessException(
+                                        "Only settled transactions can receive allocations");
+                }
 
-        if (transaction.getStatus() != FinancialTransactionStatus.SETTLED) {
-            throw new BusinessException("Only settled transactions can have allocations");
-        }
+                if (newTotal.compareTo(
+                                allocation.getFinancialTransaction().getSettledAmount().abs()) > 0) {
 
-        BigDecimal totalAllocated = transaction.getAllocations().stream()
-                .map(TransactionAllocation::getAmount)
-                .map(BigDecimal::abs)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                        throw new BusinessException(
+                                        "Allocated amount exceeds transaction amount");
+                }
+        }
 
-        BigDecimal transactionAmount = transaction.getSettledAmount().abs();
+        private void validateBasicAllocationRules(TransactionAllocation allocation) {
 
-        if (totalAllocated.compareTo(transactionAmount) > 0) {
-            throw new BusinessException("Allocated amount exceeds transaction amount");
-        }
-    }
+                if (allocation.getFinancialTransaction().getType() == FinancialTransactionType.TRANSFER) {
+                        throw new BusinessException("Transfer transactions cannot have allocations");
+                }
 
-    private void validateCategoryMatchesTransactionType(
-            FinancialTransactionType transactionType,
-            Category category) {
+                if (allocation.getAmount().abs().compareTo(BigDecimal.ZERO) <= 0) {
+                        throw new BusinessException("Amount must be greater than zero");
+                }
 
-        if (category == null) {
-            return;
+                if (allocation.getFinancialTransaction().getStatus() != FinancialTransactionStatus.SETTLED) {
+                        throw new BusinessException("Only settled transactions can receive allocations");
+                }
         }
 
-        if (transactionType == FinancialTransactionType.TRANSFER) {
-            throw new BusinessException("Transfer transactions cannot have category");
-        }
+        private void validateTotalAllocatedAmount(FinancialTransaction transaction) {
 
-        if (category.getType().name().equals(transactionType.name())) {
-            return;
-        }
+                if (transaction.getAllocations() == null || transaction.getAllocations().isEmpty()) {
+                        return;
+                }
 
-        throw new BusinessException("Category type must match transaction type");
-    }
+                if (transaction.getStatus() != FinancialTransactionStatus.SETTLED) {
+                        throw new BusinessException("Only settled transactions can have allocations");
+                }
 
-    private void validateTypeChangeAllowed(
-            FinancialTransaction transaction,
-            FinancialTransactionType newType) {
+                BigDecimal totalAllocated = transaction.getAllocations().stream()
+                                .map(TransactionAllocation::getAmount)
+                                .map(BigDecimal::abs)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        if (newType == transaction.getType()) {
-            return;
-        }
+                BigDecimal transactionAmount = transaction.getSettledAmount().abs();
 
-        if (transaction.getAllocations() != null && !transaction.getAllocations().isEmpty()) {
-            throw new BusinessException("Transaction type cannot be changed when allocations exist");
+                if (totalAllocated.compareTo(transactionAmount) > 0) {
+                        throw new BusinessException("Allocated amount exceeds transaction amount");
+                }
         }
-    }
 
-    private void validateSettlementRemovalAllowed(
-            FinancialTransaction transaction,
-            UpdateFinancialTransactionRequest request) {
+        private void validateCategoryMatchesTransactionType(
+                        FinancialTransactionType transactionType,
+                        Category category) {
 
-        boolean isSettled = transaction.getStatus() == FinancialTransactionStatus.SETTLED;
+                if (category == null) {
+                        return;
+                }
 
-        boolean isRemovingSettlement = request.settlementDate() == null
-                && request.settledAmount() == null;
+                if (transactionType == FinancialTransactionType.TRANSFER) {
+                        throw new BusinessException("Transfer transactions cannot have category");
+                }
 
-        boolean hasAllocations = transaction.getAllocations() != null
-                && !transaction.getAllocations().isEmpty();
+                if (category.getType().name().equals(transactionType.name())) {
+                        return;
+                }
 
-        if (isSettled && isRemovingSettlement && hasAllocations) {
-            throw new BusinessException(
-                    "Cannot remove settlement from a transaction that has allocations");
+                throw new BusinessException("Category type must match transaction type");
         }
-    }
 
-    private void addDefaultFundAllocationIfNeeded(
-            UUID organizationId,
-            FinancialTransaction financialTransaction) {
-        if (financialTransaction.getType() == FinancialTransactionType.TRANSFER) {
-            return;
-        }
+        private void validateTypeChangeAllowed(
+                        FinancialTransaction transaction,
+                        FinancialTransactionType newType) {
 
-        if (financialTransaction.getStatus() != FinancialTransactionStatus.SETTLED) {
-            return;
-        }
+                if (newType == transaction.getType()) {
+                        return;
+                }
 
-        if (financialTransaction.getCategory() == null) {
-            return;
+                if (transaction.getAllocations() != null && !transaction.getAllocations().isEmpty()) {
+                        throw new BusinessException("Transaction type cannot be changed when allocations exist");
+                }
         }
 
-        if (financialTransaction.getSettledAmount() == null) {
-            return;
-        }
+        private void validateSettlementRemovalAllowed(
+                        FinancialTransaction transaction,
+                        UpdateFinancialTransactionRequest request) {
 
-        if (financialTransaction.getAllocations() != null
-                && !financialTransaction.getAllocations().isEmpty()) {
-            return;
-        }
+                boolean isSettled = transaction.getStatus() == FinancialTransactionStatus.SETTLED;
+
+                boolean isRemovingSettlement = request.settlementDate() == null
+                                && request.settledAmount() == null;
 
-        Fund defaultFund = organizationSettingsRepository.findByOrganizationId(organizationId)
-                .map(settings -> settings.getDefaultFund())
-                .orElse(null);
+                boolean hasAllocations = transaction.getAllocations() != null
+                                && !transaction.getAllocations().isEmpty();
 
-        if (defaultFund == null) {
-            return;
+                if (isSettled && isRemovingSettlement && hasAllocations) {
+                        throw new BusinessException(
+                                        "Cannot remove settlement from a transaction that has allocations");
+                }
         }
 
-        CreateTransactionAllocationRequest allocationRequest = new CreateTransactionAllocationRequest(
-                defaultFund.getId(),
-                null,
-                financialTransaction.getSettledAmount().abs(),
-                financialTransaction.getSettlementDate().withDayOfMonth(1));
+        private void addDefaultFundAllocationIfNeeded(
+                        UUID organizationId,
+                        FinancialTransaction financialTransaction) {
+                if (financialTransaction.getType() == FinancialTransactionType.TRANSFER) {
+                        return;
+                }
 
-        TransactionAllocation allocation = buildAllocation(
-                organizationId,
-                financialTransaction,
-                allocationRequest);
+                if (financialTransaction.getStatus() != FinancialTransactionStatus.SETTLED) {
+                        return;
+                }
 
-        validateBasicAllocationRules(allocation);
+                if (financialTransaction.getCategory() == null) {
+                        return;
+                }
 
-        financialTransaction.addAllocation(allocation);
-    }
+                if (financialTransaction.getSettledAmount() == null) {
+                        return;
+                }
 
-    private OrganizationSettings getOrganizationSettings(UUID organizationId) {
-        return organizationSettingsRepository.findByOrganizationId(organizationId)
-                .orElse(null);
-    }
+                if (financialTransaction.getAllocations() != null
+                                && !financialTransaction.getAllocations().isEmpty()) {
+                        return;
+                }
 
-    private void validateFundNegativePolicy(
-            UUID organizationId,
-            UUID currentTransactionId,
-            Map<UUID, BigDecimal> oldImpactByFund,
-            Map<UUID, BigDecimal> newImpactByFund) {
+                Fund defaultFund = organizationSettingsRepository.findByOrganizationId(organizationId)
+                                .map(settings -> settings.getDefaultFund())
+                                .orElse(null);
 
-        OrganizationSettings settings = getOrganizationSettings(organizationId);
+                if (defaultFund == null) {
+                        return;
+                }
 
-        if (settings == null || settings.isAllowNegativeFunds()) {
-            return;
-        }
+                CreateTransactionAllocationRequest allocationRequest = new CreateTransactionAllocationRequest(
+                                defaultFund.getId(),
+                                null,
+                                financialTransaction.getSettledAmount().abs(),
+                                financialTransaction.getSettlementDate().withDayOfMonth(1));
 
-        Map<UUID, BigDecimal> allImpactedFunds = new HashMap<>();
+                TransactionAllocation allocation = buildAllocation(
+                                organizationId,
+                                financialTransaction,
+                                allocationRequest);
 
-        oldImpactByFund.forEach((fundId, amount) -> allImpactedFunds.merge(fundId, BigDecimal.ZERO, BigDecimal::add));
+                validateBasicAllocationRules(allocation);
 
-        newImpactByFund.forEach((fundId, amount) -> allImpactedFunds.merge(fundId, BigDecimal.ZERO, BigDecimal::add));
+                financialTransaction.addAllocation(allocation);
+        }
 
-        for (UUID fundId : allImpactedFunds.keySet()) {
-            Fund fund = fundRepository
-                    .findByIdAndOrganizationIdAndActiveTrue(fundId, organizationId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Fund not found"));
+        private OrganizationSettings getOrganizationSettings(UUID organizationId) {
+                return organizationSettingsRepository.findByOrganizationId(organizationId)
+                                .orElse(null);
+        }
 
-            BigDecimal currentBalance = calculateCurrentFundBalance(
-                    organizationId,
-                    fund,
-                    currentTransactionId);
+        private void validateFundNegativePolicy(
+                        UUID organizationId,
+                        UUID currentTransactionId,
+                        Map<UUID, BigDecimal> oldImpactByFund,
+                        Map<UUID, BigDecimal> newImpactByFund) {
 
-            BigDecimal newImpact = newImpactByFund.getOrDefault(
-                    fundId,
-                    BigDecimal.ZERO);
+                OrganizationSettings settings = getOrganizationSettings(organizationId);
 
-            BigDecimal projectedBalance = currentBalance.add(newImpact);
+                if (settings == null || settings.isAllowNegativeFunds()) {
+                        return;
+                }
 
-            boolean fundWasAlreadyNegative = currentBalance.compareTo(BigDecimal.ZERO) < 0;
+                Map<UUID, BigDecimal> allImpactedFunds = new HashMap<>();
 
-            boolean projectedIsNegative = projectedBalance.compareTo(BigDecimal.ZERO) < 0;
+                oldImpactByFund.forEach(
+                                (fundId, amount) -> allImpactedFunds.merge(fundId, BigDecimal.ZERO, BigDecimal::add));
 
-            boolean gotWorse = projectedBalance.compareTo(currentBalance) < 0;
+                newImpactByFund.forEach(
+                                (fundId, amount) -> allImpactedFunds.merge(fundId, BigDecimal.ZERO, BigDecimal::add));
 
-            if (!fundWasAlreadyNegative && projectedIsNegative) {
-                throw new BusinessException(
-                        "A alocação deixaria o fundo '" + fund.getName() + "' negativo.");
-            }
+                for (UUID fundId : allImpactedFunds.keySet()) {
+                        Fund fund = fundRepository
+                                        .findByIdAndOrganizationIdAndActiveTrue(fundId, organizationId)
+                                        .orElseThrow(() -> new ResourceNotFoundException("Fund not found"));
 
-            if (fundWasAlreadyNegative && gotWorse) {
-                throw new BusinessException(
-                        "O fundo '" + fund.getName() + "' já está negativo e esta operação pioraria o saldo.");
-            }
-        }
-    }
+                        BigDecimal currentBalance = calculateCurrentFundBalance(
+                                        organizationId,
+                                        fund,
+                                        currentTransactionId);
 
-    private Map<UUID, BigDecimal> toImpactByFund(List<TransactionAllocation> allocations) {
-        if (allocations == null || allocations.isEmpty()) {
-            return Map.of();
-        }
+                        BigDecimal newImpact = newImpactByFund.getOrDefault(
+                                        fundId,
+                                        BigDecimal.ZERO);
 
-        return allocations.stream()
-                .collect(Collectors.groupingBy(
-                        allocation -> allocation.getFund().getId(),
-                        Collectors.mapping(
-                                TransactionAllocation::getAmount,
-                                Collectors.reducing(BigDecimal.ZERO, BigDecimal::add))));
-    }
+                        BigDecimal projectedBalance = currentBalance.add(newImpact);
 
-    private Map<UUID, BigDecimal> singleImpact(TransactionAllocation allocation) {
-        return Map.of(
-                allocation.getFund().getId(),
-                allocation.getAmount());
-    }
+                        boolean fundWasAlreadyNegative = currentBalance.compareTo(BigDecimal.ZERO) < 0;
 
-    private BigDecimal calculateCurrentFundBalance(
-            UUID organizationId,
-            Fund fund,
-            UUID excludedTransactionId) {
+                        boolean projectedIsNegative = projectedBalance.compareTo(BigDecimal.ZERO) < 0;
 
-        BigDecimal allocationsSum = excludedTransactionId != null
-                ? allocationRepository.sumAmountByFundIdExcludingTransaction(
-                        organizationId,
-                        fund.getId(),
-                        excludedTransactionId)
-                : allocationRepository.sumAmountByFundId(
-                        organizationId,
-                        fund.getId());
+                        boolean gotWorse = projectedBalance.compareTo(currentBalance) < 0;
 
-        BigDecimal transferSum = fundTransferRepository.sumNetAmountByFundId(
-                organizationId,
-                fund.getId());
+                        if (!fundWasAlreadyNegative && projectedIsNegative) {
+                                throw new BusinessException(
+                                                "A alocação deixaria o fundo '" + fund.getName() + "' negativo.");
+                        }
 
-        return fund.getInitialBalance()
-                .add(allocationsSum)
-                .add(transferSum);
-    }
+                        if (fundWasAlreadyNegative && gotWorse) {
+                                throw new BusinessException(
+                                                "O fundo '" + fund.getName()
+                                                                + "' já está negativo e esta operação pioraria o saldo.");
+                        }
+                }
+        }
 
-    private FinancialTransactionResponse classifyAsTransfer(
-            UUID organizationId,
-            FinancialTransaction financialTransaction,
-            ClassifyFinancialTransactionRequest request) {
+        private Map<UUID, BigDecimal> toImpactByFund(List<TransactionAllocation> allocations) {
+                if (allocations == null || allocations.isEmpty()) {
+                        return Map.of();
+                }
 
-        if (request.transferDirection() == null) {
-            throw new BusinessException("Transfer direction is required");
+                return allocations.stream()
+                                .collect(Collectors.groupingBy(
+                                                allocation -> allocation.getFund().getId(),
+                                                Collectors.mapping(
+                                                                TransactionAllocation::getAmount,
+                                                                Collectors.reducing(BigDecimal.ZERO,
+                                                                                BigDecimal::add))));
         }
 
-        if (request.transferCounterpartyAccountId() == null) {
-            throw new BusinessException("Transfer counterparty account is required");
+        private Map<UUID, BigDecimal> singleImpact(TransactionAllocation allocation) {
+                return Map.of(
+                                allocation.getFund().getId(),
+                                allocation.getAmount());
         }
 
-        if (financialTransaction.getAccount().getId().equals(request.transferCounterpartyAccountId())) {
-            throw new BusinessException("Transfer counterparty account must be different from transaction account");
-        }
+        private BigDecimal calculateCurrentFundBalance(
+                        UUID organizationId,
+                        Fund fund,
+                        UUID excludedTransactionId) {
 
-        Account counterpartyAccount = accountRepository
-                .findByIdAndOrganizationIdAndActiveTrue(
-                        request.transferCounterpartyAccountId(),
-                        organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Transfer counterparty account not found"));
+                BigDecimal allocationsSum = excludedTransactionId != null
+                                ? allocationRepository.sumAmountByFundIdExcludingTransaction(
+                                                organizationId,
+                                                fund.getId(),
+                                                excludedTransactionId)
+                                : allocationRepository.sumAmountByFundId(
+                                                organizationId,
+                                                fund.getId());
 
-        if (counterpartyAccount.getType() == AccountType.CREDIT_CARD) {
-            throw new BusinessException("Credit card accounts cannot be used in account transfers");
+                BigDecimal transferSum = fundTransferRepository.sumNetAmountByFundId(
+                                organizationId,
+                                fund.getId());
+
+                return fund.getInitialBalance()
+                                .add(allocationsSum)
+                                .add(transferSum);
         }
 
-        Map<UUID, BigDecimal> oldImpactByFund = toImpactByFund(
-                financialTransaction.getAllocations());
+        private FinancialTransactionResponse classifyAsTransfer(
+                        UUID organizationId,
+                        FinancialTransaction financialTransaction,
+                        ClassifyFinancialTransactionRequest request) {
 
-        financialTransaction.setType(FinancialTransactionType.TRANSFER);
-        financialTransaction.setCategory(null);
+                if (request.transferDirection() == null) {
+                        throw new BusinessException("Transfer direction is required");
+                }
 
-        financialTransaction.setFiscalDocumentPolicy(FiscalDocumentPolicy.CATEGORY);
-        financialTransaction.setFiscalDocumentNote(null);
+                if (request.transferCounterpartyAccountId() == null) {
+                        throw new BusinessException("Transfer counterparty account is required");
+                }
 
-        financialTransaction.setTransferDirection(request.transferDirection());
-        financialTransaction.setTransferCounterpartyAccount(counterpartyAccount);
+                if (financialTransaction.getAccount().getId().equals(request.transferCounterpartyAccountId())) {
+                        throw new BusinessException(
+                                        "Transfer counterparty account must be different from transaction account");
+                }
 
-        if (financialTransaction.getTransferGroupId() == null) {
-            financialTransaction.setTransferGroupId(UUID.randomUUID());
-        }
+                Account counterpartyAccount = accountRepository
+                                .findByIdAndOrganizationIdAndActiveTrue(
+                                                request.transferCounterpartyAccountId(),
+                                                organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Transfer counterparty account not found"));
 
-        LocalDate settlementDate = request.settlementDate();
+                if (counterpartyAccount.getType() == AccountType.CREDIT_CARD) {
+                        throw new BusinessException("Credit card accounts cannot be used in account transfers");
+                }
 
-        financialTransaction.setDueDate(
-                request.dueDate() != null ? request.dueDate() : settlementDate);
-        financialTransaction.setSettlementDate(settlementDate);
+                Map<UUID, BigDecimal> oldImpactByFund = toImpactByFund(
+                                financialTransaction.getAllocations());
 
-        BigDecimal amount = Objects.requireNonNullElse(
-                request.settledAmount(),
-                Objects.requireNonNullElse(
-                        request.expectedAmount(),
-                        financialTransaction.getSettledAmount() != null
-                                ? financialTransaction.getSettledAmount()
-                                : financialTransaction.getExpectedAmount()));
+                financialTransaction.setType(FinancialTransactionType.TRANSFER);
+                financialTransaction.setCategory(null);
 
-        financialTransaction.setExpectedAmount(amount.abs());
-        financialTransaction.setSettledAmount(amount.abs());
+                financialTransaction.setFiscalDocumentPolicy(FiscalDocumentPolicy.CATEGORY);
+                financialTransaction.setFiscalDocumentNote(null);
 
-        if (request.description() != null) {
-            financialTransaction.setDescription(request.description());
-        }
+                financialTransaction.setTransferDirection(request.transferDirection());
+                financialTransaction.setTransferCounterpartyAccount(counterpartyAccount);
 
-        financialTransaction.setDocumentNumber(request.documentNumber());
-        financialTransaction.setClassifiedAt(LocalDateTime.now());
+                if (financialTransaction.getTransferGroupId() == null) {
+                        financialTransaction.setTransferGroupId(UUID.randomUUID());
+                }
 
-        financialTransaction.getAllocations().clear();
+                LocalDate settlementDate = request.settlementDate();
 
-        normalizeTransactionStatusAndAmounts(financialTransaction);
+                financialTransaction.setDueDate(
+                                request.dueDate() != null ? request.dueDate() : settlementDate);
+                financialTransaction.setSettlementDate(settlementDate);
 
-        validateFundNegativePolicy(
-                organizationId,
-                financialTransaction.getId(),
-                oldImpactByFund,
-                Map.of());
+                BigDecimal amount = Objects.requireNonNullElse(
+                                request.settledAmount(),
+                                Objects.requireNonNullElse(
+                                                request.expectedAmount(),
+                                                financialTransaction.getSettledAmount() != null
+                                                                ? financialTransaction.getSettledAmount()
+                                                                : financialTransaction.getExpectedAmount()));
 
-        FinancialTransaction savedTransaction = repository.save(financialTransaction);
+                financialTransaction.setExpectedAmount(amount.abs());
+                financialTransaction.setSettledAmount(amount.abs());
 
-        auditLogService.record(
-                organizationId,
-                AuditEntityType.FINANCIAL_TRANSACTION,
-                financialTransaction.getId(),
-                AuditAction.CLASSIFY,
-                "Financial transaction classified as transfer");
+                if (request.description() != null) {
+                        financialTransaction.setDescription(request.description());
+                }
 
-        return FinancialTransactionMapper.toResponse(savedTransaction);
-    }
+                financialTransaction.setDocumentNumber(request.documentNumber());
+                financialTransaction.setClassifiedAt(LocalDateTime.now());
 
-    private String normalizeSuggestionText(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
+                financialTransaction.getAllocations().clear();
 
-        return value.trim();
-    }
+                normalizeTransactionStatusAndAmounts(financialTransaction);
 
-    private BigDecimal getSuggestionAmount(FinancialTransaction transaction) {
-        BigDecimal amount = transaction.getSettledAmount() != null
-                ? transaction.getSettledAmount()
-                : transaction.getExpectedAmount();
+                validateFundNegativePolicy(
+                                organizationId,
+                                financialTransaction.getId(),
+                                oldImpactByFund,
+                                Map.of());
 
-        return amount.abs();
-    }
+                FinancialTransaction savedTransaction = repository.save(financialTransaction);
 
-    private List<ClassificationSuggestionAllocationResponse> buildSuggestedAllocations(
-            FinancialTransaction baseTransaction,
-            BigDecimal currentAmount) {
+                auditLogService.record(
+                                organizationId,
+                                AuditEntityType.FINANCIAL_TRANSACTION,
+                                financialTransaction.getId(),
+                                AuditAction.CLASSIFY,
+                                "Financial transaction classified as transfer");
 
-        if (baseTransaction.getAllocations() == null
-                || baseTransaction.getAllocations().isEmpty()
-                || currentAmount == null
-                || currentAmount.compareTo(BigDecimal.ZERO) <= 0) {
-            return List.of();
+                return FinancialTransactionMapper.toResponse(savedTransaction);
         }
 
-        List<TransactionAllocation> baseAllocations = baseTransaction.getAllocations()
-                .stream()
-                .filter(allocation -> allocation.getFund() != null)
-                .toList();
+        private String normalizeSuggestionText(String value) {
+                if (value == null || value.isBlank()) {
+                        return null;
+                }
 
-        if (baseAllocations.isEmpty()) {
-            return List.of();
+                return value.trim();
         }
 
-        if (baseAllocations.size() == 1) {
-            TransactionAllocation allocation = baseAllocations.get(0);
+        private BigDecimal getSuggestionAmount(FinancialTransaction transaction) {
+                BigDecimal amount = transaction.getSettledAmount() != null
+                                ? transaction.getSettledAmount()
+                                : transaction.getExpectedAmount();
 
-            return List.of(
-                    new ClassificationSuggestionAllocationResponse(
-                            FundMapper.toSummaryResponse(allocation.getFund()),
-                            allocation.getBeneficiary() != null
-                                    ? BeneficiaryMapper.toSummaryResponse(allocation.getBeneficiary())
-                                    : null,
-                            currentAmount,
-                            allocation.getReferenceMonth(),
-                            "HISTORY"));
+                return amount.abs();
         }
 
-        BigDecimal previousTotal = baseAllocations.stream()
-                .map(TransactionAllocation::getAmount)
-                .map(BigDecimal::abs)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        private List<ClassificationSuggestionAllocationResponse> buildSuggestedAllocations(
+                        FinancialTransaction baseTransaction,
+                        BigDecimal currentAmount) {
 
-        if (previousTotal.compareTo(BigDecimal.ZERO) <= 0) {
-            return List.of();
-        }
+                if (baseTransaction.getAllocations() == null
+                                || baseTransaction.getAllocations().isEmpty()
+                                || currentAmount == null
+                                || currentAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                        return List.of();
+                }
 
-        List<ClassificationSuggestionAllocationResponse> suggestions = new java.util.ArrayList<>();
+                List<TransactionAllocation> baseAllocations = baseTransaction.getAllocations()
+                                .stream()
+                                .filter(allocation -> allocation.getFund() != null)
+                                .toList();
 
-        BigDecimal remainingAmount = currentAmount;
+                if (baseAllocations.isEmpty()) {
+                        return List.of();
+                }
 
-        for (int index = 0; index < baseAllocations.size(); index++) {
-            TransactionAllocation allocation = baseAllocations.get(index);
+                if (baseAllocations.size() == 1) {
+                        TransactionAllocation allocation = baseAllocations.get(0);
 
-            BigDecimal suggestedAmount;
+                        return List.of(
+                                        new ClassificationSuggestionAllocationResponse(
+                                                        FundMapper.toSummaryResponse(allocation.getFund()),
+                                                        allocation.getBeneficiary() != null
+                                                                        ? BeneficiaryMapper.toSummaryResponse(
+                                                                                        allocation.getBeneficiary())
+                                                                        : null,
+                                                        currentAmount,
+                                                        allocation.getReferenceMonth(),
+                                                        "HISTORY"));
+                }
 
-            boolean isLast = index == baseAllocations.size() - 1;
+                BigDecimal previousTotal = baseAllocations.stream()
+                                .map(TransactionAllocation::getAmount)
+                                .map(BigDecimal::abs)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            if (isLast) {
-                suggestedAmount = remainingAmount;
-            } else {
-                suggestedAmount = allocation.getAmount()
-                        .abs()
-                        .multiply(currentAmount)
-                        .divide(previousTotal, 2, RoundingMode.HALF_UP);
+                if (previousTotal.compareTo(BigDecimal.ZERO) <= 0) {
+                        return List.of();
+                }
 
-                remainingAmount = remainingAmount.subtract(suggestedAmount);
-            }
+                List<ClassificationSuggestionAllocationResponse> suggestions = new java.util.ArrayList<>();
 
-            if (suggestedAmount.compareTo(BigDecimal.ZERO) <= 0) {
-                continue;
-            }
+                BigDecimal remainingAmount = currentAmount;
 
-            suggestions.add(
-                    new ClassificationSuggestionAllocationResponse(
-                            FundMapper.toSummaryResponse(allocation.getFund()),
-                            allocation.getBeneficiary() != null
-                                    ? BeneficiaryMapper.toSummaryResponse(allocation.getBeneficiary())
-                                    : null,
-                            suggestedAmount,
-                            allocation.getReferenceMonth(),
-                            "HISTORY"));
-        }
+                for (int index = 0; index < baseAllocations.size(); index++) {
+                        TransactionAllocation allocation = baseAllocations.get(index);
 
-        return suggestions;
-    }
+                        BigDecimal suggestedAmount;
 
-    private boolean isEligibleForTransferMatching(
-            FinancialTransaction transaction) {
+                        boolean isLast = index == baseAllocations.size() - 1;
 
-        if (transaction.getStatus() != FinancialTransactionStatus.SETTLED) {
+                        if (isLast) {
+                                suggestedAmount = remainingAmount;
+                        } else {
+                                suggestedAmount = allocation.getAmount()
+                                                .abs()
+                                                .multiply(currentAmount)
+                                                .divide(previousTotal, 2, RoundingMode.HALF_UP);
 
-            return false;
-        }
+                                remainingAmount = remainingAmount.subtract(suggestedAmount);
+                        }
+
+                        if (suggestedAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                                continue;
+                        }
 
-        if (transaction.getAccount().getType() == AccountType.CREDIT_CARD) {
+                        suggestions.add(
+                                        new ClassificationSuggestionAllocationResponse(
+                                                        FundMapper.toSummaryResponse(allocation.getFund()),
+                                                        allocation.getBeneficiary() != null
+                                                                        ? BeneficiaryMapper.toSummaryResponse(
+                                                                                        allocation.getBeneficiary())
+                                                                        : null,
+                                                        suggestedAmount,
+                                                        allocation.getReferenceMonth(),
+                                                        "HISTORY"));
+                }
 
-            return false;
+                return suggestions;
         }
 
-        if (transaction.getType() != FinancialTransactionType.INCOME
-                && transaction.getType() != FinancialTransactionType.EXPENSE) {
+        private boolean isEligibleForTransferMatching(
+                        FinancialTransaction transaction) {
 
-            return false;
-        }
+                if (transaction.getStatus() != FinancialTransactionStatus.SETTLED) {
 
-        if (transaction.getCategory() != null) {
-            return false;
-        }
+                        return false;
+                }
 
-        if (transaction.getSettlementDate() == null) {
-            return false;
-        }
+                if (transaction.getAccount().getType() == AccountType.CREDIT_CARD) {
 
-        return transaction.getAllocations() == null
-                || transaction.getAllocations().isEmpty();
-    }
+                        return false;
+                }
 
-    private String resolveSuggestionDescription(
-            FinancialTransaction transaction) {
+                if (transaction.getType() != FinancialTransactionType.INCOME
+                                && transaction.getType() != FinancialTransactionType.EXPENSE) {
 
-        if (transaction.getDescription() != null
-                && !transaction
-                        .getDescription()
-                        .isBlank()) {
+                        return false;
+                }
 
-            return transaction
-                    .getDescription()
-                    .trim();
-        }
+                if (transaction.getCategory() != null) {
+                        return false;
+                }
 
-        if (transaction.getRawDescription() != null
-                && !transaction
-                        .getRawDescription()
-                        .isBlank()) {
+                if (transaction.getSettlementDate() == null) {
+                        return false;
+                }
 
-            return transaction
-                    .getRawDescription()
-                    .trim();
+                return transaction.getAllocations() == null
+                                || transaction.getAllocations().isEmpty();
         }
 
-        return "Transferência sem descrição";
-    }
+        private String resolveSuggestionDescription(
+                        FinancialTransaction transaction) {
 
-    private void validateTransferPair(
+                if (transaction.getDescription() != null
+                                && !transaction
+                                                .getDescription()
+                                                .isBlank()) {
 
-            FinancialTransaction current,
+                        return transaction
+                                        .getDescription()
+                                        .trim();
+                }
 
-            FinancialTransaction matching) {
+                if (transaction.getRawDescription() != null
+                                && !transaction
+                                                .getRawDescription()
+                                                .isBlank()) {
 
-        if (current.getId().equals(
-                matching.getId())) {
+                        return transaction
+                                        .getRawDescription()
+                                        .trim();
+                }
 
-            throw new BusinessException(
-                    "A transaction cannot be paired with itself");
+                return "Transferência sem descrição";
         }
 
-        if (!isEligibleForTransferMatching(current)
-                || !isEligibleForTransferMatching(
-                        matching)) {
+        private void validateTransferPair(
 
-            throw new BusinessException(
-                    "Both transactions must be settled and unclassified");
-        }
+                        FinancialTransaction current,
 
-        if (current.getAccount().getId().equals(
-                matching.getAccount().getId())) {
+                        FinancialTransaction matching) {
 
-            throw new BusinessException(
-                    "Transfer transactions must belong to different accounts");
-        }
+                if (current.getId().equals(
+                                matching.getId())) {
 
-        boolean oppositeTypes = current.getType() == FinancialTransactionType.EXPENSE
-                && matching.getType() == FinancialTransactionType.INCOME
+                        throw new BusinessException(
+                                        "A transaction cannot be paired with itself");
+                }
 
-                || current.getType() == FinancialTransactionType.INCOME
-                        && matching.getType() == FinancialTransactionType.EXPENSE;
+                if (!isEligibleForTransferMatching(current)
+                                || !isEligibleForTransferMatching(
+                                                matching)) {
 
-        if (!oppositeTypes) {
+                        throw new BusinessException(
+                                        "Both transactions must be settled and unclassified");
+                }
 
-            throw new BusinessException(
-                    "Transfer transactions must have opposite movements");
-        }
+                if (current.getAccount().getId().equals(
+                                matching.getAccount().getId())) {
 
-        BigDecimal currentAmount = getSuggestionAmount(current);
+                        throw new BusinessException(
+                                        "Transfer transactions must belong to different accounts");
+                }
 
-        BigDecimal matchingAmount = getSuggestionAmount(matching);
+                boolean oppositeTypes = current.getType() == FinancialTransactionType.EXPENSE
+                                && matching.getType() == FinancialTransactionType.INCOME
 
-        if (currentAmount.compareTo(
-                matchingAmount) != 0) {
+                                || current.getType() == FinancialTransactionType.INCOME
+                                                && matching.getType() == FinancialTransactionType.EXPENSE;
 
-            throw new BusinessException(
-                    "Transfer transaction amounts must match");
-        }
+                if (!oppositeTypes) {
 
-        long dateDistance = Math.abs(
-                ChronoUnit.DAYS.between(
+                        throw new BusinessException(
+                                        "Transfer transactions must have opposite movements");
+                }
 
-                        current.getSettlementDate(),
+                BigDecimal currentAmount = getSuggestionAmount(current);
 
-                        matching.getSettlementDate()));
+                BigDecimal matchingAmount = getSuggestionAmount(matching);
 
-        if (dateDistance > 3) {
+                if (currentAmount.compareTo(
+                                matchingAmount) != 0) {
 
-            throw new BusinessException(
-                    "Transfer transaction dates are too far apart");
-        }
-    }
+                        throw new BusinessException(
+                                        "Transfer transaction amounts must match");
+                }
 
-    private void prepareTransferSide(
+                long dateDistance = Math.abs(
+                                ChronoUnit.DAYS.between(
 
-            FinancialTransaction transaction,
+                                                current.getSettlementDate(),
 
-            TransferDirection direction,
+                                                matching.getSettlementDate()));
 
-            Account counterpartyAccount,
+                if (dateDistance > 3) {
 
-            UUID transferGroupId) {
+                        throw new BusinessException(
+                                        "Transfer transaction dates are too far apart");
+                }
+        }
 
-        BigDecimal amount = getSuggestionAmount(
-                transaction);
+        private void prepareTransferSide(
 
-        transaction.setType(
-                FinancialTransactionType.TRANSFER);
+                        FinancialTransaction transaction,
 
-        transaction.setCategory(null);
+                        TransferDirection direction,
 
-        transaction.getAllocations().clear();
+                        Account counterpartyAccount,
 
-        transaction.setTransferDirection(
-                direction);
+                        UUID transferGroupId) {
 
-        transaction.setTransferCounterpartyAccount(
-                counterpartyAccount);
+                BigDecimal amount = getSuggestionAmount(
+                                transaction);
 
-        transaction.setTransferGroupId(
-                transferGroupId);
+                transaction.setType(
+                                FinancialTransactionType.TRANSFER);
 
-        transaction.setExpectedAmount(
-                amount);
+                transaction.setCategory(null);
 
-        transaction.setSettledAmount(
-                amount);
+                transaction.getAllocations().clear();
 
-        transaction.setFiscalDocumentPolicy(
-                FiscalDocumentPolicy.CATEGORY);
+                transaction.setTransferDirection(
+                                direction);
 
-        transaction.setFiscalDocumentNote(null);
+                transaction.setTransferCounterpartyAccount(
+                                counterpartyAccount);
 
-        transaction.setClassifiedAt(
-                LocalDateTime.now());
-    }
+                transaction.setTransferGroupId(
+                                transferGroupId);
 
-    private List<FinancialTransactionResponse> createAndPairManualTransfer(
-            UUID organizationId,
-            CreateAccountTransferRequest request,
-            Account sourceAccount,
-            Account destinationAccount) {
+                transaction.setExpectedAmount(
+                                amount);
 
-        FinancialTransaction matchingTransaction = repository
-                .findByIdAndOrganizationId(
-                        request.matchingTransactionId(),
-                        organizationId)
+                transaction.setSettledAmount(
+                                amount);
 
-                .orElseThrow(() -> new ResourceNotFoundException("Matching transaction not found"));
+                transaction.setFiscalDocumentPolicy(
+                                FiscalDocumentPolicy.CATEGORY);
 
-        if (!isEligibleForTransferMatching(matchingTransaction)) {
+                transaction.setFiscalDocumentNote(null);
 
-            throw new BusinessException("Matching transaction is no longer available");
+                transaction.setClassifiedAt(
+                                LocalDateTime.now());
         }
 
-        BigDecimal amount = request.amount().abs();
+        private List<FinancialTransactionResponse> createAndPairManualTransfer(
+                        UUID organizationId,
+                        CreateAccountTransferRequest request,
+                        Account sourceAccount,
+                        Account destinationAccount) {
 
-        if (getSuggestionAmount(matchingTransaction).compareTo(amount) != 0) {
-            throw new BusinessException(
-                    "Matching transaction amount is different");
-        }
+                FinancialTransaction matchingTransaction = repository
+                                .findByIdAndOrganizationId(
+                                                request.matchingTransactionId(),
+                                                organizationId)
 
-        long dateDistance = Math.abs(
-                ChronoUnit.DAYS.between(
-                        request.transferDate(),
-                        matchingTransaction.getSettlementDate()));
+                                .orElseThrow(() -> new ResourceNotFoundException("Matching transaction not found"));
 
-        if (dateDistance > 3) {
-            throw new BusinessException("Matching transaction date is too far from the transfer date");
-        }
+                if (!isEligibleForTransferMatching(matchingTransaction)) {
+
+                        throw new BusinessException("Matching transaction is no longer available");
+                }
+
+                BigDecimal amount = request.amount().abs();
+
+                if (getSuggestionAmount(matchingTransaction).compareTo(amount) != 0) {
+                        throw new BusinessException(
+                                        "Matching transaction amount is different");
+                }
+
+                long dateDistance = Math.abs(
+                                ChronoUnit.DAYS.between(
+                                                request.transferDate(),
+                                                matchingTransaction.getSettlementDate()));
 
-        UUID transferGroupId = UUID.randomUUID();
-        FinancialTransaction outTransaction;
-        FinancialTransaction inTransaction;
+                if (dateDistance > 3) {
+                        throw new BusinessException("Matching transaction date is too far from the transfer date");
+                }
 
-        /*
-         * O usuário está criando a saída.
-         * A entrada já veio no extrato da conta destino.
-         */
-        if (matchingTransaction
-                .getAccount()
-                .getId()
-                .equals(destinationAccount.getId())
+                UUID transferGroupId = UUID.randomUUID();
+                FinancialTransaction outTransaction;
+                FinancialTransaction inTransaction;
 
-                && matchingTransaction.getType() == FinancialTransactionType.INCOME) {
+                /*
+                 * O usuário está criando a saída.
+                 * A entrada já veio no extrato da conta destino.
+                 */
+                if (matchingTransaction
+                                .getAccount()
+                                .getId()
+                                .equals(destinationAccount.getId())
 
-            outTransaction = buildManualTransferSide(
-                    sourceAccount,
-                    destinationAccount,
-                    TransferDirection.OUT,
-                    transferGroupId,
-                    request);
+                                && matchingTransaction.getType() == FinancialTransactionType.INCOME) {
 
-            prepareTransferSide(
-                    matchingTransaction,
-                    TransferDirection.IN,
-                    sourceAccount,
-                    transferGroupId);
+                        outTransaction = buildManualTransferSide(
+                                        sourceAccount,
+                                        destinationAccount,
+                                        TransferDirection.OUT,
+                                        transferGroupId,
+                                        request);
 
-            inTransaction = matchingTransaction;
+                        prepareTransferSide(
+                                        matchingTransaction,
+                                        TransferDirection.IN,
+                                        sourceAccount,
+                                        transferGroupId);
 
-            /*
-             * O usuário está criando a entrada.
-             * A saída já veio no extrato da conta origem.
-             */
-        } else if (matchingTransaction
-                .getAccount()
-                .getId()
-                .equals(sourceAccount.getId())
-                && matchingTransaction.getType() == FinancialTransactionType.EXPENSE) {
+                        inTransaction = matchingTransaction;
 
-            prepareTransferSide(
-                    matchingTransaction,
-                    TransferDirection.OUT,
-                    destinationAccount,
-                    transferGroupId);
+                        /*
+                         * O usuário está criando a entrada.
+                         * A saída já veio no extrato da conta origem.
+                         */
+                } else if (matchingTransaction
+                                .getAccount()
+                                .getId()
+                                .equals(sourceAccount.getId())
+                                && matchingTransaction.getType() == FinancialTransactionType.EXPENSE) {
 
-            outTransaction = matchingTransaction;
+                        prepareTransferSide(
+                                        matchingTransaction,
+                                        TransferDirection.OUT,
+                                        destinationAccount,
+                                        transferGroupId);
 
-            inTransaction = buildManualTransferSide(
-                    destinationAccount,
-                    sourceAccount,
-                    TransferDirection.IN,
-                    transferGroupId,
-                    request);
+                        outTransaction = matchingTransaction;
 
-        } else {
-            throw new BusinessException(
-                    "Matching transaction does not belong to the expected account or direction");
+                        inTransaction = buildManualTransferSide(
+                                        destinationAccount,
+                                        sourceAccount,
+                                        TransferDirection.IN,
+                                        transferGroupId,
+                                        request);
+
+                } else {
+                        throw new BusinessException(
+                                        "Matching transaction does not belong to the expected account or direction");
+                }
+
+                FinancialTransaction createdTransaction = matchingTransaction == outTransaction
+                                ? inTransaction
+                                : outTransaction;
+
+                repository.saveAll(List.of(outTransaction, inTransaction));
+
+                auditLogService.record(
+                                organizationId,
+                                AuditEntityType.FINANCIAL_TRANSACTION,
+                                createdTransaction.getId(),
+                                AuditAction.CREATE,
+                                "Manual transfer side created and paired. "
+                                                + "transferGroupId="
+                                                + transferGroupId
+                                                + "; matchingTransactionId="
+                                                + matchingTransaction.getId());
+
+                auditLogService.record(
+                                organizationId,
+                                AuditEntityType.FINANCIAL_TRANSACTION,
+                                matchingTransaction.getId(),
+                                AuditAction.CLASSIFY,
+                                "Existing transaction classified as account transfer. "
+                                                + "transferGroupId="
+                                                + transferGroupId
+                                                + "; createdTransactionId="
+                                                + createdTransaction.getId());
+
+                return List.of(
+                                FinancialTransactionMapper.toResponse(outTransaction),
+                                FinancialTransactionMapper.toResponse(inTransaction));
         }
 
-        repository.saveAll(List.of(outTransaction, inTransaction));
+        private FinancialTransaction buildManualTransferSide(
+                        Account account,
+                        Account counterpartyAccount,
+                        TransferDirection direction,
+                        UUID transferGroupId,
+                        CreateAccountTransferRequest request) {
 
-        return List.of(
-                FinancialTransactionMapper.toResponse(outTransaction),
-                FinancialTransactionMapper.toResponse(inTransaction));
-    }
+                String description = request.description() != null
+                                && !request.description().isBlank()
+                                                ? request.description().trim()
+                                                : "Transferência entre contas";
 
-    private FinancialTransaction buildManualTransferSide(
-            Account account,
-            Account counterpartyAccount,
-            TransferDirection direction,
-            UUID transferGroupId,
-            CreateAccountTransferRequest request) {
+                BigDecimal amount = request.amount().abs();
 
-        String description = request.description() != null
-                && !request.description().isBlank()
-                        ? request.description().trim()
-                        : "Transferência entre contas";
+                FinancialTransaction transaction = new FinancialTransaction();
 
-        BigDecimal amount = request.amount().abs();
+                transaction.setOrganization(account.getOrganization());
+                transaction.setAccount(account);
+                transaction.setType(FinancialTransactionType.TRANSFER);
+                transaction.setSource(FinancialTransactionSource.MANUAL);
+                transaction.setStatus(FinancialTransactionStatus.SETTLED);
+                transaction.setTransferDirection(direction);
+                transaction.setTransferGroupId(transferGroupId);
+                transaction.setTransferCounterpartyAccount(counterpartyAccount);
+                transaction.setCategory(null);
+                transaction.setDueDate(request.transferDate());
+                transaction.setSettlementDate(request.transferDate());
+                transaction.setExpectedAmount(amount);
+                transaction.setSettledAmount(amount);
+                transaction.setInterestAmount(BigDecimal.ZERO);
+                transaction.setDiscountAmount(BigDecimal.ZERO);
+                transaction.setDescription(description);
+                transaction.setRawDescription(description);
+                transaction.setFiscalDocumentPolicy(FiscalDocumentPolicy.CATEGORY);
+                transaction.setFiscalDocumentNote(null);
+                transaction.setClassifiedAt(LocalDateTime.now());
 
-        FinancialTransaction transaction = new FinancialTransaction();
+                return transaction;
+        }
+
+        private boolean hasCompatibleTransferMovement(
+                        UUID organizationId,
+                        Account sourceAccount,
+                        Account destinationAccount,
+                        LocalDate transferDate,
+                        BigDecimal amount) {
+
+                LocalDate startDate = transferDate.minusDays(3);
 
-        transaction.setOrganization(account.getOrganization());
-        transaction.setAccount(account);
-        transaction.setType(FinancialTransactionType.TRANSFER);
-        transaction.setSource(FinancialTransactionSource.MANUAL);
-        transaction.setStatus(FinancialTransactionStatus.SETTLED);
-        transaction.setTransferDirection(direction);
-        transaction.setTransferGroupId(transferGroupId);
-        transaction.setTransferCounterpartyAccount(counterpartyAccount);
-        transaction.setCategory(null);
-        transaction.setDueDate(request.transferDate());
-        transaction.setSettlementDate(request.transferDate());
-        transaction.setExpectedAmount(amount);
-        transaction.setSettledAmount(amount);
-        transaction.setInterestAmount(BigDecimal.ZERO);
-        transaction.setDiscountAmount(BigDecimal.ZERO);
-        transaction.setDescription(description);
-        transaction.setRawDescription(description);
-        transaction.setFiscalDocumentPolicy(FiscalDocumentPolicy.CATEGORY);
-        transaction.setFiscalDocumentNote(null);
-        transaction.setClassifiedAt(LocalDateTime.now());
+                LocalDate endDate = transferDate.plusDays(3);
 
-        return transaction;
-    }
+                BigDecimal normalizedAmount = amount.abs();
+
+                /*
+                 * Entrada já importada na conta de destino.
+                 */
+                boolean hasDestinationIncome = repository
+                                .findDraftTransferMatchCandidates(
+                                                organizationId,
+                                                sourceAccount.getId(),
+                                                FinancialTransactionType.INCOME,
+                                                normalizedAmount,
+                                                startDate,
+                                                endDate)
+                                .stream()
+                                .anyMatch(candidate -> candidate.getAccount()
+                                                .getId()
+                                                .equals(
+                                                                destinationAccount
+                                                                                .getId()));
+
+                if (hasDestinationIncome) {
+                        return true;
+                }
+
+                /*
+                 * Saída já importada na conta de origem.
+                 */
+                return repository
+                                .findDraftTransferMatchCandidates(
+                                                organizationId,
+                                                destinationAccount.getId(),
+                                                FinancialTransactionType.EXPENSE,
+                                                normalizedAmount,
+                                                startDate,
+                                                endDate)
+                                .stream()
+                                .anyMatch(candidate -> candidate.getAccount()
+                                                .getId()
+                                                .equals(sourceAccount.getId()));
+        }
 }
