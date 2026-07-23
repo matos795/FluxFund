@@ -53,12 +53,20 @@ export function LoginPage() {
     try {
       const session = await login(data)
 
-      if (!session.activeOrganizationId) {
-        navigate("/no-organization", { replace: true })
+      if (
+        session.user.organizations.length === 0
+      ) {
+        navigate("/no-organization", {
+          replace: true,
+        })
+
         return
       }
 
-      navigate("/", { replace: true })
+      navigate("/organizations", {
+        replace: true,
+      })
+      
     } catch {
       setLoginError("Email ou senha inválidos.")
     } finally {

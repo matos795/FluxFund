@@ -23,15 +23,38 @@ import { AccountCashFlowReportPage } from "@/pages/results/account-cash-flow-rep
 import { AuditLogReportPage } from "@/pages/results/audit-log-report-page"
 import { ClosingDossierReportPage } from "@/pages/results/closing-dossier-report-page"
 import { AcceptInvitationPage } from "@/pages/accept-invitation-page"
+import { OrganizationsPage } from "@/pages/organizations-page"
 
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/login"
+        element={<LoginPage />}
+      />
 
-      <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
+      <Route
+        path="/accept-invitation"
+        element={<AcceptInvitationPage />}
+      />
 
-      <Route path="/no-organization" element={<NoOrganizationPage />} />
+      <Route
+        element={
+          <ProtectedRoute
+            requireOrganization={false}
+          />
+        }
+      >
+        <Route
+          path="/organizations"
+          element={<OrganizationsPage />}
+        />
+
+        <Route
+          path="/no-organization"
+          element={<NoOrganizationPage />}
+        />
+      </Route>
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>

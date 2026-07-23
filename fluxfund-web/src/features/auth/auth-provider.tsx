@@ -70,9 +70,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const nextSession: AuthSession = {
           accessToken: storedSession.accessToken,
           user,
-          activeOrganizationId: activeOrganizationStillExists
-            ? storedSession.activeOrganizationId
-            : user.organizations[0]?.id ?? null,
+          activeOrganizationId:
+            activeOrganizationStillExists
+              ? storedSession.activeOrganizationId
+              : null,
         }
 
         storeSession(nextSession)
@@ -105,7 +106,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const nextSession: AuthSession = {
       accessToken: response.accessToken,
       user: response.user,
-      activeOrganizationId: response.user.organizations[0]?.id ?? null,
+      activeOrganizationId: null,
     }
 
     storeSession(nextSession)
@@ -136,9 +137,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const nextSession: AuthSession = {
       accessToken: session.accessToken,
       user,
-      activeOrganizationId: activeOrganizationStillExists
-        ? session.activeOrganizationId
-        : user.organizations[0]?.id ?? null,
+      activeOrganizationId:
+        activeOrganizationStillExists
+          ? session.activeOrganizationId
+          : null,
     }
 
     storeSession(nextSession)
@@ -148,30 +150,48 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [session])
 
   const setActiveOrganization = useCallback(
-    (organizationId: string) => {
-      if (!session) {
-        return
-      }
+  async (organizationId: string) => {
+    if (!session) {
+      return
+    }
 
-      const organizationExists = session.user.organizations.some(
-        (organization) => organization.id === organizationId,
+    const organizationExists =
+      session.user.organizations.some(
+        (organization) =>
+          organization.id === organizationId,
       )
 
-      if (!organizationExists) {
-        return
-      }
+    if (!organizationExists) {
+      return
+    }
 
-      const nextSession: AuthSession = {
-        ...session,
-        activeOrganizationId: organizationId,
-      }
+    /*
+     * Cancela chamadas que ainda possam estar usando
+     * a organização anterior.
+     */
+    await queryClient.cancelQueries()
 
-      storeSession(nextSession)
-      setSession(nextSession)
-      queryClient.clear()
-    },
-    [session],
-  )
+    const nextSession: AuthSession = {
+      ...session,
+      activeOrganizationId: organizationId,
+    }
+
+    /*
+     * O interceptor HTTP lê a sessão armazenada.
+     * Por isso, salvamos antes de abrir a nova tela.
+     */
+    storeSession(nextSession)
+    setSession(nextSession)
+
+    /*
+     * As query keys atuais não possuem organizationId.
+     * Limpamos todo o cache para impedir que dados
+     * da organização anterior sejam reaproveitados.
+     */
+    queryClient.clear()
+  },
+  [session],
+)
 
   const value = useMemo<AuthContextValue>(
     () => ({

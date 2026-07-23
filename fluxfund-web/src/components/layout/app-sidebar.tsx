@@ -1,6 +1,8 @@
 import {
   Banknote,
+  Building2,
   ChartNoAxesCombined,
+  ChevronsUpDown,
   CreditCard,
   FolderTree,
   HandCoins,
@@ -12,11 +14,10 @@ import {
   Users,
 } from "lucide-react"
 
-import { NavLink } from "react-router-dom"
+import { NavLink, useNavigate } from "react-router-dom"
 
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/features/auth/hooks/use-auth"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 
 const organizationRoleLabels = {
   OWNER: "Proprietário",
@@ -88,14 +89,11 @@ export function AppSidebar({
   onExpandedChange,
 }: AppSidebarProps) {
 
-  const {
-    session,
-    activeOrganization,
-    setActiveOrganization,
-  } = useAuth()
+  const navigate = useNavigate()
 
-  const canSwitchOrganization =
-    (session?.user.organizations.length ?? 0) > 1
+  const {
+    activeOrganization,
+  } = useAuth()
 
   return (
     <div className="w-16 shrink-0">
@@ -164,49 +162,55 @@ export function AppSidebar({
           })}
         </nav>
 
-        <div className="shrink-0 border-t p-4">
+        <div className="shrink-0 border-t p-3">
           {expanded ? (
-            <div className="space-y-2 rounded-lg bg-muted p-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Organização atual
-              </p>
-
-              {canSwitchOrganization ? (
-                <Select
-                  value={activeOrganization?.id}
-                  onValueChange={setActiveOrganization}
-                >
-                  <SelectTrigger className="h-9 bg-background">
-                    <SelectValue placeholder="Selecione uma organização" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {session?.user.organizations.map((organization) => (
-                      <SelectItem key={organization.id} value={organization.id}>
-                        {organization.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <p className="text-sm font-medium">
-                  {activeOrganization?.name ?? "Nenhuma organização"}
-                </p>
-              )}
-
-              {activeOrganization && (
-                <p className="text-xs text-muted-foreground">
-                  {organizationRoleLabels[activeOrganization.role]}
-                </p>
-              )}
-            </div>
-          ) : (
-            <div
-              title={activeOrganization?.name}
-              className="mx-auto flex size-9 items-center justify-center rounded-full bg-muted text-xs font-semibold"
+            <button
+              type="button"
+              onClick={() =>
+                navigate("/organizations")
+              }
+              className="flex w-full items-center gap-3 rounded-xl bg-muted p-3 text-left transition-colors hover:bg-muted/70"
             >
-              {activeOrganization?.name?.charAt(0) ?? "O"}
-            </div>
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-background text-primary shadow-sm">
+                <Building2 className="size-4" />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground">
+                  Organização atual
+                </p>
+
+                <p className="truncate text-sm font-semibold">
+                  {activeOrganization?.name ??
+                    "Selecionar organização"}
+                </p>
+
+                {activeOrganization && (
+                  <p className="truncate text-xs text-muted-foreground">
+                    {
+                      organizationRoleLabels[
+                      activeOrganization.role
+                      ]
+                    }
+                  </p>
+                )}
+              </div>
+
+              <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              title="Trocar organização"
+              onClick={() =>
+                navigate("/organizations")
+              }
+              className="mx-auto flex size-10 items-center justify-center rounded-xl bg-muted text-sm font-semibold transition-colors hover:bg-muted/70"
+            >
+              {activeOrganization?.name
+                ?.charAt(0)
+                .toUpperCase() ?? "O"}
+            </button>
           )}
         </div>
       </aside>

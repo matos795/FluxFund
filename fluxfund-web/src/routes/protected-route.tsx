@@ -1,11 +1,22 @@
-import { Navigate, Outlet, useLocation } from "react-router-dom"
+import {
+  Navigate,
+  Outlet,
+  useLocation,
+} from "react-router-dom"
 
 import { useAuth } from "@/features/auth/hooks/use-auth"
 
-export function ProtectedRoute() {
+type ProtectedRouteProps = {
+  requireOrganization?: boolean
+}
+
+export function ProtectedRoute({
+  requireOrganization = true,
+}: ProtectedRouteProps) {
   const location = useLocation()
 
   const {
+    session,
     isAuthenticated,
     isLoadingSession,
     activeOrganization,
@@ -22,11 +33,32 @@ export function ProtectedRoute() {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />
+    return (
+      <Navigate
+        to="/login"
+        state={{ from: location }}
+        replace
+      />
+    )
   }
 
-  if (!activeOrganization) {
-    return <Navigate to="/no-organization" replace />
+  if (
+    requireOrganization &&
+    !activeOrganization
+  ) {
+    const hasOrganizations =
+      (session?.user.organizations.length ?? 0) > 0
+
+    return (
+      <Navigate
+        to={
+          hasOrganizations
+            ? "/organizations"
+            : "/no-organization"
+        }
+        replace
+      />
+    )
   }
 
   return <Outlet />

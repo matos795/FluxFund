@@ -12,14 +12,25 @@ import { useAuth } from "@/features/auth/hooks/use-auth"
 
 export function NoOrganizationPage() {
   const navigate = useNavigate()
-  const { isAuthenticated, activeOrganization, logout } = useAuth()
+  const {
+    session,
+    isAuthenticated,
+    logout,
+  } = useAuth()
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
   }
 
-  if (activeOrganization) {
-    return <Navigate to="/" replace />
+  if (
+    (session?.user.organizations.length ?? 0) > 0
+  ) {
+    return (
+      <Navigate
+        to="/organizations"
+        replace
+      />
+    )
   }
 
   function handleLogout() {

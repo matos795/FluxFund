@@ -12,7 +12,7 @@ type AuthContextValue = {
   activeOrganization: UserOrganization | null
   login: (data: LoginRequest) => Promise<AuthSession>
   logout: () => void
-  setActiveOrganization: (organizationId: string) => void
+  setActiveOrganization: (organizationId: string,) => Promise<void>
   refreshUser: () => Promise<AuthSession | null>
 }
 
