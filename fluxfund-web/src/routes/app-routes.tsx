@@ -22,11 +22,15 @@ import { PendingItemsReportPage } from "@/pages/results/pending-items-report-pag
 import { AccountCashFlowReportPage } from "@/pages/results/account-cash-flow-report-page"
 import { AuditLogReportPage } from "@/pages/results/audit-log-report-page"
 import { ClosingDossierReportPage } from "@/pages/results/closing-dossier-report-page"
+import { AcceptInvitationPage } from "@/pages/accept-invitation-page"
 
 export function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+
+      <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
+
       <Route path="/no-organization" element={<NoOrganizationPage />} />
 
       <Route element={<ProtectedRoute />}>

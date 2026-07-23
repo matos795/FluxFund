@@ -79,15 +79,15 @@ export function CreateOrganizationUserDialog() {
             <DialogTrigger asChild>
                 <Button type="button">
                     <UserPlus className="mr-2 size-4" />
-                    Novo usuário
+                    Criar acesso manual
                 </Button>
             </DialogTrigger>
 
             <AppDialogContent size="md">
                 <AppDialogHeader
                     icon={<UserPlus className="size-4 text-muted-foreground" />}
-                    title="Novo usuário"
-                    description="Crie um acesso para a organização atual. Use uma senha temporária e informe a pessoa para alterá-la futuramente quando essa opção estiver disponível."
+                    title="Criar acesso manual"
+                    description="Crie um acesso diretamente com senha temporária. Use esta opção somente como alternativa ao fluxo de convite."
                 />
 
                 <form className="contents" onSubmit={handleSubmit(handleCreateUser)}>
