@@ -590,7 +590,7 @@ export function ClosingDossierReportPage() {
                         <PreviewMetric
                             label="Movimentações"
                             value={String(preview.totalTransactionCount)}
-                            description="Transações no período"
+                            description="Movimentações e itens incluídos"
                             isHealthy
                         />
 

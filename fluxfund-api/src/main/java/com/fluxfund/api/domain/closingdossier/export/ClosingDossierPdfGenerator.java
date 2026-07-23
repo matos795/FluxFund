@@ -108,10 +108,12 @@ public class ClosingDossierPdfGenerator {
                                         request,
                                         preview,
                                         accounts.size(),
-                                        standaloneCreditCardStatements.size(),
+                                        preview.creditCardStatementCount(),
                                         extraDocuments.size());
 
-                        int tableOfContentsEntryCount = accounts.size() + 1;
+                        int tableOfContentsEntryCount = accounts.size()
+                                        + standaloneCreditCardStatements.size()
+                                        + 1;
 
                         if (supportReport != null) {
                                 tableOfContentsEntryCount++;
@@ -441,7 +443,7 @@ public class ClosingDossierPdfGenerator {
                         ClosingDossierPreviewRequest request,
                         ClosingDossierPreviewResponse preview,
                         int includedAccountCount,
-                        int includedCreditCardStatementCount,
+                        long includedCreditCardStatementCount,
                         int extraDocumentCount) throws IOException {
 
                 List<String> details = new ArrayList<>();

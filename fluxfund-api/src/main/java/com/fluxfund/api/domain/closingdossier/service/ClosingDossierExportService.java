@@ -196,9 +196,11 @@ public class ClosingDossierExportService {
                                         accountCreditCardStatementItemIds));
                 }
 
-                if (exportAccounts.isEmpty()) {
+                if (exportAccounts.isEmpty()
+                                && standaloneCreditCardStatements.isEmpty()) {
                         throw new BusinessException(
-                                        "There are no accounts to include in the closing dossier");
+                                        "There are no accounts or credit card statements "
+                                                        + "to include in the closing dossier");
                 }
 
                 AccountabilityReportResponse supportReport = preview.includesSupportReport()
