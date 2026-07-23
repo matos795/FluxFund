@@ -62,8 +62,7 @@ public class OrganizationUserInvitationService {
     private String frontendBaseUrl;
 
     @Transactional(readOnly = true)
-    public List<OrganizationUserInvitationResponse>
-            findAll(UUID organizationId) {
+    public List<OrganizationUserInvitationResponse> findAll(UUID organizationId) {
 
         organizationAccessService
                 .requireAdminAccess(organizationId);
@@ -73,8 +72,7 @@ public class OrganizationUserInvitationService {
                         organizationId)
                 .stream()
                 .map(
-                        OrganizationUserInvitationMapper
-                                ::toResponse)
+                        OrganizationUserInvitationMapper::toResponse)
                 .toList();
     }
 
@@ -90,36 +88,31 @@ public class OrganizationUserInvitationService {
                     "Owner invitations are not allowed");
         }
 
-        Organization organization =
-                organizationRepository
-                        .findByIdAndActiveTrue(
-                                organizationId)
-                        .orElseThrow(
-                                () -> new ResourceNotFoundException(
-                                        "Organization not found"));
+        Organization organization = organizationRepository
+                .findByIdAndActiveTrue(
+                        organizationId)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException(
+                                "Organization not found"));
 
-        String normalizedEmail =
-                EmailNormalizer.normalize(
-                        request.email());
+        String normalizedEmail = EmailNormalizer.normalize(
+                request.email());
 
-        String normalizedName =
-                StringNormalizer.normalize(
-                        request.name());
+        String normalizedName = StringNormalizer.normalize(
+                request.name());
 
-        AppUser existingUser =
-                appUserRepository
-                        .findByEmailIgnoreCase(
-                                normalizedEmail)
-                        .orElse(null);
+        AppUser existingUser = appUserRepository
+                .findByEmailIgnoreCase(
+                        normalizedEmail)
+                .orElse(null);
 
         if (existingUser != null) {
 
-            OrganizationUser membership =
-                    organizationUserRepository
-                            .findByOrganization_IdAndUser_Id(
-                                    organizationId,
-                                    existingUser.getId())
-                            .orElse(null);
+            OrganizationUser membership = organizationUserRepository
+                    .findByOrganization_IdAndUser_Id(
+                            organizationId,
+                            existingUser.getId())
+                    .orElse(null);
 
             if (membership != null
                     && membership.isActive()) {
@@ -129,15 +122,13 @@ public class OrganizationUserInvitationService {
             }
         }
 
-        OffsetDateTime now =
-                OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
 
-        OrganizationUserInvitation pendingInvitation =
-                invitationRepository
-                        .findFirstByOrganization_IdAndEmailIgnoreCaseAndAcceptedAtIsNullAndCanceledAtIsNullOrderByCreatedAtDesc(
-                                organizationId,
-                                normalizedEmail)
-                        .orElse(null);
+        OrganizationUserInvitation pendingInvitation = invitationRepository
+                .findFirstByOrganization_IdAndEmailIgnoreCaseAndAcceptedAtIsNullAndCanceledAtIsNullOrderByCreatedAtDesc(
+                        organizationId,
+                        normalizedEmail)
+                .orElse(null);
 
         if (pendingInvitation != null) {
 
@@ -154,22 +145,18 @@ public class OrganizationUserInvitationService {
                     pendingInvitation);
         }
 
-        UUID currentUserId =
-                currentUserService.requireUserId();
+        UUID currentUserId = currentUserService.requireUserId();
 
-        AppUser invitedBy =
-                appUserRepository
-                        .findByIdAndActiveTrue(
-                                currentUserId)
-                        .orElseThrow(
-                                () -> new ResourceNotFoundException(
-                                        "Current user not found"));
+        AppUser invitedBy = appUserRepository
+                .findByIdAndActiveTrue(
+                        currentUserId)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException(
+                                "Current user not found"));
 
-        var generatedToken =
-                tokenService.generate();
+        var generatedToken = tokenService.generate();
 
-        OrganizationUserInvitation invitation =
-                new OrganizationUserInvitation();
+        OrganizationUserInvitation invitation = new OrganizationUserInvitation();
 
         invitation.setOrganization(organization);
         invitation.setInvitedByUser(invitedBy);
@@ -181,16 +168,13 @@ public class OrganizationUserInvitationService {
         invitation.setExpiresAt(
                 now.plus(invitationExpiration));
 
-        OrganizationUserInvitation savedInvitation =
-                invitationRepository.save(invitation);
+        OrganizationUserInvitation savedInvitation = invitationRepository.save(invitation);
 
-        String baseUrl =
-                frontendBaseUrl.replaceAll("/+$", "");
+        String baseUrl = frontendBaseUrl.replaceAll("/+$", "");
 
-        String invitationUrl =
-                baseUrl
-                        + "/accept-invitation?token="
-                        + generatedToken.rawToken();
+        String invitationUrl = baseUrl
+                + "/accept-invitation?token="
+                + generatedToken.rawToken();
 
         return new CreateOrganizationUserInvitationResponse(
                 OrganizationUserInvitationMapper
@@ -199,17 +183,14 @@ public class OrganizationUserInvitationService {
     }
 
     @Transactional(readOnly = true)
-    public OrganizationUserInvitationDetailsResponse
-            findDetails(String rawToken) {
+    public OrganizationUserInvitationDetailsResponse findDetails(String rawToken) {
 
-        OrganizationUserInvitation invitation =
-                requireUsableInvitation(rawToken);
+        OrganizationUserInvitation invitation = requireUsableInvitation(rawToken);
 
-        boolean requiresPassword =
-                appUserRepository
-                        .findByEmailIgnoreCase(
-                                invitation.getEmail())
-                        .isEmpty();
+        boolean requiresPassword = appUserRepository
+                .findByEmailIgnoreCase(
+                        invitation.getEmail())
+                .isEmpty();
 
         return new OrganizationUserInvitationDetailsResponse(
                 invitation.getOrganization().getName(),
@@ -224,23 +205,20 @@ public class OrganizationUserInvitationService {
             String rawToken,
             AcceptOrganizationUserInvitationRequest request) {
 
-        OrganizationUserInvitation invitation =
-                requireUsableInvitation(rawToken);
+        OrganizationUserInvitation invitation = requireUsableInvitation(rawToken);
 
-        AppUser user =
-                appUserRepository
-                        .findByEmailIgnoreCase(
-                                invitation.getEmail())
-                        .orElse(null);
+        AppUser user = appUserRepository
+                .findByEmailIgnoreCase(
+                        invitation.getEmail())
+                .orElse(null);
 
         if (user == null) {
 
             validateNewUserPassword(
                     request.password());
 
-            String name =
-                    request.name() != null
-                            && !request.name().isBlank()
+            String name = request.name() != null
+                    && !request.name().isBlank()
 
                             ? StringNormalizer.normalize(
                                     request.name())
@@ -265,14 +243,17 @@ public class OrganizationUserInvitationService {
             user = appUserRepository.save(user);
         }
 
-        OrganizationUser membership =
-                organizationUserRepository
-                        .findByOrganization_IdAndUser_Id(
-                                invitation
-                                        .getOrganization()
-                                        .getId(),
-                                user.getId())
-                        .orElse(null);
+        OrganizationUser membership = organizationUserRepository
+                .findByOrganization_IdAndUser_Id(
+                        invitation
+                                .getOrganization()
+                                .getId(),
+                        user.getId())
+                .orElse(null);
+
+        if (membership != null && membership.isActive()) {
+            throw new BusinessException("User already has active access to this organization");
+        }
 
         if (membership == null) {
 
@@ -318,12 +299,11 @@ public class OrganizationUserInvitationService {
         organizationAccessService
                 .requireAdminAccess(organizationId);
 
-        OrganizationUserInvitation invitation =
-                invitationRepository
-                        .findById(invitationId)
-                        .orElseThrow(
-                                () -> new ResourceNotFoundException(
-                                        "Invitation not found"));
+        OrganizationUserInvitation invitation = invitationRepository
+                .findById(invitationId)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException(
+                                "Invitation not found"));
 
         if (!invitation.getOrganization()
                 .getId()
@@ -346,19 +326,16 @@ public class OrganizationUserInvitationService {
         }
     }
 
-    private OrganizationUserInvitation
-            requireUsableInvitation(
-                    String rawToken) {
+    private OrganizationUserInvitation requireUsableInvitation(
+            String rawToken) {
 
-        String tokenHash =
-                tokenService.hash(rawToken);
+        String tokenHash = tokenService.hash(rawToken);
 
-        OrganizationUserInvitation invitation =
-                invitationRepository
-                        .findByTokenHash(tokenHash)
-                        .orElseThrow(
-                                () -> new ResourceNotFoundException(
-                                        "Invitation not found"));
+        OrganizationUserInvitation invitation = invitationRepository
+                .findByTokenHash(tokenHash)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException(
+                                "Invitation not found"));
 
         if (invitation.getAcceptedAt() != null) {
             throw new BusinessException(
