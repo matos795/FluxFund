@@ -49,6 +49,9 @@ export function CreateOrganizationUserInvitationDialog() {
   const createMutation =
     useCreateOrganizationUserInvitation()
 
+  const [emailSent, setEmailSent] =
+    useState(false)
+
   const {
     register,
     control,
@@ -70,6 +73,7 @@ export function CreateOrganizationUserInvitationDialog() {
   function handleOpenChange(value: boolean) {
     if (!value) {
       reset()
+      setEmailSent(false)
       setInvitationUrl(null)
       setCopied(false)
     }
@@ -82,11 +86,23 @@ export function CreateOrganizationUserInvitationDialog() {
   ) {
     createMutation.mutate(data, {
       onSuccess: (response) => {
-        setInvitationUrl(response.invitationUrl)
-
-        toast.success(
-          "Convite criado. Copie o link e envie para a pessoa.",
+        setInvitationUrl(
+          response.invitationUrl,
         )
+
+        setEmailSent(
+          response.emailSent,
+        )
+
+        if (response.emailSent) {
+          toast.success(
+            "Convite enviado por e-mail.",
+          )
+        } else {
+          toast.warning(
+            "Convite criado, mas o e-mail não foi enviado. Copie o link manualmente.",
+          )
+        }
       },
 
       onError: (error) => {
@@ -161,9 +177,9 @@ export function CreateOrganizationUserInvitationDialog() {
                 </p>
 
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Enquanto o envio automático por e-mail
-                  não estiver configurado, envie este link
-                  manualmente.
+                  {emailSent
+                    ? "O convite foi enviado por e-mail. O link também pode ser copiado abaixo."
+                    : "O e-mail não foi enviado. Copie este link e envie manualmente para a pessoa."}
                 </p>
 
                 <div className="mt-3 flex gap-2">

@@ -25,6 +25,7 @@ export type CreateOrganizationUserInvitationRequest = {
 export type CreateOrganizationUserInvitationResponse = {
   invitation: OrganizationUserInvitation
   invitationUrl: string
+  emailSent: boolean
 }
 
 export type OrganizationUserInvitationDetails = {

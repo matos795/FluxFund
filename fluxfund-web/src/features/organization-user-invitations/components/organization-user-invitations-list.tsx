@@ -99,13 +99,13 @@ export function OrganizationUserInvitationsList({
                         variant="outline"
                         className={
                           invitationStatusClassNames[
-                            invitation.status
+                          invitation.status
                           ]
                         }
                       >
                         {
                           invitationStatusLabels[
-                            invitation.status
+                          invitation.status
                           ]
                         }
                       </Badge>
@@ -120,7 +120,7 @@ export function OrganizationUserInvitationsList({
                         Papel:{" "}
                         {
                           organizationRoleLabels[
-                            invitation.role
+                          invitation.role
                           ]
                         }
                       </span>
@@ -267,6 +267,16 @@ export function OrganizationUserInvitationsList({
                 setInvitationToRegenerate(
                   null,
                 )
+
+                if (response.emailSent) {
+                  toast.success(
+                    "Novo link enviado por e-mail.",
+                  )
+                } else {
+                  toast.warning(
+                    "Novo link gerado, mas o e-mail não foi enviado.",
+                  )
+                }
 
                 onInvitationUrlGenerated(
                   response.invitationUrl,
