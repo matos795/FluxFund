@@ -120,7 +120,7 @@ export function OrganizationUsersSettingsCard() {
             <UserRoundCheck className="size-4" />
 
             <span className="truncate">
-              Acessos ativos
+              Usuários
             </span>
 
             <Badge

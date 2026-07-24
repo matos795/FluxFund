@@ -18,12 +18,17 @@ import { formatDate } from "@/utils/formatters"
 import { organizationRoleLabels } from "../organization-user-labels"
 import type { OrganizationUser } from "../organization-user-types"
 import { OrganizationUserActions } from "./organization-user-actions"
+import { useAuth } from "@/features/auth"
 
 type OrganizationUsersTableProps = {
   users: OrganizationUser[]
 }
 
-export function OrganizationUsersTable({ users }: OrganizationUsersTableProps) {
+export function OrganizationUsersTable({
+  users,
+}: OrganizationUsersTableProps) {
+  const { session } = useAuth()
+
   return (
     <Card>
       <CardHeader>
@@ -55,36 +60,62 @@ export function OrganizationUsersTable({ users }: OrganizationUsersTableProps) {
               </TableHeader>
 
               <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.userId}>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{user.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {user.email}
-                        </span>
-                      </div>
-                    </TableCell>
+                {users.map((user) => {
+                  const isCurrentUser =
+                    session?.user.id === user.userId
 
-                    <TableCell>
-                      {organizationRoleLabels[user.role]}
-                    </TableCell>
+                  return (
+                    <TableRow
+                      key={user.userId}
+                      className={
+                        user.active
+                          ? undefined
+                          : "bg-muted/20"
+                      }
+                    >
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">
+                              {user.name}
+                            </span>
 
-                    <TableCell>
-                      {user.active ? (
-                        <Badge>Ativo</Badge>
-                      ) : (
-                        <Badge variant="secondary">Inativo</Badge>
-                      )}
-                    </TableCell>
+                            {isCurrentUser && (
+                              <Badge
+                                variant="outline"
+                                className="px-1.5 py-0 text-[10px]"
+                              >
+                                Você
+                              </Badge>
+                            )}
+                          </div>
 
-                    <TableCell>{formatDate(user.createdAt.slice(0, 10))}</TableCell>
+                          <span className="text-xs text-muted-foreground">
+                            {user.email}
+                          </span>
+                        </div>
+                      </TableCell>
 
-                    <TableCell>
-                      <OrganizationUserActions organizationUser={user} />
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      <TableCell>
+                        {organizationRoleLabels[user.role]}
+                      </TableCell>
+
+                      <TableCell>
+                        {user.active ? (
+                          <Badge>Ativo</Badge>
+                        ) : (
+                          <Badge variant="secondary">Inativo</Badge>
+                        )}
+                      </TableCell>
+
+                      <TableCell>{formatDate(user.createdAt.slice(0, 10))}</TableCell>
+
+                      <TableCell>
+                        <OrganizationUserActions organizationUser={user} />
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           </div>
