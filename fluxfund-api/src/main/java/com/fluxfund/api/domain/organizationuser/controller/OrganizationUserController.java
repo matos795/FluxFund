@@ -33,7 +33,6 @@ import lombok.RequiredArgsConstructor;
 public class OrganizationUserController {
 
     private final OrganizationUserService service;
-    private final OrganizationUserInvitationService invitationService;
 
     @GetMapping
     public ResponseEntity<List<OrganizationUserResponse>> findAll(
@@ -50,18 +49,6 @@ public class OrganizationUserController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(service.create(organizationId, request));
-    }
-
-    @PostMapping("/{invitationId}/regenerate-link")
-    public CreateOrganizationUserInvitationResponse regenerateLink(
-
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-
-            @PathVariable UUID invitationId) {
-
-        return invitationService.regenerateLink(
-                organizationId,
-                invitationId);
     }
 
     @PatchMapping("/{userId}/role")

@@ -24,47 +24,48 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping(
-        "/api/v1/organization-user-invitations")
+@RequestMapping("/api/v1/organization-user-invitations")
 @RequiredArgsConstructor
 public class OrganizationUserInvitationController {
 
-    private final OrganizationUserInvitationService service;
+        private final OrganizationUserInvitationService service;
 
-    @GetMapping
-    public List<OrganizationUserInvitationResponse> findAll(
-            @RequestHeader(ORGANIZATION_ID)
-            UUID organizationId) {
+        @GetMapping
+        public List<OrganizationUserInvitationResponse> findAll(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId) {
 
-        return service.findAll(organizationId);
-    }
+                return service.findAll(organizationId);
+        }
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public CreateOrganizationUserInvitationResponse create(
-            @RequestHeader(ORGANIZATION_ID)
-            UUID organizationId,
+        @PostMapping
+        @ResponseStatus(HttpStatus.CREATED)
+        public CreateOrganizationUserInvitationResponse create(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
 
-            @RequestBody
-            @Valid
-            CreateOrganizationUserInvitationRequest request) {
+                        @RequestBody @Valid CreateOrganizationUserInvitationRequest request) {
 
-        return service.create(
-                organizationId,
-                request);
-    }
+                return service.create(
+                                organizationId,
+                                request);
+        }
 
-    @DeleteMapping("/{invitationId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void cancel(
-            @RequestHeader(ORGANIZATION_ID)
-            UUID organizationId,
+        @PostMapping("/{invitationId}/regenerate-link")
+        public CreateOrganizationUserInvitationResponse regenerateLink(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID invitationId) {
 
-            @PathVariable
-            UUID invitationId) {
+                return service.regenerateLink(organizationId, invitationId);
+        }
 
-        service.cancel(
-                organizationId,
-                invitationId);
-    }
+        @DeleteMapping("/{invitationId}")
+        @ResponseStatus(HttpStatus.NO_CONTENT)
+        public void cancel(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+
+                        @PathVariable UUID invitationId) {
+
+                service.cancel(
+                                organizationId,
+                                invitationId);
+        }
 }
