@@ -24,6 +24,8 @@ import { AuditLogReportPage } from "@/pages/results/audit-log-report-page"
 import { ClosingDossierReportPage } from "@/pages/results/closing-dossier-report-page"
 import { AcceptInvitationPage } from "@/pages/accept-invitation-page"
 import { OrganizationsPage } from "@/pages/organizations-page"
+import { ForgotPasswordPage } from "@/pages/forgot-password-page"
+import { ResetPasswordPage } from "@/pages/reset-password-page"
 
 export function AppRoutes() {
   return (
@@ -31,6 +33,16 @@ export function AppRoutes() {
       <Route
         path="/login"
         element={<LoginPage />}
+      />
+
+      <Route
+        path="/forgot-password"
+        element={<ForgotPasswordPage />}
+      />
+
+      <Route
+        path="/reset-password"
+        element={<ResetPasswordPage />}
       />
 
       <Route

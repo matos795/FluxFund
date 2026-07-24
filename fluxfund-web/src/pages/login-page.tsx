@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
-import { Navigate, useNavigate } from "react-router-dom"
+import { Link, Navigate, useNavigate } from "react-router-dom"
 import { z } from "zod"
 
 import { Button } from "@/components/ui/button"
@@ -66,7 +66,7 @@ export function LoginPage() {
       navigate("/organizations", {
         replace: true,
       })
-      
+
     } catch {
       setLoginError("Email ou senha inválidos.")
     } finally {
@@ -103,7 +103,16 @@ export function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="password">Senha</Label>
+
+                <Link
+                  to="/forgot-password"
+                  className="text-sm font-medium text-primary hover:underline"
+                >
+                  Esqueci minha senha
+                </Link>
+              </div>
               <Input
                 id="password"
                 type="password"
