@@ -91,18 +91,20 @@ export function OrganizationUsersSettingsCard() {
         defaultValue="invitations"
         className="space-y-4"
       >
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-2 p-2">
+        <TabsList className="grid w-full grid-cols-2 gap-2 rounded-xl border bg-muted/50 p-1 group-data-horizontal/tabs:h-auto">
           <TabsTrigger
             value="invitations"
-            className="h-auto justify-start gap-3 px-4 py-3"
+            className="h-full min-h-12 min-w-0 justify-start gap-3 px-4 py-2.5"
           >
             <Mail className="size-4" />
 
-            <span>Convites</span>
+            <span className="truncate">
+              Convites
+            </span>
 
             <Badge
               variant="secondary"
-              className="ml-auto"
+              className="ml-auto shrink-0"
             >
               {
                 (invitationsQuery.data ?? [])
@@ -113,15 +115,17 @@ export function OrganizationUsersSettingsCard() {
 
           <TabsTrigger
             value="active-users"
-            className="h-auto justify-start gap-3 px-4 py-3"
+            className="h-full min-h-12 min-w-0 justify-start gap-3 px-4 py-2.5"
           >
             <UserRoundCheck className="size-4" />
 
-            <span>Acessos ativos</span>
+            <span className="truncate">
+              Acessos ativos
+            </span>
 
             <Badge
               variant="secondary"
-              className="ml-auto"
+              className="ml-auto shrink-0"
             >
               {(usersQuery.data ?? []).length}
             </Badge>
