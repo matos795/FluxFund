@@ -105,7 +105,7 @@ export function SettingsPage() {
       >
         <TabsList
           className={cn(
-            "sticky top-20 z-20 grid h-auto w-full gap-2 border bg-background/95 p-2 shadow-sm backdrop-blur",
+            "sticky top-20 z-20 grid w-full gap-2 rounded-xl border bg-background/95 p-2 shadow-sm backdrop-blur group-data-horizontal/tabs:h-auto",
             canAdmin
               ? "grid-cols-2 lg:grid-cols-4"
               : "grid-cols-1 sm:grid-cols-3",
@@ -196,7 +196,7 @@ function SettingsTabTrigger({
   return (
     <TabsTrigger
       value={value}
-      className="h-auto min-w-0 justify-start gap-3 px-3 py-3 text-left"
+      className="h-full min-h-16 min-w-0 justify-start gap-3 px-3 py-3 text-left"
     >
       <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
         <Icon className="size-4" />
