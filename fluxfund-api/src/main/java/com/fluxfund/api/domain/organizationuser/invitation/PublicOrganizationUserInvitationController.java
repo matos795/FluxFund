@@ -1,20 +1,14 @@
 package com.fluxfund.api.domain.organizationuser.invitation;
 
-import java.util.UUID;
-
-import static com.fluxfund.api.security.TenantHeaders.ORGANIZATION_ID;
-
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fluxfund.api.domain.organizationuser.invitation.dto.AcceptOrganizationUserInvitationRequest;
 import com.fluxfund.api.domain.organizationuser.invitation.dto.AcceptOrganizationUserInvitationResponse;
-import com.fluxfund.api.domain.organizationuser.invitation.dto.CreateOrganizationUserInvitationResponse;
 import com.fluxfund.api.domain.organizationuser.invitation.dto.OrganizationUserInvitationDetailsResponse;
 
 import jakarta.validation.Valid;
@@ -43,15 +37,5 @@ public class PublicOrganizationUserInvitationController {
         return service.accept(
                 token,
                 request);
-    }
-
-    @PostMapping("/{invitationId}/regenerate-link")
-    public CreateOrganizationUserInvitationResponse regenerateLink(
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @PathVariable UUID invitationId) {
-
-        return service.regenerateLink(
-                organizationId,
-                invitationId);
     }
 }

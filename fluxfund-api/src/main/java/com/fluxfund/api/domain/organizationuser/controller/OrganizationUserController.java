@@ -20,6 +20,8 @@ import com.fluxfund.api.domain.organizationuser.dto.CreateOrganizationUserReques
 import com.fluxfund.api.domain.organizationuser.dto.OrganizationUserResponse;
 import com.fluxfund.api.domain.organizationuser.dto.UpdateOrganizationUserRoleRequest;
 import com.fluxfund.api.domain.organizationuser.dto.UpdateOrganizationUserStatusRequest;
+import com.fluxfund.api.domain.organizationuser.invitation.OrganizationUserInvitationService;
+import com.fluxfund.api.domain.organizationuser.invitation.dto.CreateOrganizationUserInvitationResponse;
 import com.fluxfund.api.domain.organizationuser.service.OrganizationUserService;
 
 import jakarta.validation.Valid;
@@ -31,6 +33,7 @@ import lombok.RequiredArgsConstructor;
 public class OrganizationUserController {
 
     private final OrganizationUserService service;
+    private final OrganizationUserInvitationService invitationService;
 
     @GetMapping
     public ResponseEntity<List<OrganizationUserResponse>> findAll(
@@ -47,6 +50,18 @@ public class OrganizationUserController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(service.create(organizationId, request));
+    }
+
+    @PostMapping("/{invitationId}/regenerate-link")
+    public CreateOrganizationUserInvitationResponse regenerateLink(
+
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+
+            @PathVariable UUID invitationId) {
+
+        return invitationService.regenerateLink(
+                organizationId,
+                invitationId);
     }
 
     @PatchMapping("/{userId}/role")

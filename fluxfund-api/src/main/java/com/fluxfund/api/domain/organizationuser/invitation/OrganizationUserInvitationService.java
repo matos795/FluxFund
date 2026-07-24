@@ -170,8 +170,6 @@ public class OrganizationUserInvitationService {
 
         OrganizationUserInvitation savedInvitation = invitationRepository.save(invitation);
 
-        String baseUrl = frontendBaseUrl.replaceAll("/+$", "");
-
         return buildInvitationResponse(
                 savedInvitation,
                 generatedToken.rawToken());
@@ -322,7 +320,6 @@ public class OrganizationUserInvitationService {
     }
 
     public CreateOrganizationUserInvitationResponse regenerateLink(
-
             UUID organizationId,
             UUID invitationId) {
 
