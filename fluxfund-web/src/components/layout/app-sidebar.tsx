@@ -18,6 +18,7 @@ import { NavLink, useNavigate } from "react-router-dom"
 
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/features/auth/hooks/use-auth"
+import { UserOrganizationLogo } from "@/features/auth/components/user-organization-logo"
 
 const organizationRoleLabels = {
   OWNER: "Proprietário",
@@ -172,7 +173,18 @@ export function AppSidebar({
               className="flex w-full items-center gap-3 rounded-xl bg-muted p-3 text-left transition-colors hover:bg-muted/70"
             >
               <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-background text-primary shadow-sm">
-                <Building2 className="size-4" />
+                {activeOrganization ? (
+                  <UserOrganizationLogo
+                    organizationId={activeOrganization.id}
+                    organizationName={activeOrganization.name}
+                    hasLogo={activeOrganization.hasLogo}
+                    className="size-10 rounded-xl text-sm"
+                  />
+                ) : (
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-background text-primary shadow-sm">
+                    <Building2 className="size-4" />
+                  </div>
+                )}
               </div>
 
               <div className="min-w-0 flex-1">
@@ -207,9 +219,16 @@ export function AppSidebar({
               }
               className="mx-auto flex size-10 items-center justify-center rounded-xl bg-muted text-sm font-semibold transition-colors hover:bg-muted/70"
             >
-              {activeOrganization?.name
-                ?.charAt(0)
-                .toUpperCase() ?? "O"}
+              {activeOrganization ? (
+                <UserOrganizationLogo
+                  organizationId={activeOrganization.id}
+                  organizationName={activeOrganization.name}
+                  hasLogo={activeOrganization.hasLogo}
+                  className="size-10 rounded-xl text-sm"
+                />
+              ) : (
+                "O"
+              )}
             </button>
           )}
         </div>

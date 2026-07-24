@@ -78,7 +78,9 @@ public class AuthService {
                 .map(membership -> new UserOrganizationResponse(
                         membership.getOrganization().getId(),
                         membership.getOrganization().getName(),
-                        membership.getRole()
+                        membership.getRole(),
+                        membership.getOrganization().getLogoStorageKey() != null &&
+                        !membership.getOrganization().getLogoStorageKey().isBlank()
                 ))
                 .toList();
 

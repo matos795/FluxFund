@@ -17,6 +17,8 @@ import type { OrganizationProfile } from "../organization-profile-types"
 import { useDeleteOrganizationLogo } from "../hooks/use-organization-logo-mutations"
 import { useUploadOrganizationLogo } from "../hooks/use-organization-logo-mutations"
 import { OrganizationLogo } from "./organization-logo"
+import { useQueryClient } from "@tanstack/react-query"
+import { useAuth } from "@/features/auth"
 
 type OrganizationLogoSectionProps = {
   organization: OrganizationProfile
@@ -35,6 +37,13 @@ export function OrganizationLogoSection({
 
   const uploadMutation = useUploadOrganizationLogo()
   const deleteMutation = useDeleteOrganizationLogo()
+
+  const {
+    activeOrganization,
+    refreshUser,
+  } = useAuth()
+
+  const queryClient = useQueryClient()
 
   function resetSelectedFile() {
     setSelectedFile(null)
@@ -72,6 +81,17 @@ export function OrganizationLogoSection({
     try {
       await uploadMutation.mutateAsync(selectedFile)
 
+      await refreshUser()
+
+      if (activeOrganization) {
+        queryClient.invalidateQueries({
+          queryKey: [
+            "user-organization-logo",
+            activeOrganization.id,
+          ],
+        })
+      }
+
       toast.success(
         organization.logo
           ? "Logo substituída com sucesso."
@@ -92,6 +112,17 @@ export function OrganizationLogoSection({
   async function handleDelete() {
     try {
       await deleteMutation.mutateAsync()
+
+      await refreshUser()
+
+      if (activeOrganization) {
+        queryClient.invalidateQueries({
+          queryKey: [
+            "user-organization-logo",
+            activeOrganization.id,
+          ],
+        })
+      }
 
       toast.success("Logo removida com sucesso.")
       setDeleteConfirmationOpen(false)

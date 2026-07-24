@@ -4,6 +4,7 @@ export type UserOrganization = {
   id: string
   name: string
   role: OrganizationRole
+  hasLogo: boolean
 }
 
 export type AuthenticatedUser = {

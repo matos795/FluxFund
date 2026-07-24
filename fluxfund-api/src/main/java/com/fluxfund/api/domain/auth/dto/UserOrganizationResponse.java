@@ -7,6 +7,7 @@ import com.fluxfund.api.domain.organizationuser.OrganizationRole;
 public record UserOrganizationResponse(
         UUID id,
         String name,
-        OrganizationRole role
+        OrganizationRole role,
+        boolean hasLogo
 ) {
 }
