@@ -172,14 +172,9 @@ public class OrganizationUserInvitationService {
 
         String baseUrl = frontendBaseUrl.replaceAll("/+$", "");
 
-        String invitationUrl = baseUrl
-                + "/accept-invitation?token="
-                + generatedToken.rawToken();
-
-        return new CreateOrganizationUserInvitationResponse(
-                OrganizationUserInvitationMapper
-                        .toResponse(savedInvitation),
-                invitationUrl);
+        return buildInvitationResponse(
+                savedInvitation,
+                generatedToken.rawToken());
     }
 
     @Transactional(readOnly = true)
@@ -326,6 +321,54 @@ public class OrganizationUserInvitationService {
         }
     }
 
+    public CreateOrganizationUserInvitationResponse regenerateLink(
+
+            UUID organizationId,
+            UUID invitationId) {
+
+        organizationAccessService
+                .requireAdminAccess(organizationId);
+
+        OrganizationUserInvitation invitation = invitationRepository
+                .findById(invitationId)
+                .orElseThrow(
+                        () -> new ResourceNotFoundException(
+                                "Invitation not found"));
+
+        if (!invitation.getOrganization()
+                .getId()
+                .equals(organizationId)) {
+
+            throw new ResourceNotFoundException(
+                    "Invitation not found");
+        }
+
+        if (invitation.getAcceptedAt() != null) {
+            throw new BusinessException(
+                    "Accepted invitations cannot generate a new link");
+        }
+
+        if (invitation.getCanceledAt() != null) {
+            throw new BusinessException(
+                    "Canceled invitations cannot generate a new link");
+        }
+
+        var generatedToken = tokenService.generate();
+
+        invitation.setTokenHash(
+                generatedToken.tokenHash());
+
+        invitation.setExpiresAt(
+                OffsetDateTime.now()
+                        .plus(invitationExpiration));
+
+        OrganizationUserInvitation savedInvitation = invitationRepository.save(invitation);
+
+        return buildInvitationResponse(
+                savedInvitation,
+                generatedToken.rawToken());
+    }
+
     private OrganizationUserInvitation requireUsableInvitation(
             String rawToken) {
 
@@ -366,5 +409,21 @@ public class OrganizationUserInvitationService {
             throw new BusinessException(
                     "Password must contain at least 8 characters");
         }
+    }
+
+    private CreateOrganizationUserInvitationResponse buildInvitationResponse(
+            OrganizationUserInvitation invitation,
+            String rawToken) {
+
+        String baseUrl = frontendBaseUrl.replaceAll("/+$", "");
+
+        String invitationUrl = baseUrl
+                + "/accept-invitation?token="
+                + rawToken;
+
+        return new CreateOrganizationUserInvitationResponse(
+                OrganizationUserInvitationMapper
+                        .toResponse(invitation),
+                invitationUrl);
     }
 }

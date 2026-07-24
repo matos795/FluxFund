@@ -64,3 +64,14 @@ export async function acceptOrganizationUserInvitation(
 
   return response.data
 }
+
+export async function regenerateOrganizationUserInvitationLink(
+  invitationId: string,
+) {
+  const response =
+    await httpClient.post<CreateOrganizationUserInvitationResponse>(
+      `/api/v1/organization-user-invitations/${invitationId}/regenerate-link`,
+    )
+
+  return response.data
+}
