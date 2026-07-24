@@ -1,6 +1,5 @@
 import {
   Building2,
-  KeyRound,
   Landmark,
   Settings,
   ShieldCheck,
@@ -10,7 +9,16 @@ import {
 
 import { PageHeader } from "@/components/layout/page-header"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+} from "@/components/ui/card"
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
 import { useAuth } from "@/features/auth/hooks/use-auth"
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { organizationRoleLabels } from "@/features/organization-users/organization-user-labels"
@@ -21,186 +29,188 @@ import { PasswordSettingsCard } from "@/features/profile/components/password-set
 import { ProfileSettingsCard } from "@/features/profile/components/profile-settings-card"
 import { cn } from "@/lib/utils"
 
-type SettingsNavItem = {
-  href: string
-  label: string
-  description: string
-  icon: typeof Settings
-  adminOnly?: boolean
-}
-
-const settingsNavItems: SettingsNavItem[] = [
-  {
-    href: "#profile",
-    label: "Meu perfil",
-    description: "Nome e e-mail da conta",
-    icon: UserRound,
-  },
-  {
-    href: "#security",
-    label: "Senha",
-    description: "Segurança do acesso",
-    icon: KeyRound,
-  },
-  {
-    href: "#organization",
-    label: "Organização",
-    description: "Nome e dados gerais",
-    icon: Building2,
-  },
-  {
-    href: "#financial",
-    label: "Financeiro",
-    description: "Fundos e regras padrão",
-    icon: Landmark,
-  },
-  {
-    href: "#users",
-    label: "Usuários",
-    description: "Papéis e acessos",
-    icon: UsersRound,
-    adminOnly: true,
-  },
-]
-
 export function SettingsPage() {
-  const { activeOrganization, session } = useAuth()
-  const { canAdmin, role } = usePermissions()
+  const {
+    activeOrganization,
+    session,
+  } = useAuth()
 
-  const visibleNavItems = settingsNavItems.filter(
-    (item) => !item.adminOnly || canAdmin,
-  )
+  const {
+    canAdmin,
+    role,
+  } = usePermissions()
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Configurações"
-        description="Gerencie sua conta, a organização ativa, permissões e regras financeiras do FluxFund."
+        description="Gerencie sua conta e as configurações da organização atual."
       />
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <SettingsSummaryCard
-          icon={UserRound}
-          label="Usuário logado"
-          title={session?.user.name ?? "Usuário"}
-          description={session?.user.email ?? "E-mail não informado"}
-        />
+      <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-primary/5 via-background to-background">
+        <CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+          <div className="flex min-w-0 items-center gap-4">
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <Building2 className="size-5" />
+            </div>
 
-        <SettingsSummaryCard
-          icon={Building2}
-          label="Organização atual"
-          title={activeOrganization?.name ?? "Nenhuma organização"}
-          description="Todas as configurações desta tela usam esta organização."
-        />
+            <div className="min-w-0">
+              <p className="text-sm text-muted-foreground">
+                Configurando
+              </p>
 
-        <SettingsSummaryCard
-          icon={ShieldCheck}
-          label="Seu papel"
-          title={role ? organizationRoleLabels[role] : "Sem acesso"}
-          description={
-            canAdmin
-              ? "Você pode gerenciar configurações e usuários."
-              : "Algumas configurações ficam somente leitura."
-          }
-        />
-      </div>
+              <p className="truncate text-lg font-semibold">
+                {activeOrganization?.name ??
+                  "Nenhuma organização"}
+              </p>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                As alterações organizacionais serão
+                aplicadas somente a este ambiente.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline">
+              <UserRound className="mr-1 size-3" />
+
+              {session?.user.name ??
+                "Usuário"}
+            </Badge>
+
+            <Badge variant="secondary">
+              <ShieldCheck className="mr-1 size-3" />
+
+              {role
+                ? organizationRoleLabels[role]
+                : "Sem acesso"}
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
 
       {!canAdmin && (
-        <p className="rounded-md border bg-muted p-3 text-sm text-muted-foreground">
-          Você pode editar seu próprio perfil e senha. Configurações da organização ficam disponíveis somente para OWNER/ADMIN.
-        </p>
+        <div className="rounded-xl border bg-muted/40 p-4 text-sm text-muted-foreground">
+          Você pode editar seu perfil e senha.
+          Algumas configurações da organização ficam
+          disponíveis somente para proprietários e
+          administradores.
+        </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[300px_1fr]">
-        <Card className="h-fit xl:sticky xl:top-24">
-          <CardContent className="p-3">
-            <nav className="space-y-1">
-              {visibleNavItems.map((item) => {
-                const Icon = item.icon
+      <Tabs
+        defaultValue="account"
+        className="space-y-4"
+      >
+        <TabsList
+          className={cn(
+            "sticky top-20 z-20 grid h-auto w-full gap-2 border bg-background/95 p-2 shadow-sm backdrop-blur",
+            canAdmin
+              ? "grid-cols-2 lg:grid-cols-4"
+              : "grid-cols-1 sm:grid-cols-3",
+          )}
+        >
+          <SettingsTabTrigger
+            value="account"
+            icon={UserRound}
+            title="Minha conta"
+            description="Perfil e senha"
+          />
 
-                return (
-                  <a
-                    key={item.href}
-                    href={item.href}
-                    className="group flex items-start gap-3 rounded-lg px-3 py-3 text-sm transition-colors hover:bg-muted"
-                  >
-                    <span className="rounded-lg bg-muted p-2 text-muted-foreground transition-colors group-hover:bg-background group-hover:text-foreground">
-                      <Icon className="size-4" />
-                    </span>
+          <SettingsTabTrigger
+            value="organization"
+            icon={Building2}
+            title="Organização"
+            description="Dados institucionais"
+          />
 
-                    <span className="min-w-0">
-                      <span className="block font-medium text-foreground">
-                        {item.label}
-                      </span>
-                      <span className="mt-0.5 block text-xs text-muted-foreground">
-                        {item.description}
-                      </span>
-                    </span>
-                  </a>
-                )
-              })}
-            </nav>
-          </CardContent>
-        </Card>
-
-        <div className="space-y-6">
-          <section id="profile" className="scroll-mt-24">
-            <ProfileSettingsCard />
-          </section>
-
-          <section id="security" className="scroll-mt-24">
-            <PasswordSettingsCard />
-          </section>
-
-          <section id="organization" className="scroll-mt-24">
-            <OrganizationProfileSettingsCard />
-          </section>
-
-          <section id="financial" className="scroll-mt-24">
-            <FinancialSettingsCard />
-          </section>
+          <SettingsTabTrigger
+            value="financial"
+            icon={Landmark}
+            title="Financeiro"
+            description="Regras e padrões"
+          />
 
           {canAdmin && (
-            <section id="users" className="scroll-mt-24">
-              <OrganizationUsersSettingsCard />
-            </section>
+            <SettingsTabTrigger
+              value="users"
+              icon={UsersRound}
+              title="Usuários"
+              description="Convites e acessos"
+            />
           )}
-        </div>
-      </div>
+        </TabsList>
+
+        <TabsContent
+          value="account"
+          className="mt-0"
+        >
+          <div className="grid gap-6 xl:grid-cols-2">
+            <ProfileSettingsCard />
+
+            <PasswordSettingsCard />
+          </div>
+        </TabsContent>
+
+        <TabsContent
+          value="organization"
+          className="mt-0"
+        >
+          <OrganizationProfileSettingsCard />
+        </TabsContent>
+
+        <TabsContent
+          value="financial"
+          className="mt-0"
+        >
+          <FinancialSettingsCard />
+        </TabsContent>
+
+        {canAdmin && (
+          <TabsContent
+            value="users"
+            className="mt-0"
+          >
+            <OrganizationUsersSettingsCard />
+          </TabsContent>
+        )}
+      </Tabs>
     </div>
   )
 }
 
-type SettingsSummaryCardProps = {
+type SettingsTabTriggerProps = {
+  value: string
   icon: typeof Settings
-  label: string
   title: string
   description: string
 }
 
-function SettingsSummaryCard({
+function SettingsTabTrigger({
+  value,
   icon: Icon,
-  label,
   title,
   description,
-}: SettingsSummaryCardProps) {
+}: SettingsTabTriggerProps) {
   return (
-    <Card className={cn("overflow-hidden")}> 
-      <CardContent className="flex items-start gap-3 p-4">
-        <div className="rounded-xl bg-primary/10 p-2 text-primary">
-          <Icon className="size-5" />
-        </div>
+    <TabsTrigger
+      value={value}
+      className="h-auto min-w-0 justify-start gap-3 px-3 py-3 text-left"
+    >
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+        <Icon className="size-4" />
+      </span>
 
-        <div className="min-w-0 flex-1">
-          <div className="mb-2">
-            <Badge variant="outline">{label}</Badge>
-          </div>
-          <p className="truncate font-semibold">{title}</p>
-          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-            {description}
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+      <span className="min-w-0">
+        <span className="block truncate font-medium">
+          {title}
+        </span>
+
+        <span className="hidden truncate text-xs font-normal text-muted-foreground sm:block">
+          {description}
+        </span>
+      </span>
+    </TabsTrigger>
   )
 }

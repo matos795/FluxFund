@@ -1,4 +1,4 @@
-import { Copy, Link2 } from "lucide-react"
+import { Copy, Link2, Mail, UserRoundCheck } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -19,6 +19,8 @@ import { useOrganizationUserInvitations } from "@/features/organization-user-inv
 import { useOrganizationUsers } from "../hooks/use-organization-users"
 import { OrganizationUsersTable } from "./organization-users-table"
 import { CreateOrganizationUserDialog } from "./create-organization-user-dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
 
 export function OrganizationUsersSettingsCard() {
   const usersQuery =
@@ -85,17 +87,60 @@ export function OrganizationUsersSettingsCard() {
 
   return (
     <>
-      <div className="space-y-8">
-        <section className="space-y-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <Tabs
+        defaultValue="invitations"
+        className="space-y-4"
+      >
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-2 p-2">
+          <TabsTrigger
+            value="invitations"
+            className="h-auto justify-start gap-3 px-4 py-3"
+          >
+            <Mail className="size-4" />
+
+            <span>Convites</span>
+
+            <Badge
+              variant="secondary"
+              className="ml-auto"
+            >
+              {
+                (invitationsQuery.data ?? [])
+                  .length
+              }
+            </Badge>
+          </TabsTrigger>
+
+          <TabsTrigger
+            value="active-users"
+            className="h-auto justify-start gap-3 px-4 py-3"
+          >
+            <UserRoundCheck className="size-4" />
+
+            <span>Acessos ativos</span>
+
+            <Badge
+              variant="secondary"
+              className="ml-auto"
+            >
+              {(usersQuery.data ?? []).length}
+            </Badge>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent
+          value="invitations"
+          className="mt-0 space-y-4"
+        >
+          <div className="flex flex-col gap-3 rounded-xl border bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="font-semibold">
                 Convites de acesso
               </h3>
 
-              <p className="text-sm text-muted-foreground">
-                Convide pessoas e acompanhe o
-                estado dos links enviados.
+              <p className="mt-1 text-sm text-muted-foreground">
+                Convide pessoas e acompanhe o estado
+                dos links enviados.
               </p>
             </div>
 
@@ -110,18 +155,21 @@ export function OrganizationUsersSettingsCard() {
               setGeneratedInvitationUrl
             }
           />
-        </section>
+        </TabsContent>
 
-        <section className="space-y-4 border-t pt-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <TabsContent
+          value="active-users"
+          className="mt-0 space-y-4"
+        >
+          <div className="flex flex-col gap-3 rounded-xl border bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="font-semibold">
                 Usuários com acesso
               </h3>
 
-              <p className="text-sm text-muted-foreground">
+              <p className="mt-1 text-sm text-muted-foreground">
                 Gerencie papéis e acessos já
-                ativos.
+                associados à organização.
               </p>
             </div>
 
@@ -129,12 +177,10 @@ export function OrganizationUsersSettingsCard() {
           </div>
 
           <OrganizationUsersTable
-            users={
-              usersQuery.data ?? []
-            }
+            users={usersQuery.data ?? []}
           />
-        </section>
-      </div>
+        </TabsContent>
+      </Tabs>
 
       <Dialog
         open={
