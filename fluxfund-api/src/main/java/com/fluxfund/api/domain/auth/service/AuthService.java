@@ -16,6 +16,10 @@ import com.fluxfund.api.domain.auth.dto.LoginRequest;
 import com.fluxfund.api.domain.auth.dto.LoginResponse;
 import com.fluxfund.api.domain.auth.dto.UserOrganizationResponse;
 import com.fluxfund.api.domain.organizationuser.OrganizationUserRepository;
+import com.fluxfund.api.domain.securityevent.SecurityEventOutcome;
+import com.fluxfund.api.domain.securityevent.SecurityEventService;
+import com.fluxfund.api.domain.securityevent.SecurityEventType;
+import com.fluxfund.api.domain.securityevent.SecurityRequestMetadata;
 import com.fluxfund.api.domain.user.AppUser;
 import com.fluxfund.api.domain.user.AppUserRepository;
 import com.fluxfund.api.security.FluxFundUserPrincipal;
@@ -29,66 +33,107 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 public class AuthService {
 
-    private final AuthenticationManager authenticationManager;
-    private final AppUserRepository appUserRepository;
-    private final OrganizationUserRepository organizationUserRepository;
-    private final JwtTokenService jwtTokenService;
+        private final AuthenticationManager authenticationManager;
+        private final AppUserRepository appUserRepository;
+        private final OrganizationUserRepository organizationUserRepository;
+        private final JwtTokenService jwtTokenService;
+        private final SecurityEventService securityEventService;
 
-    public LoginResponse login(LoginRequest request) {
-        String normalizedEmail = request.email().trim().toLowerCase(Locale.ROOT);
+        public LoginResponse login(
+                        LoginRequest request,
+                        SecurityRequestMetadata metadata) {
 
-        Authentication authentication;
+                String normalizedEmail = request.email()
+                                .trim()
+                                .toLowerCase(
+                                                Locale.ROOT);
 
-        try {
-            authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(
-                            normalizedEmail,
-                            request.password()
-                    )
-            );
-        } catch (AuthenticationException ex) {
-            throw new UnauthorizedException("Invalid email or password");
+                AppUser attemptedUser = appUserRepository
+                                .findByEmailIgnoreCase(
+                                                normalizedEmail)
+                                .orElse(null);
+
+                Authentication authentication;
+
+                try {
+                        authentication = authenticationManager
+                                        .authenticate(
+
+                                                        new UsernamePasswordAuthenticationToken(
+                                                                        normalizedEmail,
+                                                                        request.password()));
+
+                } catch (AuthenticationException exception) {
+                        securityEventService.record(
+                                        attemptedUser == null
+                                                        ? null
+                                                        : attemptedUser.getId(),
+
+                                        normalizedEmail,
+
+                                        SecurityEventType.LOGIN,
+
+                                        SecurityEventOutcome.FAILURE,
+
+                                        metadata,
+
+                                        "Login rejected");
+
+                        throw new UnauthorizedException(
+                                        "Invalid email or password");
+                }
+
+                FluxFundUserPrincipal principal = (FluxFundUserPrincipal) authentication
+                                .getPrincipal();
+
+                String accessToken = jwtTokenService
+                                .generateAccessToken(
+                                                principal);
+
+                securityEventService.record(
+                                principal.id(),
+                                normalizedEmail,
+                                SecurityEventType.LOGIN,
+                                SecurityEventOutcome.SUCCESS,
+                                metadata,
+                                "Login authenticated");
+
+                return new LoginResponse(
+                                accessToken,
+                                "Bearer",
+
+                                jwtTokenService
+                                                .accessTokenExpirationSeconds(),
+
+                                findAuthenticatedUser(
+                                                principal.id()));
         }
 
-        FluxFundUserPrincipal principal =
-                (FluxFundUserPrincipal) authentication.getPrincipal();
+        public AuthenticatedUserResponse me(UUID userId) {
+                return findAuthenticatedUser(userId);
+        }
 
-        String accessToken = jwtTokenService.generateAccessToken(principal);
+        private AuthenticatedUserResponse findAuthenticatedUser(UUID userId) {
+                AppUser user = appUserRepository
+                                .findByIdAndActiveTrue(userId)
+                                .orElseThrow(() -> new UnauthorizedException("Authenticated user is no longer active"));
 
-        return new LoginResponse(
-                accessToken,
-                "Bearer",
-                jwtTokenService.accessTokenExpirationSeconds(),
-                findAuthenticatedUser(principal.id())
-        );
-    }
+                List<UserOrganizationResponse> organizations = organizationUserRepository
+                                .findAllByUser_IdAndActiveTrueAndOrganization_ActiveTrue(userId)
+                                .stream()
+                                .map(membership -> new UserOrganizationResponse(
+                                                membership.getOrganization().getId(),
+                                                membership.getOrganization().getName(),
+                                                membership.getRole(),
+                                                membership.getOrganization().getLogoStorageKey() != null &&
+                                                                !membership.getOrganization().getLogoStorageKey()
+                                                                                .isBlank()))
+                                .toList();
 
-    public AuthenticatedUserResponse me(UUID userId) {
-        return findAuthenticatedUser(userId);
-    }
-
-    private AuthenticatedUserResponse findAuthenticatedUser(UUID userId) {
-        AppUser user = appUserRepository
-                .findByIdAndActiveTrue(userId)
-                .orElseThrow(() -> new UnauthorizedException("Authenticated user is no longer active"));
-
-        List<UserOrganizationResponse> organizations = organizationUserRepository
-                .findAllByUser_IdAndActiveTrueAndOrganization_ActiveTrue(userId)
-                .stream()
-                .map(membership -> new UserOrganizationResponse(
-                        membership.getOrganization().getId(),
-                        membership.getOrganization().getName(),
-                        membership.getRole(),
-                        membership.getOrganization().getLogoStorageKey() != null &&
-                        !membership.getOrganization().getLogoStorageKey().isBlank()
-                ))
-                .toList();
-
-        return new AuthenticatedUserResponse(
-                user.getId(),
-                user.getName(),
-                user.getEmail(),
-                organizations
-        );
-    }
+                return new AuthenticatedUserResponse(
+                                user.getId(),
+                                user.getName(),
+                                user.getEmail(),
+                                organizations);
+        }
 }

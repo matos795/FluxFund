@@ -151,6 +151,17 @@ public class OrganizationUserInvitationService {
 
                         invitationRepository.saveAndFlush(
                                         pendingInvitation);
+
+                        auditLogService.record(
+                                        organizationId,
+                                        AuditEntityType.ORGANIZATION_USER_INVITATION,
+                                        pendingInvitation.getId(),
+                                        AuditAction.CANCEL,
+
+                                        "Expired organization invitation "
+                                                        + "automatically canceled before "
+                                                        + "replacement for "
+                                                        + pendingInvitation.getEmail());
                 }
 
                 UUID currentUserId = currentUserService.requireUserId();

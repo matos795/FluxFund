@@ -14,7 +14,9 @@ import com.fluxfund.api.domain.auth.dto.AuthenticatedUserResponse;
 import com.fluxfund.api.domain.auth.dto.LoginRequest;
 import com.fluxfund.api.domain.auth.dto.LoginResponse;
 import com.fluxfund.api.domain.auth.service.AuthService;
+import com.fluxfund.api.domain.securityevent.SecurityRequestMetadataResolver;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -24,10 +26,18 @@ import lombok.RequiredArgsConstructor;
 public class AuthController {
 
     private final AuthService authService;
+    private final SecurityRequestMetadataResolver metadataResolver;
 
     @PostMapping("/login")
-    public LoginResponse login(@RequestBody @Valid LoginRequest request) {
-        return authService.login(request);
+    public LoginResponse login(
+            @RequestBody @Valid LoginRequest request,
+
+            HttpServletRequest httpRequest) {
+
+        return authService.login(
+                request,
+                metadataResolver.resolve(
+                        httpRequest));
     }
 
     @GetMapping("/me")
