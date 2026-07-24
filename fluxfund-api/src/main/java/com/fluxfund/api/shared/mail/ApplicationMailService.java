@@ -82,9 +82,58 @@ public class ApplicationMailService {
             String invitationUrl,
             OffsetDateTime expiresAt) {
 
+        return sendTransactionalEmail(
+                recipientName,
+                recipientEmail,
+
+                "Convite para acessar "
+                        + organizationName
+                        + " no FluxFund",
+
+                buildOrganizationInvitationHtml(
+                        recipientName,
+                        organizationName,
+                        role,
+                        invitationUrl,
+                        expiresAt),
+
+                "organization-invitation",
+                "Invitation");
+    }
+
+    public boolean sendPasswordReset(
+            String recipientName,
+            String recipientEmail,
+            String resetUrl,
+            OffsetDateTime expiresAt) {
+
+        return sendTransactionalEmail(
+                recipientName,
+                recipientEmail,
+
+                "Redefinição de senha do FluxFund",
+
+                buildPasswordResetHtml(
+                        recipientName,
+                        resetUrl,
+                        expiresAt),
+
+                "password-reset",
+                "Password reset");
+    }
+
+    private boolean sendTransactionalEmail(
+            String recipientName,
+            String recipientEmail,
+            String subject,
+            String htmlContent,
+            String tag,
+            String logContext) {
+
         if (!enabled) {
             log.info(
-                    "Invitation email disabled. recipient={}",
+                    "{} email disabled. recipient={}",
+                    logContext,
                     recipientEmail);
 
             return false;
@@ -123,20 +172,9 @@ public class ApplicationMailService {
                         sender,
                         List.of(recipient),
                         sender,
-
-                        "Convite para acessar "
-                                + organizationName
-                                + " no FluxFund",
-
-                        buildHtml(
-                                recipientName,
-                                organizationName,
-                                role,
-                                invitationUrl,
-                                expiresAt),
-
-                        List.of(
-                                "organization-invitation"));
+                        subject,
+                        htmlContent,
+                        List.of(tag));
 
         try {
             BrevoEmailResponse response =
@@ -144,11 +182,6 @@ public class ApplicationMailService {
                             .post()
                             .uri("/smtp/email")
 
-                            /*
-                             * A API Key é enviada somente
-                             * no header HTTPS. Ela não vai
-                             * no corpo nem nos logs.
-                             */
                             .header(
                                     "api-key",
                                     apiKey)
@@ -160,9 +193,10 @@ public class ApplicationMailService {
                                     BrevoEmailResponse.class);
 
             log.info(
-                    "Invitation email sent through Brevo. "
+                    "{} email sent through Brevo. "
                             + "recipient={} messageId={}",
 
+                    logContext,
                     recipientEmail,
 
                     response != null
@@ -174,16 +208,13 @@ public class ApplicationMailService {
         } catch (
                 RestClientResponseException exception
         ) {
-            /*
-             * A Brevo respondeu, mas rejeitou a
-             * requisição. Exemplos: API Key inválida,
-             * remetente não verificado ou JSON inválido.
-             */
             log.error(
-                    "Brevo rejected invitation email. "
+                    "Brevo rejected {} email. "
                             + "recipient={} status={} body={}",
 
+                    logContext,
                     recipientEmail,
+
                     exception
                             .getStatusCode()
                             .value(),
@@ -196,12 +227,11 @@ public class ApplicationMailService {
         } catch (
                 RestClientException exception
         ) {
-            /*
-             * A chamada HTTPS não conseguiu chegar
-             * corretamente até a Brevo.
-             */
             log.error(
-                    "Could not connect to Brevo. recipient={}",
+                    "Could not connect to Brevo for {}. "
+                            + "recipient={}",
+
+                    logContext,
                     recipientEmail,
                     exception);
 
@@ -209,7 +239,7 @@ public class ApplicationMailService {
         }
     }
 
-    private String buildHtml(
+    private String buildOrganizationInvitationHtml(
             String recipientName,
             String organizationName,
             OrganizationRole role,
@@ -302,6 +332,92 @@ public class ApplicationMailService {
                         safeInvitationUrl);
     }
 
+    private String buildPasswordResetHtml(
+            String recipientName,
+            String resetUrl,
+            OffsetDateTime expiresAt) {
+
+        String safeRecipientName =
+                HtmlUtils.htmlEscape(
+                        recipientName);
+
+        String safeResetUrl =
+                HtmlUtils.htmlEscape(
+                        resetUrl);
+
+        return """
+                <!doctype html>
+                <html lang="pt-BR">
+                <body style="margin:0;background:#f4f4f5;font-family:Arial,sans-serif;color:#18181b;">
+                    <div style="max-width:600px;margin:0 auto;padding:32px 16px;">
+                        <div style="background:#ffffff;border:1px solid #e4e4e7;border-radius:16px;padding:32px;">
+
+                            <div style="margin-bottom:24px;">
+                                <p style="margin:0;font-size:14px;font-weight:bold;color:#52525b;">
+                                    FLUXFUND
+                                </p>
+
+                                <h1 style="margin:8px 0 0;font-size:24px;">
+                                    Redefinição de senha
+                                </h1>
+                            </div>
+
+                            <p>
+                                Olá,
+                                <strong>%s</strong>!
+                            </p>
+
+                            <p style="line-height:1.6;">
+                                Recebemos uma solicitação para
+                                redefinir a senha da sua conta
+                                no FluxFund.
+                            </p>
+
+                            <div style="background:#f4f4f5;border-radius:12px;padding:16px;margin:24px 0;">
+                                <p style="margin:0;">
+                                    <strong>Este link expira em:</strong>
+                                    %s
+                                </p>
+                            </div>
+
+                            <a
+                                href="%s"
+                                style="display:inline-block;background:#18181b;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:bold;"
+                            >
+                                Criar nova senha
+                            </a>
+
+                            <p style="margin-top:24px;font-size:13px;line-height:1.5;color:#71717a;">
+                                Caso o botão não funcione, copie e
+                                cole este endereço no navegador:
+                            </p>
+
+                            <p style="font-size:12px;line-height:1.5;word-break:break-all;color:#52525b;">
+                                %s
+                            </p>
+
+                            <p style="margin-top:24px;font-size:13px;line-height:1.5;color:#71717a;">
+                                Caso você não tenha solicitado esta
+                                alteração, ignore esta mensagem.
+                                Sua senha atual continuará funcionando.
+                            </p>
+
+                            <p style="font-size:13px;line-height:1.5;color:#71717a;">
+                                Nunca compartilhe este link com outras
+                                pessoas.
+                            </p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """
+                .formatted(
+                        safeRecipientName,
+                        formatDateTime(expiresAt),
+                        safeResetUrl,
+                        safeResetUrl);
+    }
+
     private String resolveRoleLabel(
             OrganizationRole role) {
 
@@ -319,11 +435,6 @@ public class ApplicationMailService {
         return dateTime.format(
                 DATE_TIME_FORMATTER);
     }
-
-    /*
-     * Estes records representam exatamente o JSON
-     * enviado e recebido pela API da Brevo.
-     */
 
     private record BrevoEmailAddress(
             String email,
