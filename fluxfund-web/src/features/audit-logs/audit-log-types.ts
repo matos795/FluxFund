@@ -12,6 +12,9 @@ export type AuditAction =
   | "DEACTIVATE"
   | "CHANGE_DEFAULT_FUND"
   | "IMPORT_OFX"
+  | "CHANGE_ROLE"
+  | "REGENERATE_INVITATION"
+  | "ACCEPT_INVITATION"
 
 export type AuditEntityType =
   | "FINANCIAL_TRANSACTION"
@@ -21,6 +24,8 @@ export type AuditEntityType =
   | "ORGANIZATION_SETTINGS"
   | "OFX_IMPORT"
   | "FUND"
+  | "ORGANIZATION_USER"
+  | "ORGANIZATION_USER_INVITATION"
 
 export type AuditLog = {
   id: string

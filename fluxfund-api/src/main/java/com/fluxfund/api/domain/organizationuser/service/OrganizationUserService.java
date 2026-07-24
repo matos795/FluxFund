@@ -7,6 +7,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fluxfund.api.domain.audit.AuditAction;
+import com.fluxfund.api.domain.audit.AuditEntityType;
+import com.fluxfund.api.domain.audit.service.AuditLogService;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.repository.OrganizationRepository;
 import com.fluxfund.api.domain.organizationuser.OrganizationRole;
@@ -41,6 +44,7 @@ public class OrganizationUserService {
     private final PasswordEncoder passwordEncoder;
     private final OrganizationAccessService organizationAccessService;
     private final CurrentUserService currentUserService;
+    private final AuditLogService auditLogService;
 
     @Transactional(readOnly = true)
     public List<OrganizationUserResponse> findAll(UUID organizationId) {
@@ -94,14 +98,33 @@ public class OrganizationUserService {
 
         if (organizationUser != null) {
             if (organizationUser.isActive()) {
-                throw new BusinessException("User already has access to this organization");
+                throw new BusinessException(
+                        "User already has access to this organization");
             }
 
-            organizationUser.setRole(request.role());
-            organizationUser.setActive(true);
+            organizationUser.setRole(
+                    request.role());
+
+            organizationUser.setActive(
+                    true);
+
+            OrganizationUser savedOrganizationUser = organizationUserRepository.save(
+                    organizationUser);
+
+            auditLogService.record(
+                    organizationId,
+                    AuditEntityType.ORGANIZATION_USER,
+                    user.getId(),
+                    AuditAction.ACTIVATE,
+
+                    "Manual organization access reactivated "
+                            + "for "
+                            + user.getEmail()
+                            + " with role "
+                            + request.role());
 
             return OrganizationUserMapper.toResponse(
-                    organizationUserRepository.save(organizationUser));
+                    savedOrganizationUser);
         }
 
         OrganizationUser newOrganizationUser = new OrganizationUser();
@@ -113,8 +136,23 @@ public class OrganizationUserService {
         newOrganizationUser.setRole(request.role());
         newOrganizationUser.setActive(true);
 
+        OrganizationUser savedOrganizationUser = organizationUserRepository.save(
+                newOrganizationUser);
+
+        auditLogService.record(
+                organizationId,
+                AuditEntityType.ORGANIZATION_USER,
+                user.getId(),
+                AuditAction.CREATE,
+
+                "Manual organization access created "
+                        + "for "
+                        + user.getEmail()
+                        + " with role "
+                        + request.role());
+
         return OrganizationUserMapper.toResponse(
-                organizationUserRepository.save(newOrganizationUser));
+                savedOrganizationUser);
     }
 
     public OrganizationUserResponse updateRole(
@@ -141,10 +179,31 @@ public class OrganizationUserService {
             preventRemovingLastOwner(organizationId, userId);
         }
 
-        organizationUser.setRole(request.role());
+        OrganizationRole previousRole = organizationUser.getRole();
+
+        organizationUser.setRole(
+                request.role());
+
+        OrganizationUser savedOrganizationUser = organizationUserRepository.save(
+                organizationUser);
+
+        auditLogService.record(
+                organizationId,
+                AuditEntityType.ORGANIZATION_USER,
+                userId,
+                AuditAction.CHANGE_ROLE,
+
+                "Organization role changed for "
+                        + organizationUser
+                                .getUser()
+                                .getEmail()
+                        + ": "
+                        + previousRole
+                        + " -> "
+                        + request.role());
 
         return OrganizationUserMapper.toResponse(
-                organizationUserRepository.save(organizationUser));
+                savedOrganizationUser);
     }
 
     public OrganizationUserResponse updateStatus(
@@ -169,10 +228,35 @@ public class OrganizationUserService {
             preventRemovingLastOwner(organizationId, userId);
         }
 
-        organizationUser.setActive(request.active());
+        organizationUser.setActive(
+                request.active());
+
+        OrganizationUser savedOrganizationUser = organizationUserRepository.save(
+                organizationUser);
+
+        AuditAction action = request.active()
+                ? AuditAction.ACTIVATE
+                : AuditAction.DEACTIVATE;
+
+        auditLogService.record(
+                organizationId,
+                AuditEntityType.ORGANIZATION_USER,
+                userId,
+                action,
+
+                request.active()
+                        ? "Organization access reactivated for "
+                                + organizationUser
+                                        .getUser()
+                                        .getEmail()
+
+                        : "Organization access deactivated for "
+                                + organizationUser
+                                        .getUser()
+                                        .getEmail());
 
         return OrganizationUserMapper.toResponse(
-                organizationUserRepository.save(organizationUser));
+                savedOrganizationUser);
     }
 
     private OrganizationUser findMembershipOrThrow(

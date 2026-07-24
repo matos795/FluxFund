@@ -28,89 +28,119 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AuditLogService {
 
-    private final AuditLogRepository repository;
-    private final CurrentUserService currentUserService;
-    private final OrganizationAccessService organizationAccessService;
-    private final AppUserRepository appUserRepository;
+        private final AuditLogRepository repository;
+        private final CurrentUserService currentUserService;
+        private final OrganizationAccessService organizationAccessService;
+        private final AppUserRepository appUserRepository;
 
-    public void record(
-            UUID organizationId,
-            AuditEntityType entityType,
-            UUID entityId,
-            AuditAction action,
-            String description) {
+        public void record(
+                        UUID organizationId,
+                        AuditEntityType entityType,
+                        UUID entityId,
+                        AuditAction action,
+                        String description) {
 
-        AuditLog auditLog = new AuditLog();
-        auditLog.setOrganizationId(organizationId);
-        auditLog.setActorUserId(currentUserService.requireUserId());
-        auditLog.setEntityType(entityType);
-        auditLog.setEntityId(entityId);
-        auditLog.setAction(action);
-        auditLog.setDescription(description);
+                recordAs(
+                                organizationId,
+                                currentUserService.requireUserId(),
+                                entityType,
+                                entityId,
+                                action,
+                                description);
+        }
 
-        repository.save(auditLog);
-    }
+        public void recordAs(
+                        UUID organizationId,
+                        UUID actorUserId,
+                        AuditEntityType entityType,
+                        UUID entityId,
+                        AuditAction action,
+                        String description) {
 
-    public Page<AuditLogResponse> findAll(
-            UUID organizationId,
-            UUID actorUserId,
-            AuditEntityType entityType,
-            UUID entityId,
-            AuditAction action,
-            LocalDate startDate,
-            LocalDate endDate,
-            Pageable pageable) {
-        organizationAccessService.requireAdminAccess(organizationId);
+                AuditLog auditLog = new AuditLog();
 
-        OffsetDateTime createdAtFrom = startDate == null
-                ? null
-                : startDate
-                        .atStartOfDay(ZoneId.systemDefault())
-                        .toOffsetDateTime();
+                auditLog.setOrganizationId(
+                                organizationId);
 
-        OffsetDateTime createdAtTo = endDate == null
-                ? null
-                : endDate
-                        .plusDays(1)
-                        .atStartOfDay(ZoneId.systemDefault())
-                        .toOffsetDateTime();
+                auditLog.setActorUserId(
+                                actorUserId);
 
-        Page<AuditLog> auditLogs = repository.findAll(
-                AuditLogSpecification.withFilters(
-                        organizationId,
-                        actorUserId,
-                        entityType,
-                        entityId,
-                        action,
-                        createdAtFrom,
-                        createdAtTo),
-                pageable);
+                auditLog.setEntityType(
+                                entityType);
 
-        Map<UUID, AppUser> usersById = appUserRepository
-                .findAllById(
-                        auditLogs.getContent()
+                auditLog.setEntityId(
+                                entityId);
+
+                auditLog.setAction(
+                                action);
+
+                auditLog.setDescription(
+                                description);
+
+                repository.save(
+                                auditLog);
+        }
+
+        public Page<AuditLogResponse> findAll(
+                        UUID organizationId,
+                        UUID actorUserId,
+                        AuditEntityType entityType,
+                        UUID entityId,
+                        AuditAction action,
+                        LocalDate startDate,
+                        LocalDate endDate,
+                        Pageable pageable) {
+                organizationAccessService.requireAdminAccess(organizationId);
+
+                OffsetDateTime createdAtFrom = startDate == null
+                                ? null
+                                : startDate
+                                                .atStartOfDay(ZoneId.systemDefault())
+                                                .toOffsetDateTime();
+
+                OffsetDateTime createdAtTo = endDate == null
+                                ? null
+                                : endDate
+                                                .plusDays(1)
+                                                .atStartOfDay(ZoneId.systemDefault())
+                                                .toOffsetDateTime();
+
+                Page<AuditLog> auditLogs = repository.findAll(
+                                AuditLogSpecification.withFilters(
+                                                organizationId,
+                                                actorUserId,
+                                                entityType,
+                                                entityId,
+                                                action,
+                                                createdAtFrom,
+                                                createdAtTo),
+                                pageable);
+
+                Map<UUID, AppUser> usersById = appUserRepository
+                                .findAllById(
+                                                auditLogs.getContent()
+                                                                .stream()
+                                                                .map(AuditLog::getActorUserId)
+                                                                .collect(Collectors.toSet()))
                                 .stream()
-                                .map(AuditLog::getActorUserId)
-                                .collect(Collectors.toSet()))
-                .stream()
-                .collect(Collectors.toMap(AppUser::getId, user -> user));
+                                .collect(Collectors.toMap(AppUser::getId, user -> user));
 
-        return auditLogs.map(auditLog -> toResponse(
-                auditLog,
-                usersById.get(auditLog.getActorUserId())));
-    }
+                return auditLogs.map(auditLog -> toResponse(
+                                auditLog,
+                                usersById.get(auditLog.getActorUserId())));
+        }
 
-    private AuditLogResponse toResponse(AuditLog auditLog, AppUser actor) {
-        return new AuditLogResponse(
-                auditLog.getId(),
-                auditLog.getOrganizationId(),
-                auditLog.getActorUserId(),
-                actor == null ? null : actor.getName(),
-                actor == null ? null : actor.getEmail(),
-                auditLog.getEntityType(),
-                auditLog.getEntityId(),
-                auditLog.getAction(),
-                auditLog.getDescription(),
-                auditLog.getCreatedAt());
-    }
+        private AuditLogResponse toResponse(AuditLog auditLog, AppUser actor) {
+                return new AuditLogResponse(
+                                auditLog.getId(),
+                                auditLog.getOrganizationId(),
+                                auditLog.getActorUserId(),
+                                actor == null ? null : actor.getName(),
+                                actor == null ? null : actor.getEmail(),
+                                auditLog.getEntityType(),
+                                auditLog.getEntityId(),
+                                auditLog.getAction(),
+                                auditLog.getDescription(),
+                                auditLog.getCreatedAt());
+        }
 }

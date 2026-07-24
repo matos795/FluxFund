@@ -54,6 +54,9 @@ const auditActions: AuditAction[] = [
   "DEACTIVATE",
   "CHANGE_DEFAULT_FUND",
   "IMPORT_OFX",
+  "CHANGE_ROLE",
+  "REGENERATE_INVITATION",
+  "ACCEPT_INVITATION",
 ]
 
 const entityTypes: AuditEntityType[] = [
@@ -64,6 +67,8 @@ const entityTypes: AuditEntityType[] = [
   "ORGANIZATION_SETTINGS",
   "OFX_IMPORT",
   "FUND",
+  "ORGANIZATION_USER",
+  "ORGANIZATION_USER_INVITATION",
 ]
 
 function formatDateTime(value: string) {

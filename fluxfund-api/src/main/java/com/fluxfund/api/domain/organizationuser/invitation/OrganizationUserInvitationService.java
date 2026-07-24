@@ -10,6 +10,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fluxfund.api.domain.audit.AuditAction;
+import com.fluxfund.api.domain.audit.AuditEntityType;
+import com.fluxfund.api.domain.audit.service.AuditLogService;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.repository.OrganizationRepository;
 import com.fluxfund.api.domain.organizationuser.OrganizationRole;
@@ -57,6 +60,8 @@ public class OrganizationUserInvitationService {
         private final InvitationTokenService tokenService;
 
         private final ApplicationMailService applicationMailService;
+
+        private final AuditLogService auditLogService;
 
         @Value("${app.security.invitation-expiration:P7D}")
         private Duration invitationExpiration;
@@ -173,6 +178,17 @@ public class OrganizationUserInvitationService {
 
                 OrganizationUserInvitation savedInvitation = invitationRepository.save(invitation);
 
+                auditLogService.record(
+                                organizationId,
+                                AuditEntityType.ORGANIZATION_USER_INVITATION,
+                                savedInvitation.getId(),
+                                AuditAction.CREATE,
+
+                                "Organization invitation created for "
+                                                + savedInvitation.getEmail()
+                                                + " with role "
+                                                + savedInvitation.getRole());
+
                 return buildInvitationResponse(
                                 savedInvitation,
                                 generatedToken.rawToken());
@@ -281,6 +297,24 @@ public class OrganizationUserInvitationService {
 
                 invitationRepository.save(invitation);
 
+                auditLogService.recordAs(
+                                invitation
+                                                .getOrganization()
+                                                .getId(),
+
+                                user.getId(),
+
+                                AuditEntityType.ORGANIZATION_USER_INVITATION,
+
+                                invitation.getId(),
+
+                                AuditAction.ACCEPT_INVITATION,
+
+                                "Organization invitation accepted by "
+                                                + user.getEmail()
+                                                + " with role "
+                                                + invitation.getRole());
+
                 return new AcceptOrganizationUserInvitationResponse(
                                 invitation.getOrganization().getId(),
                                 invitation.getOrganization().getName(),
@@ -319,6 +353,15 @@ public class OrganizationUserInvitationService {
                                         OffsetDateTime.now());
 
                         invitationRepository.save(invitation);
+
+                        auditLogService.record(
+                                        organizationId,
+                                        AuditEntityType.ORGANIZATION_USER_INVITATION,
+                                        invitation.getId(),
+                                        AuditAction.CANCEL,
+
+                                        "Organization invitation canceled for "
+                                                        + invitation.getEmail());
                 }
         }
 
@@ -363,6 +406,15 @@ public class OrganizationUserInvitationService {
                                                 .plus(invitationExpiration));
 
                 OrganizationUserInvitation savedInvitation = invitationRepository.save(invitation);
+
+                auditLogService.record(
+                                organizationId,
+                                AuditEntityType.ORGANIZATION_USER_INVITATION,
+                                savedInvitation.getId(),
+                                AuditAction.REGENERATE_INVITATION,
+
+                                "Organization invitation regenerated for "
+                                                + savedInvitation.getEmail());
 
                 return buildInvitationResponse(
                                 savedInvitation,

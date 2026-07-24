@@ -14,6 +14,14 @@ export const auditActionLabels: Record<AuditAction, string> = {
   DEACTIVATE: "Desativação",
   CHANGE_DEFAULT_FUND: "Fundo padrão alterado",
   IMPORT_OFX: "Importação OFX",
+  CHANGE_ROLE:
+    "Papel de acesso alterado",
+
+  REGENERATE_INVITATION:
+    "Link de convite regenerado",
+
+  ACCEPT_INVITATION:
+    "Convite aceito",
 }
 
 export const auditEntityTypeLabels: Record<AuditEntityType, string> = {
@@ -24,4 +32,9 @@ export const auditEntityTypeLabels: Record<AuditEntityType, string> = {
   ORGANIZATION_SETTINGS: "Configurações",
   OFX_IMPORT: "Importação OFX",
   FUND: "Fundo",
+  ORGANIZATION_USER:
+    "Usuário da organização",
+
+  ORGANIZATION_USER_INVITATION:
+    "Convite de acesso",
 }
