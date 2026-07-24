@@ -23,10 +23,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ApplicationMailService {
 
-    private static final DateTimeFormatter
-            DATE_TIME_FORMATTER =
-            DateTimeFormatter.ofPattern(
-                    "dd/MM/yyyy 'às' HH:mm");
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern(
+            "dd/MM/yyyy 'às' HH:mm");
 
     private final JavaMailSender mailSender;
 
@@ -53,14 +51,12 @@ public class ApplicationMailService {
         }
 
         try {
-            MimeMessage message =
-                    mailSender.createMimeMessage();
+            MimeMessage message = mailSender.createMimeMessage();
 
-            MimeMessageHelper helper =
-                    new MimeMessageHelper(
-                            message,
-                            false,
-                            StandardCharsets.UTF_8.name());
+            MimeMessageHelper helper = new MimeMessageHelper(
+                    message,
+                    true,
+                    StandardCharsets.UTF_8.name());
 
             helper.setFrom(from);
             helper.setTo(recipientEmail);
@@ -95,8 +91,7 @@ public class ApplicationMailService {
 
         } catch (
                 MessagingException
-                | MailException exception
-        ) {
+                | MailException exception) {
             /*
              * O convite continua válido mesmo quando
              * o provedor de e-mail estiver indisponível.
@@ -146,17 +141,14 @@ public class ApplicationMailService {
             String invitationUrl,
             OffsetDateTime expiresAt) {
 
-        String safeRecipientName =
-                HtmlUtils.htmlEscape(
-                        recipientName);
+        String safeRecipientName = HtmlUtils.htmlEscape(
+                recipientName);
 
-        String safeOrganizationName =
-                HtmlUtils.htmlEscape(
-                        organizationName);
+        String safeOrganizationName = HtmlUtils.htmlEscape(
+                organizationName);
 
-        String safeInvitationUrl =
-                HtmlUtils.htmlEscape(
-                        invitationUrl);
+        String safeInvitationUrl = HtmlUtils.htmlEscape(
+                invitationUrl);
 
         return """
                 <!doctype html>
