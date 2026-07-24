@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.fluxfund.api.domain.auth.passwordreset.dto.RequestPasswordResetRequest;
 import com.fluxfund.api.domain.auth.passwordreset.dto.ResetPasswordRequest;
+import com.fluxfund.api.domain.securityevent.RequestRateLimiterService;
 import com.fluxfund.api.domain.securityevent.SecurityRequestMetadataResolver;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,6 +23,7 @@ public class PasswordResetController {
 
     private final PasswordResetService service;
     private final SecurityRequestMetadataResolver metadataResolver;
+    private final RequestRateLimiterService rateLimiterService;
 
     @PostMapping("/request")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -30,11 +32,17 @@ public class PasswordResetController {
 
             HttpServletRequest httpRequest) {
 
+        var metadata = metadataResolver.resolve(
+                httpRequest);
+
+        rateLimiterService
+                .checkPasswordResetRequest(
+                        metadata,
+                        request.email());
+
         service.requestReset(
                 request,
-
-                metadataResolver.resolve(
-                        httpRequest));
+                metadata);
     }
 
     @PostMapping("/confirm")
@@ -44,10 +52,15 @@ public class PasswordResetController {
 
             HttpServletRequest httpRequest) {
 
+        var metadata = metadataResolver.resolve(
+                httpRequest);
+
+        rateLimiterService
+                .checkPasswordResetConfirmation(
+                        metadata);
+
         service.resetPassword(
                 request,
-
-                metadataResolver.resolve(
-                        httpRequest));
+                metadata);
     }
 }

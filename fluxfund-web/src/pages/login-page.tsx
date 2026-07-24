@@ -15,6 +15,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/features/auth/hooks/use-auth"
+import axios from "axios"
+import { getApiErrorMessage } from "@/utils/api-error"
 
 const loginSchema = z.object({
   email: z.string().min(1, "Informe seu email.").email("Email inválido."),
@@ -67,8 +69,24 @@ export function LoginPage() {
         replace: true,
       })
 
-    } catch {
-      setLoginError("Email ou senha inválidos.")
+    } catch (error) {
+      if (
+        axios.isAxiosError(error) &&
+        error.response?.status === 429
+      ) {
+        setLoginError(
+          getApiErrorMessage(
+            error,
+            "Muitas tentativas. Aguarde e tente novamente.",
+          ),
+        )
+
+        return
+      }
+
+      setLoginError(
+        "Email ou senha inválidos.",
+      )
     } finally {
       setIsSubmitting(false)
     }

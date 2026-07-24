@@ -14,6 +14,7 @@ import com.fluxfund.api.domain.auth.dto.AuthenticatedUserResponse;
 import com.fluxfund.api.domain.auth.dto.LoginRequest;
 import com.fluxfund.api.domain.auth.dto.LoginResponse;
 import com.fluxfund.api.domain.auth.service.AuthService;
+import com.fluxfund.api.domain.securityevent.RequestRateLimiterService;
 import com.fluxfund.api.domain.securityevent.SecurityRequestMetadataResolver;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,6 +28,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final SecurityRequestMetadataResolver metadataResolver;
+    private final RequestRateLimiterService rateLimiterService;
 
     @PostMapping("/login")
     public LoginResponse login(
@@ -34,10 +36,21 @@ public class AuthController {
 
             HttpServletRequest httpRequest) {
 
-        return authService.login(
+        var metadata = metadataResolver.resolve(httpRequest);
+
+        rateLimiterService.checkLogin(metadata, request.email());
+
+        LoginResponse response = authService.login(
                 request,
-                metadataResolver.resolve(
-                        httpRequest));
+                metadata);
+
+        /*
+         * Um login correto limpa as tentativas
+         * anteriores daquele IP.
+         */
+        rateLimiterService.resetLogin(metadata);
+
+        return response;
     }
 
     @GetMapping("/me")

@@ -1,6 +1,8 @@
 package com.fluxfund.api.shared.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -63,6 +65,25 @@ public class GlobalExceptionHandler {
                                 request.getRequestURI());
 
                 return ResponseEntity.badRequest().body(error);
+        }
+
+        @ExceptionHandler(RateLimitExceededException.class)
+        public ResponseEntity<ApiErrorResponse> handleRateLimitExceeded(
+
+                        RateLimitExceededException ex,
+                        HttpServletRequest request) {
+
+                ApiErrorResponse error = new ApiErrorResponse(
+                                LocalDateTime.now(),
+                                HttpStatus.TOO_MANY_REQUESTS.value(),
+                                "Too Many Requests",
+                                ex.getMessage(),
+                                request.getRequestURI());
+
+                return ResponseEntity
+                                .status(HttpStatus.TOO_MANY_REQUESTS)
+                                .header(HttpHeaders.RETRY_AFTER, Long.toString(ex.getRetryAfterSeconds()))
+                                .body(error);
         }
 
         @ExceptionHandler(Exception.class)
