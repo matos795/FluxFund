@@ -7,6 +7,7 @@ public record AuthenticatedUserResponse(
         UUID id,
         String name,
         String email,
+        boolean platformAdmin,
         List<UserOrganizationResponse> organizations
 ) {
 }

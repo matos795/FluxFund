@@ -1,7 +1,12 @@
 import { useAuth } from "./use-auth"
 
 export function usePermissions() {
-  const { activeOrganization } = useAuth()
+  const {
+    activeOrganization,
+    session,
+  } = useAuth()
+
+  const isPlatformAdmin = session?.user.platformAdmin === true
 
   const role = activeOrganization?.role
 
@@ -30,6 +35,8 @@ export function usePermissions() {
 
   return {
     role,
+
+    isPlatformAdmin,
 
     isOwner,
     isAdmin,

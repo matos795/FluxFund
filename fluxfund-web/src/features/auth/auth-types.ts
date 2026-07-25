@@ -11,6 +11,7 @@ export type AuthenticatedUser = {
   id: string
   name: string
   email: string
+  platformAdmin: boolean
   organizations: UserOrganization[]
 }
 
