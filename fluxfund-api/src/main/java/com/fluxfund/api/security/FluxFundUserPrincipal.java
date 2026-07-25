@@ -14,17 +14,19 @@ public record FluxFundUserPrincipal(
         String name,
         String email,
         String passwordHash,
-        boolean active
-) implements UserDetails {
+        boolean active,
+        int sessionVersion) implements UserDetails {
 
-    public static FluxFundUserPrincipal from(AppUser user) {
+    public static FluxFundUserPrincipal from(
+            AppUser user) {
+
         return new FluxFundUserPrincipal(
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
                 user.getPasswordHash(),
-                user.isActive()
-        );
+                user.isActive(),
+                user.getSessionVersion());
     }
 
     @Override

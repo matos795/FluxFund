@@ -20,8 +20,14 @@ import {
   type ChangePasswordFormData,
   type ChangePasswordFormInput,
 } from "../profile-schema"
+import { useNavigate } from "react-router-dom"
+import { useAuth } from "@/features/auth"
 
 export function PasswordSettingsCard() {
+  const navigate = useNavigate()
+
+  const { logout } = useAuth()
+
   const changePasswordMutation = useChangePassword()
 
   const {
@@ -46,8 +52,19 @@ export function PasswordSettingsCard() {
       },
       {
         onSuccess: () => {
-          toast.success("Senha alterada com sucesso.")
+          toast.success(
+            "Senha alterada. Entre novamente com sua nova senha.",
+          )
+
           reset()
+          logout()
+
+          navigate(
+            "/login",
+            {
+              replace: true,
+            },
+          )
         },
         onError: (error) => {
           toast.error(
@@ -131,7 +148,10 @@ export function PasswordSettingsCard() {
             <div className="flex gap-2">
               <ShieldCheck className="mt-0.5 size-4 shrink-0" />
               <p>
-                Use uma senha que não seja compartilhada com outros sistemas. Mais tarde podemos adicionar recuperação de senha por e-mail.
+                Use uma senha que não seja compartilhada
+                com outros sistemas. Por segurança, a
+                alteração encerrará todas as sessões
+                abertas, inclusive esta.
               </p>
             </div>
           </div>

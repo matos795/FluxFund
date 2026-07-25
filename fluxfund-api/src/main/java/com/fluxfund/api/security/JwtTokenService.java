@@ -29,6 +29,7 @@ public class JwtTokenService {
                 .subject(principal.id().toString())
                 .claim("email", principal.email())
                 .claim("name", principal.name())
+                .claim("session_version", principal.sessionVersion())
                 .build();
 
         JwsHeader header = JwsHeader

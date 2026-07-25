@@ -18,6 +18,7 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
+import com.fluxfund.api.security.AppUserJwtValidator;
 import com.fluxfund.api.security.JwtProperties;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 
@@ -33,15 +34,13 @@ public class JwtConfig {
             decodedKey = Base64.getDecoder().decode(properties.secret());
         } catch (IllegalArgumentException ex) {
             throw new IllegalStateException(
-                "FLUXFUND_JWT_SECRET must be a valid Base64 value",
-                ex
-            );
+                    "FLUXFUND_JWT_SECRET must be a valid Base64 value",
+                    ex);
         }
 
         if (decodedKey.length < 32) {
             throw new IllegalStateException(
-                "FLUXFUND_JWT_SECRET must contain at least 32 bytes after Base64 decoding"
-            );
+                    "FLUXFUND_JWT_SECRET must contain at least 32 bytes after Base64 decoding");
         }
 
         return new SecretKeySpec(decodedKey, "HmacSHA256");
@@ -53,7 +52,10 @@ public class JwtConfig {
     }
 
     @Bean
-    JwtDecoder jwtDecoder(SecretKey secretKey, JwtProperties properties) {
+    JwtDecoder jwtDecoder(
+            SecretKey secretKey,
+            JwtProperties properties,
+            AppUserJwtValidator appUserJwtValidator) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder
                 .withSecretKey(secretKey)
                 .macAlgorithm(MacAlgorithm.HS256)
@@ -61,7 +63,10 @@ public class JwtConfig {
 
         OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(properties.issuer());
 
-        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(withIssuer));
+        decoder.setJwtValidator(
+                new DelegatingOAuth2TokenValidator<>(
+                        withIssuer,
+                        appUserJwtValidator));
 
         return decoder;
     }

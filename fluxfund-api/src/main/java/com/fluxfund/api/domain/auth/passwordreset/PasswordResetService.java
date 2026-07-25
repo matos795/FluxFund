@@ -245,6 +245,8 @@ public class PasswordResetService {
                 passwordEncoder.encode(
                         request.newPassword()));
 
+        user.revokeSessions();
+
         appUserRepository.save(user);
 
         /*

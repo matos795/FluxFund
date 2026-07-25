@@ -86,6 +86,9 @@ public class OrganizationUserService {
 
         if (!user.isActive()) {
             user.setActive(true);
+            user.revokeSessions();
+
+            user = appUserRepository.save(user);
         }
 
         if (user.getName() == null || user.getName().isBlank()) {

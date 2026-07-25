@@ -51,6 +51,8 @@ public class ProfileService {
 
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
 
+        user.revokeSessions();
+
         appUserRepository.save(user);
     }
 

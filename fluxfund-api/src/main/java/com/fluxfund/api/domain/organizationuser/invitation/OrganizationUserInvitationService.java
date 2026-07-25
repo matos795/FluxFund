@@ -263,6 +263,12 @@ public class OrganizationUserInvitationService {
 
                         user.setActive(true);
 
+                        /*
+                         * Tokens emitidos antes da desativação
+                         * não podem voltar a funcionar.
+                         */
+                        user.revokeSessions();
+
                         user = appUserRepository.save(user);
                 }
 

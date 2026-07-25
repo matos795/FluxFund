@@ -29,4 +29,11 @@ public class AppUser extends BaseEntity {
 
     @Column(nullable = false)
     private boolean active = true;
+
+    @Column(name = "session_version", nullable = false)
+    private int sessionVersion;
+
+    public void revokeSessions() {
+        sessionVersion++;
+    }
 }
