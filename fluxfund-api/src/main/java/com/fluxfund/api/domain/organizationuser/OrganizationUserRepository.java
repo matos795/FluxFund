@@ -8,21 +8,23 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface OrganizationUserRepository extends JpaRepository<OrganizationUser, OrganizationUserId> {
 
-    Optional<OrganizationUser> findByUser_IdAndOrganization_IdAndActiveTrueAndOrganization_ActiveTrue(
-            UUID userId,
-            UUID organizationId
-    );
+        Optional<OrganizationUser> findByUser_IdAndOrganization_IdAndActiveTrueAndOrganization_ActiveTrue(
+                        UUID userId,
+                        UUID organizationId);
 
-    List<OrganizationUser> findAllByUser_IdAndActiveTrueAndOrganization_ActiveTrue(
-            UUID userId
-    );
+        List<OrganizationUser> findAllByUser_IdAndActiveTrueAndOrganization_ActiveTrue(
+                        UUID userId);
 
-    Optional<OrganizationUser> findByOrganization_IdAndUser_Id(
-            UUID organizationId,
-            UUID userId
-    );
+        Optional<OrganizationUser> findByOrganization_IdAndUser_Id(
+                        UUID organizationId,
+                        UUID userId);
 
-    List<OrganizationUser> findAllByOrganization_IdOrderByUser_NameAsc(
-            UUID organizationId
-    );
+        List<OrganizationUser> findAllByOrganization_IdOrderByUser_NameAsc(
+                        UUID organizationId);
+
+        long countByOrganization_Id(
+                        UUID organizationId);
+
+        long countByOrganization_IdAndActiveTrue(
+                        UUID organizationId);
 }

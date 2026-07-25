@@ -1,5 +1,6 @@
 package com.fluxfund.api.domain.organizationuser.invitation;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -18,4 +19,8 @@ public interface OrganizationUserInvitationRepository
                     UUID organizationId, String email);
 
     Optional<OrganizationUserInvitation> findByTokenHash(String tokenHash);
+
+    long countByOrganization_IdAndAcceptedAtIsNullAndCanceledAtIsNullAndExpiresAtAfter(
+        UUID organizationId,
+        OffsetDateTime now);
 }

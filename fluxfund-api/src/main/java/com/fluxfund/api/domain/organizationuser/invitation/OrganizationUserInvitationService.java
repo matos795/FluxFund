@@ -30,6 +30,7 @@ import com.fluxfund.api.domain.user.AppUserRepository;
 import com.fluxfund.api.security.CurrentUserService;
 import com.fluxfund.api.security.InvitationTokenService;
 import com.fluxfund.api.security.OrganizationAccessService;
+import com.fluxfund.api.security.PlatformAccessService;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 import com.fluxfund.api.shared.mail.ApplicationMailService;
@@ -63,6 +64,8 @@ public class OrganizationUserInvitationService {
 
         private final AuditLogService auditLogService;
 
+        private final PlatformAccessService platformAccessService;
+
         @Value("${app.security.invitation-expiration:P7D}")
         private Duration invitationExpiration;
 
@@ -89,16 +92,75 @@ public class OrganizationUserInvitationService {
                         CreateOrganizationUserInvitationRequest request) {
 
                 organizationAccessService
-                                .requireAdminAccess(organizationId);
+                                .requireAdminAccess(
+                                                organizationId);
 
+                /*
+                 * Um administrador da organização não pode
+                 * promover alguém para proprietário por convite.
+                 */
                 if (request.role() == OrganizationRole.OWNER) {
+
                         throw new BusinessException(
                                         "Owner invitations are not allowed");
                 }
 
+                AppUser invitedBy = requireCurrentUser();
+
+                return createInvitation(
+                                organizationId,
+                                request,
+                                invitedBy);
+        }
+
+        public CreateOrganizationUserInvitationResponse createFromPlatform(
+
+                        UUID organizationId,
+                        CreateOrganizationUserInvitationRequest request) {
+
+                AppUser platformAdmin = platformAccessService
+                                .requirePlatformAdmin();
+
+                /*
+                 * Este método existe especificamente para
+                 * criar o primeiro proprietário do cliente.
+                 */
+                if (request.role() != OrganizationRole.OWNER) {
+
+                        throw new BusinessException(
+                                        "Platform onboarding must invite an owner");
+                }
+
+                return createInvitation(
+                                organizationId,
+                                request,
+                                platformAdmin);
+        }
+
+        private AppUser requireCurrentUser() {
+
+                UUID currentUserId = currentUserService
+                                .requireUserId();
+
+                return appUserRepository
+                                .findByIdAndActiveTrue(
+                                                currentUserId)
+
+                                .orElseThrow(
+                                                () -> new ResourceNotFoundException(
+                                                                "Current user not found"));
+        }
+
+        private CreateOrganizationUserInvitationResponse createInvitation(
+
+                        UUID organizationId,
+                        CreateOrganizationUserInvitationRequest request,
+                        AppUser invitedBy) {
+
                 Organization organization = organizationRepository
                                 .findByIdAndActiveTrue(
                                                 organizationId)
+
                                 .orElseThrow(
                                                 () -> new ResourceNotFoundException(
                                                                 "Organization not found"));
@@ -132,30 +194,38 @@ public class OrganizationUserInvitationService {
 
                 OffsetDateTime now = OffsetDateTime.now();
 
-                OrganizationUserInvitation pendingInvitation = invitationRepository
-                                .findFirstByOrganization_IdAndEmailIgnoreCaseAndAcceptedAtIsNullAndCanceledAtIsNullOrderByCreatedAtDesc(
-                                                organizationId,
-                                                normalizedEmail)
-                                .orElse(null);
+                OrganizationUserInvitation pendingInvitation =
+
+                                invitationRepository
+                                                .findFirstByOrganization_IdAndEmailIgnoreCaseAndAcceptedAtIsNullAndCanceledAtIsNullOrderByCreatedAtDesc(
+                                                                organizationId,
+                                                                normalizedEmail)
+                                                .orElse(null);
 
                 if (pendingInvitation != null) {
 
-                        if (pendingInvitation.getExpiresAt()
+                        if (pendingInvitation
+                                        .getExpiresAt()
                                         .isAfter(now)) {
 
                                 throw new BusinessException(
                                                 "There is already a pending invitation for this email");
                         }
 
-                        pendingInvitation.setCanceledAt(now);
+                        pendingInvitation.setCanceledAt(
+                                        now);
 
-                        invitationRepository.saveAndFlush(
-                                        pendingInvitation);
+                        invitationRepository
+                                        .saveAndFlush(
+                                                        pendingInvitation);
 
                         auditLogService.record(
                                         organizationId,
+
                                         AuditEntityType.ORGANIZATION_USER_INVITATION,
+
                                         pendingInvitation.getId(),
+
                                         AuditAction.CANCEL,
 
                                         "Expired organization invitation "
@@ -164,35 +234,44 @@ public class OrganizationUserInvitationService {
                                                         + pendingInvitation.getEmail());
                 }
 
-                UUID currentUserId = currentUserService.requireUserId();
-
-                AppUser invitedBy = appUserRepository
-                                .findByIdAndActiveTrue(
-                                                currentUserId)
-                                .orElseThrow(
-                                                () -> new ResourceNotFoundException(
-                                                                "Current user not found"));
-
                 var generatedToken = tokenService.generate();
 
                 OrganizationUserInvitation invitation = new OrganizationUserInvitation();
 
-                invitation.setOrganization(organization);
-                invitation.setInvitedByUser(invitedBy);
-                invitation.setName(normalizedName);
-                invitation.setEmail(normalizedEmail);
-                invitation.setRole(request.role());
+                invitation.setOrganization(
+                                organization);
+
+                invitation.setInvitedByUser(
+                                invitedBy);
+
+                invitation.setName(
+                                normalizedName);
+
+                invitation.setEmail(
+                                normalizedEmail);
+
+                invitation.setRole(
+                                request.role());
+
                 invitation.setTokenHash(
                                 generatedToken.tokenHash());
-                invitation.setExpiresAt(
-                                now.plus(invitationExpiration));
 
-                OrganizationUserInvitation savedInvitation = invitationRepository.save(invitation);
+                invitation.setExpiresAt(
+                                now.plus(
+                                                invitationExpiration));
+
+                OrganizationUserInvitation savedInvitation =
+
+                                invitationRepository.save(
+                                                invitation);
 
                 auditLogService.record(
                                 organizationId,
+
                                 AuditEntityType.ORGANIZATION_USER_INVITATION,
+
                                 savedInvitation.getId(),
+
                                 AuditAction.CREATE,
 
                                 "Organization invitation created for "
