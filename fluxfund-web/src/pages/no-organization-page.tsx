@@ -22,6 +22,12 @@ export function NoOrganizationPage() {
     return <Navigate to="/login" replace />
   }
 
+  if (session?.user.platformAdmin) {
+    return (
+      <Navigate to="/platform/organizations" replace />
+    )
+  }
+
   if (
     (session?.user.organizations.length ?? 0) > 0
   ) {

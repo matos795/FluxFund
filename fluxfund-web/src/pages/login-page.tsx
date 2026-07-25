@@ -27,7 +27,11 @@ type LoginFormData = z.infer<typeof loginSchema>
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const { login, isAuthenticated } = useAuth()
+  const {
+    login,
+    session,
+    isAuthenticated,
+  } = useAuth()
 
   const [loginError, setLoginError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -45,7 +49,36 @@ export function LoginPage() {
   })
 
   if (isAuthenticated) {
-    return <Navigate to="/" replace />
+    if (
+      session?.user.platformAdmin &&
+      session.user.organizations.length === 0
+    ) {
+      return (
+        <Navigate
+          to="/platform/organizations"
+          replace
+        />
+      )
+    }
+
+    if (
+      (session?.user.organizations.length ?? 0) >
+      0
+    ) {
+      return (
+        <Navigate
+          to="/organizations"
+          replace
+        />
+      )
+    }
+
+    return (
+      <Navigate
+        to="/no-organization"
+        replace
+      />
+    )
   }
 
   async function handleLogin(data: LoginFormData) {
@@ -56,11 +89,28 @@ export function LoginPage() {
       const session = await login(data)
 
       if (
+        session.user.platformAdmin &&
         session.user.organizations.length === 0
       ) {
-        navigate("/no-organization", {
-          replace: true,
-        })
+        navigate(
+          "/platform/organizations",
+          {
+            replace: true,
+          },
+        )
+
+        return
+      }
+
+      if (
+        session.user.organizations.length === 0
+      ) {
+        navigate(
+          "/no-organization",
+          {
+            replace: true,
+          },
+        )
 
         return
       }

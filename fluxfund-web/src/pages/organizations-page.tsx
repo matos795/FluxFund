@@ -3,6 +3,7 @@ import {
     Building2,
     CheckCircle2,
     LogOut,
+    ShieldCheck,
 } from "lucide-react"
 import { useState } from "react"
 import {
@@ -40,7 +41,11 @@ export function OrganizationsPage() {
     if (organizations.length === 0) {
         return (
             <Navigate
-                to="/no-organization"
+                to={
+                    session?.user.platformAdmin
+                        ? "/platform/organizations"
+                        : "/no-organization"
+                }
                 replace
             />
         )
@@ -88,14 +93,31 @@ export function OrganizationsPage() {
                         </div>
                     </div>
 
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleLogout}
-                    >
-                        <LogOut className="mr-2 size-4" />
-                        Sair
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {session?.user.platformAdmin && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() =>
+                                    navigate(
+                                        "/platform/organizations",
+                                    )
+                                }
+                            >
+                                <ShieldCheck className="mr-2 size-4" />
+                                Backoffice
+                            </Button>
+                        )}
+
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleLogout}
+                        >
+                            <LogOut className="mr-2 size-4" />
+                            Sair
+                        </Button>
+                    </div>
                 </header>
 
                 <section className="rounded-3xl border bg-background p-6 shadow-sm sm:p-8">

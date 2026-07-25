@@ -26,6 +26,8 @@ import { AcceptInvitationPage } from "@/pages/accept-invitation-page"
 import { OrganizationsPage } from "@/pages/organizations-page"
 import { ForgotPasswordPage } from "@/pages/forgot-password-page"
 import { ResetPasswordPage } from "@/pages/reset-password-page"
+import { PlatformAdminRoute } from "./platform-admin-route"
+import { PlatformOrganizationsPage } from "@/pages/platform-organizations-page"
 
 export function AppRoutes() {
   return (
@@ -57,6 +59,16 @@ export function AppRoutes() {
           />
         }
       >
+
+        <Route element={<PlatformAdminRoute />}>
+          <Route
+            path="/platform/organizations"
+            element={
+              <PlatformOrganizationsPage />
+            }
+          />
+        </Route>
+
         <Route
           path="/organizations"
           element={<OrganizationsPage />}
