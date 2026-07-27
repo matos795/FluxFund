@@ -1,562 +1,663 @@
 import {
-  Building2,
-  Eye,
-  Mail,
-  PauseCircle,
-  PlayCircle,
-  UserRound,
+    Building2,
+    ClipboardCheck,
+    Eye,
+    LayoutDashboard,
+    Mail,
+    PauseCircle,
+    PlayCircle,
+    UserRound,
 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
 import {
-  AppDialogBody,
-  AppDialogContent,
-  AppDialogFooter,
-  AppDialogHeader,
-  AppDialogSection,
-  AppDialogStatCard,
+    AppDialogBody,
+    AppDialogContent,
+    AppDialogFooter,
+    AppDialogHeader,
+    AppDialogSection,
+    AppDialogStatCard,
 } from "@/components/layout/app-dialog"
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogMedia,
-  AlertDialogTitle,
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogMedia,
+    AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogTrigger,
+    Dialog,
+    DialogTrigger,
 } from "@/components/ui/dialog"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  invitationStatusClassNames,
-  invitationStatusLabels,
-} from "@/features/organization-user-invitations/organization-user-invitation-labels"
-import { organizationRoleLabels } from "@/features/organization-users/organization-user-labels"
 import { getApiErrorMessage } from "@/utils/api-error"
 
 import { usePlatformOrganizationDetails } from "../hooks/use-platform-organization-details"
 import { useUpdatePlatformOrganizationStatus } from "../hooks/use-update-platform-organization-status"
 import type { PlatformOrganization } from "../platform-organization-types"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { PlatformOrganizationOnboardingPanel } from "./platform-organization-onboarding-panel"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { organizationRoleLabels } from "@/features/organization-users/organization-user-labels"
+import { invitationStatusClassNames, invitationStatusLabels } from "@/features/organization-user-invitations/organization-user-invitation-labels"
 
 type PlatformOrganizationDetailsDialogProps = {
-  organization: PlatformOrganization
+    organization: PlatformOrganization
 }
 
 function formatDateTime(
-  value: string,
+    value: string,
 ) {
-  return new Intl.DateTimeFormat(
-    "pt-BR",
-    {
-      dateStyle: "short",
-      timeStyle: "short",
-    },
-  ).format(new Date(value))
+    return new Intl.DateTimeFormat(
+        "pt-BR",
+        {
+            dateStyle: "short",
+            timeStyle: "short",
+        },
+    ).format(new Date(value))
 }
 
 function formatCnpj(
-  value: string | null,
+    value: string | null,
 ) {
-  if (!value) {
-    return "Não informado"
-  }
+    if (!value) {
+        return "Não informado"
+    }
 
-  return value.replace(
-    /^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,
-    "$1.$2.$3/$4-$5",
-  )
+    return value.replace(
+        /^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,
+        "$1.$2.$3/$4-$5",
+    )
 }
 
 export function PlatformOrganizationDetailsDialog({
-  organization,
+    organization,
 }: PlatformOrganizationDetailsDialogProps) {
-  const [open, setOpen] =
-    useState(false)
+    const [open, setOpen] =
+        useState(false)
 
-  const [
-    requestedStatus,
-    setRequestedStatus,
-  ] = useState<boolean | null>(
-    null,
-  )
+    const [
+        activeTab,
+        setActiveTab,
+    ] = useState("overview")
 
-  const detailsQuery =
-    usePlatformOrganizationDetails(
-      organization.id,
-      open,
+    const [
+        requestedStatus,
+        setRequestedStatus,
+    ] = useState<boolean | null>(
+        null,
     )
 
-  const updateStatusMutation =
-    useUpdatePlatformOrganizationStatus()
+    const detailsQuery =
+        usePlatformOrganizationDetails(
+            organization.id,
+            open,
+        )
 
-  const details =
-    detailsQuery.data
+    const updateStatusMutation =
+        useUpdatePlatformOrganizationStatus()
 
-  const currentOrganization =
-    details?.organization ??
-    organization
+    const details =
+        detailsQuery.data
 
-  const users =
-    details?.users ?? []
+    const currentOrganization =
+        details?.organization ??
+        organization
 
-  const invitations =
-    details?.invitations ?? []
+    const users =
+        details?.users ?? []
 
-  function handleUpdateStatus() {
-    if (requestedStatus === null) {
-      return
+    const invitations =
+        details?.invitations ?? []
+
+    function handleOpenChange(
+        nextOpen: boolean,
+    ) {
+        setOpen(nextOpen)
+
+        if (!nextOpen) {
+            setActiveTab("overview")
+        }
     }
 
-    updateStatusMutation.mutate(
-      {
-        organizationId:
-          organization.id,
+    function handleUpdateStatus() {
+        if (requestedStatus === null) {
+            return
+        }
 
-        data: {
-          active: requestedStatus,
-        },
-      },
+        updateStatusMutation.mutate(
+            {
+                organizationId:
+                    organization.id,
 
-      {
-        onSuccess: () => {
-          toast.success(
-            requestedStatus
-              ? "Organização reativada."
-              : "Organização suspensa.",
-          )
+                data: {
+                    active: requestedStatus,
+                },
+            },
 
-          setRequestedStatus(null)
-        },
+            {
+                onSuccess: () => {
+                    toast.success(
+                        requestedStatus
+                            ? "Organização reativada."
+                            : "Organização suspensa.",
+                    )
 
-        onError: (error) => {
-          toast.error(
-            getApiErrorMessage(
-              error,
-              "Não foi possível alterar o status da organização.",
-            ),
-          )
-        },
-      },
-    )
-  }
+                    setRequestedStatus(null)
+                },
 
-  return (
-    <>
-      <Dialog
-        open={open}
-        onOpenChange={setOpen}
-      >
-        <DialogTrigger asChild>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-          >
-            <Eye className="mr-2 size-4" />
-            Gerenciar
-          </Button>
-        </DialogTrigger>
+                onError: (error) => {
+                    toast.error(
+                        getApiErrorMessage(
+                            error,
+                            "Não foi possível alterar o status da organização.",
+                        ),
+                    )
+                },
+            },
+        )
+    }
 
-        <AppDialogContent size="full">
-          <AppDialogHeader
-            icon={
-              <Building2 className="size-4 text-muted-foreground" />
-            }
-            title={
-              currentOrganization.name
-            }
-            description="Informações do cliente, usuários vinculados e convites de acesso."
-            aside={
-              <Badge
-                variant={
-                  currentOrganization.active
-                    ? "default"
-                    : "secondary"
+    return (
+        <>
+            <Dialog
+                open={open}
+                onOpenChange={
+                    handleOpenChange
                 }
-              >
-                {currentOrganization.active
-                  ? "Ativa"
-                  : "Suspensa"}
-              </Badge>
-            }
-          />
+            >
+                <DialogTrigger asChild>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                    >
+                        <Eye className="mr-2 size-4" />
+                        Gerenciar
+                    </Button>
+                </DialogTrigger>
 
-          <AppDialogBody className="space-y-5">
-            {detailsQuery.isLoading ? (
-              <p className="text-sm text-muted-foreground">
-                Carregando dados da organização...
-              </p>
-            ) : detailsQuery.isError ? (
-              <p className="text-sm text-destructive">
-                Não foi possível carregar os detalhes.
-              </p>
-            ) : (
-              <>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <AppDialogStatCard
-                    label="Usuários ativos"
-                    value={
-                      currentOrganization.activeUsers
-                    }
-                    description={`${currentOrganization.totalUsers} vínculo(s) no total`}
-                  />
-
-                  <AppDialogStatCard
-                    label="Convites pendentes"
-                    value={
-                      currentOrganization.pendingInvitations
-                    }
-                  />
-
-                  <AppDialogStatCard
-                    label="CNPJ"
-                    value={formatCnpj(
-                      currentOrganization.cnpj,
-                    )}
-                  />
-
-                  <AppDialogStatCard
-                    label="Criada em"
-                    value={formatDateTime(
-                      currentOrganization.createdAt,
-                    )}
-                  />
-                </div>
-
-                <AppDialogSection
-                  title="Contato"
-                  description="Informações atualmente cadastradas no perfil da organização."
-                >
-                  <div className="grid gap-3 text-sm sm:grid-cols-2">
-                    <div>
-                      <p className="text-xs text-muted-foreground">
-                        E-mail
-                      </p>
-
-                      <p className="mt-1 font-medium">
-                        {currentOrganization.contactEmail ??
-                          "Não informado"}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-muted-foreground">
-                        Status de acesso
-                      </p>
-
-                      <p className="mt-1 font-medium">
-                        {currentOrganization.active
-                          ? "Acesso liberado"
-                          : "Acesso bloqueado"}
-                      </p>
-                    </div>
-                  </div>
-                </AppDialogSection>
-
-                <AppDialogSection
-                  title="Usuários"
-                  description="Pessoas que possuem ou já possuíram vínculo com esta organização."
-                  action={
-                    <UserRound className="size-4 text-muted-foreground" />
-                  }
-                >
-                  {users.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      Nenhum usuário vinculado. O primeiro proprietário ainda pode não ter aceitado o convite.
-                    </p>
-                  ) : (
-                    <div className="overflow-x-auto rounded-md border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>
-                              Usuário
-                            </TableHead>
-
-                            <TableHead>
-                              Papel
-                            </TableHead>
-
-                            <TableHead>
-                              Status
-                            </TableHead>
-
-                            <TableHead>
-                              Vínculo criado
-                            </TableHead>
-                          </TableRow>
-                        </TableHeader>
-
-                        <TableBody>
-                          {users.map(
-                            (user) => (
-                              <TableRow
-                                key={
-                                  user.userId
-                                }
-                              >
-                                <TableCell>
-                                  <p className="font-medium">
-                                    {user.name}
-                                  </p>
-
-                                  <p className="text-xs text-muted-foreground">
-                                    {user.email}
-                                  </p>
-                                </TableCell>
-
-                                <TableCell>
-                                  {
-                                    organizationRoleLabels[
-                                      user.role
-                                    ]
-                                  }
-                                </TableCell>
-
-                                <TableCell>
-                                  <Badge
-                                    variant={
-                                      user.active
+                <AppDialogContent size="full">
+                    <AppDialogHeader
+                        icon={
+                            <Building2 className="size-4 text-muted-foreground" />
+                        }
+                        title={
+                            currentOrganization.name
+                        }
+                        description="Acompanhe o cliente, a implantação, os usuários e os acessos."
+                        aside={
+                            <Badge
+                                variant={
+                                    currentOrganization.active
                                         ? "default"
                                         : "secondary"
-                                    }
-                                  >
-                                    {user.active
-                                      ? "Ativo"
-                                      : "Inativo"}
-                                  </Badge>
-                                </TableCell>
-
-                                <TableCell className="whitespace-nowrap">
-                                  {formatDateTime(
-                                    user.createdAt,
-                                  )}
-                                </TableCell>
-                              </TableRow>
-                            ),
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                </AppDialogSection>
-
-                <AppDialogSection
-                  title="Convites"
-                  description="Histórico de convites enviados para a organização."
-                  action={
-                    <Mail className="size-4 text-muted-foreground" />
-                  }
-                >
-                  {invitations.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      Nenhum convite encontrado.
-                    </p>
-                  ) : (
-                    <div className="overflow-x-auto rounded-md border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>
-                              Convidado
-                            </TableHead>
-
-                            <TableHead>
-                              Papel
-                            </TableHead>
-
-                            <TableHead>
-                              Status
-                            </TableHead>
-
-                            <TableHead>
-                              Validade
-                            </TableHead>
-                          </TableRow>
-                        </TableHeader>
-
-                        <TableBody>
-                          {invitations.map(
-                            (
-                              invitation,
-                            ) => (
-                              <TableRow
-                                key={
-                                  invitation.id
                                 }
-                              >
-                                <TableCell>
-                                  <p className="font-medium">
-                                    {
-                                      invitation.name
+                            >
+                                {currentOrganization.active
+                                    ? "Ativa"
+                                    : "Suspensa"}
+                            </Badge>
+                        }
+                    />
+
+                    <Tabs
+                        value={activeTab}
+                        onValueChange={
+                            setActiveTab
+                        }
+                        className="min-h-0 flex-1 gap-0"
+                    >
+                        <div className="overflow-x-auto border-b px-5 py-3">
+                            <TabsList
+                                variant="line"
+                                className="min-w-max"
+                            >
+                                <TabsTrigger value="overview">
+                                    <LayoutDashboard className="size-4" />
+                                    Visão geral
+                                </TabsTrigger>
+
+                                <TabsTrigger value="onboarding">
+                                    <ClipboardCheck className="size-4" />
+                                    Implantação
+                                </TabsTrigger>
+
+                                <TabsTrigger value="users">
+                                    <UserRound className="size-4" />
+                                    Usuários
+                                </TabsTrigger>
+
+                                <TabsTrigger value="invitations">
+                                    <Mail className="size-4" />
+                                    Convites
+                                </TabsTrigger>
+                            </TabsList>
+                        </div>
+
+                        <AppDialogBody>
+                            <TabsContent
+                                value="overview"
+                                className="mt-0 space-y-5"
+                            >
+                                {detailsQuery.isLoading ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        Carregando dados da organização...
+                                    </p>
+                                ) : detailsQuery.isError ? (
+                                    <p className="text-sm text-destructive">
+                                        Não foi possível carregar os detalhes.
+                                    </p>
+                                ) : (
+                                    <>
+                                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                            <AppDialogStatCard
+                                                label="Usuários ativos"
+                                                value={
+                                                    currentOrganization.activeUsers
+                                                }
+                                                description={`${currentOrganization.totalUsers} vínculo(s) no total`}
+                                            />
+
+                                            <AppDialogStatCard
+                                                label="Convites pendentes"
+                                                value={
+                                                    currentOrganization.pendingInvitations
+                                                }
+                                            />
+
+                                            <AppDialogStatCard
+                                                label="CNPJ"
+                                                value={formatCnpj(
+                                                    currentOrganization.cnpj,
+                                                )}
+                                            />
+
+                                            <AppDialogStatCard
+                                                label="Criada em"
+                                                value={formatDateTime(
+                                                    currentOrganization.createdAt,
+                                                )}
+                                            />
+                                        </div>
+
+                                        <AppDialogSection
+                                            title="Contato"
+                                            description="Informações atualmente cadastradas no perfil da organização."
+                                        >
+                                            <div className="grid gap-3 text-sm sm:grid-cols-2">
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        E-mail
+                                                    </p>
+
+                                                    <p className="mt-1 font-medium">
+                                                        {currentOrganization.contactEmail ??
+                                                            "Não informado"}
+                                                    </p>
+                                                </div>
+
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Status de acesso
+                                                    </p>
+
+                                                    <p className="mt-1 font-medium">
+                                                        {currentOrganization.active
+                                                            ? "Acesso liberado"
+                                                            : "Acesso bloqueado"}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </AppDialogSection>
+                                    </>
+                                )}
+                            </TabsContent>
+
+                            <TabsContent
+                                value="onboarding"
+                                className="mt-0"
+                            >
+                                <PlatformOrganizationOnboardingPanel
+                                    organizationId={
+                                        organization.id
                                     }
-                                  </p>
-
-                                  <p className="text-xs text-muted-foreground">
-                                    {
-                                      invitation.email
+                                    enabled={
+                                        open &&
+                                        activeTab ===
+                                        "onboarding"
                                     }
-                                  </p>
-                                </TableCell>
+                                />
+                            </TabsContent>
 
-                                <TableCell>
-                                  {
-                                    organizationRoleLabels[
-                                      invitation.role
-                                    ]
-                                  }
-                                </TableCell>
+                            <TabsContent
+                                value="users"
+                                className="mt-0"
+                            >
+                                {detailsQuery.isLoading ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        Carregando usuários...
+                                    </p>
+                                ) : detailsQuery.isError ? (
+                                    <p className="text-sm text-destructive">
+                                        Não foi possível carregar os usuários.
+                                    </p>
+                                ) : (
+                                    <>
+                                        <AppDialogSection
+                                            title="Usuários"
+                                            description="Pessoas que possuem ou já possuíram vínculo com esta organização."
+                                            action={
+                                                <UserRound className="size-4 text-muted-foreground" />
+                                            }
+                                        >
+                                            {users.length === 0 ? (
+                                                <p className="text-sm text-muted-foreground">
+                                                    Nenhum usuário vinculado. O primeiro proprietário ainda pode não ter aceitado o convite.
+                                                </p>
+                                            ) : (
+                                                <div className="overflow-x-auto rounded-md border">
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow>
+                                                                <TableHead>
+                                                                    Usuário
+                                                                </TableHead>
 
-                                <TableCell>
-                                  <Badge
-                                    variant="outline"
-                                    className={
-                                      invitationStatusClassNames[
-                                        invitation.status
-                                      ]
-                                    }
-                                  >
-                                    {
-                                      invitationStatusLabels[
-                                        invitation.status
-                                      ]
-                                    }
-                                  </Badge>
-                                </TableCell>
+                                                                <TableHead>
+                                                                    Papel
+                                                                </TableHead>
 
-                                <TableCell className="whitespace-nowrap">
-                                  {formatDateTime(
-                                    invitation.expiresAt,
-                                  )}
-                                </TableCell>
-                              </TableRow>
-                            ),
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                </AppDialogSection>
-              </>
-            )}
-          </AppDialogBody>
+                                                                <TableHead>
+                                                                    Status
+                                                                </TableHead>
 
-          <AppDialogFooter className="sm:justify-between">
-            <Button
-              type="button"
-              variant={
-                currentOrganization.active
-                  ? "destructive"
-                  : "default"
-              }
-              disabled={
-                updateStatusMutation.isPending
-              }
-              onClick={() =>
-                setRequestedStatus(
-                  !currentOrganization.active,
-                )
-              }
+                                                                <TableHead>
+                                                                    Vínculo criado
+                                                                </TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+
+                                                        <TableBody>
+                                                            {users.map(
+                                                                (user) => (
+                                                                    <TableRow
+                                                                        key={
+                                                                            user.userId
+                                                                        }
+                                                                    >
+                                                                        <TableCell>
+                                                                            <p className="font-medium">
+                                                                                {user.name}
+                                                                            </p>
+
+                                                                            <p className="text-xs text-muted-foreground">
+                                                                                {user.email}
+                                                                            </p>
+                                                                        </TableCell>
+
+                                                                        <TableCell>
+                                                                            {
+                                                                                organizationRoleLabels[
+                                                                                user.role
+                                                                                ]
+                                                                            }
+                                                                        </TableCell>
+
+                                                                        <TableCell>
+                                                                            <Badge
+                                                                                variant={
+                                                                                    user.active
+                                                                                        ? "default"
+                                                                                        : "secondary"
+                                                                                }
+                                                                            >
+                                                                                {user.active
+                                                                                    ? "Ativo"
+                                                                                    : "Inativo"}
+                                                                            </Badge>
+                                                                        </TableCell>
+
+                                                                        <TableCell className="whitespace-nowrap">
+                                                                            {formatDateTime(
+                                                                                user.createdAt,
+                                                                            )}
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                ),
+                                                            )}
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
+                                            )}
+                                        </AppDialogSection>
+                                    </>
+                                )}
+                            </TabsContent>
+
+                            <TabsContent
+                                value="invitations"
+                                className="mt-0"
+                            >
+                                {detailsQuery.isLoading ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        Carregando convites...
+                                    </p>
+                                ) : detailsQuery.isError ? (
+                                    <p className="text-sm text-destructive">
+                                        Não foi possível carregar os convites.
+                                    </p>
+                                ) : (
+                                    <>
+                                        <AppDialogSection
+                                            title="Convites"
+                                            description="Histórico de convites enviados para a organização."
+                                            action={
+                                                <Mail className="size-4 text-muted-foreground" />
+                                            }
+                                        >
+                                            {invitations.length === 0 ? (
+                                                <p className="text-sm text-muted-foreground">
+                                                    Nenhum convite encontrado.
+                                                </p>
+                                            ) : (
+                                                <div className="overflow-x-auto rounded-md border">
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow>
+                                                                <TableHead>
+                                                                    Convidado
+                                                                </TableHead>
+
+                                                                <TableHead>
+                                                                    Papel
+                                                                </TableHead>
+
+                                                                <TableHead>
+                                                                    Status
+                                                                </TableHead>
+
+                                                                <TableHead>
+                                                                    Validade
+                                                                </TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+
+                                                        <TableBody>
+                                                            {invitations.map(
+                                                                (
+                                                                    invitation,
+                                                                ) => (
+                                                                    <TableRow
+                                                                        key={
+                                                                            invitation.id
+                                                                        }
+                                                                    >
+                                                                        <TableCell>
+                                                                            <p className="font-medium">
+                                                                                {
+                                                                                    invitation.name
+                                                                                }
+                                                                            </p>
+
+                                                                            <p className="text-xs text-muted-foreground">
+                                                                                {
+                                                                                    invitation.email
+                                                                                }
+                                                                            </p>
+                                                                        </TableCell>
+
+                                                                        <TableCell>
+                                                                            {
+                                                                                organizationRoleLabels[
+                                                                                invitation.role
+                                                                                ]
+                                                                            }
+                                                                        </TableCell>
+
+                                                                        <TableCell>
+                                                                            <Badge
+                                                                                variant="outline"
+                                                                                className={
+                                                                                    invitationStatusClassNames[
+                                                                                    invitation.status
+                                                                                    ]
+                                                                                }
+                                                                            >
+                                                                                {
+                                                                                    invitationStatusLabels[
+                                                                                    invitation.status
+                                                                                    ]
+                                                                                }
+                                                                            </Badge>
+                                                                        </TableCell>
+
+                                                                        <TableCell className="whitespace-nowrap">
+                                                                            {formatDateTime(
+                                                                                invitation.expiresAt,
+                                                                            )}
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                ),
+                                                            )}
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
+                                            )}
+                                        </AppDialogSection>
+                                    </>
+                                )}
+                            </TabsContent>
+                        </AppDialogBody>
+                    </Tabs>
+
+                    <AppDialogFooter className="sm:justify-between">
+                        <Button
+                            type="button"
+                            variant={
+                                currentOrganization.active
+                                    ? "destructive"
+                                    : "default"
+                            }
+                            disabled={
+                                updateStatusMutation.isPending
+                            }
+                            onClick={() =>
+                                setRequestedStatus(
+                                    !currentOrganization.active,
+                                )
+                            }
+                        >
+                            {currentOrganization.active ? (
+                                <>
+                                    <PauseCircle className="mr-2 size-4" />
+                                    Suspender organização
+                                </>
+                            ) : (
+                                <>
+                                    <PlayCircle className="mr-2 size-4" />
+                                    Reativar organização
+                                </>
+                            )}
+                        </Button>
+
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() =>
+                                setOpen(false)
+                            }
+                        >
+                            Fechar
+                        </Button>
+                    </AppDialogFooter>
+                </AppDialogContent>
+            </Dialog>
+
+            <AlertDialog
+                open={
+                    requestedStatus !== null
+                }
+                onOpenChange={(value) => {
+                    if (!value) {
+                        setRequestedStatus(null)
+                    }
+                }}
             >
-              {currentOrganization.active ? (
-                <>
-                  <PauseCircle className="mr-2 size-4" />
-                  Suspender organização
-                </>
-              ) : (
-                <>
-                  <PlayCircle className="mr-2 size-4" />
-                  Reativar organização
-                </>
-              )}
-            </Button>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogMedia>
+                            {requestedStatus ? (
+                                <PlayCircle className="size-5" />
+                            ) : (
+                                <PauseCircle className="size-5 text-destructive" />
+                            )}
+                        </AlertDialogMedia>
 
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() =>
-                setOpen(false)
-              }
-            >
-              Fechar
-            </Button>
-          </AppDialogFooter>
-        </AppDialogContent>
-      </Dialog>
+                        <AlertDialogTitle>
+                            {requestedStatus
+                                ? "Reativar organização?"
+                                : "Suspender organização?"}
+                        </AlertDialogTitle>
 
-      <AlertDialog
-        open={
-          requestedStatus !== null
-        }
-        onOpenChange={(value) => {
-          if (!value) {
-            setRequestedStatus(null)
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogMedia>
-              {requestedStatus ? (
-                <PlayCircle className="size-5" />
-              ) : (
-                <PauseCircle className="size-5 text-destructive" />
-              )}
-            </AlertDialogMedia>
+                        <AlertDialogDescription>
+                            {requestedStatus
+                                ? `Os usuários de ${currentOrganization.name} voltarão a acessar os dados da organização.`
+                                : `Todos os usuários de ${currentOrganization.name} perderão temporariamente o acesso. Os dados e vínculos serão preservados.`}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
 
-            <AlertDialogTitle>
-              {requestedStatus
-                ? "Reativar organização?"
-                : "Suspender organização?"}
-            </AlertDialogTitle>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>
+                            Cancelar
+                        </AlertDialogCancel>
 
-            <AlertDialogDescription>
-              {requestedStatus
-                ? `Os usuários de ${currentOrganization.name} voltarão a acessar os dados da organização.`
-                : `Todos os usuários de ${currentOrganization.name} perderão temporariamente o acesso. Os dados e vínculos serão preservados.`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel>
-              Cancelar
-            </AlertDialogCancel>
-
-            <AlertDialogAction
-              variant={
-                requestedStatus
-                  ? "default"
-                  : "destructive"
-              }
-              disabled={
-                updateStatusMutation.isPending
-              }
-              onClick={
-                handleUpdateStatus
-              }
-            >
-              {requestedStatus
-                ? "Reativar"
-                : "Suspender"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
-  )
+                        <AlertDialogAction
+                            variant={
+                                requestedStatus
+                                    ? "default"
+                                    : "destructive"
+                            }
+                            disabled={
+                                updateStatusMutation.isPending
+                            }
+                            onClick={
+                                handleUpdateStatus
+                            }
+                        >
+                            {requestedStatus
+                                ? "Reativar"
+                                : "Suspender"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
+    )
 }
