@@ -524,9 +524,12 @@ public class OrganizationUserInvitationService {
 
                 OrganizationUserInvitation invitation = invitationRepository
                                 .findByTokenHash(tokenHash)
-                                .orElseThrow(
-                                                () -> new ResourceNotFoundException(
-                                                                "Invitation not found"));
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Invitation not found"));
+
+                if (!invitation.getOrganization().isActive()) {
+                        throw new BusinessException("Organization is suspended");
+                }
 
                 if (invitation.getAcceptedAt() != null) {
                         throw new BusinessException(
