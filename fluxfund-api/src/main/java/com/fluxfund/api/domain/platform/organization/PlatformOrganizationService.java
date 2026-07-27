@@ -30,7 +30,7 @@ import com.fluxfund.api.domain.platform.organization.dto.CreatePlatformOrganizat
 import com.fluxfund.api.domain.platform.organization.dto.PlatformOrganizationDetailsResponse;
 import com.fluxfund.api.domain.platform.organization.dto.PlatformOrganizationResponse;
 import com.fluxfund.api.domain.platform.organization.dto.UpdatePlatformOrganizationStatusRequest;
-import com.fluxfund.api.domain.platform.organization.onboarding.PlatformOrganizationOnboardingService;
+import com.fluxfund.api.domain.platform.organization.onboarding.service.PlatformOrganizationOnboardingService;
 import com.fluxfund.api.security.PlatformAccessService;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 import com.fluxfund.api.shared.util.EmailNormalizer;

@@ -9,32 +9,45 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.fluxfund.api.domain.platform.organization.onboarding.dto.PlatformOrganizationOnboardingResponse;
+import com.fluxfund.api.domain.platform.organization.onboarding.dto.PlatformOrganizationOnboardingDetailsResponse;
 import com.fluxfund.api.domain.platform.organization.onboarding.dto.UpdatePlatformOrganizationOnboardingRequest;
+import com.fluxfund.api.domain.platform.organization.onboarding.service.PlatformOrganizationOnboardingService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/v1/platform/organizations/"
-        + "{organizationId}/onboarding")
+@RequestMapping(
+        "/api/v1/platform/organizations/"
+                + "{organizationId}/onboarding")
 @RequiredArgsConstructor
 public class PlatformOrganizationOnboardingController {
 
-    private final PlatformOrganizationOnboardingService service;
+    private final PlatformOrganizationOnboardingService
+            service;
 
     @GetMapping
-    public PlatformOrganizationOnboardingResponse findByOrganization(
-            @PathVariable UUID organizationId) {
+    public PlatformOrganizationOnboardingDetailsResponse
+            findByOrganization(
+
+                    @PathVariable
+                    UUID organizationId) {
 
         return service.findByOrganization(
                 organizationId);
     }
 
     @PutMapping
-    public PlatformOrganizationOnboardingResponse update(
-            @PathVariable UUID organizationId,
-            @RequestBody @Valid UpdatePlatformOrganizationOnboardingRequest request) {
+    public PlatformOrganizationOnboardingDetailsResponse
+            update(
+
+                    @PathVariable
+                    UUID organizationId,
+
+                    @RequestBody
+                    @Valid
+                    UpdatePlatformOrganizationOnboardingRequest
+                            request) {
 
         return service.update(
                 organizationId,
