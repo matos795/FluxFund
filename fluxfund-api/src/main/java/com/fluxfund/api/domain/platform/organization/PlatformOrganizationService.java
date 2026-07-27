@@ -30,6 +30,7 @@ import com.fluxfund.api.domain.platform.organization.dto.CreatePlatformOrganizat
 import com.fluxfund.api.domain.platform.organization.dto.PlatformOrganizationDetailsResponse;
 import com.fluxfund.api.domain.platform.organization.dto.PlatformOrganizationResponse;
 import com.fluxfund.api.domain.platform.organization.dto.UpdatePlatformOrganizationStatusRequest;
+import com.fluxfund.api.domain.platform.organization.onboarding.PlatformOrganizationOnboardingService;
 import com.fluxfund.api.security.PlatformAccessService;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 import com.fluxfund.api.shared.util.EmailNormalizer;
@@ -55,6 +56,8 @@ public class PlatformOrganizationService {
     private final PlatformAccessService platformAccessService;
 
     private final AuditLogService auditLogService;
+
+    private final PlatformOrganizationOnboardingService onboardingService;
 
     @Transactional(readOnly = true)
     public Page<PlatformOrganizationResponse> findAll(
@@ -129,6 +132,10 @@ public class PlatformOrganizationService {
         organizationSettingsService
                 .findOrCreateSettings(
                         savedOrganization.getId());
+
+        onboardingService
+                .createForOrganization(
+                        savedOrganization);
 
         auditLogService.record(
                 savedOrganization.getId(),
