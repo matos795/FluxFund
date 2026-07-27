@@ -212,12 +212,12 @@ export function PlatformOrganizationDetailsDialog({
                         onValueChange={
                             setActiveTab
                         }
-                        className="min-h-0 flex-1 gap-0"
+                        className="min-h-0 min-w-0 flex-1 gap-0 overflow-hidden"
                     >
-                        <div className="overflow-x-auto border-b px-5 py-3">
+                        <div className="shrink-0 overflow-x-auto overflow-y-hidden border-b px-5 py-3">
                             <TabsList
                                 variant="line"
-                                className="min-w-max"
+                                className="min-w-max shrink-0"
                             >
                                 <TabsTrigger value="overview">
                                     <LayoutDashboard className="size-4" />
