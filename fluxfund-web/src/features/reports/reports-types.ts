@@ -173,7 +173,9 @@ export type AccountCashFlowItem = {
   | "CREDIT_CARD"
   | "OTHER"
   bankName: string | null
+  initialBalanceDate: string | null
   openingBalance: number
+  initialBalanceInPeriod: number
   incomeAmount: number
   expenseAmount: number
   transferInAmount: number
@@ -189,6 +191,7 @@ export type AccountCashFlowReport = {
   startDate: string
   endDate: string
   openingBalanceTotal: number
+  initialBalanceInPeriodTotal: number
   incomeTotal: number
   expenseTotal: number
   transferInTotal: number

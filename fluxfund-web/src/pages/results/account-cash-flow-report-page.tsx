@@ -63,7 +63,11 @@ const accountTypeLabels: Record<AccountCashFlowItem["accountType"], string> = {
 
 type ChartAccountItem = AccountCashFlowItem & {
     label: string
-    movementAmount: number
+}
+
+type MovementChartItem = ChartAccountItem & {
+    cashInAmount: number
+    cashOutAmount: number
 }
 
 type TooltipPayloadItem = {
@@ -119,13 +123,16 @@ function toChartLabel(name: string) {
     return `${name.slice(0, 18)}…`
 }
 
+function getCashInAmount(item: AccountCashFlowItem) {
+    return item.incomeAmount + item.transferInAmount
+}
+
+function getCashOutAmount(item: AccountCashFlowItem) {
+    return item.expenseAmount + item.transferOutAmount
+}
+
 function getMovementAmount(item: AccountCashFlowItem) {
-    return (
-        item.incomeAmount +
-        item.expenseAmount +
-        item.transferInAmount +
-        item.transferOutAmount
-    )
+    return getCashInAmount(item) + getCashOutAmount(item)
 }
 
 function getPositiveOrNegativeLabel(value: number) {
@@ -204,15 +211,20 @@ export function AccountCashFlowReportPage() {
         [report?.items],
     )
 
-    const movementChartData = useMemo<ChartAccountItem[]>(
+    const movementChartData = useMemo<MovementChartItem[]>(
         () =>
             [...accountsWithAnyValue]
-                .sort((a, b) => getMovementAmount(b) - getMovementAmount(a))
+                .sort(
+                    (a, b) =>
+                        getMovementAmount(b) -
+                        getMovementAmount(a),
+                )
                 .slice(0, 8)
                 .map((item) => ({
                     ...item,
                     label: toChartLabel(item.accountName),
-                    movementAmount: getMovementAmount(item),
+                    cashInAmount: getCashInAmount(item),
+                    cashOutAmount: getCashOutAmount(item),
                 })),
         [accountsWithAnyValue],
     )
@@ -220,28 +232,35 @@ export function AccountCashFlowReportPage() {
     const balanceChartData = useMemo<ChartAccountItem[]>(
         () =>
             [...accountsWithAnyValue]
-                .sort((a, b) => Math.abs(b.currentBalance) - Math.abs(a.currentBalance))
+                .sort(
+                    (a, b) =>
+                        Math.abs(b.currentBalance) -
+                        Math.abs(a.currentBalance),
+                )
                 .slice(0, 8)
                 .map((item) => ({
                     ...item,
                     label: toChartLabel(item.accountName),
-                    movementAmount: getMovementAmount(item),
                 })),
         [accountsWithAnyValue],
     )
 
-    const biggestIncomeAccount = useMemo(
+    const biggestCashInAccount = useMemo(
         () =>
             [...(report?.items ?? [])].sort(
-                (a, b) => b.incomeAmount - a.incomeAmount,
+                (a, b) =>
+                    getCashInAmount(b) -
+                    getCashInAmount(a),
             )[0],
         [report?.items],
     )
 
-    const biggestExpenseAccount = useMemo(
+    const biggestCashOutAccount = useMemo(
         () =>
             [...(report?.items ?? [])].sort(
-                (a, b) => b.expenseAmount - a.expenseAmount,
+                (a, b) =>
+                    getCashOutAmount(b) -
+                    getCashOutAmount(a),
             )[0],
         [report?.items],
     )
@@ -460,16 +479,24 @@ export function AccountCashFlowReportPage() {
 
                     <CardContent className="space-y-4">
                         <InsightRow
-                            label="Maior entrada"
-                            account={biggestIncomeAccount}
-                            value={biggestIncomeAccount?.incomeAmount ?? 0}
+                            label="Maior entrada na conta"
+                            account={biggestCashInAccount}
+                            value={
+                                biggestCashInAccount
+                                    ? getCashInAmount(biggestCashInAccount)
+                                    : 0
+                            }
                             icon={ArrowUpCircle}
                         />
 
                         <InsightRow
-                            label="Maior saída"
-                            account={biggestExpenseAccount}
-                            value={biggestExpenseAccount?.expenseAmount ?? 0}
+                            label="Maior saída da conta"
+                            account={biggestCashOutAccount}
+                            value={
+                                biggestCashOutAccount
+                                    ? getCashOutAmount(biggestCashOutAccount)
+                                    : 0
+                            }
                             icon={ArrowDownCircle}
                         />
 
@@ -500,10 +527,10 @@ export function AccountCashFlowReportPage() {
 
             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
                 <MetricCard
-                    title="Saldo atual"
-                    value={report.currentBalanceTotal}
-                    description="Independente do filtro"
-                    icon={Landmark}
+                    title="Saldos iniciados"
+                    value={report.initialBalanceInPeriodTotal}
+                    description="Contas iniciadas durante o período"
+                    icon={Wallet}
                 />
 
                 <MetricCard
@@ -514,14 +541,14 @@ export function AccountCashFlowReportPage() {
                 />
 
                 <MetricCard
-                    title="Entradas"
+                    title="Receitas"
                     value={report.incomeTotal}
                     description="Receitas liquidadas"
                     icon={ArrowUpCircle}
                 />
 
                 <MetricCard
-                    title="Saídas"
+                    title="Despesas"
                     value={report.expenseTotal}
                     description="Despesas liquidadas"
                     icon={ArrowDownCircle}
@@ -537,7 +564,7 @@ export function AccountCashFlowReportPage() {
                 <MetricCard
                     title="Resultado"
                     value={report.netTotal}
-                    description="Entradas - saídas"
+                    description="Receitas - despesas"
                     icon={netIsPositive ? TrendingUp : TrendingDown}
                     variant={netIsPositive ? "positive" : "negative"}
                 />
@@ -570,7 +597,8 @@ export function AccountCashFlowReportPage() {
                     <CardHeader>
                         <CardTitle>Entradas x Saídas por conta</CardTitle>
                         <CardDescription>
-                            Contas com maior movimentação no período.
+                            Receitas, despesas e transferências que movimentaram
+                            cada conta no período.
                         </CardDescription>
                     </CardHeader>
 
@@ -600,15 +628,16 @@ export function AccountCashFlowReportPage() {
                                         <Tooltip content={<CurrencyTooltip />} />
                                         <Legend />
                                         <Bar
-                                            dataKey="incomeAmount"
-                                            name="Entradas"
+                                            dataKey="cashInAmount"
+                                            name="Entradas na conta"
                                             fill="hsl(var(--chart-1))"
                                             radius={[4, 4, 0, 0]}
                                             maxBarSize={24}
                                         />
+
                                         <Bar
-                                            dataKey="expenseAmount"
-                                            name="Saídas"
+                                            dataKey="cashOutAmount"
+                                            name="Saídas da conta"
                                             fill="hsl(var(--chart-2))"
                                             radius={[4, 4, 0, 0]}
                                             maxBarSize={24}
@@ -692,12 +721,13 @@ export function AccountCashFlowReportPage() {
                     ) : (
                         <div className="overflow-hidden rounded-md border">
                             <div className="w-full overflow-x-auto">
-                                <Table className="min-w-[1350px]">
+                                <Table className="min-w-[1500px]">
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Conta</TableHead>
                                             <TableHead>Tipo</TableHead>
                                             <TableHead className="text-right">Saldo inicial</TableHead>
+                                            <TableHead className="text-right">Iniciado no período</TableHead>
                                             <TableHead className="text-right">Entradas</TableHead>
                                             <TableHead className="text-right">Saídas</TableHead>
                                             <TableHead className="text-right">Transf. recebidas</TableHead>
@@ -722,6 +752,11 @@ export function AccountCashFlowReportPage() {
                                                             {item.bankName}
                                                         </div>
                                                     )}
+                                                    {item.initialBalanceDate && (
+                                                        <div className="text-xs text-muted-foreground">
+                                                            Acompanhada desde {formatDate(item.initialBalanceDate)}
+                                                        </div>
+                                                    )}
                                                 </TableCell>
 
                                                 <TableCell>
@@ -732,6 +767,10 @@ export function AccountCashFlowReportPage() {
 
                                                 <TableCell className="text-right">
                                                     {formatCurrency(item.openingBalance)}
+                                                </TableCell>
+
+                                                <TableCell className="text-right">
+                                                    {formatCurrency(item.initialBalanceInPeriod)}
                                                 </TableCell>
 
                                                 <TableCell className="text-right">
