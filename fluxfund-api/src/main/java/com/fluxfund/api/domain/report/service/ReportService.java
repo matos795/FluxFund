@@ -482,9 +482,18 @@ public class ReportService {
                                         "Use the credit card statement report for credit card accounts");
                 }
 
-                validateAccountMovementReportStartDate(
-                                account,
-                                resolvedStartDate);
+                LocalDate effectiveStartDate = resolvedStartDate;
+
+                if (account.getInitialBalanceDate() != null
+                                && resolvedStartDate.isBefore(account.getInitialBalanceDate())) {
+
+                        effectiveStartDate = account.getInitialBalanceDate();
+                }
+
+                if (effectiveStartDate.isAfter(resolvedEndDate)) {
+                        throw new BusinessException(
+                                        "The account was not yet tracked in the selected period");
+                }
 
                 BigDecimal initialBalance = account.getInitialBalance() != null
                                 ? account.getInitialBalance()
@@ -494,7 +503,7 @@ public class ReportService {
                                 .sumSignedSettledAccountMovementBeforeDate(
                                                 organizationId,
                                                 accountId,
-                                                resolvedStartDate);
+                                                effectiveStartDate);
 
                 BigDecimal openingBalance = initialBalance.add(
                                 movementBeforePeriod);
@@ -503,7 +512,7 @@ public class ReportService {
                                 .findSettledAccountMovementReportTransactions(
                                                 organizationId,
                                                 accountId,
-                                                resolvedStartDate,
+                                                effectiveStartDate,
                                                 resolvedEndDate);
 
                 BigDecimal incomeTotal = BigDecimal.ZERO;
@@ -574,7 +583,7 @@ public class ReportService {
                                 account.getName(),
                                 account.getType(),
                                 account.getBankName(),
-                                resolvedStartDate,
+                                effectiveStartDate,
                                 resolvedEndDate,
                                 openingBalance,
                                 incomeTotal,
@@ -1118,12 +1127,8 @@ public class ReportService {
                                                         pendingAmount,
                                                         allocationCount,
                                                         accounts);
-                                })
-                                .sorted(
-                                                Comparator.comparing(
-                                                                AccountabilityByAccountItemResponse::beneficiaryName)
-                                                                .thenComparing(
-                                                                                AccountabilityByAccountItemResponse::fundName))
+                                }).sorted(Comparator.comparing(AccountabilityByAccountItemResponse::beneficiaryName)
+                                                .thenComparing(AccountabilityByAccountItemResponse::fundName))
                                 .toList();
 
                 BigDecimal openingPendingTotal = items.stream()
@@ -1156,17 +1161,9 @@ public class ReportService {
                                 .distinct()
                                 .count();
 
-                return new AccountabilityByAccountReportResponse(
-                                resolvedStartDate,
-                                resolvedEndDate,
-                                openingPendingTotal,
-                                allocatedTotal,
-                                transferredTotal,
-                                commitmentTotal,
-                                payableTotal,
-                                pendingTotal,
-                                beneficiariesWithPendingBalance,
-                                items);
+                return new AccountabilityByAccountReportResponse(resolvedStartDate, resolvedEndDate,
+                                openingPendingTotal, allocatedTotal, transferredTotal, commitmentTotal, payableTotal,
+                                pendingTotal, beneficiariesWithPendingBalance, items);
         }
 
         public PendingItemsReportResponse getPendingItemsReport(
@@ -1278,17 +1275,6 @@ public class ReportService {
                         throw new BusinessException("End date cannot be before start date");
                 }
 
-                LocalDate reportBaseline = accountRepository
-                                .findLatestRealAccountInitialBalanceDate(
-                                                organizationId);
-
-                if (reportBaseline != null
-                                && resolvedStartDate.isBefore(reportBaseline)) {
-
-                        throw new BusinessException(
-                                        "The selected period starts before the financial tracking date");
-                }
-
                 List<AccountCashFlowProjection> projections = accountRepository
                                 .findAccountCashFlowReport(
                                                 organizationId,
@@ -1297,11 +1283,18 @@ public class ReportService {
 
                 List<AccountCashFlowItemResponse> items = projections
                                 .stream()
-                                .map(this::toAccountCashFlowItemResponse)
+                                .map(projection -> toAccountCashFlowItemResponse(
+                                                projection,
+                                                resolvedStartDate,
+                                                resolvedEndDate))
                                 .toList();
 
                 BigDecimal openingBalanceTotal = items.stream()
                                 .map(AccountCashFlowItemResponse::openingBalance)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal initialBalanceInPeriodTotal = items.stream()
+                                .map(AccountCashFlowItemResponse::initialBalanceInPeriod)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                 BigDecimal incomeTotal = items.stream()
@@ -1342,6 +1335,7 @@ public class ReportService {
                                 resolvedStartDate,
                                 resolvedEndDate,
                                 openingBalanceTotal,
+                                initialBalanceInPeriodTotal,
                                 incomeTotal,
                                 expenseTotal,
                                 transferInTotal,
@@ -1352,17 +1346,6 @@ public class ReportService {
                                 currentBalanceTotal,
                                 transactionCount,
                                 items);
-        }
-
-        private void validateAccountMovementReportStartDate(
-                        Account account,
-                        LocalDate startDate) {
-
-                if (account.getInitialBalanceDate() != null
-                                && startDate.isBefore(account.getInitialBalanceDate())) {
-                        throw new BusinessException(
-                                        "The selected period starts before the account initial balance date");
-                }
         }
 
         private BigDecimal getAbsoluteSettledAmount(
@@ -1677,10 +1660,32 @@ public class ReportService {
         }
 
         private AccountCashFlowItemResponse toAccountCashFlowItemResponse(
-                        AccountCashFlowProjection projection) {
+                        AccountCashFlowProjection projection,
+                        LocalDate reportStartDate,
+                        LocalDate reportEndDate) {
 
                 BigDecimal initialBalance = projection.getInitialBalance() != null
                                 ? projection.getInitialBalance()
+                                : BigDecimal.ZERO;
+
+                LocalDate initialBalanceDate = projection.getInitialBalanceDate();
+
+                boolean startedAtOrBeforePeriodStart = initialBalanceDate == null
+                                || !initialBalanceDate.isAfter(reportStartDate);
+
+                boolean startedInsidePeriod = initialBalanceDate != null
+                                && initialBalanceDate.isAfter(reportStartDate)
+                                && !initialBalanceDate.isAfter(reportEndDate);
+
+                boolean startedByToday = initialBalanceDate == null
+                                || !initialBalanceDate.isAfter(LocalDate.now());
+
+                BigDecimal openingInitialBalance = startedAtOrBeforePeriodStart
+                                ? initialBalance
+                                : BigDecimal.ZERO;
+
+                BigDecimal initialBalanceInPeriod = startedInsidePeriod
+                                ? initialBalance
                                 : BigDecimal.ZERO;
 
                 BigDecimal incomeBefore = projection.getIncomeBefore() != null
@@ -1727,7 +1732,7 @@ public class ReportService {
                                 ? projection.getTransferNetUntilToday()
                                 : BigDecimal.ZERO;
 
-                BigDecimal openingBalance = initialBalance
+                BigDecimal openingBalance = openingInitialBalance
                                 .add(incomeBefore)
                                 .subtract(expenseBefore)
                                 .add(transferNetBefore);
@@ -1735,13 +1740,16 @@ public class ReportService {
                 BigDecimal netAmount = incomeAmount.subtract(expenseAmount);
 
                 BigDecimal closingBalance = openingBalance
+                                .add(initialBalanceInPeriod)
                                 .add(netAmount)
                                 .add(transferNetAmount);
 
-                BigDecimal currentBalance = initialBalance
-                                .add(incomeUntilToday)
-                                .subtract(expenseUntilToday)
-                                .add(transferNetUntilToday);
+                BigDecimal currentBalance = startedByToday
+                                ? initialBalance
+                                                .add(incomeUntilToday)
+                                                .subtract(expenseUntilToday)
+                                                .add(transferNetUntilToday)
+                                : BigDecimal.ZERO;
 
                 long transactionCount = projection.getTransactionCount() != null
                                 ? projection.getTransactionCount()
@@ -1750,10 +1758,11 @@ public class ReportService {
                 return new AccountCashFlowItemResponse(
                                 projection.getAccountId(),
                                 projection.getAccountName(),
-                                AccountType.valueOf(
-                                                projection.getAccountType()),
+                                AccountType.valueOf(projection.getAccountType()),
                                 projection.getBankName(),
+                                initialBalanceDate,
                                 openingBalance,
+                                initialBalanceInPeriod,
                                 incomeAmount,
                                 expenseAmount,
                                 transferInAmount,

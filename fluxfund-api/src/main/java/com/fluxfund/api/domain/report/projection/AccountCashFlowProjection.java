@@ -1,6 +1,7 @@
 package com.fluxfund.api.domain.report.projection;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.UUID;
 
 public interface AccountCashFlowProjection {
@@ -14,6 +15,8 @@ public interface AccountCashFlowProjection {
     String getBankName();
 
     BigDecimal getInitialBalance();
+
+    LocalDate getInitialBalanceDate();
 
     BigDecimal getIncomeBefore();
 

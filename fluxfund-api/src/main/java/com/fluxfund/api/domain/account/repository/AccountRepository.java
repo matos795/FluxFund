@@ -17,15 +17,11 @@ import com.fluxfund.api.domain.report.projection.AccountCashFlowProjection;
 
 public interface AccountRepository extends JpaRepository<Account, UUID> {
 
-    Page<Account> findAllByOrganizationIdAndActiveTrue(
-            UUID organizationId,
-            Pageable pageable);
+    Page<Account> findAllByOrganizationIdAndActiveTrue(UUID organizationId, Pageable pageable);
 
     Optional<Account> findByIdAndOrganizationIdAndActiveTrue(UUID accountId, UUID organizationId);
 
-    Optional<Account> findByIdAndOrganizationId(
-            UUID accountId,
-            UUID organizationId);
+    Optional<Account> findByIdAndOrganizationId(UUID accountId, UUID organizationId);
 
     @Query("""
             select coalesce(sum(a.initialBalance), 0)
@@ -45,6 +41,7 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
                       a.type as accountType,
                       a.bank_name as bankName,
                       coalesce(a.initial_balance, 0) as initialBalance,
+                      a.initial_balance_date as initialBalanceDate,
 
                       coalesce(sum(
                           case
@@ -209,7 +206,8 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
                       a.name,
                       a.type,
                       a.bank_name,
-                      a.initial_balance
+                      a.initial_balance,
+                      a.initial_balance_date
                   order by a.name asc
                   """, nativeQuery = true)
     List<AccountCashFlowProjection> findAccountCashFlowReport(
@@ -237,14 +235,5 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
             @Param("organizationId") UUID organizationId,
             @Param("asOfDate") LocalDate asOfDate);
 
-    @Query("""
-            select max(account.initialBalanceDate)
-            from Account account
-            where account.organization.id = :organizationId
-              and account.active = true
-              and account.type <>
-                  com.fluxfund.api.domain.account.AccountType.CREDIT_CARD
-            """)
-    LocalDate findLatestRealAccountInitialBalanceDate(
-            @Param("organizationId") UUID organizationId);
+    
 }
