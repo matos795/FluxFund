@@ -30,6 +30,8 @@ import { useAuditLogs } from "@/features/audit-logs/hooks/use-audit-logs"
 import {
   auditActionLabels,
   auditEntityTypeLabels,
+  getAuditActionLabel,
+  getAuditEntityTypeLabel,
 } from "@/features/audit-logs/audit-log-labels"
 import type {
   AuditAction,
@@ -45,15 +47,36 @@ const auditActions: AuditAction[] = [
   "UPDATE",
   "CANCEL",
   "CLASSIFY",
+
   "ADD_ALLOCATION",
   "UPDATE_ALLOCATION",
   "REMOVE_ALLOCATION",
+
   "UPLOAD_ATTACHMENT",
   "DELETE_ATTACHMENT",
+
   "ACTIVATE",
   "DEACTIVATE",
+
   "CHANGE_DEFAULT_FUND",
+
   "IMPORT_OFX",
+
+  "UPLOAD_BANK_STATEMENT_DOCUMENT",
+  "DELETE_BANK_STATEMENT_DOCUMENT",
+
+  "GENERATE_CLOSING_DOSSIER",
+
+  "UPLOAD_CLOSING_DOSSIER_EXTRA_DOCUMENT",
+  "UPDATE_CLOSING_DOSSIER_EXTRA_DOCUMENT",
+  "DELETE_CLOSING_DOSSIER_EXTRA_DOCUMENT",
+
+  "UPLOAD_CREDIT_CARD_STATEMENT_PDF",
+  "DELETE_CREDIT_CARD_STATEMENT_PDF",
+
+  "UPLOAD_ORGANIZATION_LOGO",
+  "DELETE_ORGANIZATION_LOGO",
+
   "CHANGE_ROLE",
   "REGENERATE_INVITATION",
   "ACCEPT_INVITATION",
@@ -67,6 +90,11 @@ const entityTypes: AuditEntityType[] = [
   "ORGANIZATION_SETTINGS",
   "OFX_IMPORT",
   "FUND",
+  "BANK_STATEMENT_DOCUMENT",
+  "CREDIT_CARD_STATEMENT",
+  "CLOSING_DOSSIER",
+  "CLOSING_DOSSIER_EXTRA_DOCUMENT",
+  "ORGANIZATION",
   "ORGANIZATION_USER",
   "ORGANIZATION_USER_INVITATION",
 ]
@@ -267,14 +295,14 @@ export function AuditLogReportPage() {
 
                       <TableCell>
                         <Badge variant="secondary">
-                          {auditActionLabels[log.action]}
+                          {getAuditActionLabel(log.action)}
                         </Badge>
                       </TableCell>
 
                       <TableCell>
                         <div className="space-y-1">
                           <p className="text-sm">
-                            {auditEntityTypeLabels[log.entityType]}
+                            {getAuditEntityTypeLabel(log.entityType)}
                           </p>
                           <p className="max-w-48 truncate text-xs text-muted-foreground">
                             {log.entityId}
