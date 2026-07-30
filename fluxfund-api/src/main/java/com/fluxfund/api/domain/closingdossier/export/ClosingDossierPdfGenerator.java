@@ -36,6 +36,7 @@ import org.springframework.stereotype.Service;
 import com.fluxfund.api.domain.attachment.Attachment;
 import com.fluxfund.api.domain.attachment.AttachmentType;
 import com.fluxfund.api.domain.closingdossier.ClosingDossierExtraDocumentType;
+import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierAccountPreviewResponse;
 import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierPreviewRequest;
 import com.fluxfund.api.domain.closingdossier.dto.ClosingDossierPreviewResponse;
 import com.fluxfund.api.domain.creditcardstatement.CreditCardStatementStatus;
@@ -1412,9 +1413,7 @@ public class ClosingDossierPdfGenerator {
                                                 "Faturas pagas no período: "
                                                                 + paidCreditCardStatements,
                                                 "Extrato oficial: "
-                                                                + (preview.hasBankStatement()
-                                                                                ? "Disponível"
-                                                                                : "Pendente"),
+                                                                + resolveBankStatementStatus(preview),
                                                 "Comprovantes pendentes: "
                                                                 + preview.paymentProofIssues().size(),
                                                 "Documentos fiscais pendentes: "
@@ -1449,6 +1448,15 @@ public class ClosingDossierPdfGenerator {
                 }
 
                 return accountStartPage;
+        }
+
+        private String resolveBankStatementStatus(ClosingDossierAccountPreviewResponse preview) {
+
+                if (!preview.requiresBankStatement()) {
+                        return "Não exigido";
+                }
+
+                return preview.hasBankStatement() ? "Disponível" : "Pendente";
         }
 
         private void appendBankStatements(

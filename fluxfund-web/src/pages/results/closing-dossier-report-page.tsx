@@ -617,7 +617,7 @@ export function ClosingDossierReportPage() {
                         <PreviewMetric
                             label="Extratos pendentes"
                             value={String(preview.accountsWithoutBankStatementCount)}
-                            description="Contas sem PDF oficial"
+                            description="Contas que exigem PDF oficial"
                             isHealthy={preview.accountsWithoutBankStatementCount === 0}
                         />
 

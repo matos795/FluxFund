@@ -15,6 +15,7 @@ public record ClosingDossierAccountPreviewResponse(
         boolean hasMovement,
         boolean includedInDossier,
 
+        boolean requiresBankStatement,
         boolean hasBankStatement,
         List<BankStatementDocumentResponse> bankStatementDocuments,
 

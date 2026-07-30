@@ -219,6 +219,7 @@ public class ClosingDossierService {
 
                         boolean hasMovement = !accountTransactions.isEmpty();
                         boolean includedInDossier = includeAccountsWithoutMovement || hasMovement;
+                        boolean requiresBankStatement = requiresBankStatement(account, hasMovement);
 
                         if (!hasMovement) {
                                 accountsWithoutMovementCount++;
@@ -227,7 +228,7 @@ public class ClosingDossierService {
                         if (includedInDossier) {
                                 includedAccountCount++;
 
-                                if (statementDocuments.isEmpty()) {
+                                if (requiresBankStatement && statementDocuments.isEmpty()) {
                                         accountsWithoutBankStatementCount++;
                                 }
                         }
@@ -276,6 +277,7 @@ public class ClosingDossierService {
                                         hasMovement,
                                         includedInDossier,
 
+                                        requiresBankStatement,
                                         !statementDocuments.isEmpty(),
                                         statementDocuments,
 
@@ -320,6 +322,15 @@ public class ClosingDossierService {
                                 creditCardStatementPreviews,
 
                                 accountPreviews);
+        }
+
+        private boolean requiresBankStatement(Account account, boolean hasMovement) {
+
+                if (!hasMovement) {
+                        return false;
+                }
+
+                return account.getType() != AccountType.CASH;
         }
 
         private List<CreditCardStatement> loadCreditCardStatementsForDossier(

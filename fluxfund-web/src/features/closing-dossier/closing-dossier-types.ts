@@ -43,6 +43,7 @@ export type ClosingDossierAccountPreview = {
   hasMovement: boolean
   includedInDossier: boolean
 
+  requiresBankStatement: boolean
   hasBankStatement: boolean
   bankStatementDocuments: BankStatementDocument[]
 

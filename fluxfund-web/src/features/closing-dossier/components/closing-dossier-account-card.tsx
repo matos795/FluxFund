@@ -59,8 +59,9 @@ export function ClosingDossierAccountCard({
 
   const deleteMutation = useDeleteBankStatementDocument()
 
-  const totalIssues =
-    account.paymentProofIssues.length + account.fiscalDocumentIssues.length
+  const totalIssues = account.paymentProofIssues.length + account.fiscalDocumentIssues.length
+
+  const hasPendingBankStatement = account.requiresBankStatement && !account.hasBankStatement
 
   async function handleDownload(document: BankStatementDocument) {
     try {
@@ -127,12 +128,18 @@ export function ClosingDossierAccountCard({
 
               <Badge
                 variant={
-                  account.hasBankStatement ? "default" : "destructive"
+                  !account.requiresBankStatement
+                    ? "secondary"
+                    : account.hasBankStatement
+                      ? "default"
+                      : "destructive"
                 }
               >
-                {account.hasBankStatement
-                  ? "Extrato disponível"
-                  : "Extrato pendente"}
+                {!account.requiresBankStatement
+                  ? "Extrato não exigido"
+                  : account.hasBankStatement
+                    ? "Extrato disponível"
+                    : "Extrato pendente"}
               </Badge>
 
               {totalIssues > 0 && (
@@ -159,34 +166,49 @@ export function ClosingDossierAccountCard({
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
                 <div className="flex items-center gap-2">
-                  {account.hasBankStatement ? (
-                    <CheckCircle2 className="size-4 text-primary" />
-                  ) : (
+                  {hasPendingBankStatement ? (
                     <AlertTriangle className="size-4 text-destructive" />
+                  ) : (
+                    <CheckCircle2 className="size-4 text-primary" />
                   )}
 
-                  <h3 className="font-medium">Extrato bancário oficial</h3>
+                  <h3 className="font-medium">
+                    {account.requiresBankStatement
+                      ? "Extrato bancário oficial"
+                      : account.accountType === "CASH"
+                        ? "Registro do caixa físico"
+                        : "Extrato não exigido"}
+                  </h3>
                 </div>
 
                 <p className="mt-1 text-sm text-muted-foreground">
-                  O PDF do banco será incluído antes das transações desta conta.
+                  {account.requiresBankStatement
+                    ? "O PDF oficial será incluído antes das transações desta conta."
+                    : account.accountType === "CASH"
+                      ? "Para o caixa físico, o relatório de movimentações gerado pelo FluxFund funciona como registro do período."
+                      : "Nenhum extrato é exigido porque a conta não possui movimentações incluídas neste período."}
                 </p>
               </div>
 
-              {canManageDocuments && (
-                <BankStatementUploadDialog
-                  accountId={account.accountId}
-                  accountName={account.accountName}
-                  periodStartDate={periodStartDate}
-                  periodEndDate={periodEndDate}
-                  onUploaded={onDocumentsChanged}
-                />
-              )}
+              {canManageDocuments &&
+                account.accountType !== "CASH" && (
+                  <BankStatementUploadDialog
+                    accountId={account.accountId}
+                    accountName={account.accountName}
+                    periodStartDate={periodStartDate}
+                    periodEndDate={periodEndDate}
+                    onUploaded={onDocumentsChanged}
+                  />
+                )}
             </div>
 
             {account.bankStatementDocuments.length === 0 ? (
               <div className="mt-4 rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                Nenhum extrato PDF encontrado para este período.
+                {account.requiresBankStatement
+                  ? "Nenhum extrato PDF encontrado para este período."
+                  : account.accountType === "CASH"
+                    ? "Nenhum PDF externo é necessário para o caixa físico."
+                    : "Nenhum PDF é obrigatório para esta conta no período selecionado."}
               </div>
             ) : (
               <div className="mt-4 space-y-2">
