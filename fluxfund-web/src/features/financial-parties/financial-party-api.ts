@@ -2,8 +2,10 @@ import { httpClient } from "@/api/http-client"
 import type { PageResponse } from "@/types/page-response"
 
 import type {
+  CreateFinancialPartyRequest,
   FinancialParty,
   GetFinancialPartiesParams,
+  UpdateFinancialPartyRequest,
 } from "./financial-party-types"
 
 export async function getFinancialParties({
@@ -18,22 +20,79 @@ export async function getFinancialParties({
   const response =
     await httpClient.get<
       PageResponse<FinancialParty>
-    >("/api/v1/financial-parties", {
-      params: {
-        page,
-        size,
+    >(
+      "/api/v1/financial-parties",
+      {
+        params: {
+          page,
+          size,
 
-        search:
-          search && search.trim()
-            ? search.trim()
-            : undefined,
+          search:
+            search && search.trim()
+              ? search.trim()
+              : undefined,
 
-        partyType,
-        classification,
-        role,
-        active,
+          partyType,
+          classification,
+          role,
+          active,
+        },
       },
-    })
+    )
+
+  return response.data
+}
+
+export async function createFinancialParty(
+  data: CreateFinancialPartyRequest,
+) {
+  const response =
+    await httpClient.post<
+      FinancialParty
+    >(
+      "/api/v1/financial-parties",
+      data,
+    )
+
+  return response.data
+}
+
+export async function updateFinancialParty(
+  data: UpdateFinancialPartyRequest,
+) {
+  const {
+    id,
+    ...body
+  } = data
+
+  const response =
+    await httpClient.put<
+      FinancialParty
+    >(
+      `/api/v1/financial-parties/${id}`,
+      body,
+    )
+
+  return response.data
+}
+
+export async function deactivateFinancialParty(
+  id: string,
+) {
+  await httpClient.delete(
+    `/api/v1/financial-parties/${id}`,
+  )
+}
+
+export async function activateFinancialParty(
+  id: string,
+) {
+  const response =
+    await httpClient.post<
+      FinancialParty
+    >(
+      `/api/v1/financial-parties/${id}/activate`,
+    )
 
   return response.data
 }

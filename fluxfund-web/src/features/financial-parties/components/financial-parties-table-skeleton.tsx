@@ -18,9 +18,9 @@ export function FinancialPartiesTableSkeleton() {
 
       <CardContent>
         <div className="rounded-md border">
-          <div className="grid grid-cols-7 gap-4 border-b p-4">
+          <div className="grid grid-cols-8 gap-4 border-b p-4">
             {Array.from({
-              length: 7,
+              length: 8,
             }).map((_, index) => (
               <Skeleton
                 key={index}
@@ -37,7 +37,7 @@ export function FinancialPartiesTableSkeleton() {
               className="grid grid-cols-7 gap-4 border-b p-4 last:border-b-0"
             >
               {Array.from({
-                length: 7,
+                length: 8,
               }).map((_, columnIndex) => (
                 <Skeleton
                   key={columnIndex}

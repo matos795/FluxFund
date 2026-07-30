@@ -12,212 +12,223 @@ import { FinancialPartiesTableSkeleton } from "@/features/financial-parties/comp
 import { useFinancialParties } from "@/features/financial-parties/hooks/use-financial-parties"
 
 import type {
-  FinancialPartyClassification,
-  FinancialPartyRole,
-  FinancialPartyType,
+    FinancialPartyClassification,
+    FinancialPartyRole,
+    FinancialPartyType,
 } from "@/features/financial-parties/financial-party-types"
+import { usePermissions } from "@/features/auth/hooks/use-permissions"
+import { CreateFinancialPartyDialog } from "@/features/financial-parties/components/create-financial-party-dialog"
 
 const PAGE_SIZE = 10
 
 export function FinancialPartiesPage() {
-  const [page, setPage] =
-    useState(0)
 
-  const [search, setSearch] =
-    useState("")
+    const {
+        canFinanceWrite,
+    } = usePermissions()
 
-  const [
-    partyType,
-    setPartyType,
-  ] = useState<
-    FinancialPartyType | ""
-  >("")
+    const [page, setPage] =
+        useState(0)
 
-  const [
-    classification,
-    setClassification,
-  ] = useState<
-    FinancialPartyClassification | ""
-  >("")
+    const [search, setSearch] =
+        useState("")
 
-  const [
-    role,
-    setRole,
-  ] = useState<
-    FinancialPartyRole | ""
-  >("")
+    const [
+        partyType,
+        setPartyType,
+    ] = useState<
+        FinancialPartyType | ""
+    >("")
 
-  const [active, setActive] =
-    useState(true)
+    const [
+        classification,
+        setClassification,
+    ] = useState<
+        FinancialPartyClassification | ""
+    >("")
 
-  const financialPartiesQuery =
-    useFinancialParties({
-      page,
-      size: PAGE_SIZE,
+    const [
+        role,
+        setRole,
+    ] = useState<
+        FinancialPartyRole | ""
+    >("")
 
-      search:
-        search.trim() || undefined,
+    const [active, setActive] =
+        useState(true)
 
-      partyType:
-        partyType || undefined,
+    const financialPartiesQuery =
+        useFinancialParties({
+            page,
+            size: PAGE_SIZE,
 
-      classification:
-        classification || undefined,
+            search:
+                search.trim() || undefined,
 
-      role:
-        role || undefined,
+            partyType:
+                partyType || undefined,
 
-      active,
-    })
+            classification:
+                classification || undefined,
 
-  const financialParties =
-    financialPartiesQuery.data
-      ?.content ?? []
+            role:
+                role || undefined,
 
-  function handleSearchChange(
-    value: string,
-  ) {
-    setSearch(value)
-    setPage(0)
-  }
+            active,
+        })
 
-  function handlePartyTypeChange(
-    value:
-      | FinancialPartyType
-      | "",
-  ) {
-    setPartyType(value)
-    setPage(0)
-  }
+    const financialParties =
+        financialPartiesQuery.data
+            ?.content ?? []
 
-  function handleClassificationChange(
-    value:
-      | FinancialPartyClassification
-      | "",
-  ) {
-    setClassification(value)
-    setPage(0)
-  }
+    function handleSearchChange(
+        value: string,
+    ) {
+        setSearch(value)
+        setPage(0)
+    }
 
-  function handleRoleChange(
-    value:
-      | FinancialPartyRole
-      | "",
-  ) {
-    setRole(value)
-    setPage(0)
-  }
+    function handlePartyTypeChange(
+        value:
+            | FinancialPartyType
+            | "",
+    ) {
+        setPartyType(value)
+        setPage(0)
+    }
 
-  function handleActiveChange(
-    value: boolean,
-  ) {
-    setActive(value)
-    setPage(0)
-  }
+    function handleClassificationChange(
+        value:
+            | FinancialPartyClassification
+            | "",
+    ) {
+        setClassification(value)
+        setPage(0)
+    }
 
-  function handleClearFilters() {
-    setSearch("")
-    setPartyType("")
-    setClassification("")
-    setRole("")
-    setActive(true)
-    setPage(0)
-  }
+    function handleRoleChange(
+        value:
+            | FinancialPartyRole
+            | "",
+    ) {
+        setRole(value)
+        setPage(0)
+    }
 
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Contatos financeiros"
-        description="Gerencie pessoas e empresas que trazem receitas, recebem pagamentos ou mantêm compromissos com a organização."
-      />
+    function handleActiveChange(
+        value: boolean,
+    ) {
+        setActive(value)
+        setPage(0)
+    }
 
-      <FinancialPartyFilters
-        search={search}
-        partyType={partyType}
-        classification={
-          classification
-        }
-        role={role}
-        active={active}
-        onSearchChange={
-          handleSearchChange
-        }
-        onPartyTypeChange={
-          handlePartyTypeChange
-        }
-        onClassificationChange={
-          handleClassificationChange
-        }
-        onRoleChange={
-          handleRoleChange
-        }
-        onActiveChange={
-          handleActiveChange
-        }
-        onClear={
-          handleClearFilters
-        }
-      />
+    function handleClearFilters() {
+        setSearch("")
+        setPartyType("")
+        setClassification("")
+        setRole("")
+        setActive(true)
+        setPage(0)
+    }
 
-      {financialPartiesQuery.isLoading && (
-        <FinancialPartiesTableSkeleton />
-      )}
+    return (
+        <div className="space-y-6">
+            <PageHeader
+                title="Contatos financeiros"
+                description="Gerencie pessoas e empresas que trazem receitas, recebem pagamentos ou mantêm compromissos com a organização."
+            >
+                {canFinanceWrite && (
+                    <CreateFinancialPartyDialog />
+                )}
+            </PageHeader>
 
-      {financialPartiesQuery.isFetching &&
-        !financialPartiesQuery.isLoading && (
-          <p className="text-xs text-muted-foreground">
-            Atualizando contatos...
-          </p>
-        )}
-
-      {financialPartiesQuery.isError && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-          Não foi possível carregar os contatos financeiros.
-        </div>
-      )}
-
-      {!financialPartiesQuery.isLoading &&
-        !financialPartiesQuery.isError && (
-          <div className="space-y-4">
-            <FinancialPartiesTable
-              financialParties={
-                financialParties
-              }
+            <FinancialPartyFilters
+                search={search}
+                partyType={partyType}
+                classification={
+                    classification
+                }
+                role={role}
+                active={active}
+                onSearchChange={
+                    handleSearchChange
+                }
+                onPartyTypeChange={
+                    handlePartyTypeChange
+                }
+                onClassificationChange={
+                    handleClassificationChange
+                }
+                onRoleChange={
+                    handleRoleChange
+                }
+                onActiveChange={
+                    handleActiveChange
+                }
+                onClear={
+                    handleClearFilters
+                }
             />
 
-            {financialPartiesQuery.data && (
-              <PagePagination
-                page={
-                  financialPartiesQuery
-                    .data.number
-                }
-                totalPages={
-                  financialPartiesQuery
-                    .data.totalPages
-                }
-                totalElements={
-                  financialPartiesQuery
-                    .data.totalElements
-                }
-                size={
-                  financialPartiesQuery
-                    .data.size
-                }
-                isFirst={
-                  financialPartiesQuery
-                    .data.first
-                }
-                isLast={
-                  financialPartiesQuery
-                    .data.last
-                }
-                onPageChange={
-                  setPage
-                }
-              />
+            {financialPartiesQuery.isLoading && (
+                <FinancialPartiesTableSkeleton />
             )}
-          </div>
-        )}
-    </div>
-  )
+
+            {financialPartiesQuery.isFetching &&
+                !financialPartiesQuery.isLoading && (
+                    <p className="text-xs text-muted-foreground">
+                        Atualizando contatos...
+                    </p>
+                )}
+
+            {financialPartiesQuery.isError && (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+                    Não foi possível carregar os contatos financeiros.
+                </div>
+            )}
+
+            {!financialPartiesQuery.isLoading &&
+                !financialPartiesQuery.isError && (
+                    <div className="space-y-4">
+                        <FinancialPartiesTable
+                            financialParties={
+                                financialParties
+                            }
+                        />
+
+                        {financialPartiesQuery.data && (
+                            <PagePagination
+                                page={
+                                    financialPartiesQuery
+                                        .data.number
+                                }
+                                totalPages={
+                                    financialPartiesQuery
+                                        .data.totalPages
+                                }
+                                totalElements={
+                                    financialPartiesQuery
+                                        .data.totalElements
+                                }
+                                size={
+                                    financialPartiesQuery
+                                        .data.size
+                                }
+                                isFirst={
+                                    financialPartiesQuery
+                                        .data.first
+                                }
+                                isLast={
+                                    financialPartiesQuery
+                                        .data.last
+                                }
+                                onPageChange={
+                                    setPage
+                                }
+                            />
+                        )}
+                    </div>
+                )}
+        </div>
+    )
 }
