@@ -40,10 +40,12 @@ public class BeneficiaryService {
         Organization organization = organizationRepository.findByIdAndActiveTrue(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
-        validateBeneficiaryName(organizationId, request.name(), null);
+        validateBeneficiaryName(request.name());
         validateBeneficiaryDocument(organizationId, request.document(), null);
 
         Beneficiary beneficiary = BeneficiaryMapper.createEntity(request, organization);
+
+        validateFinancialParty(beneficiary);
 
         repository.save(beneficiary);
 
@@ -79,11 +81,7 @@ public class BeneficiaryService {
         Beneficiary beneficiary = findBeneficiaryById(id, organizationId);
 
         if (request.name() != null) {
-
-            validateBeneficiaryName(
-                    beneficiary.getOrganization().getId(),
-                    request.name(),
-                    beneficiary.getId());
+            validateBeneficiaryName(request.name());
         }
 
         if (request.document() != null) {
@@ -95,6 +93,9 @@ public class BeneficiaryService {
         }
 
         BeneficiaryMapper.updateEntity(beneficiary, request);
+
+        validateFinancialParty(beneficiary);
+
         repository.save(beneficiary);
 
         return BeneficiaryMapper.toResponse(beneficiary);
@@ -126,28 +127,12 @@ public class BeneficiaryService {
                 .orElseThrow(() -> new ResourceNotFoundException("Beneficiary not found"));
     }
 
-    private void validateBeneficiaryName(
-            UUID organizationId,
-            String name,
-            UUID currentBeneficiaryId) {
+    private void validateBeneficiaryName(String name) {
 
         String normalizedName = StringNormalizer.normalize(name);
 
         if (normalizedName == null) {
             throw new BusinessException("Beneficiary name cannot be blank");
-        }
-
-        boolean exists = currentBeneficiaryId == null
-                ? repository.existsByOrganizationIdAndNameIgnoreCase(
-                        organizationId,
-                        normalizedName)
-                : repository.existsByOrganizationIdAndNameIgnoreCaseAndIdNot(
-                        organizationId,
-                        normalizedName,
-                        currentBeneficiaryId);
-
-        if (exists) {
-            throw new BusinessException("Beneficiary name already exists");
         }
     }
 
@@ -169,6 +154,25 @@ public class BeneficiaryService {
 
         if (exists) {
             throw new BusinessException("Beneficiary document already exists");
+        }
+    }
+
+    private void validateFinancialParty(Beneficiary beneficiary) {
+
+        if (beneficiary.getPartyType() == null) {
+            throw new BusinessException("Financial party type is required");
+        }
+
+        if (beneficiary.getRoles() == null || beneficiary.getRoles().isEmpty()) {
+            throw new BusinessException("At least one financial role is required");
+        }
+
+        if (beneficiary.getState() != null && beneficiary.getState().length() != 2) {
+            throw new BusinessException("State must contain two characters");
+        }
+
+        if (beneficiary.getZipCode() != null && beneficiary.getZipCode().length() != 8) {
+            throw new BusinessException("Zip code must contain eight digits");
         }
     }
 }

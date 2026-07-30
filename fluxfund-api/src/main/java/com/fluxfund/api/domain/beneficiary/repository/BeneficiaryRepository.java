@@ -16,15 +16,6 @@ public interface BeneficiaryRepository extends JpaRepository<Beneficiary, UUID> 
             UUID organizationId,
             Pageable pageable);
 
-    boolean existsByOrganizationIdAndNameIgnoreCase(
-            UUID organizationId,
-            String name);
-
-    boolean existsByOrganizationIdAndNameIgnoreCaseAndIdNot(
-            UUID organizationId,
-            String name,
-            UUID id);
-
     boolean existsByOrganizationIdAndDocument(
             UUID organizationId,
             String document);
