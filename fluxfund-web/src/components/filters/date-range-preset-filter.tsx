@@ -22,7 +22,9 @@ import { formatDate } from "@/utils/formatters"
 
 import {
   dateRangePresetLabels,
+  getCurrentDateInputValue,
   getCurrentMonthInputValue,
+  getDayRange,
   getMonthRange,
   resolveDateRangePreset,
   type DateRangePreset,
@@ -43,6 +45,7 @@ type DateRangePresetFilterProps = {
 const DEFAULT_PRESET_OPTIONS: Exclude<DateRangePreset, "all">[] = [
   "current-month",
   "previous-month",
+  "specific-day",
   "specific-month",
   "current-quarter",
   "previous-quarter",
@@ -57,6 +60,7 @@ const DEFAULT_PRESET_OPTIONS: Exclude<DateRangePreset, "all">[] = [
 const QUICK_PRESETS: DateRangePreset[] = [
   "current-month",
   "previous-month",
+  "specific-day",
   "specific-month",
   "current-quarter",
   "current-year",
@@ -67,6 +71,7 @@ const QUICK_PRESET_LABELS: Partial<
 > = {
   "current-month": "Mês atual",
   "previous-month": "Mês anterior",
+  "specific-day": "Escolher dia",
   "specific-month": "Escolher mês",
   "current-quarter": "Trimestre atual",
   "current-year": "Ano atual",
@@ -85,6 +90,8 @@ export function DateRangePresetFilter({
   const isAllPeriod = value.preset === "all"
   const isSpecificMonth = value.preset === "specific-month"
   const isCustom = value.preset === "custom"
+
+  const isSpecificDay = value.preset === "specific-day"
 
   const hasInvalidRange =
     Boolean(value.startDate) &&
@@ -117,6 +124,21 @@ export function DateRangePresetFilter({
         preset: "all",
         startDate: "",
         endDate: "",
+      })
+
+      return
+    }
+
+    if (nextPreset === "specific-day") {
+      const dayValue =
+        value.startDate &&
+          value.startDate === value.endDate
+          ? value.startDate
+          : getCurrentDateInputValue()
+
+      onChange({
+        preset: "specific-day",
+        ...getDayRange(dayValue),
       })
 
       return
@@ -219,7 +241,8 @@ export function DateRangePresetFilter({
         <div className="flex flex-wrap items-center gap-2">
           {quickPresets.map((preset) => {
             const isSelected = value.preset === preset
-            const isSpecificMonthPreset =
+            const usesCalendarDayIcon =
+              preset === "specific-day" ||
               preset === "specific-month"
 
             return (
@@ -231,7 +254,7 @@ export function DateRangePresetFilter({
                 className="h-9 rounded-full px-3"
                 onClick={() => handlePresetChange(preset)}
               >
-                {isSpecificMonthPreset ? (
+                {usesCalendarDayIcon ? (
                   <CalendarDays className="mr-1.5 size-4" />
                 ) : (
                   <CalendarRange className="mr-1.5 size-4" />
@@ -310,6 +333,28 @@ export function DateRangePresetFilter({
         <div className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
           <CalendarRange className="size-4 shrink-0" />
           Nenhuma restrição de data será aplicada.
+        </div>
+      ) : isSpecificDay ? (
+        <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
+          <Label htmlFor={`${idPrefix}-specific-day`}>
+            Dia
+          </Label>
+
+          <Input
+            id={`${idPrefix}-specific-day`}
+            type="date"
+            value={value.startDate}
+            onChange={(event) => {
+              onChange({
+                preset: "specific-day",
+                ...getDayRange(event.target.value),
+              })
+            }}
+          />
+
+          <p className="text-xs text-muted-foreground">
+            O período considerará somente o dia selecionado.
+          </p>
         </div>
       ) : isSpecificMonth ? (
         <div className="space-y-2 rounded-lg border bg-muted/20 p-3">

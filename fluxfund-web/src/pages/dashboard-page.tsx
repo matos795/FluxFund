@@ -39,6 +39,7 @@ import { DateRangePresetFilter } from "@/components/filters/date-range-preset-fi
 const DASHBOARD_PERIOD_OPTIONS: Exclude<DateRangePreset, "all">[] = [
   "current-month",
   "previous-month",
+  "specific-day",
   "specific-month",
   "current-quarter",
   "previous-quarter",

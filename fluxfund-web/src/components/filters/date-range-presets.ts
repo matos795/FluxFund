@@ -9,6 +9,7 @@ export type DateRangePreset =
   | "last-30-days"
   | "last-90-days"
   | "last-12-months"
+  | "specific-day"
   | "specific-month"
   | "custom"
 
@@ -29,6 +30,7 @@ export const dateRangePresetLabels: Record<DateRangePreset, string> = {
   "last-30-days": "Últimos 30 dias",
   "last-90-days": "Últimos 90 dias",
   "last-12-months": "Últimos 12 meses",
+  "specific-day": "Escolher dia",
   "specific-month": "Escolher mês",
   custom: "Personalizado",
 }
@@ -41,6 +43,24 @@ function toDateInputValue(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
     date.getDate(),
   )}`
+}
+
+export function getCurrentDateInputValue() {
+  return toDateInputValue(new Date())
+}
+
+export function getDayRange(dayValue: string) {
+  if (!dayValue) {
+    return {
+      startDate: "",
+      endDate: "",
+    }
+  }
+
+  return {
+    startDate: dayValue,
+    endDate: dayValue,
+  }
 }
 
 function getStartOfMonth(date: Date) {
@@ -66,7 +86,7 @@ function getDateDaysAgo(baseDate: Date, days: number) {
 }
 
 export function resolveDateRangePreset(
-  preset: Exclude<DateRangePreset, "custom" | "specific-month" | "all">,
+  preset: Exclude<DateRangePreset, "custom" | "specific-day" | "specific-month" | "all">,
   baseDate = new Date(),
 ) {
   if (preset === "current-month") {
@@ -162,7 +182,7 @@ export function resolveDateRangePreset(
 }
 
 export function getDateRangeForPreset(
-  preset: Exclude<DateRangePreset, "custom" | "specific-month" | "all">,
+  preset: Exclude<DateRangePreset, "custom" | "specific-day" | "specific-month" | "all">,
 ): DateRangeValue {
   return {
     preset,
