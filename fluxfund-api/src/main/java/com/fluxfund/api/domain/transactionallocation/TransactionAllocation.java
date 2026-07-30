@@ -15,7 +15,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
+import jakarta.persistence.Transient;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -25,7 +25,6 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
 public class TransactionAllocation extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -44,9 +43,30 @@ public class TransactionAllocation extends BaseEntity {
     @JoinColumn(name = "beneficiary_id")
     private Beneficiary beneficiary;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "source_party_id")
+    private Beneficiary sourceParty;
+
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal amount = BigDecimal.ZERO;
 
     @Column(name = "reference_month")
     private LocalDate referenceMonth;
+
+    /*
+     * Alias semântico para o campo beneficiary.
+     *
+     * O código novo poderá trabalhar com
+     * recipientParty, enquanto o código legado
+     * e os relatórios continuam usando beneficiary.
+     */
+    @Transient
+    public Beneficiary getRecipientParty() {
+        return beneficiary;
+    }
+
+    @Transient
+    public void setRecipientParty(Beneficiary recipientParty) {
+        this.beneficiary = recipientParty;
+    }
 }

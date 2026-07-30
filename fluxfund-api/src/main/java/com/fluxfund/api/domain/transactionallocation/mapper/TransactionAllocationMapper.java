@@ -12,54 +12,84 @@ import com.fluxfund.api.domain.transactionallocation.dto.UpdateTransactionAlloca
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.util.AmountNormalizer;
 
-public class TransactionAllocationMapper {
+public final class TransactionAllocationMapper {
+
+    private TransactionAllocationMapper() {
+    }
 
     public static TransactionAllocation createEntity(
             CreateTransactionAllocationRequest request,
             FinancialTransaction financialTransaction,
             Fund fund,
-            Beneficiary beneficiary) {
+            Beneficiary sourceParty,
+            Beneficiary recipientParty) {
 
-        TransactionAllocation transactionAllocation = new TransactionAllocation(
-                financialTransaction.getOrganization(),
-                financialTransaction,
-                fund,
-                beneficiary,
-                AmountNormalizer.normalizeAmount(financialTransaction, request.amount()),
-                request.referenceMonth());
+        TransactionAllocation allocation = new TransactionAllocation();
 
-        return transactionAllocation;
+        allocation.setOrganization(financialTransaction.getOrganization());
+
+        allocation.setFinancialTransaction(financialTransaction);
+
+        allocation.setFund(fund);
+
+        allocation.setSourceParty(sourceParty);
+
+        allocation.setRecipientParty(recipientParty);
+
+        allocation.setAmount(AmountNormalizer.normalizeAmount(financialTransaction, request.amount()));
+
+        allocation.setReferenceMonth(request.referenceMonth());
+
+        return allocation;
     }
 
-    public static TransactionAllocationResponse toResponse(TransactionAllocation transactionAllocation) {
+    public static TransactionAllocationResponse toResponse(TransactionAllocation allocation) {
+
+        Beneficiary recipientParty = allocation.getRecipientParty();
+
         return new TransactionAllocationResponse(
-                transactionAllocation.getId(),
-                transactionAllocation.getFinancialTransaction().getId(),
-                FundMapper.toSummaryResponse(transactionAllocation.getFund()),
-                transactionAllocation.getBeneficiary() != null
-                        ? BeneficiaryMapper.toSummaryResponse(transactionAllocation.getBeneficiary())
-                        : null,
-                transactionAllocation.getAmount(),
-                transactionAllocation.getCreatedAt(),
-                transactionAllocation.getUpdatedAt(),
-                transactionAllocation.getReferenceMonth());
+                allocation.getId(),
+
+                allocation.getFinancialTransaction().getId(),
+
+                FundMapper.toSummaryResponse(allocation.getFund()),
+
+                recipientParty != null ? BeneficiaryMapper .toSummaryResponse(recipientParty) : null,
+
+                BeneficiaryMapper.toFinancialPartySummaryResponse(allocation.getSourceParty()),
+
+                BeneficiaryMapper.toFinancialPartySummaryResponse(recipientParty),
+
+                allocation.getAmount(),
+                allocation.getCreatedAt(),
+                allocation.getUpdatedAt(),
+                allocation.getReferenceMonth());
     }
 
-    public static void updateEntity(TransactionAllocation transactionAllocation,
-            UpdateTransactionAllocationRequest request, Fund fund, Beneficiary beneficiary) {
+    public static void updateEntity(
+            TransactionAllocation allocation,
+            UpdateTransactionAllocationRequest request,
+            Fund fund,
+            Beneficiary sourceParty,
+            Beneficiary recipientParty) {
+
         if (fund != null) {
-            transactionAllocation.setFund(fund);
+            allocation.setFund(fund);
         }
-        transactionAllocation.setBeneficiary(beneficiary);
+
+        allocation.setSourceParty(sourceParty);
+
+        allocation.setRecipientParty(recipientParty);
 
         if (request.amount() != null) {
-            transactionAllocation.setAmount(AmountNormalizer
-                    .normalizeAmount(transactionAllocation.getFinancialTransaction(), request.amount()));
+            allocation.setAmount(AmountNormalizer
+                    .normalizeAmount(allocation.getFinancialTransaction(), request.amount()));
         }
 
         if (request.referenceMonth() != null && request.referenceMonth().getDayOfMonth() != 1) {
             throw new BusinessException("Reference month must use the first day of the month");
         }
-        transactionAllocation.setReferenceMonth(request.referenceMonth());
+
+        allocation.setReferenceMonth(request.referenceMonth());
     }
 }

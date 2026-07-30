@@ -31,6 +31,7 @@ import com.fluxfund.api.domain.audit.AuditAction;
 import com.fluxfund.api.domain.audit.AuditEntityType;
 import com.fluxfund.api.domain.audit.service.AuditLogService;
 import com.fluxfund.api.domain.beneficiary.Beneficiary;
+import com.fluxfund.api.domain.beneficiary.FinancialPartyRole;
 import com.fluxfund.api.domain.beneficiary.mapper.BeneficiaryMapper;
 import com.fluxfund.api.domain.beneficiary.repository.BeneficiaryRepository;
 import com.fluxfund.api.domain.category.Category;
@@ -481,14 +482,23 @@ public class FinancialTransactionService {
                                         .orElseThrow(() -> new ResourceNotFoundException("Fund not found"));
                 }
 
-                Beneficiary beneficiary = null;
-                if (request.beneficiaryId() != null) {
-                        beneficiary = beneficiaryRepository
-                                        .findByIdAndOrganizationIdAndActiveTrue(request.beneficiaryId(), organizationId)
-                                        .orElseThrow(() -> new ResourceNotFoundException("Beneficiary not found"));
-                }
+                Beneficiary sourceParty = resolveFinancialParty(
+                                organizationId,
+                                request.sourcePartyId(),
+                                FinancialPartyRole.INCOME_SOURCE,
+                                "Income source");
 
-                TransactionAllocationMapper.updateEntity(allocation, request, fund, beneficiary);
+                UUID recipientPartyId = resolveRecipientPartyId(
+                                request.beneficiaryId(),
+                                request.recipientPartyId());
+
+                Beneficiary recipientParty = resolveFinancialParty(
+                                organizationId,
+                                recipientPartyId,
+                                FinancialPartyRole.PAYMENT_RECIPIENT,
+                                "Payment recipient");
+
+                TransactionAllocationMapper.updateEntity(allocation, request, fund, sourceParty, recipientParty);
 
                 validateBasicAllocationRules(allocation);
                 validateTotalAllocatedAmount(financialTransaction);
@@ -1025,19 +1035,30 @@ public class FinancialTransactionService {
                         FinancialTransaction financialTransaction,
                         CreateTransactionAllocationRequest request) {
 
-                Fund fund = fundRepository
-                                .findByIdAndOrganizationIdAndActiveTrue(request.fundId(), organizationId)
+                Fund fund = fundRepository.findByIdAndOrganizationIdAndActiveTrue(
+                                request.fundId(),
+                                organizationId)
+
                                 .orElseThrow(() -> new ResourceNotFoundException("Fund not found"));
 
-                Beneficiary beneficiary = null;
+                Beneficiary sourceParty = resolveFinancialParty(
+                                organizationId,
+                                request.sourcePartyId(),
+                                FinancialPartyRole.INCOME_SOURCE,
+                                "Income source");
 
-                if (request.beneficiaryId() != null) {
-                        beneficiary = beneficiaryRepository
-                                        .findByIdAndOrganizationIdAndActiveTrue(request.beneficiaryId(), organizationId)
-                                        .orElseThrow(() -> new ResourceNotFoundException("Beneficiary not found"));
-                }
+                UUID recipientPartyId = resolveRecipientPartyId(
+                                request.beneficiaryId(),
+                                request.recipientPartyId());
 
-                return TransactionAllocationMapper.createEntity(request, financialTransaction, fund, beneficiary);
+                Beneficiary recipientParty = resolveFinancialParty(
+                                organizationId,
+                                recipientPartyId,
+                                FinancialPartyRole.PAYMENT_RECIPIENT,
+                                "Payment recipient");
+
+                return TransactionAllocationMapper.createEntity(request, financialTransaction, fund, sourceParty,
+                                recipientParty);
         }
 
         private void addInitialAllocations(
@@ -1099,36 +1120,23 @@ public class FinancialTransactionService {
 
         private void validateAllocationRules(TransactionAllocation allocation) {
 
-                if (allocation.getFinancialTransaction().getType() == FinancialTransactionType.TRANSFER) {
-                        throw new BusinessException(
-                                        "Transfer transactions cannot have allocations");
-                }
+                validateBasicAllocationRules(allocation);
 
-                if (allocation.getAmount().abs().compareTo(BigDecimal.ZERO) <= 0) {
-                        throw new BusinessException("Amount must be greater than zero");
-                }
-
-                BigDecimal allocatedAmount = allocationRepository.sumAmountByFinancialTransactionId(
-                                allocation.getFinancialTransaction().getId());
+                BigDecimal allocatedAmount = allocationRepository
+                                .sumAmountByFinancialTransactionId(allocation.getFinancialTransaction().getId());
 
                 BigDecimal newTotal = allocatedAmount.add(allocation.getAmount().abs());
 
-                if (allocation.getFinancialTransaction().getStatus() != FinancialTransactionStatus.SETTLED) {
-                        throw new BusinessException(
-                                        "Only settled transactions can receive allocations");
-                }
-
-                if (newTotal.compareTo(
-                                allocation.getFinancialTransaction().getSettledAmount().abs()) > 0) {
-
-                        throw new BusinessException(
-                                        "Allocated amount exceeds transaction amount");
+                if (newTotal.compareTo(allocation.getFinancialTransaction().getSettledAmount().abs()) > 0) {
+                        throw new BusinessException("Allocated amount exceeds transaction amount");
                 }
         }
 
         private void validateBasicAllocationRules(TransactionAllocation allocation) {
 
-                if (allocation.getFinancialTransaction().getType() == FinancialTransactionType.TRANSFER) {
+                FinancialTransaction transaction = allocation.getFinancialTransaction();
+
+                if (transaction.getType() == FinancialTransactionType.TRANSFER) {
                         throw new BusinessException("Transfer transactions cannot have allocations");
                 }
 
@@ -1136,8 +1144,32 @@ public class FinancialTransactionService {
                         throw new BusinessException("Amount must be greater than zero");
                 }
 
-                if (allocation.getFinancialTransaction().getStatus() != FinancialTransactionStatus.SETTLED) {
+                if (transaction.getStatus() != FinancialTransactionStatus.SETTLED) {
                         throw new BusinessException("Only settled transactions can receive allocations");
+                }
+
+                validateAllocationParties(allocation);
+        }
+
+        private void validateAllocationParties(TransactionAllocation allocation) {
+
+                FinancialTransactionType transactionType = allocation.getFinancialTransaction().getType();
+
+                Beneficiary sourceParty = allocation.getSourceParty();
+
+                Beneficiary recipientParty = allocation.getRecipientParty();
+
+                if (sourceParty != null && transactionType != FinancialTransactionType.INCOME) {
+                        throw new BusinessException("Only income allocations can have an income source");
+                }
+
+                if (sourceParty != null && !sourceParty.getRoles().contains(FinancialPartyRole.INCOME_SOURCE)) {
+                        throw new BusinessException("Financial party cannot be used as an income source");
+                }
+
+                if (recipientParty != null
+                                && !recipientParty.getRoles().contains(FinancialPartyRole.PAYMENT_RECIPIENT)) {
+                        throw new BusinessException("Financial party cannot be used as a payment recipient");
                 }
         }
 
@@ -1939,5 +1971,35 @@ public class FinancialTransactionService {
                                 .anyMatch(candidate -> candidate.getAccount()
                                                 .getId()
                                                 .equals(sourceAccount.getId()));
+        }
+
+        private Beneficiary resolveFinancialParty(
+                        UUID organizationId,
+                        UUID financialPartyId,
+                        FinancialPartyRole requiredRole,
+                        String fieldName) {
+
+                if (financialPartyId == null) {
+                        return null;
+                }
+
+                Beneficiary financialParty = beneficiaryRepository
+                                .findByIdAndOrganizationIdAndActiveTrue(financialPartyId, organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException(fieldName + " not found"));
+
+                if (!financialParty.getRoles().contains(requiredRole)) {
+                        throw new BusinessException(fieldName + " does not have the required financial role");
+                }
+
+                return financialParty;
+        }
+
+        private UUID resolveRecipientPartyId(UUID legacyBeneficiaryId, UUID recipientPartyId) {
+
+                if (legacyBeneficiaryId != null && recipientPartyId != null && !legacyBeneficiaryId.equals(recipientPartyId)) {
+                        throw new BusinessException("beneficiaryId and recipientPartyId must reference the same financial party");
+                }
+
+                return recipientPartyId != null ? recipientPartyId : legacyBeneficiaryId;
         }
 }
