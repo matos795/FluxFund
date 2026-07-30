@@ -6,17 +6,30 @@ export const beneficiaryFormSchema = z.object({
     .min(3, "O nome deve ter pelo menos 3 caracteres.")
     .max(100, "O nome deve ter no máximo 100 caracteres."),
 
-  type: z.enum(["MISSIONARY", "SUPPLIER", "EMPLOYEE", "PROJECT_RESPONSIBLE", "OTHER"], {
-    error: "Selecione um tipo de favorecido.",
+  type: z.enum([
+    "DONOR",
+    "SUPPORTER",
+    "CUSTOMER",
+    "SPONSOR",
+    "MEMBER",
+    "SUPPLIER",
+    "SERVICE_PROVIDER",
+    "EMPLOYEE",
+    "MISSIONARY",
+    "PROJECT_RESPONSIBLE",
+    "OTHER",
+  ], {
+    error:
+      "Selecione uma classificação.",
   }),
   document: z.string().optional(),
   email: z
-  .string()
-  .email("Informe um email válido.")
-  .optional()
-  .or(z.literal("")),
+    .string()
+    .email("Informe um email válido.")
+    .optional()
+    .or(z.literal("")),
   phone: z.string().optional()
-  })
+})
 
 export type BeneficiaryFormInput = z.input<typeof beneficiaryFormSchema>
 export type BeneficiaryFormData = z.output<typeof beneficiaryFormSchema>

@@ -2,7 +2,6 @@ import { Route, Routes } from "react-router-dom"
 
 import { AppLayout } from "@/components/layout/app-layout"
 import { AccountsPage } from "@/pages/accounts-page"
-import { BeneficiariesPage } from "@/pages/beneficiaries-page"
 import { CategoriesPage } from "@/pages/categories-page"
 import { DashboardPage } from "@/pages/dashboard-page"
 import { FundsPage } from "@/pages/funds-page"
@@ -28,6 +27,7 @@ import { ForgotPasswordPage } from "@/pages/forgot-password-page"
 import { ResetPasswordPage } from "@/pages/reset-password-page"
 import { PlatformAdminRoute } from "./platform-admin-route"
 import { PlatformOrganizationsPage } from "@/pages/platform-organizations-page"
+import { FinancialPartiesPage } from "@/pages/financial-parties-page"
 
 export function AppRoutes() {
   return (
@@ -86,7 +86,19 @@ export function AppRoutes() {
           <Route path="/accounts" element={<AccountsPage />} />
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/funds" element={<FundsPage />} />
-          <Route path="/beneficiaries" element={<BeneficiariesPage />} />
+          <Route
+            path="/financial-parties"
+            element={
+              <FinancialPartiesPage />
+            }
+          />
+
+          <Route
+            path="/beneficiaries"
+            element={
+              <FinancialPartiesPage />
+            }
+          />
           <Route
             path="/support-agreements"
             element={<SupportAgreementsPage />}

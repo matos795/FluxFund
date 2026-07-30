@@ -49,8 +49,8 @@ const navigationItems = [
     icon: FolderTree,
   },
   {
-    label: "Favorecidos",
-    href: "/beneficiaries",
+    label: "Contatos financeiros",
+    href: "/financial-parties",
     icon: Users,
   },
   {
