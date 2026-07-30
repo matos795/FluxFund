@@ -3,6 +3,7 @@ package com.fluxfund.api.domain.audit;
 public enum AuditEntityType {
     FINANCIAL_TRANSACTION,
     TRANSACTION_ALLOCATION,
+    FINANCIAL_PARTY,
     ATTACHMENT,
     SUPPORT_AGREEMENT,
     ORGANIZATION_SETTINGS,

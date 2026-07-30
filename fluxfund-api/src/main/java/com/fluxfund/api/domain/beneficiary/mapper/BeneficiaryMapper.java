@@ -9,6 +9,7 @@ import com.fluxfund.api.domain.beneficiary.FinancialPartyType;
 import com.fluxfund.api.domain.beneficiary.dto.BeneficiaryResponse;
 import com.fluxfund.api.domain.beneficiary.dto.BeneficiarySummaryResponse;
 import com.fluxfund.api.domain.beneficiary.dto.CreateBeneficiaryRequest;
+import com.fluxfund.api.domain.beneficiary.dto.FinancialPartyOptionResponse;
 import com.fluxfund.api.domain.beneficiary.dto.UpdateBeneficiaryRequest;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.shared.util.DocumentNormalizer;
@@ -100,6 +101,17 @@ public final class BeneficiaryMapper {
                 beneficiary.getId(),
                 beneficiary.getName(),
                 beneficiary.getType());
+    }
+
+    public static FinancialPartyOptionResponse toFinancialPartyOptionResponse(Beneficiary beneficiary) {
+
+        return new FinancialPartyOptionResponse(
+                beneficiary.getId(),
+                beneficiary.getName(),
+                beneficiary.getPartyType(),
+                beneficiary.getType(),
+                Set.copyOf(beneficiary.getRoles()),
+                beneficiary.getDocument());
     }
 
     public static void updateEntity(Beneficiary beneficiary, UpdateBeneficiaryRequest request) {

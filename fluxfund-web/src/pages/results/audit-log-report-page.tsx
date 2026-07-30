@@ -85,6 +85,7 @@ const auditActions: AuditAction[] = [
 const entityTypes: AuditEntityType[] = [
   "FINANCIAL_TRANSACTION",
   "TRANSACTION_ALLOCATION",
+  "FINANCIAL_PARTY",
   "ATTACHMENT",
   "SUPPORT_AGREEMENT",
   "ORGANIZATION_SETTINGS",

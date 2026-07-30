@@ -70,6 +70,9 @@ export const auditEntityTypeLabels: Record<
   TRANSACTION_ALLOCATION:
     "Alocação",
 
+  FINANCIAL_PARTY:
+    "Contato financeiro",
+
   ATTACHMENT:
     "Anexo",
 
