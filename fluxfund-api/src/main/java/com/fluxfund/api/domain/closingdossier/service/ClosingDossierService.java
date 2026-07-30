@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -140,6 +141,10 @@ public class ClosingDossierService {
                                 organizationId,
                                 creditCardStatements);
 
+                Set<UUID> creditCardStatementItemIds = creditCardStatementItems.stream()
+                                .map(FinancialTransaction::getId)
+                                .collect(Collectors.toSet());
+
                 Map<UUID, List<FinancialTransaction>> transactionsByAccountId = transactions.stream()
                                 .collect(Collectors.groupingBy(
                                                 transaction -> transaction.getAccount().getId()));
@@ -147,6 +152,11 @@ public class ClosingDossierService {
                 List<FinancialTransaction> documentTransactions = new ArrayList<>(transactions);
 
                 documentTransactions.addAll(creditCardStatementItems);
+
+                long totalTransactionCount = documentTransactions.stream()
+                                .map(FinancialTransaction::getId)
+                                .distinct()
+                                .count();
 
                 Map<UUID, List<Attachment>> attachmentsByTransactionId = loadAttachmentsByTransactionId(
                                 organizationId,
@@ -213,11 +223,16 @@ public class ClosingDossierService {
                                         account.getId(),
                                         List.of());
 
+                        List<FinancialTransaction> accountMovementTransactions = accountTransactions.stream()
+                                        .filter(transaction -> !creditCardStatementItemIds.contains(
+                                                        transaction.getId()))
+                                        .toList();
+
                         List<BankStatementDocumentResponse> statementDocuments = statementsByAccountId.getOrDefault(
                                         account.getId(),
                                         List.of());
 
-                        boolean hasMovement = !accountTransactions.isEmpty();
+                        boolean hasMovement = !accountMovementTransactions.isEmpty();
                         boolean includedInDossier = includeAccountsWithoutMovement || hasMovement;
                         boolean requiresBankStatement = requiresBankStatement(account, hasMovement);
 
@@ -237,7 +252,7 @@ public class ClosingDossierService {
 
                         List<ClosingDossierDocumentIssueResponse> fiscalDocumentIssues = new ArrayList<>();
 
-                        for (FinancialTransaction transaction : accountTransactions) {
+                        for (FinancialTransaction transaction : accountMovementTransactions) {
                                 if (transaction.getType() != FinancialTransactionType.EXPENSE) {
                                         continue;
                                 }
@@ -281,10 +296,13 @@ public class ClosingDossierService {
                                         !statementDocuments.isEmpty(),
                                         statementDocuments,
 
-                                        accountTransactions.size(),
-                                        sumByType(accountTransactions, FinancialTransactionType.INCOME),
-                                        sumByType(accountTransactions, FinancialTransactionType.EXPENSE),
-                                        sumByType(accountTransactions, FinancialTransactionType.TRANSFER),
+                                        accountMovementTransactions.size(),
+
+                                        sumByType(accountMovementTransactions, FinancialTransactionType.INCOME),
+
+                                        sumByType(accountMovementTransactions, FinancialTransactionType.EXPENSE),
+
+                                        sumByType(accountMovementTransactions, FinancialTransactionType.TRANSFER),
 
                                         paymentProofIssues,
                                         fiscalDocumentIssues));
@@ -308,7 +326,7 @@ public class ClosingDossierService {
                                 includedAccountCount,
                                 automaticSectionCount,
 
-                                transactions.size() + creditCardStatementItems.size(),
+                                totalTransactionCount,
 
                                 accountsWithoutMovementCount,
                                 accountsWithoutBankStatementCount,

@@ -120,7 +120,7 @@ export function PendingItemsReportPage() {
         />
 
         <PendingMetricCard
-          title="Faturas"
+          title="Faturas a pagar"
           value={report.pendingCreditCardStatementsCount}
           icon={CreditCard}
         />
@@ -325,9 +325,9 @@ function CreditCardPendingCard({
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
         <div>
-          <CardTitle>Faturas pendentes</CardTitle>
+          <CardTitle>Faturas a pagar</CardTitle>
           <CardDescription>
-            Faturas abertas ou fechadas que ainda não foram pagas.
+            Faturas com ciclo fechado que ainda aguardam pagamento.
           </CardDescription>
         </div>
 

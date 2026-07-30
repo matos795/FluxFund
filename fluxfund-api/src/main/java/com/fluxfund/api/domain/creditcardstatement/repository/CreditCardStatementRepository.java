@@ -106,7 +106,7 @@ public interface CreditCardStatementRepository extends JpaRepository<CreditCardS
       from credit_card_statement s
       join account a on a.id = s.credit_card_account_id
       where s.organization_id = :organizationId
-        and s.status in ('OPEN', 'CLOSED')
+        and s.status = 'CLOSED'
       order by s.due_date asc nulls last, s.created_at desc
       limit :limit
       """, nativeQuery = true)
@@ -118,7 +118,7 @@ public interface CreditCardStatementRepository extends JpaRepository<CreditCardS
       select count(*)
       from credit_card_statement s
       where s.organization_id = :organizationId
-        and s.status in ('OPEN', 'CLOSED')
+  and s.status = 'CLOSED'
       """, nativeQuery = true)
   long countPendingCreditCardStatements(
       @Param("organizationId") UUID organizationId);
