@@ -13,7 +13,11 @@ import com.fluxfund.api.domain.audit.AuditAction;
 import com.fluxfund.api.domain.audit.AuditEntityType;
 import com.fluxfund.api.domain.audit.service.AuditLogService;
 import com.fluxfund.api.domain.beneficiary.Beneficiary;
+import com.fluxfund.api.domain.beneficiary.FinancialPartyRole;
 import com.fluxfund.api.domain.beneficiary.repository.BeneficiaryRepository;
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection;
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence;
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentType;
 import com.fluxfund.api.domain.fund.Fund;
 import com.fluxfund.api.domain.fund.repository.FundRepository;
 import com.fluxfund.api.domain.organization.Organization;
@@ -54,9 +58,7 @@ public class SupportAgreementService {
                 Organization organization = organizationRepository.findById(organizationId)
                                 .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
-                Beneficiary beneficiary = beneficiaryRepository
-                                .findByIdAndOrganizationIdAndActiveTrue(request.beneficiaryId(), organizationId)
-                                .orElseThrow(() -> new ResourceNotFoundException("Beneficiary not found"));
+                Beneficiary beneficiary = resolveSupportRecipient(organizationId, request.beneficiaryId());
 
                 Fund fund = fundRepository
                                 .findByIdAndOrganizationIdAndActiveTrue(request.fundId(), organizationId)
@@ -74,6 +76,10 @@ public class SupportAgreementService {
                 agreement.setOrganization(organization);
                 agreement.setBeneficiary(beneficiary);
                 agreement.setFund(fund);
+                agreement.setDirection(FinancialCommitmentDirection.PAYABLE);
+                agreement.setCommitmentType(FinancialCommitmentType.SUPPORT);
+                agreement.setRecurrence(FinancialCommitmentRecurrence.MONTHLY);
+                agreement.setDueDay(null);
                 agreement.setAmount(request.amount());
                 agreement.setStartDate(request.startDate());
                 agreement.setEndDate(request.endDate());
@@ -105,9 +111,7 @@ public class SupportAgreementService {
                 Page<SupportAgreement> agreements;
 
                 if (status == null) {
-                        agreements = repository.findAllByOrganizationIdOrderByStartDateDesc(
-                                        organizationId,
-                                        pageable);
+                        agreements = repository.findAllSupportByOrganizationId(organizationId, pageable);
                 } else {
                         agreements = switch (status) {
                                 case ACTIVE -> repository.findCurrentActive(
@@ -155,9 +159,7 @@ public class SupportAgreementService {
 
                 SupportAgreement agreement = findEntityById(organizationId, id);
 
-                Beneficiary beneficiary = beneficiaryRepository
-                                .findByIdAndOrganizationIdAndActiveTrue(request.beneficiaryId(), organizationId)
-                                .orElseThrow(() -> new ResourceNotFoundException("Beneficiary not found"));
+                Beneficiary beneficiary = resolveSupportRecipient(organizationId, request.beneficiaryId());
 
                 Fund fund = fundRepository
                                 .findByIdAndOrganizationIdAndActiveTrue(request.fundId(), organizationId)
@@ -236,6 +238,10 @@ public class SupportAgreementService {
                 nextAgreement.setOrganization(previousAgreement.getOrganization());
                 nextAgreement.setBeneficiary(previousAgreement.getBeneficiary());
                 nextAgreement.setFund(previousAgreement.getFund());
+                nextAgreement.setDirection(previousAgreement.getDirection());
+                nextAgreement.setCommitmentType(previousAgreement.getCommitmentType());
+                nextAgreement.setRecurrence(previousAgreement.getRecurrence());
+                nextAgreement.setDueDay(previousAgreement.getDueDay());
                 nextAgreement.setAmount(request.amount());
                 nextAgreement.setStartDate(request.startDate());
                 nextAgreement.setEndDate(null);
@@ -325,9 +331,7 @@ public class SupportAgreementService {
                         LocalDate referenceDate) {
                 organizationAccessService.requireReadAccess(organizationId);
 
-                beneficiaryRepository
-                                .findByIdAndOrganizationIdAndActiveTrue(beneficiaryId, organizationId)
-                                .orElseThrow(() -> new ResourceNotFoundException("Beneficiary not found"));
+                resolveSupportRecipient(organizationId, beneficiaryId);
 
                 LocalDate effectiveReferenceDate = referenceDate != null ? referenceDate : LocalDate.now();
 
@@ -344,7 +348,7 @@ public class SupportAgreementService {
         }
 
         private SupportAgreement findEntityById(UUID organizationId, UUID id) {
-                return repository.findByIdAndOrganizationId(id, organizationId)
+                return repository.findSupportByIdAndOrganizationId(id, organizationId)
                                 .orElseThrow(() -> new ResourceNotFoundException("Support agreement not found"));
         }
 
@@ -375,5 +379,19 @@ public class SupportAgreementService {
                         throw new BusinessException(
                                         "There is already an active support agreement for this beneficiary and fund during the selected period");
                 }
+        }
+
+        private Beneficiary resolveSupportRecipient(UUID organizationId, UUID financialPartyId) {
+
+                Beneficiary financialParty = beneficiaryRepository
+                                .findByIdAndOrganizationIdAndActiveTrue(financialPartyId, organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Payment recipient not found"));
+
+                if (financialParty.getRoles() == null
+                                || !financialParty.getRoles().contains(FinancialPartyRole.PAYMENT_RECIPIENT)) {
+                        throw new BusinessException("Financial party cannot be used as a support recipient");
+                }
+
+                return financialParty;
         }
 }
