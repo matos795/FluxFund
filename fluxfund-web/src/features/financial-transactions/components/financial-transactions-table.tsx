@@ -32,6 +32,7 @@ import type { OrganizationSettings } from "@/features/organization-settings/orga
 import { getTransactionDocumentationStatus } from "../transaction-documentation"
 import type { TransactionWorkspaceTab } from "../transaction-workspace-types"
 import { TransactionWorkspaceDialog } from "./transaction-workspace-dialog"
+import { useFinancialTransaction } from "../hooks/use-financial-transaction"
 
 type FinancialTransactionsTableProps = {
   financialTransactions: FinancialTransaction[]
@@ -54,17 +55,44 @@ export function FinancialTransactionsTable({
   const { canFinanceWrite } = usePermissions()
   const settingsQuery = useOrganizationSettings()
 
-  const [workspaceTransaction, setWorkspaceTransaction] =
-    useState<FinancialTransaction | null>(null)
+  const [
+    workspaceTransactionId,
+    setWorkspaceTransactionId,
+  ] =
+    useState<string | null>(
+      null,
+    )
+
+  const {
+    data:
+    refreshedWorkspaceTransaction,
+  } = useFinancialTransaction({
+    id:
+      workspaceTransactionId,
+  })
+
+  const listedWorkspaceTransaction =
+    workspaceTransactionId
+      ? financialTransactions.find(
+        (transaction) =>
+          transaction.id ===
+          workspaceTransactionId,
+      ) ?? null
+      : null
+
+  const workspaceTransaction =
+    refreshedWorkspaceTransaction ??
+    listedWorkspaceTransaction
 
   const [workspaceTab, setWorkspaceTab] =
     useState<TransactionWorkspaceTab>("overview")
 
   function openWorkspace(
     transaction: FinancialTransaction,
+
     tab: TransactionWorkspaceTab = "overview",
   ) {
-    setWorkspaceTransaction(transaction)
+    setWorkspaceTransactionId(transaction.id)
     setWorkspaceTab(tab)
   }
 
@@ -326,10 +354,19 @@ export function FinancialTransactionsTable({
 
       {workspaceTransaction && (
         <TransactionWorkspaceDialog
-          transaction={workspaceTransaction}
-          open={Boolean(workspaceTransaction)}
+          transaction={
+            workspaceTransaction
+          }
+          open={
+            workspaceTransactionId !==
+            null
+          }
           onOpenChange={(open) => {
-            if (!open) setWorkspaceTransaction(null)
+            if (!open) {
+              setWorkspaceTransactionId(
+                null,
+              )
+            }
           }}
           activeTab={workspaceTab}
           onTabChange={setWorkspaceTab}

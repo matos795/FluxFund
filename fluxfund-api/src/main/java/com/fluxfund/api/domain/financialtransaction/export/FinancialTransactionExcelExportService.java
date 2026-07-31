@@ -270,7 +270,7 @@ public class FinancialTransactionExcelExportService {
         createHeaderCell(headerRow, 12, "Comprovante Pgto?", styles);
         createHeaderCell(headerRow, 13, "Anexo Fiscal?", styles);
         createHeaderCell(headerRow, 14, "Tipos de Anexo", styles);
-        createHeaderCell(headerRow, 15, "Origem", styles);
+        createHeaderCell(headerRow, 15, "Origem do lançamento", styles);
         createHeaderCell(headerRow, 16, "Descrição Original", styles);
         createHeaderCell(headerRow, 17, "Documento", styles);
         createHeaderCell(headerRow, 18, "ID", styles);
