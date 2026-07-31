@@ -9,6 +9,7 @@ import {
 
 import type {
   CreateFinancialPartyRequest,
+  FinancialPartyOption,
 } from "../financial-party-types"
 
 export function useCreateFinancialParty() {
@@ -22,7 +23,75 @@ export function useCreateFinancialParty() {
     ) =>
       createFinancialParty(data),
 
-    onSuccess: () => {
+    onSuccess: (
+      financialParty,
+    ) => {
+      const option:
+        FinancialPartyOption = {
+        id:
+          financialParty.id,
+
+        label:
+          financialParty.name,
+
+        partyType:
+          financialParty.partyType,
+
+        classification:
+          financialParty.type,
+
+        roles:
+          financialParty.roles,
+
+        document:
+          financialParty.document,
+      }
+
+      const optionCacheKeys = [
+        "ALL",
+        ...financialParty.roles,
+      ]
+
+      for (
+        const roleKey
+        of optionCacheKeys
+      ) {
+        queryClient.setQueryData<
+          FinancialPartyOption[]
+        >(
+          [
+            "financial-party-options",
+            roleKey,
+          ],
+
+          (
+            currentOptions = [],
+          ) => {
+            const optionsWithoutDuplicate =
+              currentOptions.filter(
+                (currentOption) =>
+                  currentOption.id !==
+                  option.id,
+              )
+
+            return [
+              ...optionsWithoutDuplicate,
+              option,
+            ].sort(
+              (
+                firstOption,
+                secondOption,
+              ) =>
+                firstOption.label
+                  .localeCompare(
+                    secondOption.label,
+                    "pt-BR",
+                  ),
+            )
+          },
+        )
+      }
+
       queryClient.invalidateQueries({
         queryKey:
           ["financial-parties"],
