@@ -7,6 +7,7 @@ import com.fluxfund.api.domain.beneficiary.Beneficiary;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.fund.Fund;
 import com.fluxfund.api.domain.organization.Organization;
+import com.fluxfund.api.domain.supportagreement.SupportAgreement;
 import com.fluxfund.api.shared.BaseEntity;
 
 import jakarta.persistence.Column;
@@ -47,19 +48,16 @@ public class TransactionAllocation extends BaseEntity {
     @JoinColumn(name = "source_party_id")
     private Beneficiary sourceParty;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "financial_commitment_id")
+    private SupportAgreement financialCommitment;
+
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal amount = BigDecimal.ZERO;
 
     @Column(name = "reference_month")
     private LocalDate referenceMonth;
 
-    /*
-     * Alias semântico para o campo beneficiary.
-     *
-     * O código novo poderá trabalhar com
-     * recipientParty, enquanto o código legado
-     * e os relatórios continuam usando beneficiary.
-     */
     @Transient
     public Beneficiary getRecipientParty() {
         return beneficiary;

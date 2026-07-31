@@ -300,4 +300,58 @@ public interface SupportAgreementRepository
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate,
             @Param("excludedId") UUID excludedId);
+
+    @Query("""
+            select distinct commitment
+
+            from SupportAgreement commitment
+
+            join fetch commitment.beneficiary party
+
+            left join fetch
+                commitment.designatedRecipient
+                designatedRecipient
+
+            join fetch commitment.fund
+
+            where commitment.organization.id =
+                :organizationId
+
+              and commitment.active = true
+
+              and commitment.direction =
+                :direction
+
+              and commitment.beneficiary.id =
+                :partyId
+
+              and (
+                    (
+                        :designatedRecipientId is null
+                        and commitment.designatedRecipient is null
+                    )
+
+                    or (
+                        :designatedRecipientId is not null
+                        and commitment.designatedRecipient.id =
+                            :designatedRecipientId
+                    )
+                  )
+
+              and commitment.startDate <=
+                :monthEnd
+
+              and (
+                    commitment.endDate is null
+                    or commitment.endDate >=
+                        :monthStart
+                  )
+            """)
+    List<SupportAgreement> findApplicableForAllocation(
+            @Param("organizationId") UUID organizationId,
+            @Param("direction") FinancialCommitmentDirection direction,
+            @Param("partyId") UUID partyId,
+            @Param("designatedRecipientId") UUID designatedRecipientId,
+            @Param("monthStart") LocalDate monthStart,
+            @Param("monthEnd") LocalDate monthEnd);
 }

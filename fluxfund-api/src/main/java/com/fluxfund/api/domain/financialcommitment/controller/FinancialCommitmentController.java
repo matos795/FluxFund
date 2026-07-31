@@ -2,12 +2,16 @@ package com.fluxfund.api.domain.financialcommitment.controller;
 
 import static com.fluxfund.api.security.TenantHeaders.ORGANIZATION_ID;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,9 +30,11 @@ import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentType;
 import com.fluxfund.api.domain.financialcommitment.dto.CreateFinancialCommitmentRequest;
+import com.fluxfund.api.domain.financialcommitment.dto.FinancialCommitmentAllocationSuggestionResponse;
 import com.fluxfund.api.domain.financialcommitment.dto.FinancialCommitmentResponse;
 import com.fluxfund.api.domain.financialcommitment.dto.UpdateFinancialCommitmentRequest;
 import com.fluxfund.api.domain.financialcommitment.service.FinancialCommitmentService;
+import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.supportagreement.SupportAgreementStatus;
 
 import jakarta.validation.Valid;
@@ -96,6 +102,28 @@ public class FinancialCommitmentController {
                 fundId,
 
                 pageable);
+    }
+
+    @GetMapping("/allocation-suggestions")
+    public List<FinancialCommitmentAllocationSuggestionResponse> findAllocationSuggestions(
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+            @RequestParam FinancialTransactionType transactionType,
+            @RequestParam(required = false) UUID sourcePartyId,
+            @RequestParam(required = false) UUID recipientPartyId,
+            @RequestParam UUID fundId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate referenceMonth,
+            @RequestParam BigDecimal availableAmount,
+            @RequestParam(required = false) UUID excludedAllocationId) {
+
+        return service.findAllocationSuggestions(
+                organizationId,
+                transactionType,
+                sourcePartyId,
+                recipientPartyId,
+                fundId,
+                referenceMonth,
+                availableAmount,
+                excludedAllocationId);
     }
 
     @GetMapping("/{id}")

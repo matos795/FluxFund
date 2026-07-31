@@ -2,9 +2,11 @@ package com.fluxfund.api.domain.transactionallocation.mapper;
 
 import com.fluxfund.api.domain.beneficiary.Beneficiary;
 import com.fluxfund.api.domain.beneficiary.mapper.BeneficiaryMapper;
+import com.fluxfund.api.domain.financialcommitment.mapper.FinancialCommitmentMapper;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.fund.Fund;
 import com.fluxfund.api.domain.fund.mapper.FundMapper;
+import com.fluxfund.api.domain.supportagreement.SupportAgreement;
 import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
 import com.fluxfund.api.domain.transactionallocation.dto.CreateTransactionAllocationRequest;
 import com.fluxfund.api.domain.transactionallocation.dto.TransactionAllocationResponse;
@@ -22,22 +24,18 @@ public final class TransactionAllocationMapper {
             FinancialTransaction financialTransaction,
             Fund fund,
             Beneficiary sourceParty,
-            Beneficiary recipientParty) {
+            Beneficiary recipientParty,
+            SupportAgreement financialCommitment) {
 
         TransactionAllocation allocation = new TransactionAllocation();
 
         allocation.setOrganization(financialTransaction.getOrganization());
-
         allocation.setFinancialTransaction(financialTransaction);
-
         allocation.setFund(fund);
-
         allocation.setSourceParty(sourceParty);
-
         allocation.setRecipientParty(recipientParty);
-
+        allocation.setFinancialCommitment(financialCommitment);
         allocation.setAmount(AmountNormalizer.normalizeAmount(financialTransaction, request.amount()));
-
         allocation.setReferenceMonth(request.referenceMonth());
 
         return allocation;
@@ -49,17 +47,12 @@ public final class TransactionAllocationMapper {
 
         return new TransactionAllocationResponse(
                 allocation.getId(),
-
                 allocation.getFinancialTransaction().getId(),
-
                 FundMapper.toSummaryResponse(allocation.getFund()),
-
-                recipientParty != null ? BeneficiaryMapper .toSummaryResponse(recipientParty) : null,
-
+                recipientParty != null ? BeneficiaryMapper.toSummaryResponse(recipientParty) : null,
                 BeneficiaryMapper.toFinancialPartySummaryResponse(allocation.getSourceParty()),
-
                 BeneficiaryMapper.toFinancialPartySummaryResponse(recipientParty),
-
+                FinancialCommitmentMapper.toAllocationSummary(allocation.getFinancialCommitment()),
                 allocation.getAmount(),
                 allocation.getCreatedAt(),
                 allocation.getUpdatedAt(),
@@ -71,7 +64,8 @@ public final class TransactionAllocationMapper {
             UpdateTransactionAllocationRequest request,
             Fund fund,
             Beneficiary sourceParty,
-            Beneficiary recipientParty) {
+            Beneficiary recipientParty,
+            SupportAgreement financialCommitment) {
 
         if (fund != null) {
             allocation.setFund(fund);
@@ -80,6 +74,8 @@ public final class TransactionAllocationMapper {
         allocation.setSourceParty(sourceParty);
 
         allocation.setRecipientParty(recipientParty);
+
+        allocation.setFinancialCommitment(financialCommitment);
 
         if (request.amount() != null) {
             allocation.setAmount(AmountNormalizer

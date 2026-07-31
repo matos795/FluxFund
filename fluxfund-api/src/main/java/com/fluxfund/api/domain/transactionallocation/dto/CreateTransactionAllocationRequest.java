@@ -8,18 +8,13 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 
 public record CreateTransactionAllocationRequest(
-
         @NotNull UUID fundId,
-
         UUID beneficiaryId,
-
         @NotNull @DecimalMin(value = "0.01") BigDecimal amount,
-
         LocalDate referenceMonth,
-
         UUID sourcePartyId,
-
-        UUID recipientPartyId) {
+        UUID recipientPartyId,
+        UUID financialCommitmentId) {
 
     /*
      * Mantém compatibilidade com os pontos Java
@@ -32,6 +27,30 @@ public record CreateTransactionAllocationRequest(
             BigDecimal amount,
             LocalDate referenceMonth) {
 
-        this(fundId, beneficiaryId, amount, referenceMonth, null, null);
+        this(fundId,
+                beneficiaryId,
+                amount,
+                referenceMonth,
+                null,
+                null,
+                null);
+    }
+
+    public CreateTransactionAllocationRequest(
+            UUID fundId,
+            UUID beneficiaryId,
+            BigDecimal amount,
+            LocalDate referenceMonth,
+            UUID sourcePartyId,
+            UUID recipientPartyId) {
+
+        this(
+                fundId,
+                beneficiaryId,
+                amount,
+                referenceMonth,
+                sourcePartyId,
+                recipientPartyId,
+                null);
     }
 }

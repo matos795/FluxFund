@@ -78,14 +78,11 @@ export type FinancialCommitmentPayload = {
 
     fundId: string
 
-    direction:
-    FinancialCommitmentDirection
+    direction: FinancialCommitmentDirection
 
-    commitmentType:
-    FinancialCommitmentType
+    commitmentType: FinancialCommitmentType
 
-    recurrence:
-    FinancialCommitmentRecurrence
+    recurrence: FinancialCommitmentRecurrence
 
     amount: number
     dueDay: number | null
@@ -96,11 +93,9 @@ export type FinancialCommitmentPayload = {
     description: string | null
 }
 
-export type CreateFinancialCommitmentRequest =
-    FinancialCommitmentPayload
+export type CreateFinancialCommitmentRequest = FinancialCommitmentPayload
 
-export type UpdateFinancialCommitmentRequest =
-    FinancialCommitmentPayload
+export type UpdateFinancialCommitmentRequest = FinancialCommitmentPayload
 
 export type GetFinancialCommitmentsParams = {
     page?: number
@@ -109,22 +104,59 @@ export type GetFinancialCommitmentsParams = {
 
     search?: string
 
-    direction?:
-    FinancialCommitmentDirection
+    direction?: FinancialCommitmentDirection
 
-    commitmentType?:
-    FinancialCommitmentType
+    commitmentType?: FinancialCommitmentType
 
-    recurrence?:
-    FinancialCommitmentRecurrence
+    recurrence?: FinancialCommitmentRecurrence
 
-    status?:
-    FinancialCommitmentStatus
+    status?: FinancialCommitmentStatus
 
     partyId?: string
 
-    designatedRecipientId?:
-    string
+    designatedRecipientId?: string
 
     fundId?: string
+}
+
+export type FinancialCommitmentAllocationSummary = {
+  id: string
+
+  direction:
+    FinancialCommitmentDirection
+
+  commitmentType:
+    FinancialCommitmentType
+
+  recurrence:
+    FinancialCommitmentRecurrence
+
+  amount: number
+  dueDay: number | null
+
+  startDate: string
+  endDate: string | null
+
+  party:
+    FinancialPartySummary
+
+  designatedRecipient:
+    FinancialPartySummary | null
+
+  plannedFund:
+    FundSummary
+
+  active: boolean
+}
+
+export type FinancialCommitmentAllocationSuggestion = {
+  commitment:
+    FinancialCommitmentAllocationSummary
+
+  realizedAmount: number
+  remainingAmount: number
+  suggestedAmount: number
+
+  exactFundMatch: boolean
+  fulfilled: boolean
 }

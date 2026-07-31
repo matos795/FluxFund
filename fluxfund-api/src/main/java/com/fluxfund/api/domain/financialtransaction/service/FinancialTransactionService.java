@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -37,6 +38,7 @@ import com.fluxfund.api.domain.beneficiary.repository.BeneficiaryRepository;
 import com.fluxfund.api.domain.category.Category;
 import com.fluxfund.api.domain.category.mapper.CategoryMapper;
 import com.fluxfund.api.domain.category.repository.CategoryRepository;
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
@@ -63,6 +65,8 @@ import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.repository.OrganizationRepository;
 import com.fluxfund.api.domain.organizationsettings.OrganizationSettings;
 import com.fluxfund.api.domain.organizationsettings.repository.OrganizationSettingsRepository;
+import com.fluxfund.api.domain.supportagreement.SupportAgreement;
+import com.fluxfund.api.domain.supportagreement.repository.SupportAgreementRepository;
 import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
 import com.fluxfund.api.domain.transactionallocation.dto.CreateTransactionAllocationRequest;
 import com.fluxfund.api.domain.transactionallocation.dto.TransactionAllocationResponse;
@@ -93,6 +97,7 @@ public class FinancialTransactionService {
         private final AuditLogService auditLogService;
         private final FundTransferRepository fundTransferRepository;
         private final FinancialTransactionDocumentPolicyService documentPolicyService;
+        private final SupportAgreementRepository supportAgreementRepository;
 
         public FinancialTransactionResponse create(UUID organizationId, CreateFinancialTransactionRequest request) {
                 organizationAccessService.requireFinanceWriteAccess(organizationId);
@@ -482,6 +487,8 @@ public class FinancialTransactionService {
                                         .orElseThrow(() -> new ResourceNotFoundException("Fund not found"));
                 }
 
+                SupportAgreement previousCommitment = allocation.getFinancialCommitment();
+
                 Beneficiary sourceParty = resolveFinancialParty(
                                 organizationId,
                                 request.sourcePartyId(),
@@ -498,9 +505,24 @@ public class FinancialTransactionService {
                                 FinancialPartyRole.PAYMENT_RECIPIENT,
                                 "Payment recipient");
 
-                TransactionAllocationMapper.updateEntity(allocation, request, fund, sourceParty, recipientParty);
+                SupportAgreement nextCommitment = resolveUpdatedFinancialCommitment(
+                                organizationId,
+                                previousCommitment,
+                                request);
 
-                validateBasicAllocationRules(allocation);
+                TransactionAllocationMapper.updateEntity(
+                                allocation,
+                                request,
+                                fund,
+                                sourceParty,
+                                recipientParty,
+                                nextCommitment);
+
+                boolean preservingSameCommitment = previousCommitment != null
+                                && nextCommitment != null
+                                && previousCommitment.getId().equals(nextCommitment.getId());
+
+                validateBasicAllocationRules(allocation, preservingSameCommitment);
                 validateTotalAllocatedAmount(financialTransaction);
 
                 validateFundNegativePolicy(
@@ -1062,8 +1084,17 @@ public class FinancialTransactionService {
                                 FinancialPartyRole.PAYMENT_RECIPIENT,
                                 "Payment recipient");
 
-                return TransactionAllocationMapper.createEntity(request, financialTransaction, fund, sourceParty,
-                                recipientParty);
+                SupportAgreement financialCommitment = resolveFinancialCommitment(
+                                organizationId,
+                                request.financialCommitmentId());
+
+                return TransactionAllocationMapper.createEntity(
+                                request,
+                                financialTransaction,
+                                fund,
+                                sourceParty,
+                                recipientParty,
+                                financialCommitment);
         }
 
         private void addInitialAllocations(
@@ -1138,6 +1169,11 @@ public class FinancialTransactionService {
         }
 
         private void validateBasicAllocationRules(TransactionAllocation allocation) {
+                validateBasicAllocationRules(allocation, false);
+        }
+
+        private void validateBasicAllocationRules(
+                        TransactionAllocation allocation, boolean allowInactiveCurrentCommitment) {
 
                 FinancialTransaction transaction = allocation.getFinancialTransaction();
 
@@ -1154,6 +1190,99 @@ public class FinancialTransactionService {
                 }
 
                 validateAllocationParties(allocation);
+                validateAllocationCommitment(allocation, allowInactiveCurrentCommitment);
+        }
+
+        private void validateAllocationCommitment(TransactionAllocation allocation,
+                        boolean allowInactiveCurrentCommitment) {
+
+                SupportAgreement commitment = allocation.getFinancialCommitment();
+
+                if (commitment == null) {
+                        return;
+                }
+
+                if (!allowInactiveCurrentCommitment && !Boolean.TRUE.equals(commitment.getActive())) {
+                        throw new BusinessException("Inactive financial commitments cannot receive new allocations");
+                }
+
+                FinancialTransactionType transactionType = allocation.getFinancialTransaction().getType();
+
+                FinancialCommitmentDirection expectedDirection = transactionType == FinancialTransactionType.INCOME
+                                ? FinancialCommitmentDirection.RECEIVABLE
+                                : FinancialCommitmentDirection.PAYABLE;
+
+                if (commitment.getDirection() != expectedDirection) {
+                        throw new BusinessException(
+                                        "Financial commitment direction does not match the transaction type");
+                }
+
+                LocalDate referenceMonth = allocation.getReferenceMonth();
+
+                if (referenceMonth == null) {
+                        throw new BusinessException(
+                                        "Reference month is required when linking an allocation to a commitment");
+                }
+
+                if (referenceMonth.getDayOfMonth() != 1) {
+                        throw new BusinessException("Reference month must use the first day of the month");
+                }
+
+                YearMonth reference = YearMonth.from(referenceMonth);
+
+                YearMonth start = YearMonth.from(commitment.getStartDate());
+
+                YearMonth end = commitment.getEndDate() != null ? YearMonth.from(commitment.getEndDate()) : null;
+
+                if (reference.isBefore(start) || (end != null && reference.isAfter(end))) {
+                        throw new BusinessException("Reference month is outside the commitment period");
+                }
+
+                if (transactionType == FinancialTransactionType.INCOME) {
+
+                        validateReceivableCommitmentParties(allocation, commitment);
+
+                        return;
+                }
+
+                validatePayableCommitmentParties(allocation, commitment);
+        }
+
+        private void validateReceivableCommitmentParties(TransactionAllocation allocation,
+                        SupportAgreement commitment) {
+
+                Beneficiary sourceParty = allocation.getSourceParty();
+
+                if (sourceParty == null || !sourceParty.getId().equals(commitment.getParty().getId())) {
+                        throw new BusinessException("Income source does not match the commitment party");
+                }
+
+                Beneficiary expectedRecipient = commitment.getDesignatedRecipient();
+
+                Beneficiary actualRecipient = allocation.getRecipientParty();
+
+                if (expectedRecipient == null && actualRecipient != null) {
+                        throw new BusinessException(
+                                        "A general receivable commitment cannot be linked to an individually designated allocation");
+                }
+
+                if (expectedRecipient != null && (actualRecipient == null || !expectedRecipient
+                                .getId()
+                                .equals(actualRecipient.getId()))) {
+
+                        throw new BusinessException("Allocation recipient does not match the commitment designation");
+                }
+        }
+
+        private void validatePayableCommitmentParties(
+                        TransactionAllocation allocation,
+                        SupportAgreement commitment) {
+
+                Beneficiary recipientParty = allocation.getRecipientParty();
+
+                if (recipientParty == null || !recipientParty.getId().equals(commitment.getParty().getId())) {
+                        throw new BusinessException("Payment recipient does not match the commitment party");
+                }
         }
 
         private void validateAllocationParties(TransactionAllocation allocation) {
@@ -2034,5 +2163,37 @@ public class FinancialTransactionService {
                 }
 
                 return recipientPartyId != null ? recipientPartyId : legacyBeneficiaryId;
+        }
+
+        private SupportAgreement resolveFinancialCommitment(UUID organizationId, UUID financialCommitmentId) {
+
+                if (financialCommitmentId == null) {
+                        return null;
+                }
+
+                return supportAgreementRepository.findByIdAndOrganizationId(financialCommitmentId, organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Financial commitment not found"));
+        }
+
+        private SupportAgreement resolveUpdatedFinancialCommitment(
+                        UUID organizationId,
+                        SupportAgreement currentCommitment,
+                        UpdateTransactionAllocationRequest request) {
+
+                if (Boolean.TRUE.equals(request.clearFinancialCommitment())) {
+
+                        if (request.financialCommitmentId() != null) {
+                                throw new BusinessException(
+                                                "Cannot set and clear a financial commitment at the same time");
+                        }
+
+                        return null;
+                }
+
+                if (request.financialCommitmentId() != null) {
+                        return resolveFinancialCommitment(organizationId, request.financialCommitmentId());
+                }
+
+                return currentCommitment;
         }
 }

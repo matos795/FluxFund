@@ -1,6 +1,7 @@
 import type { AccountSummary } from "../accounts/types"
 import type { BeneficiarySummary } from "../beneficiaries/beneficiary-types"
 import type { CategorySummary } from "../categories/category-types"
+import type { FinancialCommitmentAllocationSummary } from "../financial-commitments/financial-commitment-types"
 import type { FinancialPartySummary } from "../financial-parties/financial-party-types"
 import type { FundSummary } from "../funds/fund-types"
 
@@ -39,6 +40,8 @@ export type TransactionAllocation = {
   sourceParty: FinancialPartySummary | null
 
   recipientParty: FinancialPartySummary | null
+
+  financialCommitment: FinancialCommitmentAllocationSummary | null
 
   amount: number
   referenceMonth: string | null
@@ -147,6 +150,7 @@ export type CreateTransactionAllocationRequest = {
   beneficiaryId?: string | null
   sourcePartyId?: string | null
   recipientPartyId?: string | null
+  financialCommitmentId?: string | null
   amount: number
   referenceMonth: string | null
 }
@@ -158,6 +162,8 @@ export type UpdateTransactionAllocationRequest = {
   recipientPartyId?: string | null
   amount?: number | null
   referenceMonth: string | null
+  financialCommitmentId?: string | null
+  clearFinancialCommitment?: boolean
 }
 
 export type ImportOfxResponse = {
@@ -185,6 +191,7 @@ export type ClassifyFinancialTransactionRequest = {
     beneficiaryId?: string | null
     sourcePartyId?: string | null
     recipientPartyId?: string | null
+    financialCommitmentId?: string | null
     amount: number
     referenceMonth: string | null
   }[]
@@ -205,8 +212,8 @@ export type ClassificationSuggestionAllocation = {
   amount: number
   referenceMonth: string | null
   source:
-    | "HISTORY"
-    | "SUPPORT_AGREEMENT"
+  | "HISTORY"
+  | "SUPPORT_AGREEMENT"
 }
 
 export type FinancialTransactionClassificationSuggestion = {

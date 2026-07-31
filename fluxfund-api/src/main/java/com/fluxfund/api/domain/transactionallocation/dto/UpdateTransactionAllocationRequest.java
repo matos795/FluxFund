@@ -12,5 +12,26 @@ public record UpdateTransactionAllocationRequest(
                 @DecimalMin(value = "0.01") BigDecimal amount,
                 LocalDate referenceMonth,
                 UUID sourcePartyId,
-                UUID recipientPartyId) {
+                UUID recipientPartyId,
+                UUID financialCommitmentId,
+                Boolean clearFinancialCommitment) {
+
+        public UpdateTransactionAllocationRequest(
+                        UUID fundId,
+                        UUID beneficiaryId,
+                        BigDecimal amount,
+                        LocalDate referenceMonth,
+                        UUID sourcePartyId,
+                        UUID recipientPartyId) {
+
+                this(
+                                fundId,
+                                beneficiaryId,
+                                amount,
+                                referenceMonth,
+                                sourcePartyId,
+                                recipientPartyId,
+                                null,
+                                false);
+        }
 }

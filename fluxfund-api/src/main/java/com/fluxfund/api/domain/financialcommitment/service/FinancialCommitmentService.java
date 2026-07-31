@@ -1,6 +1,9 @@
 package com.fluxfund.api.domain.financialcommitment.service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -19,10 +22,12 @@ import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentType;
 import com.fluxfund.api.domain.financialcommitment.dto.CreateFinancialCommitmentRequest;
+import com.fluxfund.api.domain.financialcommitment.dto.FinancialCommitmentAllocationSuggestionResponse;
 import com.fluxfund.api.domain.financialcommitment.dto.FinancialCommitmentResponse;
 import com.fluxfund.api.domain.financialcommitment.dto.UpdateFinancialCommitmentRequest;
 import com.fluxfund.api.domain.financialcommitment.mapper.FinancialCommitmentMapper;
 import com.fluxfund.api.domain.financialcommitment.specification.FinancialCommitmentSpecification;
+import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.fund.Fund;
 import com.fluxfund.api.domain.fund.repository.FundRepository;
 import com.fluxfund.api.domain.organization.Organization;
@@ -30,6 +35,7 @@ import com.fluxfund.api.domain.organization.repository.OrganizationRepository;
 import com.fluxfund.api.domain.supportagreement.SupportAgreement;
 import com.fluxfund.api.domain.supportagreement.SupportAgreementStatus;
 import com.fluxfund.api.domain.supportagreement.repository.SupportAgreementRepository;
+import com.fluxfund.api.domain.transactionallocation.repository.TransactionAllocationRepository;
 import com.fluxfund.api.security.OrganizationAccessService;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
@@ -42,26 +48,18 @@ import lombok.RequiredArgsConstructor;
 public class FinancialCommitmentService {
 
     private final SupportAgreementRepository repository;
-
     private final OrganizationRepository organizationRepository;
-
     private final BeneficiaryRepository beneficiaryRepository;
-
     private final FundRepository fundRepository;
-
     private final OrganizationAccessService organizationAccessService;
-
     private final AuditLogService auditLogService;
+    private final TransactionAllocationRepository transactionAllocationRepository;
 
     public FinancialCommitmentResponse create(
-
             UUID organizationId,
-
             CreateFinancialCommitmentRequest request) {
 
-        organizationAccessService
-                .requireFinanceWriteAccess(
-                        organizationId);
+        organizationAccessService.requireFinanceWriteAccess(organizationId);
 
         validateCommitmentDefinition(
                 request.direction(),
@@ -72,11 +70,8 @@ public class FinancialCommitmentService {
                 request.dueDay());
 
         Organization organization = organizationRepository
-                .findById(
-                        organizationId)
-                .orElseThrow(
-                        () -> new ResourceNotFoundException(
-                                "Organization not found"));
+                .findById(organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
         Beneficiary party = resolveParty(
                 organizationId,
@@ -84,13 +79,9 @@ public class FinancialCommitmentService {
                 request.direction());
 
         Beneficiary designatedRecipient = resolveDesignatedRecipient(
-
                 organizationId,
-
                 request.direction(),
-
                 request.partyId(),
-
                 request.designatedRecipientId());
 
         Fund fund = resolveFund(
@@ -98,33 +89,20 @@ public class FinancialCommitmentService {
                 request.fundId());
 
         LocalDate endDate = normalizeEndDate(
-
                 request.recurrence(),
-
                 request.startDate(),
-
                 request.endDate());
 
         validateNoOverlap(
-
                 organizationId,
-
                 request.direction(),
-
                 request.commitmentType(),
-
                 request.recurrence(),
-
                 request.partyId(),
-
                 request.designatedRecipientId(),
-
                 request.fundId(),
-
                 request.startDate(),
-
                 endDate,
-
                 null);
 
         SupportAgreement commitment = new SupportAgreement();
@@ -545,6 +523,97 @@ public class FinancialCommitmentService {
                         commitment);
     }
 
+    @Transactional(readOnly = true)
+    public List<FinancialCommitmentAllocationSuggestionResponse> findAllocationSuggestions(
+            UUID organizationId,
+            FinancialTransactionType transactionType,
+            UUID sourcePartyId,
+            UUID recipientPartyId,
+            UUID fundId,
+            LocalDate referenceMonth,
+            BigDecimal availableAmount,
+            UUID excludedAllocationId) {
+
+        organizationAccessService.requireReadAccess(organizationId);
+
+        if (transactionType == FinancialTransactionType.TRANSFER) {
+            return List.of();
+        }
+
+        if (availableAmount == null || availableAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return List.of();
+        }
+
+        FinancialCommitmentDirection direction;
+        UUID partyId;
+        UUID designatedRecipientId;
+
+        if (transactionType == FinancialTransactionType.INCOME) {
+
+            if (sourcePartyId == null) {
+                return List.of();
+            }
+
+            direction = FinancialCommitmentDirection.RECEIVABLE;
+            partyId = sourcePartyId;
+            designatedRecipientId = recipientPartyId;
+
+        } else {
+
+            if (recipientPartyId == null) {
+                return List.of();
+            }
+
+            direction = FinancialCommitmentDirection.PAYABLE;
+            partyId = recipientPartyId;
+            designatedRecipientId = null;
+        }
+
+        LocalDate monthStart = referenceMonth.withDayOfMonth(1);
+
+        LocalDate monthEnd = monthStart.withDayOfMonth(monthStartlengthOfMonth());
+
+        BigDecimal normalizedAvailableAmount = availableAmount.abs();
+
+        return repository.findApplicableForAllocation(
+                organizationId,
+                direction,
+                partyId,
+                designatedRecipientId,
+                monthStart,
+                monthEnd)
+                .stream()
+                .map(commitment -> {
+                    BigDecimal realized = transactionAllocationRepository
+                            .sumRealizedCommitmentAmount(
+                                    organizationId,
+                                    commitment.getId(),
+                                    monthStart,
+                                    excludedAllocationId)
+                            .abs();
+                    BigDecimal remaining = commitment.getAmount().subtract(realized).max(BigDecimal.ZERO);
+                    BigDecimal suggested = remaining.min(normalizedAvailableAmount);
+                    boolean exactFundMatch = commitment.getFund().getId().equals(fundId);
+                    boolean fulfilled = remaining.compareTo(BigDecimal.ZERO) == 0;
+
+                    return new FinancialCommitmentAllocationSuggestionResponse(
+                            FinancialCommitmentMapper.toAllocationSummary(commitment),
+                            realized,
+                            remaining,
+                            suggested,
+                            exactFundMatch,
+                            fulfilled);
+                })
+
+                .sorted(Comparator
+                        .comparing(FinancialCommitmentAllocationSuggestionResponse::exactFundMatch)
+                        .reversed()
+                        .thenComparing(FinancialCommitmentAllocationSuggestionResponse::fulfilled)
+                        .thenComparing(suggestion -> suggestion.commitment().dueDay(),
+                                Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+    }
+
     private SupportAgreement findEntityById(
 
             UUID organizationId,
@@ -567,8 +636,8 @@ public class FinancialCommitmentService {
             FinancialCommitmentDirection direction) {
 
         Beneficiary party = beneficiaryRepository.findByIdAndOrganizationIdAndActiveTrue(
-                        partyId,
-                        organizationId)
+                partyId,
+                organizationId)
 
                 .orElseThrow(() -> new ResourceNotFoundException("Financial party not found"));
 
@@ -609,7 +678,7 @@ public class FinancialCommitmentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Designated recipient not found"));
 
         if (recipient.getRoles() == null || !recipient.getRoles()
-                        .contains(FinancialPartyRole.PAYMENT_RECIPIENT)) {
+                .contains(FinancialPartyRole.PAYMENT_RECIPIENT)) {
 
             throw new BusinessException("Designated recipient does not have the payment recipient role");
         }
@@ -694,16 +763,16 @@ public class FinancialCommitmentService {
             UUID excludedId) {
 
         boolean overlap = repository.existsActiveFinancialCommitmentOverlap(
-                        organizationId,
-                        direction,
-                        commitmentType,
-                        recurrence,
-                        partyId,
-                        designatedRecipientId,
-                        fundId,
-                        startDate,
-                        endDate,
-                        excludedId);
+                organizationId,
+                direction,
+                commitmentType,
+                recurrence,
+                partyId,
+                designatedRecipientId,
+                fundId,
+                startDate,
+                endDate,
+                excludedId);
 
         if (overlap) {
             throw new BusinessException("There is already an active equivalent commitment in the selected period");
