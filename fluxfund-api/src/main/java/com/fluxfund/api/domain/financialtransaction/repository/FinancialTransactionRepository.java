@@ -177,6 +177,7 @@ public interface FinancialTransactionRepository
                         left join fetch t.allocations allocation
                         left join fetch allocation.fund fund
                         left join fetch allocation.beneficiary beneficiary
+                        left join fetch allocation.sourceParty sourceParty
                         where t.organization.id = :organizationId
                           and t.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
                           and t.type in (

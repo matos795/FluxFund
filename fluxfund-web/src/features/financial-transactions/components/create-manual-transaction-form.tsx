@@ -952,8 +952,8 @@ export function CreateManualTransactionForm({
                   key={allocation.id}
                   className={
                     selectedType === "INCOME"
-                      ? "grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_160px_150px_auto]"
-                      : "grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-2 xl:grid-cols-[1fr_1fr_160px_150px_auto]"
+                      ? "grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_160px_150px_auto]"
+                      : "grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_160px_150px_auto]"
                   }
                 >
 

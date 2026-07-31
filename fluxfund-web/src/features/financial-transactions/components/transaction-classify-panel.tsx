@@ -1029,8 +1029,8 @@ export function TransactionClassifyPanel({
                                 <div key={index} className="space-y-3">
                                     <div className={
                                         type === "INCOME"
-                                            ? "grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_160px_140px_auto]"
-                                            : "grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-2 lg:grid-cols-[1fr_1fr_160px_140px_auto]"
+                                            ? "grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_160px_140px_auto]"
+                                            : "grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_160px_140px_auto]"
                                     }>
 
                                         {type === "INCOME" && (

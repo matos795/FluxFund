@@ -21,8 +21,9 @@ export function useUpdateTransactionAllocation() {
     }: UpdateTransactionAllocationMutationData) =>
       updateTransactionAllocation(transactionId, allocationId, data),
 
-    onSuccess: () => {
-      invalidateFinancialData(queryClient)
-    },
+    onSuccess: () =>
+      invalidateFinancialData(
+        queryClient,
+      ),
   })
 }

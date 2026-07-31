@@ -117,10 +117,11 @@ export function FinancialPartyCombobox({
                             .join(" · ")
 
                         return {
-                            value:
-                                financialParty.id,
+                            value: financialParty.id,
 
                             label,
+
+                            selectedLabel: financialParty.label,
 
                             searchValue: [
                                 financialParty.label,
@@ -129,6 +130,7 @@ export function FinancialPartyCombobox({
                             ]
                                 .filter(Boolean)
                                 .join(" "),
+
                         }
                     },
                 )}
