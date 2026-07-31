@@ -40,6 +40,66 @@ type TransactionAllocationsPanelProps = {
   transaction: FinancialTransaction
 }
 
+type AllocationPartyContext = {
+  sourcePartyId:
+  string | null
+
+  recipientPartyId:
+  string | null
+}
+
+function getSharedAllocationPartyContext(
+  allocations:
+    TransactionAllocation[],
+): AllocationPartyContext | null {
+  if (allocations.length === 0) {
+    return {
+      sourcePartyId: null,
+      recipientPartyId: null,
+    }
+  }
+
+  const firstContext = {
+    sourcePartyId:
+      allocations[0]
+        .sourceParty?.id ??
+      null,
+
+    recipientPartyId:
+      allocations[0]
+        .recipientParty?.id ??
+      allocations[0]
+        .beneficiary?.id ??
+      null,
+  }
+
+  const allShareContext =
+    allocations.every(
+      (allocation) =>
+        (
+          allocation
+            .sourceParty
+            ?.id ??
+          null
+        ) ===
+        firstContext.sourcePartyId &&
+        (
+          allocation
+            .recipientParty
+            ?.id ??
+          allocation
+            .beneficiary
+            ?.id ??
+          null
+        ) ===
+        firstContext.recipientPartyId,
+    )
+
+  return allShareContext
+    ? firstContext
+    : null
+}
+
 export function TransactionAllocationsPanel({
   transaction,
 }: TransactionAllocationsPanelProps) {
@@ -75,6 +135,14 @@ export function TransactionAllocationsPanel({
     0,
   )
 
+  const remainingPartyContext = useMemo(() => getSharedAllocationPartyContext(
+    transaction.allocations,
+  ),
+    [
+      transaction.allocations,
+    ],
+  )
+
   const maxSupportAgreementAmount = editingAllocation
     ? fromCents(
       formatCents(remainingAmount) +
@@ -82,9 +150,21 @@ export function TransactionAllocationsPanel({
     )
     : remainingAmount
 
-  const newAllocationFormKey = transaction.allocations
-    .map((allocation) => `${allocation.id}:${allocation.amount}`)
-    .join("|")
+  const newAllocationFormKey =
+    transaction.allocations
+      .map(
+        (allocation) =>
+          [
+            allocation.id,
+            allocation.fund.id,
+            allocation.sourceParty?.id ?? "",
+            allocation.recipientParty?.id ??
+            allocation.beneficiary?.id ?? "",
+            allocation.amount,
+            allocation.referenceMonth ?? "",
+          ].join(":"),
+      )
+      .join("|")
 
   const isSubmitting =
     addAllocationMutation.isPending ||
@@ -96,7 +176,8 @@ export function TransactionAllocationsPanel({
     transaction.status === "SETTLED" &&
     transaction.category !== null &&
     transaction.type !== "TRANSFER" &&
-    remainingAmount > 0
+    remainingAmount > 0 &&
+    remainingPartyContext !== null
 
   function handleSubmitAllocation(data: TransactionAllocationFormData) {
     if (editingAllocation) {
@@ -106,7 +187,8 @@ export function TransactionAllocationsPanel({
           allocationId: editingAllocation.id,
           data: {
             fundId: data.fundId,
-            beneficiaryId: data.beneficiaryId || null,
+            sourcePartyId: data.sourcePartyId || null,
+            recipientPartyId: data.recipientPartyId || null,
             referenceMonth: toReferenceMonthDate(data.referenceMonth),
             amount: data.amount,
           },
@@ -135,7 +217,8 @@ export function TransactionAllocationsPanel({
         transactionId: transaction.id,
         data: {
           fundId: data.fundId,
-          beneficiaryId: data.beneficiaryId || null,
+          sourcePartyId: data.sourcePartyId || null,
+          recipientPartyId: data.recipientPartyId || null,
           referenceMonth: toReferenceMonthDate(data.referenceMonth),
           amount: data.amount,
         },
@@ -172,7 +255,8 @@ export function TransactionAllocationsPanel({
         transactionId: transaction.id,
         data: {
           fundId: defaultFund.id,
-          beneficiaryId: null,
+          sourcePartyId: remainingPartyContext?.sourcePartyId ?? null,
+          recipientPartyId: remainingPartyContext?.recipientPartyId ?? null,
           amount: Math.abs(remainingAmount),
           referenceMonth: null,
         },
@@ -193,14 +277,17 @@ export function TransactionAllocationsPanel({
     )
   }
 
-  function handleApplyReallocationSuggestion(data: {
-    selectedFundId: string
-    selectedFundAmount: number
-    defaultFundId: string
-    defaultFundAmount: number
-    beneficiaryId: string
-    referenceMonth: string
-  }) {
+  function handleApplyReallocationSuggestion(
+    data: {
+      selectedFundId: string
+      selectedFundAmount: number
+      defaultFundId: string
+      defaultFundAmount: number
+      sourcePartyId: string
+      recipientPartyId: string
+      referenceMonth: string
+    },
+  ) {
     if (editingAllocation) {
       toast.error("Finalize ou cancele a edição antes de aplicar uma sugestão.")
       return
@@ -211,7 +298,8 @@ export function TransactionAllocationsPanel({
     if (data.selectedFundAmount > 0) {
       allocations.push({
         fundId: data.selectedFundId,
-        beneficiaryId: data.beneficiaryId || null,
+        sourcePartyId: data.sourcePartyId || null,
+        recipientPartyId: data.recipientPartyId || null,
         referenceMonth: toReferenceMonthDate(data.referenceMonth),
         amount: data.selectedFundAmount,
       })
@@ -220,7 +308,8 @@ export function TransactionAllocationsPanel({
     if (data.defaultFundAmount > 0) {
       allocations.push({
         fundId: data.defaultFundId,
-        beneficiaryId: data.beneficiaryId || null,
+        sourcePartyId: data.sourcePartyId || null,
+        recipientPartyId: data.recipientPartyId || null,
         referenceMonth: toReferenceMonthDate(data.referenceMonth),
         amount: data.defaultFundAmount,
       })
@@ -326,7 +415,11 @@ export function TransactionAllocationsPanel({
 
       <AppDialogSection
         title={editingAllocation ? "Editar alocação" : "Adicionar alocação"}
-        description="Distribua o valor baixado entre fundos e favorecidos."
+        description={
+          transaction.type === "INCOME"
+            ? "Identifique quem enviou o recurso e distribua o valor entre fundos e destinações."
+            : "Distribua o pagamento entre fundos e recebedores."
+        }
       >
         <TransactionAllocationForm
           key={
@@ -340,9 +433,9 @@ export function TransactionAllocationsPanel({
             editingAllocation
               ? {
                 fundId: editingAllocation.fund.id,
-                beneficiaryId: editingAllocation.beneficiary?.id ?? "",
-                referenceMonth:
-                  editingAllocation.referenceMonth?.slice(0, 7) ?? "",
+                sourcePartyId: editingAllocation.sourceParty?.id ?? "",
+                recipientPartyId: editingAllocation.recipientParty?.id ?? editingAllocation.beneficiary?.id ?? "",
+                referenceMonth: editingAllocation.referenceMonth?.slice(0, 7) ?? "",
                 amount: Math.abs(editingAllocation.amount),
               }
               : {
@@ -369,8 +462,9 @@ export function TransactionAllocationsPanel({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Origem da receita</TableHead>
                 <TableHead>Fundo</TableHead>
-                <TableHead>Favorecido</TableHead>
+                <TableHead>Destinatário / recebedor</TableHead>
                 <TableHead>Competência</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
                 <TableHead className="w-[100px] text-right">Ações</TableHead>
@@ -381,7 +475,7 @@ export function TransactionAllocationsPanel({
               {transaction.allocations.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={6}
                     className="h-24 text-center text-sm text-muted-foreground"
                   >
                     Nenhuma alocação cadastrada.
@@ -390,8 +484,9 @@ export function TransactionAllocationsPanel({
               ) : (
                 transaction.allocations.map((allocation) => (
                   <TableRow key={allocation.id}>
+                    <TableCell>{allocation.sourceParty?.name ?? "-"}</TableCell>
                     <TableCell>{allocation.fund.name}</TableCell>
-                    <TableCell>{allocation.beneficiary?.name ?? "-"}</TableCell>
+                    <TableCell>{allocation.recipientParty?.name ?? allocation.beneficiary?.name ?? "-"}</TableCell>
                     <TableCell>
                       {formatReferenceMonth(allocation.referenceMonth)}
                     </TableCell>

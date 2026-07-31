@@ -48,6 +48,24 @@ export type FinancialParty = {
     updatedAt: string | null
 }
 
+export type FinancialPartySummary = {
+    id: string
+    name: string
+    partyType: FinancialPartyType
+    classification: FinancialPartyClassification
+    roles: FinancialPartyRole[]
+    document: string | null
+}
+
+export type FinancialPartyOption = {
+    id: string
+    label: string
+    partyType: FinancialPartyType
+    classification: FinancialPartyClassification
+    roles: FinancialPartyRole[]
+    document: string | null
+}
+
 export type FinancialPartyPayload = {
     name: string
     type: FinancialPartyClassification

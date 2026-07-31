@@ -1,6 +1,7 @@
 import type { AccountSummary } from "../accounts/types"
 import type { BeneficiarySummary } from "../beneficiaries/beneficiary-types"
 import type { CategorySummary } from "../categories/category-types"
+import type { FinancialPartySummary } from "../financial-parties/financial-party-types"
 import type { FundSummary } from "../funds/fund-types"
 
 export type FinancialTransactionType =
@@ -32,7 +33,13 @@ export type TransactionAllocation = {
   id: string
   financialTransactionId: string
   fund: FundSummary
+
   beneficiary: BeneficiarySummary | null
+
+  sourceParty: FinancialPartySummary | null
+
+  recipientParty: FinancialPartySummary | null
+
   amount: number
   referenceMonth: string | null
   createdAt: string
@@ -138,6 +145,8 @@ export type UpdateFinancialTransactionRequest = {
 export type CreateTransactionAllocationRequest = {
   fundId: string
   beneficiaryId?: string | null
+  sourcePartyId?: string | null
+  recipientPartyId?: string | null
   amount: number
   referenceMonth: string | null
 }
@@ -145,6 +154,8 @@ export type CreateTransactionAllocationRequest = {
 export type UpdateTransactionAllocationRequest = {
   fundId?: string | null
   beneficiaryId?: string | null
+  sourcePartyId?: string | null
+  recipientPartyId?: string | null
   amount?: number | null
   referenceMonth: string | null
 }
@@ -172,6 +183,8 @@ export type ClassifyFinancialTransactionRequest = {
   allocations?: {
     fundId: string
     beneficiaryId?: string | null
+    sourcePartyId?: string | null
+    recipientPartyId?: string | null
     amount: number
     referenceMonth: string | null
   }[]

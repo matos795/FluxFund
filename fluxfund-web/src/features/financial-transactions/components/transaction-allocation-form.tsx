@@ -10,17 +10,16 @@ import {
   type TransactionAllocationFormData,
   type TransactionAllocationFormInput,
 } from "@/features/financial-transactions/transaction-allocation-schema"
-import { useBeneficiaryOptions } from "../../beneficiaries/hooks/use-beneficiary-options"
 import { useFundOptions } from "../../funds/hooks/use-fund-options"
 import { CurrencyInput } from "@/components/form/currency-input"
 import { FundComboboxWithCreate } from "../../funds/components/fund-combobox-with-create"
-import { BeneficiaryComboboxWithCreate } from "../../beneficiaries/components/beneficiary-combobox-with-create"
 import { getDefaultFundReallocationSuggestion } from "@/utils/fund-reallocation"
 import { formatCurrency } from "@/utils/formatters"
 import { AlertTriangle } from "lucide-react"
 import { useOrganizationSettings } from "@/features/organization-settings/hooks/use-organization-settings"
 import type { FinancialTransactionType } from "../financial-transaction-types"
 import { SupportAgreementSuggestionCard } from "@/features/support-agreements/components/support-agreement-suggestion-card"
+import { FinancialPartyCombobox } from "@/features/financial-parties/components/financial-party-combobox"
 
 type TransactionAllocationFormProps = {
   onCancel?: () => void
@@ -36,7 +35,8 @@ type TransactionAllocationFormProps = {
     selectedFundAmount: number
     defaultFundId: string
     defaultFundAmount: number
-    beneficiaryId: string
+    sourcePartyId: string
+    recipientPartyId: string
     referenceMonth: string
   }) => void
 }
@@ -67,24 +67,31 @@ export function TransactionAllocationForm({
     resolver: zodResolver(transactionAllocationFormSchema),
     defaultValues: {
       fundId: defaultValues?.fundId ?? "",
-      beneficiaryId: defaultValues?.beneficiaryId ?? "",
+      sourcePartyId: defaultValues?.sourcePartyId ?? "",
+      recipientPartyId: defaultValues?.recipientPartyId ?? "",
       referenceMonth: defaultValues?.referenceMonth ?? "",
       amount: defaultValues?.amount ?? 0,
     },
   })
 
   const selectedFundId = useWatch({ control, name: "fundId" })
-  const selectedBeneficiaryId = useWatch({
+
+  const selectedSourcePartyId = useWatch({
     control,
-    name: "beneficiaryId",
+    name: "sourcePartyId",
   })
+
+  const selectedRecipientPartyId = useWatch({
+    control,
+    name: "recipientPartyId",
+  })
+
   const amount = useWatch({
     control,
     name: "amount",
   })
 
   const fundsQuery = useFundOptions()
-  const beneficiariesQuery = useBeneficiaryOptions()
   const settingsQuery = useOrganizationSettings()
 
   const funds = fundsQuery.data ?? []
@@ -105,80 +112,206 @@ export function TransactionAllocationForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div
+        className={
+          transactionType === "INCOME"
+            ? "grid gap-4 md:grid-cols-2 xl:grid-cols-5"
+            : "grid gap-4 md:grid-cols-2 xl:grid-cols-4"
+        }
+      >
+        {transactionType === "INCOME" && (
+          <div className="space-y-2">
+            <Label>
+              Origem da receita
+            </Label>
+
+            <FinancialPartyCombobox
+              role="INCOME_SOURCE"
+              value={
+                selectedSourcePartyId ??
+                ""
+              }
+              allowClear
+              clearLabel="Sem origem identificada"
+              onChange={(value) =>
+                setValue(
+                  "sourcePartyId",
+                  value,
+                  {
+                    shouldValidate:
+                      true,
+                  },
+                )
+              }
+            />
+
+            {errors.sourcePartyId && (
+              <p className="text-sm text-destructive">
+                {
+                  errors
+                    .sourcePartyId
+                    .message
+                }
+              </p>
+            )}
+
+            <p className="text-xs text-muted-foreground">
+              Pessoa ou empresa que enviou o recurso.
+            </p>
+          </div>
+        )}
+
         <div className="space-y-2">
-          <Label>Fundo</Label>
+          <Label>
+            Fundo
+          </Label>
+
           <FundComboboxWithCreate
-            value={selectedFundId}
+            value={
+              selectedFundId
+            }
             allowClear={false}
             onChange={(value) =>
-              setValue("fundId", value, {
-                shouldValidate: true,
-              })
+              setValue(
+                "fundId",
+                value,
+                {
+                  shouldValidate:
+                    true,
+                },
+              )
             }
           />
 
           {errors.fundId && (
             <p className="text-sm text-destructive">
-              {errors.fundId.message}
+              {
+                errors
+                  .fundId
+                  .message
+              }
             </p>
           )}
         </div>
 
         <div className="space-y-2">
-          <Label>Favorecido</Label>
-          <BeneficiaryComboboxWithCreate
-            value={selectedBeneficiaryId ?? ""}
+          <Label>
+            {transactionType ===
+              "INCOME"
+              ? "Destinatário / favorecido"
+              : "Recebedor do pagamento"}
+          </Label>
+
+          <FinancialPartyCombobox
+            role="PAYMENT_RECIPIENT"
+            value={
+              selectedRecipientPartyId ??
+              ""
+            }
             allowClear
-            clearLabel="Sem favorecido"
+            clearLabel={
+              transactionType ===
+                "INCOME"
+                ? "Sem destinação individual"
+                : "Sem recebedor identificado"
+            }
+            placeholder={
+              transactionType ===
+                "INCOME"
+                ? "Sem destinação individual"
+                : "Sem recebedor identificado"
+            }
             onChange={(value) =>
-              setValue("beneficiaryId", value, {
-                shouldValidate: true,
-              })
+              setValue(
+                "recipientPartyId",
+                value,
+                {
+                  shouldValidate:
+                    true,
+                },
+              )
             }
           />
 
-          {errors.beneficiaryId && (
+          {errors.recipientPartyId && (
             <p className="text-sm text-destructive">
-              {errors.beneficiaryId.message}
+              {
+                errors
+                  .recipientPartyId
+                  .message
+              }
             </p>
           )}
+
+          {transactionType ===
+            "INCOME" && (
+              <p className="text-xs text-muted-foreground">
+                Use quando a receita foi destinada a uma pessoa ou projeto responsável.
+              </p>
+            )}
         </div>
 
         <div className="space-y-2">
-          <Label>Competência</Label>
+          <Label>
+            Competência
+          </Label>
+
           <Input
             id="referenceMonth"
             type="month"
-            {...register("referenceMonth")}
+            {...register(
+              "referenceMonth",
+            )}
           />
+
           {errors.referenceMonth && (
             <p className="text-sm text-destructive">
-              {errors.referenceMonth.message}
+              {
+                errors
+                  .referenceMonth
+                  .message
+              }
             </p>
           )}
+
           <p className="text-xs text-muted-foreground">
-            Padrão: mês da baixa. Altere somente se este repasse quitar outro mês.
+            Padrão: mês da baixa. Altere somente se este valor corresponder a outro mês.
           </p>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="amount">Valor</Label>
+          <Label htmlFor="amount">
+            Valor
+          </Label>
+
           <Controller
             name="amount"
             control={control}
-            render={({ field }) => (
+            render={({
+              field,
+            }) => (
               <CurrencyInput
                 id="amount"
-                value={field.value as number | null | undefined}
-                onValueChange={field.onChange}
+                value={
+                  field.value as
+                  | number
+                  | null
+                  | undefined
+                }
+                onValueChange={
+                  field.onChange
+                }
               />
             )}
           />
 
           {errors.amount && (
             <p className="text-sm text-destructive">
-              {errors.amount.message}
+              {
+                errors
+                  .amount
+                  .message
+              }
             </p>
           )}
         </div>
@@ -229,7 +362,8 @@ export function TransactionAllocationForm({
                       selectedFundAmount: reallocationSuggestion.selectedFundAmount,
                       defaultFundId: reallocationSuggestion.defaultFund.id,
                       defaultFundAmount: reallocationSuggestion.defaultFundAmount,
-                      beneficiaryId: selectedBeneficiaryId ?? "",
+                      sourcePartyId: selectedSourcePartyId ?? "",
+                      recipientPartyId: selectedRecipientPartyId ?? "",
                       referenceMonth: referenceMonth ?? "",
                     })
                   }
@@ -246,15 +380,19 @@ export function TransactionAllocationForm({
 
       <SupportAgreementSuggestionCard
         fundId={selectedFundId}
-        beneficiaryId={selectedBeneficiaryId}
+        beneficiaryId={
+          selectedRecipientPartyId
+        }
         transactionType={transactionType}
         referenceMonth={referenceMonth}
         maxAmount={maxSupportAgreementAmount}
         onApply={(suggestion) => {
           setValue("fundId", suggestion.fundId, { shouldValidate: true })
-          setValue("beneficiaryId", suggestion.beneficiaryId, {
-            shouldValidate: true,
-          })
+          setValue("recipientPartyId", suggestion.beneficiaryId,
+            {
+              shouldValidate: true,
+            },
+          )
           setValue("referenceMonth", suggestion.referenceMonth, {
             shouldValidate: true,
           })
@@ -278,8 +416,7 @@ export function TransactionAllocationForm({
           type="submit"
           disabled={
             isSubmitting ||
-            fundsQuery.isLoading ||
-            beneficiariesQuery.isLoading
+            fundsQuery.isLoading
           }
         >
           {isSubmitting ? "Salvando..." : submitLabel}

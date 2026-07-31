@@ -4,6 +4,8 @@ import type { PageResponse } from "@/types/page-response"
 import type {
   CreateFinancialPartyRequest,
   FinancialParty,
+  FinancialPartyOption,
+  FinancialPartyRole,
   GetFinancialPartiesParams,
   UpdateFinancialPartyRequest,
 } from "./financial-party-types"
@@ -92,6 +94,24 @@ export async function activateFinancialParty(
       FinancialParty
     >(
       `/api/v1/financial-parties/${id}/activate`,
+    )
+
+  return response.data
+}
+
+export async function getFinancialPartyOptions(
+  role?: FinancialPartyRole,
+) {
+  const response =
+    await httpClient.get<
+      FinancialPartyOption[]
+    >(
+      "/api/v1/financial-parties/options",
+      {
+        params: {
+          role,
+        },
+      },
     )
 
   return response.data
