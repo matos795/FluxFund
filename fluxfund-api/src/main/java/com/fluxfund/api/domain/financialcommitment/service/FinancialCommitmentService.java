@@ -113,6 +113,8 @@ public class FinancialCommitmentService {
 
                 request.commitmentType(),
 
+                request.recurrence(),
+
                 request.partyId(),
 
                 request.designatedRecipientId(),
@@ -357,6 +359,8 @@ public class FinancialCommitmentService {
 
                     request.commitmentType(),
 
+                    request.recurrence(),
+
                     request.partyId(),
 
                     request.designatedRecipientId(),
@@ -498,6 +502,8 @@ public class FinancialCommitmentService {
                 commitment.getDirection(),
 
                 commitment.getCommitmentType(),
+
+                commitment.getRecurrence(),
 
                 commitment.getParty().getId(),
 
@@ -679,6 +685,7 @@ public class FinancialCommitmentService {
             UUID organizationId,
             FinancialCommitmentDirection direction,
             FinancialCommitmentType commitmentType,
+            FinancialCommitmentRecurrence recurrence,
             UUID partyId,
             UUID designatedRecipientId,
             UUID fundId,
@@ -690,6 +697,7 @@ public class FinancialCommitmentService {
                         organizationId,
                         direction,
                         commitmentType,
+                        recurrence,
                         partyId,
                         designatedRecipientId,
                         fundId,

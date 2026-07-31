@@ -13,6 +13,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection;
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentType;
 import com.fluxfund.api.domain.supportagreement.SupportAgreement;
 
@@ -256,6 +257,9 @@ public interface SupportAgreementRepository
               and commitment.commitmentType =
                 :commitmentType
 
+              and commitment.recurrence =
+                :recurrence
+
               and commitment.beneficiary.id =
                 :partyId
 
@@ -289,6 +293,7 @@ public interface SupportAgreementRepository
             @Param("organizationId") UUID organizationId,
             @Param("direction") FinancialCommitmentDirection direction,
             @Param("commitmentType") FinancialCommitmentType commitmentType,
+            @Param("recurrence") FinancialCommitmentRecurrence recurrence,
             @Param("partyId") UUID partyId,
             @Param("designatedRecipientId") UUID designatedRecipientId,
             @Param("fundId") UUID fundId,
