@@ -27,7 +27,6 @@ import { attachmentTypeLabels } from "@/features/attachments/attachment-labels";
 import { CurrencyInput } from "@/components/form/currency-input";
 import { CategoryComboboxWithCreate } from "@/features/categories/components/category-combobox-with-create";
 import { FundComboboxWithCreate } from "@/features/funds/components/fund-combobox-with-create";
-import { BeneficiaryComboboxWithCreate } from "@/features/beneficiaries/components/beneficiary-combobox-with-create";
 import { useFundOptions } from "@/features/funds/hooks/use-fund-options";
 import { useOrganizationSettings } from "@/features/organization-settings/hooks/use-organization-settings";
 import { getDefaultFundReallocationSuggestion } from "@/utils/fund-reallocation";
@@ -49,10 +48,12 @@ import {
 import { useClassificationSuggestion } from "../hooks/use-classification-suggestion";
 import { useTransferMatchSuggestion } from "../hooks/use-transfer-match-suggestion";
 import { usePairTransferTransactions } from "../hooks/use-pair-transfer-transactions";
+import { FinancialPartyCombobox } from "@/features/financial-parties/components/financial-party-combobox";
 
 type AllocationFormItem = {
     fundId: string;
-    beneficiaryId: string;
+    sourcePartyId: string;
+    recipientPartyId: string;
     referenceMonth: string;
     amount: string;
 };
@@ -210,7 +211,8 @@ export function TransactionClassifyPanel({
             ...current,
             {
                 fundId: "",
-                beneficiaryId: "",
+                sourcePartyId: "",
+                recipientPartyId: "",
                 referenceMonth: settlementDate ? settlementDate.slice(0, 7) : "",
                 amount: remainingAmount > 0 ? String(remainingAmount) : "",
             },
@@ -270,7 +272,8 @@ export function TransactionClassifyPanel({
 
             updated.splice(index + 1, 0, {
                 fundId: suggestion.defaultFund.id,
-                beneficiaryId: allocation.beneficiaryId,
+                sourcePartyId: allocation.sourcePartyId,
+                recipientPartyId: allocation.recipientPartyId,
                 referenceMonth: allocation.referenceMonth,
                 amount: String(fromCents(formatCents(suggestion.defaultFundAmount))),
             });
@@ -394,10 +397,9 @@ export function TransactionClassifyPanel({
                     )
                     .map((allocation) => ({
                         fundId: allocation.fundId,
-                        beneficiaryId: allocation.beneficiaryId || null,
-                        referenceMonth: allocation.referenceMonth
-                            ? `${allocation.referenceMonth}-01`
-                            : null,
+                        sourcePartyId: type === "INCOME" ? allocation.sourcePartyId || null : null,
+                        recipientPartyId: allocation.recipientPartyId || null,
+                        referenceMonth: allocation.referenceMonth ? `${allocation.referenceMonth}-01` : null,
                         amount: Math.abs(Number(allocation.amount)),
                     }));
 
@@ -619,12 +621,15 @@ export function TransactionClassifyPanel({
                 : "";
 
             setAllocations(
-                suggestion.allocations.map((allocation) => ({
-                    fundId: allocation.fund.id,
-                    beneficiaryId: allocation.beneficiary?.id ?? "",
-                    referenceMonth: defaultReferenceMonth,
-                    amount: String(Math.abs(Number(allocation.amount))),
-                })),
+                suggestion.allocations.map(
+                    (allocation) => ({
+                        fundId: allocation.fund.id,
+                        sourcePartyId: allocation.sourceParty?.id ?? "",
+                        recipientPartyId: allocation.recipientParty?.id ?? allocation.beneficiary?.id ?? "",
+                        referenceMonth: defaultReferenceMonth,
+                        amount: String(Math.abs(Number(allocation.amount))),
+                    }),
+                ),
             );
             toast.info(
                 "Sugestão aplicada com base no histórico. A competência foi iniciada no mês da baixa.",
@@ -792,6 +797,18 @@ export function TransactionClassifyPanel({
                             markAsManuallyEdited();
 
                             setType(nextType);
+
+                            if (nextType !== "INCOME") {
+                                setAllocations((current) =>
+                                    current.map(
+                                        (allocation) => ({
+                                            ...allocation,
+                                            sourcePartyId: "",
+                                        }),
+                                    ),
+                                );
+                            }
+
                             setCategoryId("");
 
                             if (nextType !== "EXPENSE") {
@@ -944,8 +961,8 @@ export function TransactionClassifyPanel({
 
             {type === "TRANSFER" && (
                 <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
-                    Transferências entre contas não usam categoria, fundo, favorecido nem
-                    anexo fiscal. Elas não entram como receita ou despesa nos relatórios.
+                    Transferências entre contas não usam categoria,
+                    fundo, contatos financeiros nem anexo fiscal. Elas não entram como receita ou despesa nos relatórios.
                 </div>
             )}
 
@@ -1010,7 +1027,35 @@ export function TransactionClassifyPanel({
 
                             return (
                                 <div key={index} className="space-y-3">
-                                    <div className="grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-2 lg:grid-cols-[1fr_1fr_160px_140px_auto]">
+                                    <div className={
+                                        type === "INCOME"
+                                            ? "grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_160px_140px_auto]"
+                                            : "grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-2 lg:grid-cols-[1fr_1fr_160px_140px_auto]"
+                                    }>
+
+                                        {type === "INCOME" && (
+                                            <div className="space-y-2">
+                                                <Label>
+                                                    Origem da receita
+                                                </Label>
+
+                                                <FinancialPartyCombobox
+                                                    role="INCOME_SOURCE"
+                                                    value={
+                                                        allocation.sourcePartyId
+                                                    }
+                                                    allowClear
+                                                    clearLabel="Sem origem identificada"
+                                                    onChange={(value) =>
+                                                        handleChangeAllocation(
+                                                            index,
+                                                            "sourcePartyId",
+                                                            value,
+                                                        )
+                                                    }
+                                                />
+                                            </div>
+                                        )}
                                         <div className="space-y-2">
                                             <Label>Fundo</Label>
                                             <FundComboboxWithCreate
@@ -1023,13 +1068,34 @@ export function TransactionClassifyPanel({
                                         </div>
 
                                         <div className="space-y-2">
-                                            <Label>Favorecido</Label>
-                                            <BeneficiaryComboboxWithCreate
-                                                value={allocation.beneficiaryId}
+                                            <Label>
+                                                {type === "INCOME"
+                                                    ? "Destinatário / favorecido"
+                                                    : "Recebedor do pagamento"}
+                                            </Label>
+
+                                            <FinancialPartyCombobox
+                                                role="PAYMENT_RECIPIENT"
+                                                value={
+                                                    allocation.recipientPartyId
+                                                }
                                                 allowClear
-                                                clearLabel="Sem favorecido"
+                                                placeholder={
+                                                    type === "INCOME"
+                                                        ? "Sem destinação individual"
+                                                        : "Sem recebedor identificado"
+                                                }
+                                                clearLabel={
+                                                    type === "INCOME"
+                                                        ? "Sem destinação individual"
+                                                        : "Sem recebedor identificado"
+                                                }
                                                 onChange={(value) =>
-                                                    handleChangeAllocation(index, "beneficiaryId", value)
+                                                    handleChangeAllocation(
+                                                        index,
+                                                        "recipientPartyId",
+                                                        value,
+                                                    )
                                                 }
                                             />
                                         </div>
@@ -1085,7 +1151,7 @@ export function TransactionClassifyPanel({
 
                                     <SupportAgreementSuggestionCard
                                         fundId={allocation.fundId}
-                                        beneficiaryId={allocation.beneficiaryId}
+                                        beneficiaryId={allocation.recipientPartyId}
                                         transactionType={type}
                                         referenceMonth={allocation.referenceMonth}
                                         referenceDateFallback={settlementDate}
@@ -1099,7 +1165,7 @@ export function TransactionClassifyPanel({
                                             );
                                             handleChangeAllocation(
                                                 index,
-                                                "beneficiaryId",
+                                                "recipientPartyId",
                                                 suggestion.beneficiaryId,
                                             );
                                             handleChangeAllocation(

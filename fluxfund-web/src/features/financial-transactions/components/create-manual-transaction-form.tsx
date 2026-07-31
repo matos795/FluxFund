@@ -34,15 +34,16 @@ import { formatCents, formatCurrency, fromCents } from "@/utils/formatters"
 import { toast } from "sonner"
 import type { AttachmentType } from "@/features/attachments/attachment-types"
 import { Paperclip, Plus, Trash2 } from "lucide-react"
-import { BeneficiaryComboboxWithCreate } from "@/features/beneficiaries/components/beneficiary-combobox-with-create"
 import { FundComboboxWithCreate } from "@/features/funds/components/fund-combobox-with-create"
 import { attachmentTypeLabels } from "@/features/attachments/attachment-labels"
 import { getAttachmentAcceptAttribute, getAttachmentRulesDescription, validateAttachmentFile } from "@/features/attachments/attachment-validation"
+import { FinancialPartyCombobox } from "@/features/financial-parties/components/financial-party-combobox"
 
 type AllocationFormItem = {
   id: string
   fundId: string
-  beneficiaryId: string
+  sourcePartyId: string
+  recipientPartyId: string
   referenceMonth: string
   amount: string
 }
@@ -296,13 +297,10 @@ export function CreateManualTransactionForm({
       {
         id: crypto.randomUUID(),
         fundId: "",
-        beneficiaryId: "",
-        referenceMonth:
-          selectedSettlementDate.slice(0, 7),
-        amount:
-          remainingAmount > 0
-            ? String(remainingAmount)
-            : "",
+        sourcePartyId: "",
+        recipientPartyId: "",
+        referenceMonth: selectedSettlementDate.slice(0, 7),
+        amount: remainingAmount > 0 ? String(remainingAmount) : "",
       },
     ])
   }
@@ -466,17 +464,10 @@ export function CreateManualTransactionForm({
           )
           .map((allocation) => ({
             fundId: allocation.fundId,
-
-            beneficiaryId:
-              allocation.beneficiaryId || null,
-
-            referenceMonth:
-              allocation.referenceMonth
-                ? `${allocation.referenceMonth}-01`
-                : null,
-
-            amount: Math.abs(
-              Number(allocation.amount),
+            sourcePartyId: data.type === "INCOME" ? allocation.sourcePartyId || null : null,
+            recipientPartyId: allocation.recipientPartyId || null,
+            referenceMonth: allocation.referenceMonth ? `${allocation.referenceMonth}-01` : null,
+            amount: Math.abs(Number(allocation.amount),
             ),
           }))
 
@@ -570,7 +561,7 @@ export function CreateManualTransactionForm({
         data.type === "TRANSFER"
           ? currentMatchingTransactionId || null
           : null,
-          allowUnmatchedCreation
+      allowUnmatchedCreation
     })
   }
 
@@ -612,6 +603,17 @@ export function CreateManualTransactionForm({
               setValue("type", nextType, {
                 shouldValidate: true,
               })
+
+              if (nextType !== "INCOME") {
+                setAllocations((current) =>
+                  current.map(
+                    (allocation) => ({
+                      ...allocation,
+                      sourcePartyId: "",
+                    }),
+                  ),
+                )
+              }
 
               setValue("categoryId", "", {
                 shouldValidate: true,
@@ -912,9 +914,9 @@ export function CreateManualTransactionForm({
               </h3>
 
               <p className="text-xs text-muted-foreground">
-                Distribua o valor baixado entre fundos e
-                favorecidos. Sem alocação manual, o sistema
-                utiliza o fundo padrão da organização.
+                {selectedType === "INCOME"
+                  ? "Identifique quem enviou o recurso e distribua o valor entre fundos e destinações."
+                  : "Distribua o pagamento entre fundos e recebedores. Sem alocação manual, o sistema utiliza o fundo padrão da organização."}
               </p>
             </div>
 
@@ -948,8 +950,41 @@ export function CreateManualTransactionForm({
               {allocations.map((allocation) => (
                 <div
                   key={allocation.id}
-                  className="grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-2 xl:grid-cols-[1fr_1fr_160px_150px_auto]"
+                  className={
+                    selectedType === "INCOME"
+                      ? "grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_160px_150px_auto]"
+                      : "grid gap-4 rounded-lg border bg-muted/20 p-4 md:grid-cols-2 xl:grid-cols-[1fr_1fr_160px_150px_auto]"
+                  }
                 >
+
+                  {selectedType === "INCOME" && (
+                    <div className="space-y-2">
+                      <Label>
+                        Origem da receita
+                      </Label>
+
+                      <FinancialPartyCombobox
+                        role="INCOME_SOURCE"
+                        value={
+                          allocation.sourcePartyId
+                        }
+                        allowClear
+                        clearLabel="Sem origem identificada"
+                        onChange={(value) =>
+                          handleChangeAllocation(
+                            allocation.id,
+                            "sourcePartyId",
+                            value,
+                          )
+                        }
+                      />
+
+                      <p className="text-xs text-muted-foreground">
+                        Quem enviou este recurso.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <Label>Fundo</Label>
 
@@ -967,16 +1002,32 @@ export function CreateManualTransactionForm({
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Favorecido</Label>
+                    <Label>
+                      {selectedType === "INCOME"
+                        ? "Destinatário / favorecido"
+                        : "Recebedor do pagamento"}
+                    </Label>
 
-                    <BeneficiaryComboboxWithCreate
-                      value={allocation.beneficiaryId}
+                    <FinancialPartyCombobox
+                      role="PAYMENT_RECIPIENT"
+                      value={
+                        allocation.recipientPartyId
+                      }
                       allowClear
-                      clearLabel="Sem favorecido"
+                      placeholder={
+                        selectedType === "INCOME"
+                          ? "Sem destinação individual"
+                          : "Sem recebedor identificado"
+                      }
+                      clearLabel={
+                        selectedType === "INCOME"
+                          ? "Sem destinação individual"
+                          : "Sem recebedor identificado"
+                      }
                       onChange={(value) =>
                         handleChangeAllocation(
                           allocation.id,
-                          "beneficiaryId",
+                          "recipientPartyId",
                           value,
                         )
                       }

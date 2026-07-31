@@ -200,9 +200,13 @@ export type ImportCsvResponse = {
 export type ClassificationSuggestionAllocation = {
   fund: FundSummary
   beneficiary: BeneficiarySummary | null
+  sourceParty?: FinancialPartySummary | null
+  recipientParty?: FinancialPartySummary | null
   amount: number
   referenceMonth: string | null
-  source: "HISTORY" | "SUPPORT_AGREEMENT"
+  source:
+    | "HISTORY"
+    | "SUPPORT_AGREEMENT"
 }
 
 export type FinancialTransactionClassificationSuggestion = {
