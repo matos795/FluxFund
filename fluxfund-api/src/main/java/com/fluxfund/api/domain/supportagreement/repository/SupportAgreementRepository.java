@@ -8,12 +8,16 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection;
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentType;
 import com.fluxfund.api.domain.supportagreement.SupportAgreement;
 
-public interface SupportAgreementRepository extends JpaRepository<SupportAgreement, UUID> {
+public interface SupportAgreementRepository
+        extends JpaRepository<SupportAgreement, UUID>, JpaSpecificationExecutor<SupportAgreement> {
 
     Page<SupportAgreement> findAllByOrganizationId(
             UUID organizationId,
@@ -233,4 +237,62 @@ public interface SupportAgreementRepository extends JpaRepository<SupportAgreeme
     Optional<SupportAgreement> findSupportByIdAndOrganizationId(
             @Param("id") UUID id,
             @Param("organizationId") UUID organizationId);
+
+    @Query("""
+            select case
+                when count(commitment) > 0
+                then true
+                else false
+            end
+
+            from SupportAgreement commitment
+
+            where commitment.organization.id =
+                :organizationId
+
+              and commitment.direction =
+                :direction
+
+              and commitment.commitmentType =
+                :commitmentType
+
+              and commitment.beneficiary.id =
+                :partyId
+
+              and (
+                    (
+                        :designatedRecipientId is null
+                        and commitment.designatedRecipient is null
+                    )
+                    or commitment.designatedRecipient.id = :designatedRecipientId
+                  )
+
+              and commitment.fund.id = :fundId
+              and commitment.active = true
+
+              and (
+                    :excludedId is null
+                    or commitment.id <> :excludedId
+                  )
+
+              and (
+                    :endDate is null
+                    or commitment.startDate <= :endDate
+                  )
+
+              and (
+                    commitment.endDate is null
+                    or commitment.endDate >= :startDate
+                  )
+            """)
+    boolean existsActiveFinancialCommitmentOverlap(
+            @Param("organizationId") UUID organizationId,
+            @Param("direction") FinancialCommitmentDirection direction,
+            @Param("commitmentType") FinancialCommitmentType commitmentType,
+            @Param("partyId") UUID partyId,
+            @Param("designatedRecipientId") UUID designatedRecipientId,
+            @Param("fundId") UUID fundId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("excludedId") UUID excludedId);
 }

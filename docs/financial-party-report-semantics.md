@@ -99,3 +99,52 @@ migrados:
 
 A renomeação não deve alterar valores,
 UUIDs ou relacionamentos existentes.
+
+## Compromissos destinados
+
+Um compromisso a receber pode possuir:
+
+- `party`: quem deverá enviar o recurso;
+- `designatedRecipient`: para quem o recurso foi
+  prometido;
+- `fund`: fundo esperado;
+- `amount`: valor comprometido;
+- `referenceMonth`: mês usado para comparar o
+  previsto com o realizado.
+
+Exemplo:
+
+- party: João Doador;
+- designatedRecipient: Missionário Carlos;
+- fund: Missões;
+- amount: R$ 500.
+
+A realização mensal será calculada pelas alocações
+de receitas em que:
+
+- `sourceParty` seja João;
+- `recipientParty` seja Missionário Carlos;
+- o fundo seja Missões;
+- a competência seja o mês analisado.
+
+Um compromisso a receber sem
+`designatedRecipient` representa uma receita geral.
+
+## Visão futura por favorecido
+
+A visão do favorecido deverá combinar:
+
+1. compromissos `PAYABLE` do próprio favorecido,
+   representando sustento, salário ou pagamentos
+   previstos;
+
+2. compromissos `RECEIVABLE` cujo
+   `designatedRecipient` seja o favorecido,
+   representando doadores compromissados;
+
+3. alocações reais de receitas, usadas para indicar:
+
+   - pendente;
+   - recebido parcialmente;
+   - recebido integralmente;
+   - recebido acima do previsto.

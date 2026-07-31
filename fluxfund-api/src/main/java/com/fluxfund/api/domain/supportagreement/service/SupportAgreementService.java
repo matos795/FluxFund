@@ -237,6 +237,7 @@ public class SupportAgreementService {
                 SupportAgreement nextAgreement = new SupportAgreement();
                 nextAgreement.setOrganization(previousAgreement.getOrganization());
                 nextAgreement.setBeneficiary(previousAgreement.getBeneficiary());
+                nextAgreement.setDesignatedRecipient(previousAgreement.getDesignatedRecipient());
                 nextAgreement.setFund(previousAgreement.getFund());
                 nextAgreement.setDirection(previousAgreement.getDirection());
                 nextAgreement.setCommitmentType(previousAgreement.getCommitmentType());

@@ -42,6 +42,10 @@ public class SupportAgreement
     private Beneficiary beneficiary;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "designated_recipient_id")
+    private Beneficiary designatedRecipient;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "fund_id", nullable = false)
     private Fund fund;
 

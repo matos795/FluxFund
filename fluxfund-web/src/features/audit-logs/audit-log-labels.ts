@@ -76,6 +76,9 @@ export const auditEntityTypeLabels: Record<
   ATTACHMENT:
     "Anexo",
 
+  FINANCIAL_COMMITMENT:
+    "Compromisso financeiro",
+
   SUPPORT_AGREEMENT:
     "Compromisso",
 
