@@ -867,22 +867,30 @@ List<MonthlyCashFlowProjection> findMonthlyCashFlow(
                         @Param("organizationId") UUID organizationId);
 
         @Query("""
-                        select distinct t
-                        from FinancialTransaction t
-                        where t.organization.id = :organizationId
-                          and t.id <> :transactionId
-                          and t.status <> com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.CANCELED
-                          and t.type <> com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
-                          and t.category is not null
-                          and t.rawDescription is not null
-                          and lower(trim(t.rawDescription)) = lower(trim(:rawDescription))
-                        order by t.settlementDate desc, t.createdAt desc
-                        """)
-        List<FinancialTransaction> findClassificationSuggestionCandidates(
-                        @Param("organizationId") UUID organizationId,
-                        @Param("transactionId") UUID transactionId,
-                        @Param("rawDescription") String rawDescription,
-                        Pageable pageable);
+        select t
+        from FinancialTransaction t
+        where t.organization.id = :organizationId
+          and t.id <> :transactionId
+          and t.type = :type
+          and t.status <>
+              com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.CANCELED
+          and t.type <>
+              com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
+          and t.category is not null
+          and t.rawDescription is not null
+          and lower(trim(t.rawDescription)) =
+              lower(trim(:rawDescription))
+        order by
+            t.settlementDate desc,
+            t.createdAt desc
+        """)
+List<FinancialTransaction>
+        findClassificationSuggestionCandidates(
+                @Param("organizationId") UUID organizationId,
+                @Param("transactionId") UUID transactionId,
+                @Param("type") FinancialTransactionType type,
+                @Param("rawDescription") String rawDescription,
+                Pageable pageable);
 
         @Query("""
                         select t

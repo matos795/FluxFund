@@ -750,6 +750,10 @@ public class FinancialTransactionService {
                         return FinancialTransactionClassificationSuggestionResponse.unavailable();
                 }
 
+                if (currentTransaction.getType() == FinancialTransactionType.TRANSFER) {
+                        return FinancialTransactionClassificationSuggestionResponse.unavailable();
+                }
+
                 if (currentTransaction.getCategory() != null) {
                         return FinancialTransactionClassificationSuggestionResponse.unavailable();
                 }
@@ -764,6 +768,7 @@ public class FinancialTransactionService {
                 List<FinancialTransaction> candidates = repository.findClassificationSuggestionCandidates(
                                 organizationId,
                                 currentTransaction.getId(),
+                                currentTransaction.getType(),
                                 rawDescription,
                                 PageRequest.of(0, 1));
 
@@ -1503,6 +1508,51 @@ public class FinancialTransactionService {
                 return amount.abs();
         }
 
+        private Beneficiary resolveSuggestedFinancialParty(Beneficiary financialParty,
+                        FinancialPartyRole requiredRole) {
+
+                if (financialParty == null) {
+                        return null;
+                }
+
+                if (!financialParty.isActive()) {
+                        return null;
+                }
+
+                if (financialParty.getRoles() == null || !financialParty.getRoles().contains(requiredRole)) {
+                        return null;
+                }
+
+                return financialParty;
+        }
+
+        private ClassificationSuggestionAllocationResponse buildSuggestedAllocationResponse(
+                        TransactionAllocation allocation,
+                        BigDecimal suggestedAmount) {
+
+                Beneficiary sourceParty = null;
+
+                if (allocation.getFinancialTransaction().getType() == FinancialTransactionType.INCOME) {
+
+                        sourceParty = resolveSuggestedFinancialParty(
+                                        allocation.getSourceParty(),
+                                        FinancialPartyRole.INCOME_SOURCE);
+                }
+
+                Beneficiary recipientParty = resolveSuggestedFinancialParty(
+                                allocation.getRecipientParty(),
+                                FinancialPartyRole.PAYMENT_RECIPIENT);
+
+                return new ClassificationSuggestionAllocationResponse(
+                                FundMapper.toSummaryResponse(allocation.getFund()),
+                                recipientParty != null ? BeneficiaryMapper.toSummaryResponse(recipientParty) : null,
+                                BeneficiaryMapper.toFinancialPartySummaryResponse(sourceParty),
+                                BeneficiaryMapper.toFinancialPartySummaryResponse(recipientParty),
+                                suggestedAmount,
+                                allocation.getReferenceMonth(),
+                                "HISTORY");
+        }
+
         private List<ClassificationSuggestionAllocationResponse> buildSuggestedAllocations(
                         FinancialTransaction baseTransaction,
                         BigDecimal currentAmount) {
@@ -1525,17 +1575,7 @@ public class FinancialTransactionService {
 
                 if (baseAllocations.size() == 1) {
                         TransactionAllocation allocation = baseAllocations.get(0);
-
-                        return List.of(
-                                        new ClassificationSuggestionAllocationResponse(
-                                                        FundMapper.toSummaryResponse(allocation.getFund()),
-                                                        allocation.getBeneficiary() != null
-                                                                        ? BeneficiaryMapper.toSummaryResponse(
-                                                                                        allocation.getBeneficiary())
-                                                                        : null,
-                                                        currentAmount,
-                                                        allocation.getReferenceMonth(),
-                                                        "HISTORY"));
+                        return List.of(buildSuggestedAllocationResponse(allocation, currentAmount));
                 }
 
                 BigDecimal previousTotal = baseAllocations.stream()
@@ -1573,16 +1613,7 @@ public class FinancialTransactionService {
                                 continue;
                         }
 
-                        suggestions.add(
-                                        new ClassificationSuggestionAllocationResponse(
-                                                        FundMapper.toSummaryResponse(allocation.getFund()),
-                                                        allocation.getBeneficiary() != null
-                                                                        ? BeneficiaryMapper.toSummaryResponse(
-                                                                                        allocation.getBeneficiary())
-                                                                        : null,
-                                                        suggestedAmount,
-                                                        allocation.getReferenceMonth(),
-                                                        "HISTORY"));
+                        suggestions.add(buildSuggestedAllocationResponse(allocation, suggestedAmount));
                 }
 
                 return suggestions;
@@ -1996,8 +2027,10 @@ public class FinancialTransactionService {
 
         private UUID resolveRecipientPartyId(UUID legacyBeneficiaryId, UUID recipientPartyId) {
 
-                if (legacyBeneficiaryId != null && recipientPartyId != null && !legacyBeneficiaryId.equals(recipientPartyId)) {
-                        throw new BusinessException("beneficiaryId and recipientPartyId must reference the same financial party");
+                if (legacyBeneficiaryId != null && recipientPartyId != null
+                                && !legacyBeneficiaryId.equals(recipientPartyId)) {
+                        throw new BusinessException(
+                                        "beneficiaryId and recipientPartyId must reference the same financial party");
                 }
 
                 return recipientPartyId != null ? recipientPartyId : legacyBeneficiaryId;

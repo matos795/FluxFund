@@ -632,8 +632,8 @@ export function TransactionClassifyPanel({
                 ),
             );
             toast.info(
-                "Sugestão aplicada com base no histórico. A competência foi iniciada no mês da baixa.",
-            );
+                "Sugestão aplicada com base no histórico. Categoria, fundos e contatos foram preenchidos para revisão.",
+            )
         }, 0);
 
         return () => window.clearTimeout(timeoutId);
