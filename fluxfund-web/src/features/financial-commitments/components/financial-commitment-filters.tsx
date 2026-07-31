@@ -30,7 +30,6 @@ import {
 import {
   financialCommitmentDirectionLabels,
   financialCommitmentRecurrenceLabels,
-  financialCommitmentStatusLabels,
   financialCommitmentTypeLabels,
   getCommitmentTypesByDirection,
 } from "../financial-commitment-labels"
@@ -38,7 +37,6 @@ import {
 import type {
   FinancialCommitmentDirection,
   FinancialCommitmentRecurrence,
-  FinancialCommitmentStatus,
   FinancialCommitmentType,
 } from "../financial-commitment-types"
 
@@ -55,10 +53,6 @@ type FinancialCommitmentFiltersProps = {
 
   recurrence:
     | FinancialCommitmentRecurrence
-    | ""
-
-  status:
-    | FinancialCommitmentStatus
     | ""
 
   designatedRecipientId:
@@ -86,12 +80,6 @@ type FinancialCommitmentFiltersProps = {
       | "",
   ) => void
 
-  onStatusChange: (
-    value:
-      | FinancialCommitmentStatus
-      | "",
-  ) => void
-
   onDesignatedRecipientIdChange: (
     value: string,
   ) => void
@@ -104,13 +92,11 @@ export function FinancialCommitmentFilters({
   direction,
   commitmentType,
   recurrence,
-  status,
   designatedRecipientId,
   onSearchChange,
   onDirectionChange,
   onCommitmentTypeChange,
   onRecurrenceChange,
-  onStatusChange,
   onDesignatedRecipientIdChange,
   onClear,
 }: FinancialCommitmentFiltersProps) {
@@ -131,7 +117,7 @@ export function FinancialCommitmentFilters({
 
   return (
     <div className="rounded-xl border bg-card p-4 shadow-sm">
-      <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-[minmax(260px,2fr)_repeat(5,minmax(150px,1fr))_auto] xl:items-end">
+      <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-[minmax(260px,2fr)_repeat(4,minmax(150px,1fr))_auto] xl:items-end">
         <div className="space-y-2">
           <Label htmlFor="financial-commitment-search">
             Buscar
@@ -275,52 +261,6 @@ export function FinancialCommitmentFilters({
 
               {Object.entries(
                 financialCommitmentRecurrenceLabels,
-              ).map(
-                ([
-                  value,
-                  label,
-                ]) => (
-                  <SelectItem
-                    key={value}
-                    value={value}
-                  >
-                    {label}
-                  </SelectItem>
-                ),
-              )}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label>
-            Status
-          </Label>
-
-          <Select
-            value={
-              status || "ALL"
-            }
-            onValueChange={(value) =>
-              onStatusChange(
-                value === "ALL"
-                  ? ""
-                  : value as
-                      FinancialCommitmentStatus,
-              )
-            }
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-
-            <SelectContent>
-              <SelectItem value="ALL">
-                Todos
-              </SelectItem>
-
-              {Object.entries(
-                financialCommitmentStatusLabels,
               ).map(
                 ([
                   value,
