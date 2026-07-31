@@ -28,6 +28,7 @@ import { ResetPasswordPage } from "@/pages/reset-password-page"
 import { PlatformAdminRoute } from "./platform-admin-route"
 import { PlatformOrganizationsPage } from "@/pages/platform-organizations-page"
 import { FinancialPartiesPage } from "@/pages/financial-parties-page"
+import { FinancialCommitmentsPage } from "@/pages/financial-commitments-page"
 
 export function AppRoutes() {
   return (
@@ -97,6 +98,12 @@ export function AppRoutes() {
             path="/beneficiaries"
             element={
               <FinancialPartiesPage />
+            }
+          />
+          <Route
+            path="/financial-commitments"
+            element={
+              <FinancialCommitmentsPage />
             }
           />
           <Route

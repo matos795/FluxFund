@@ -32,8 +32,8 @@ export function SupportAgreementsPage() {
     return (
         <div className="space-y-6">
             <PageHeader
-                title="Compromissos"
-                description="Gerencie compromissos fixos de sustento vinculados a favorecidos e fundos."
+                title="Sustento"
+                description="Gerencie compromissos mensais de sustento vinculados a favorecidos e fundos."
             >
                 {canFinanceWrite && <CreateSupportAgreementDialog />}
             </PageHeader>

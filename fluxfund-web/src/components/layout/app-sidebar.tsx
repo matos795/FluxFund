@@ -1,6 +1,7 @@
 import {
   Banknote,
   Building2,
+  CalendarClock,
   ChartNoAxesCombined,
   ChevronsUpDown,
   CreditCard,
@@ -54,9 +55,20 @@ const navigationItems = [
     icon: Users,
   },
   {
-    label: "Compromissos",
-    href: "/support-agreements",
-    icon: HandHeart,
+    label:
+      "Compromissos",
+    href:
+      "/financial-commitments",
+    icon:
+      CalendarClock,
+  },
+  {
+    label:
+      "Sustento",
+    href:
+      "/support-agreements",
+    icon:
+      HandHeart,
   },
   {
     label: "Transações",

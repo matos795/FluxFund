@@ -43,6 +43,7 @@ type FinancialPartyComboboxProps = {
     clearLabel?: string
 
     allowClear?: boolean
+    allowCreate?: boolean
     disabled?: boolean
 }
 
@@ -55,6 +56,7 @@ export function FinancialPartyCombobox({
     emptyMessage,
     clearLabel,
     allowClear = true,
+    allowCreate = true,
     disabled = false,
 }: FinancialPartyComboboxProps) {
     const [
@@ -180,7 +182,8 @@ export function FinancialPartyCombobox({
                     createLabel
                 }
                 onCreate={
-                    canFinanceWrite
+                    canFinanceWrite &&
+                        allowCreate
                         ? () =>
                             setCreateDialogOpen(
                                 true,
@@ -189,29 +192,30 @@ export function FinancialPartyCombobox({
                 }
             />
 
-            {canFinanceWrite && (
-                <CreateFinancialPartyDialog
-                    open={
-                        createDialogOpen
-                    }
-                    onOpenChange={
-                        setCreateDialogOpen
-                    }
-                    requiredRole={
-                        role
-                    }
-                    showTrigger={
-                        false
-                    }
-                    onCreated={(
-                        financialParty,
-                    ) => {
-                        onChange(
-                            financialParty.id,
-                        )
-                    }}
-                />
-            )}
+            {canFinanceWrite &&
+                allowCreate && (
+                    <CreateFinancialPartyDialog
+                        open={
+                            createDialogOpen
+                        }
+                        onOpenChange={
+                            setCreateDialogOpen
+                        }
+                        requiredRole={
+                            role
+                        }
+                        showTrigger={
+                            false
+                        }
+                        onCreated={(
+                            financialParty,
+                        ) => {
+                            onChange(
+                                financialParty.id,
+                            )
+                        }}
+                    />
+                )}
         </>
     )
 }
