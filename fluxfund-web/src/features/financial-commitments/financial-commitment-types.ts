@@ -15,6 +15,7 @@ export type FinancialCommitmentType =
     | "CUSTOMER_PAYMENT"
     | "SPONSORSHIP"
     | "MEMBER_CONTRIBUTION"
+    | "SUPPORT"
     | "SUPPLIER_PAYMENT"
     | "SALARY"
     | "SERVICE_PAYMENT"

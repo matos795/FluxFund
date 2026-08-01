@@ -718,14 +718,15 @@ public class FinancialCommitmentService {
         boolean validType = switch (direction) {
 
             case RECEIVABLE ->
-                commitmentType == FinancialCommitmentType.DONATION
+                commitmentType == FinancialCommitmentType.SUPPORT
+                        || commitmentType == FinancialCommitmentType.DONATION
                         || commitmentType == FinancialCommitmentType.CUSTOMER_PAYMENT
                         || commitmentType == FinancialCommitmentType.SPONSORSHIP
                         || commitmentType == FinancialCommitmentType.MEMBER_CONTRIBUTION
                         || commitmentType == FinancialCommitmentType.OTHER;
 
             case PAYABLE ->
-                 commitmentType == FinancialCommitmentType.SUPPLIER_PAYMENT
+                commitmentType == FinancialCommitmentType.SUPPLIER_PAYMENT
                         || commitmentType == FinancialCommitmentType.SALARY
                         || commitmentType == FinancialCommitmentType.SERVICE_PAYMENT
                         || commitmentType == FinancialCommitmentType.REIMBURSEMENT
