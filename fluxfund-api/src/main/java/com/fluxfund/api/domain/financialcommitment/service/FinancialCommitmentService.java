@@ -571,7 +571,7 @@ public class FinancialCommitmentService {
 
         LocalDate monthStart = referenceMonth.withDayOfMonth(1);
 
-        LocalDate monthEnd = monthStart.withDayOfMonth(monthStartlengthOfMonth());
+        LocalDate monthEnd = monthStart.withDayOfMonth(monthStart.lengthOfMonth());
 
         BigDecimal normalizedAvailableAmount = availableAmount.abs();
 

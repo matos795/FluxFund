@@ -35,6 +35,8 @@ import { useDeleteTransactionAllocation } from "../hooks/use-delete-transaction-
 import { useUpdateTransactionAllocation } from "../hooks/use-update-transaction-allocation"
 import { TransactionAllocationForm } from "./transaction-allocation-form"
 import { useAddTransactionAllocationsBatch } from "../hooks/use-add-transaction-allocations-batch"
+import { financialCommitmentRecurrenceLabels, financialCommitmentTypeLabels } from "@/features/financial-commitments/financial-commitment-labels"
+import { Badge } from "@/components/ui/badge"
 
 type TransactionAllocationsPanelProps = {
   transaction: FinancialTransaction
@@ -143,12 +145,20 @@ export function TransactionAllocationsPanel({
     ],
   )
 
-  const maxSupportAgreementAmount = editingAllocation
-    ? fromCents(
-      formatCents(remainingAmount) +
-      formatCents(Math.abs(editingAllocation.amount)),
-    )
-    : remainingAmount
+  const maxFinancialCommitmentAmount =
+    editingAllocation
+      ? fromCents(
+        formatCents(
+          remainingAmount,
+        ) +
+        formatCents(
+          Math.abs(
+            editingAllocation
+              .amount,
+          ),
+        ),
+      )
+      : remainingAmount
 
   const newAllocationFormKey =
     transaction.allocations
@@ -162,6 +172,7 @@ export function TransactionAllocationsPanel({
             allocation.beneficiary?.id ?? "",
             allocation.amount,
             allocation.referenceMonth ?? "",
+            allocation.financialCommitment?.id ?? "",
           ].join(":"),
       )
       .join("|")
@@ -191,6 +202,8 @@ export function TransactionAllocationsPanel({
             recipientPartyId: data.recipientPartyId || null,
             referenceMonth: toReferenceMonthDate(data.referenceMonth),
             amount: data.amount,
+            financialCommitmentId: data.financialCommitmentId || null,
+            clearFinancialCommitment: data.clearFinancialCommitment ?? false,
           },
         },
         {
@@ -221,6 +234,7 @@ export function TransactionAllocationsPanel({
           recipientPartyId: data.recipientPartyId || null,
           referenceMonth: toReferenceMonthDate(data.referenceMonth),
           amount: data.amount,
+          financialCommitmentId: data.financialCommitmentId || null,
         },
       },
       {
@@ -286,6 +300,7 @@ export function TransactionAllocationsPanel({
       sourcePartyId: string
       recipientPartyId: string
       referenceMonth: string
+      financialCommitmentId: string
     },
   ) {
     if (editingAllocation) {
@@ -302,6 +317,7 @@ export function TransactionAllocationsPanel({
         recipientPartyId: data.recipientPartyId || null,
         referenceMonth: toReferenceMonthDate(data.referenceMonth),
         amount: data.selectedFundAmount,
+        financialCommitmentId: data.financialCommitmentId || null,
       })
     }
 
@@ -312,6 +328,7 @@ export function TransactionAllocationsPanel({
         recipientPartyId: data.recipientPartyId || null,
         referenceMonth: toReferenceMonthDate(data.referenceMonth),
         amount: data.defaultFundAmount,
+        financialCommitmentId: data.financialCommitmentId || null,
       })
     }
 
@@ -437,20 +454,24 @@ export function TransactionAllocationsPanel({
                 recipientPartyId: editingAllocation.recipientParty?.id ?? editingAllocation.beneficiary?.id ?? "",
                 referenceMonth: editingAllocation.referenceMonth?.slice(0, 7) ?? "",
                 amount: Math.abs(editingAllocation.amount),
+                financialCommitmentId: editingAllocation.financialCommitment?.id ?? "",
+                clearFinancialCommitment: false,
               }
               : {
                 referenceMonth: transaction.settlementDate?.slice(0, 7) ?? "",
                 amount: remainingAmount,
+                financialCommitmentId: "",
+                clearFinancialCommitment: false,
               }
           }
           submitLabel={editingAllocation ? "Salvar alocação" : "Adicionar alocação"}
           onSubmit={handleSubmitAllocation}
           isSubmitting={isSubmitting}
           isApplyingReallocation={addAllocationsBatchMutation.isPending}
-          maxSupportAgreementAmount={maxSupportAgreementAmount}
-          onApplyReallocationSuggestion={
-            editingAllocation ? undefined : handleApplyReallocationSuggestion
-          }
+          maxFinancialCommitmentAmount={maxFinancialCommitmentAmount}
+          excludedAllocationId={editingAllocation?.id}
+          currentFinancialCommitment={editingAllocation?.financialCommitment ?? null}
+          onApplyReallocationSuggestion={editingAllocation ? undefined : handleApplyReallocationSuggestion}
         />
       </AppDialogSection>
 
@@ -466,6 +487,7 @@ export function TransactionAllocationsPanel({
                 <TableHead>Fundo</TableHead>
                 <TableHead>Destinatário / recebedor</TableHead>
                 <TableHead>Competência</TableHead>
+                <TableHead>Compromisso</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
                 <TableHead className="w-[100px] text-right">Ações</TableHead>
               </TableRow>
@@ -475,7 +497,7 @@ export function TransactionAllocationsPanel({
               {transaction.allocations.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="h-24 text-center text-sm text-muted-foreground"
                   >
                     Nenhuma alocação cadastrada.
@@ -489,6 +511,65 @@ export function TransactionAllocationsPanel({
                     <TableCell>{allocation.recipientParty?.name ?? allocation.beneficiary?.name ?? "-"}</TableCell>
                     <TableCell>
                       {formatReferenceMonth(allocation.referenceMonth)}
+                    </TableCell>
+                    <TableCell>
+                      {allocation
+                        .financialCommitment ? (
+                        <div className="min-w-44 space-y-1">
+                          <Badge variant="outline">
+                            Vinculado
+                          </Badge>
+
+                          <p className="text-sm font-medium">
+                            {
+                              financialCommitmentTypeLabels[
+                              allocation
+                                .financialCommitment
+                                .commitmentType
+                              ]
+                            }
+                          </p>
+
+                          <p className="text-xs text-muted-foreground">
+                            {
+                              financialCommitmentRecurrenceLabels[
+                              allocation
+                                .financialCommitment
+                                .recurrence
+                              ]
+                            }
+                            {" · "}
+                            Previsto{" "}
+                            {
+                              formatCurrency(
+                                allocation
+                                  .financialCommitment
+                                  .amount,
+                              )
+                            }
+                          </p>
+
+                          {allocation
+                            .financialCommitment
+                            .plannedFund
+                            .id !==
+                            allocation.fund.id && (
+                              <p className="text-xs text-amber-700">
+                                Fundo previsto:{" "}
+                                {
+                                  allocation
+                                    .financialCommitment
+                                    .plannedFund
+                                    .name
+                                }
+                              </p>
+                            )}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">
+                          Sem compromisso
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {formatCurrency(Math.abs(allocation.amount))}

@@ -18,8 +18,9 @@ import { formatCurrency } from "@/utils/formatters"
 import { AlertTriangle } from "lucide-react"
 import { useOrganizationSettings } from "@/features/organization-settings/hooks/use-organization-settings"
 import type { FinancialTransactionType } from "../financial-transaction-types"
-import { SupportAgreementSuggestionCard } from "@/features/support-agreements/components/support-agreement-suggestion-card"
 import { FinancialPartyCombobox } from "@/features/financial-parties/components/financial-party-combobox"
+import type { FinancialCommitmentAllocationSuggestion, FinancialCommitmentAllocationSummary } from "@/features/financial-commitments/financial-commitment-types"
+import { FinancialCommitmentAllocationCard } from "@/features/financial-commitments/components/financial-commitment-allocation-card"
 
 type TransactionAllocationFormProps = {
   onCancel?: () => void
@@ -29,7 +30,9 @@ type TransactionAllocationFormProps = {
   isApplyingReallocation?: boolean
   defaultValues?: Partial<TransactionAllocationFormInput>
   submitLabel?: string
-  maxSupportAgreementAmount?: number
+  maxFinancialCommitmentAmount?: number
+  excludedAllocationId?: string
+  currentFinancialCommitment?: FinancialCommitmentAllocationSummary | null
   onApplyReallocationSuggestion?: (data: {
     selectedFundId: string
     selectedFundAmount: number
@@ -38,6 +41,7 @@ type TransactionAllocationFormProps = {
     sourcePartyId: string
     recipientPartyId: string
     referenceMonth: string
+    financialCommitmentId: string
   }) => void
 }
 
@@ -49,12 +53,13 @@ export function TransactionAllocationForm({
   isApplyingReallocation = false,
   defaultValues,
   submitLabel = "Adicionar alocação",
-  maxSupportAgreementAmount,
+  maxFinancialCommitmentAmount,
+  excludedAllocationId,
+  currentFinancialCommitment,
   onApplyReallocationSuggestion,
 }: TransactionAllocationFormProps) {
 
   const {
-    register,
     handleSubmit,
     setValue,
     control,
@@ -70,6 +75,8 @@ export function TransactionAllocationForm({
       sourcePartyId: defaultValues?.sourcePartyId ?? "",
       recipientPartyId: defaultValues?.recipientPartyId ?? "",
       referenceMonth: defaultValues?.referenceMonth ?? "",
+      financialCommitmentId: defaultValues?.financialCommitmentId ?? "",
+      clearFinancialCommitment: defaultValues?.clearFinancialCommitment ?? false,
       amount: defaultValues?.amount ?? 0,
     },
   })
@@ -91,6 +98,33 @@ export function TransactionAllocationForm({
     name: "amount",
   })
 
+  const selectedFinancialCommitmentId =
+    useWatch({
+      control,
+      name:
+        "financialCommitmentId",
+    })
+
+  const currentAmount =
+    Math.abs(
+      Number(
+        amount || 0,
+      ),
+    )
+
+  const maximumAvailableAmount =
+    Math.max(
+      maxFinancialCommitmentAmount ??
+      currentAmount,
+      0,
+    )
+
+  const commitmentAvailableAmount =
+    Math.min(
+      currentAmount,
+      maximumAvailableAmount,
+    )
+
   const fundsQuery = useFundOptions()
   const settingsQuery = useOrganizationSettings()
 
@@ -109,6 +143,135 @@ export function TransactionAllocationForm({
     control,
     name: "referenceMonth",
   })
+
+  function clearFinancialCommitmentLink() {
+    if (
+      !selectedFinancialCommitmentId
+    ) {
+      return
+    }
+
+    setValue(
+      "financialCommitmentId",
+      "",
+      {
+        shouldDirty: true,
+        shouldValidate: true,
+      },
+    )
+
+    setValue(
+      "clearFinancialCommitment",
+      true,
+      {
+        shouldDirty: true,
+        shouldValidate: true,
+      },
+    )
+  }
+
+  function handleSourcePartyChange(
+    value: string,
+  ) {
+    if (
+      value !==
+      (
+        selectedSourcePartyId ??
+        ""
+      )
+    ) {
+      clearFinancialCommitmentLink()
+    }
+
+    setValue(
+      "sourcePartyId",
+      value,
+      {
+        shouldDirty: true,
+        shouldValidate: true,
+      },
+    )
+  }
+
+  function handleRecipientPartyChange(
+    value: string,
+  ) {
+    if (
+      value !==
+      (
+        selectedRecipientPartyId ??
+        ""
+      )
+    ) {
+      clearFinancialCommitmentLink()
+    }
+
+    setValue(
+      "recipientPartyId",
+      value,
+      {
+        shouldDirty: true,
+        shouldValidate: true,
+      },
+    )
+  }
+
+  function handleReferenceMonthChange(
+    value: string,
+  ) {
+    if (
+      value !==
+      (
+        referenceMonth ??
+        ""
+      )
+    ) {
+      clearFinancialCommitmentLink()
+    }
+
+    setValue(
+      "referenceMonth",
+      value,
+      {
+        shouldDirty: true,
+        shouldValidate: true,
+      },
+    )
+  }
+
+  function handleSelectFinancialCommitment(
+    suggestion:
+      FinancialCommitmentAllocationSuggestion,
+  ) {
+    setValue(
+      "financialCommitmentId",
+      suggestion
+        .commitment
+        .id,
+      {
+        shouldDirty: true,
+        shouldValidate: true,
+      },
+    )
+
+    setValue(
+      "clearFinancialCommitment",
+      false,
+      {
+        shouldDirty: true,
+        shouldValidate: true,
+      },
+    )
+
+    setValue(
+      "amount",
+      suggestion.suggestedAmount,
+      {
+        shouldDirty: true,
+        shouldValidate: true,
+      },
+    )
+  }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -133,15 +296,8 @@ export function TransactionAllocationForm({
               }
               allowClear
               clearLabel="Sem origem identificada"
-              onChange={(value) =>
-                setValue(
-                  "sourcePartyId",
-                  value,
-                  {
-                    shouldValidate:
-                      true,
-                  },
-                )
+              onChange={
+                handleSourcePartyChange
               }
             />
 
@@ -221,15 +377,8 @@ export function TransactionAllocationForm({
                 ? "Sem destinação individual"
                 : "Sem recebedor identificado"
             }
-            onChange={(value) =>
-              setValue(
-                "recipientPartyId",
-                value,
-                {
-                  shouldValidate:
-                    true,
-                },
-              )
+            onChange={
+              handleRecipientPartyChange
             }
           />
 
@@ -259,9 +408,15 @@ export function TransactionAllocationForm({
           <Input
             id="referenceMonth"
             type="month"
-            {...register(
-              "referenceMonth",
-            )}
+            value={
+              referenceMonth ??
+              ""
+            }
+            onChange={(event) =>
+              handleReferenceMonthChange(
+                event.target.value,
+              )
+            }
           />
 
           {errors.referenceMonth && (
@@ -317,6 +472,48 @@ export function TransactionAllocationForm({
         </div>
       </div>
 
+      {transactionType !==
+        "TRANSFER" && (
+          <FinancialCommitmentAllocationCard
+            transactionType={
+              transactionType
+            }
+            sourcePartyId={
+              selectedSourcePartyId
+            }
+            recipientPartyId={
+              selectedRecipientPartyId
+            }
+            fundId={
+              selectedFundId
+            }
+            referenceMonth={
+              referenceMonth
+            }
+            availableAmount={
+              commitmentAvailableAmount
+            }
+            currentAmount={
+              currentAmount
+            }
+            excludedAllocationId={
+              excludedAllocationId
+            }
+            selectedCommitmentId={
+              selectedFinancialCommitmentId
+            }
+            currentCommitment={
+              currentFinancialCommitment
+            }
+            onSelect={
+              handleSelectFinancialCommitment
+            }
+            onClear={
+              clearFinancialCommitmentLink
+            }
+          />
+        )}
+
       {reallocationSuggestion && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
           <div className="flex gap-2">
@@ -365,6 +562,7 @@ export function TransactionAllocationForm({
                       sourcePartyId: selectedSourcePartyId ?? "",
                       recipientPartyId: selectedRecipientPartyId ?? "",
                       referenceMonth: referenceMonth ?? "",
+                      financialCommitmentId: selectedFinancialCommitmentId ?? "",
                     })
                   }
                 >
@@ -377,28 +575,6 @@ export function TransactionAllocationForm({
           </div>
         </div>
       )}
-
-      <SupportAgreementSuggestionCard
-        fundId={selectedFundId}
-        beneficiaryId={
-          selectedRecipientPartyId
-        }
-        transactionType={transactionType}
-        referenceMonth={referenceMonth}
-        maxAmount={maxSupportAgreementAmount}
-        onApply={(suggestion) => {
-          setValue("fundId", suggestion.fundId, { shouldValidate: true })
-          setValue("recipientPartyId", suggestion.beneficiaryId,
-            {
-              shouldValidate: true,
-            },
-          )
-          setValue("referenceMonth", suggestion.referenceMonth, {
-            shouldValidate: true,
-          })
-          setValue("amount", suggestion.amount, { shouldValidate: true })
-        }}
-      />
 
       <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
         {onCancel && (

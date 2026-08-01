@@ -23,6 +23,10 @@ export const transactionAllocationFormSchema =
       .positive(
         "O valor da alocação deve ser maior que zero.",
       ),
+
+    financialCommitmentId: z.string().optional(),
+
+    clearFinancialCommitment: z.boolean().optional(),
   })
 
 export type TransactionAllocationFormInput =

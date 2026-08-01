@@ -17,6 +17,18 @@ export async function invalidateFinancialData(
     }),
 
     queryClient.invalidateQueries({
+      queryKey: [
+        "financial-commitment-allocation-suggestions",
+      ],
+    }),
+
+    queryClient.invalidateQueries({
+      queryKey: [
+        "financial-commitments",
+      ],
+    }),
+
+    queryClient.invalidateQueries({
       queryKey:
         ["dashboard-summary"],
     }),
