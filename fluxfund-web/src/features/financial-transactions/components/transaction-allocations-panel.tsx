@@ -438,41 +438,68 @@ export function TransactionAllocationsPanel({
             : "Distribua o pagamento entre fundos e recebedores."
         }
       >
-        <TransactionAllocationForm
-          key={
-            editingAllocation
-              ? `edit-${editingAllocation.id}`
-              : `new-${newAllocationFormKey}`
-          }
-          onCancel={editingAllocation ? () => setEditingAllocation(null) : undefined}
-          transactionType={transaction.type}
-          defaultValues={
-            editingAllocation
-              ? {
-                fundId: editingAllocation.fund.id,
-                sourcePartyId: editingAllocation.sourceParty?.id ?? "",
-                recipientPartyId: editingAllocation.recipientParty?.id ?? editingAllocation.beneficiary?.id ?? "",
-                referenceMonth: editingAllocation.referenceMonth?.slice(0, 7) ?? "",
-                amount: Math.abs(editingAllocation.amount),
-                financialCommitmentId: editingAllocation.financialCommitment?.id ?? "",
-                clearFinancialCommitment: false,
-              }
-              : {
-                referenceMonth: transaction.settlementDate?.slice(0, 7) ?? "",
-                amount: remainingAmount,
-                financialCommitmentId: "",
-                clearFinancialCommitment: false,
-              }
-          }
-          submitLabel={editingAllocation ? "Salvar alocação" : "Adicionar alocação"}
-          onSubmit={handleSubmitAllocation}
-          isSubmitting={isSubmitting}
-          isApplyingReallocation={addAllocationsBatchMutation.isPending}
-          maxFinancialCommitmentAmount={maxFinancialCommitmentAmount}
-          excludedAllocationId={editingAllocation?.id}
-          currentFinancialCommitment={editingAllocation?.financialCommitment ?? null}
-          onApplyReallocationSuggestion={editingAllocation ? undefined : handleApplyReallocationSuggestion}
-        />
+        {!editingAllocation &&
+          transaction.allocations.length >
+          0 &&
+          remainingAmount <= 0 ? (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">
+            <div className="flex gap-3">
+              <Pencil className="mt-0.5 size-4 shrink-0" />
+
+              <div className="space-y-1">
+                <p className="font-medium">
+                  Esta transação já está totalmente alocada
+                </p>
+
+                <p className="text-xs">
+                  Para relacionar o valor a um compromisso, clique no lápis da alocação correspondente na tabela abaixo.
+                </p>
+
+                <p className="text-xs">
+                  Você poderá informar a origem ou o recebedor, confirmar a competência e selecionar o compromisso sem criar uma nova distribuição.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <TransactionAllocationForm
+            key={
+              editingAllocation
+                ? `edit-${editingAllocation.id}`
+                : `new-${newAllocationFormKey}`
+            }
+            onCancel={editingAllocation ? () => setEditingAllocation(null) : undefined}
+            transactionType={transaction.type}
+            defaultValues={
+              editingAllocation
+                ? {
+                  fundId: editingAllocation.fund.id,
+                  sourcePartyId: editingAllocation.sourceParty?.id ?? "",
+                  recipientPartyId: editingAllocation.recipientParty?.id ?? editingAllocation.beneficiary?.id ?? "",
+                  referenceMonth: editingAllocation.referenceMonth?.slice(0, 7) ?? "",
+                  amount: Math.abs(editingAllocation.amount),
+                  financialCommitmentId: editingAllocation.financialCommitment?.id ?? "",
+                  clearFinancialCommitment: false,
+                }
+                : {
+                  sourcePartyId: remainingPartyContext?.sourcePartyId ?? "",
+                  recipientPartyId: remainingPartyContext?.recipientPartyId ?? "",
+                  referenceMonth: transaction.settlementDate?.slice(0, 7) ?? "",
+                  amount: remainingAmount,
+                  financialCommitmentId: "",
+                  clearFinancialCommitment: false,
+                }
+            }
+            submitLabel={editingAllocation ? "Salvar alocação" : "Adicionar alocação"}
+            onSubmit={handleSubmitAllocation}
+            isSubmitting={isSubmitting}
+            isApplyingReallocation={addAllocationsBatchMutation.isPending}
+            maxFinancialCommitmentAmount={maxFinancialCommitmentAmount}
+            excludedAllocationId={editingAllocation?.id}
+            currentFinancialCommitment={editingAllocation?.financialCommitment ?? null}
+            onApplyReallocationSuggestion={editingAllocation ? undefined : handleApplyReallocationSuggestion}
+          />
+        )}
       </AppDialogSection>
 
       <AppDialogSection

@@ -32,7 +32,6 @@ import { useOrganizationSettings } from "@/features/organization-settings/hooks/
 import { getDefaultFundReallocationSuggestion } from "@/utils/fund-reallocation";
 import { formatCents, formatCurrency, fromCents } from "@/utils/formatters";
 import { getApiErrorMessage } from "@/utils/api-error";
-import { SupportAgreementSuggestionCard } from "@/features/support-agreements/components/support-agreement-suggestion-card";
 import { useAccounts } from "@/features/accounts/hooks/use-accounts";
 import { EntityCombobox } from "@/components/form/entity-combobox";
 import {
@@ -49,6 +48,8 @@ import { useClassificationSuggestion } from "../hooks/use-classification-suggest
 import { useTransferMatchSuggestion } from "../hooks/use-transfer-match-suggestion";
 import { usePairTransferTransactions } from "../hooks/use-pair-transfer-transactions";
 import { FinancialPartyCombobox } from "@/features/financial-parties/components/financial-party-combobox";
+import type { FinancialCommitmentAllocationSuggestion } from "@/features/financial-commitments/financial-commitment-types";
+import { FinancialCommitmentAllocationCard } from "@/features/financial-commitments/components/financial-commitment-allocation-card";
 
 type AllocationFormItem = {
     fundId: string;
@@ -56,6 +57,7 @@ type AllocationFormItem = {
     recipientPartyId: string;
     referenceMonth: string;
     amount: string;
+    financialCommitmentId: string;
 };
 
 type PendingAttachmentItem = {
@@ -215,6 +217,7 @@ export function TransactionClassifyPanel({
                 recipientPartyId: "",
                 referenceMonth: settlementDate ? settlementDate.slice(0, 7) : "",
                 amount: remainingAmount > 0 ? String(remainingAmount) : "",
+                financialCommitmentId: "",
             },
         ]);
     }
@@ -228,19 +231,107 @@ export function TransactionClassifyPanel({
 
     function handleChangeAllocation(
         index: number,
-        field: keyof AllocationFormItem,
+        field:
+            keyof AllocationFormItem,
         value: string,
     ) {
         markAsManuallyEdited();
 
+        const changesCommitmentContext =
+            field ===
+            "sourcePartyId" ||
+            field ===
+            "recipientPartyId" ||
+            field ===
+            "referenceMonth";
+
         setAllocations((current) =>
-            current.map((allocation, itemIndex) =>
-                itemIndex === index
-                    ? {
-                        ...allocation,
-                        [field]: value,
+            current.map(
+                (
+                    allocation,
+                    itemIndex,
+                ) => {
+                    if (
+                        itemIndex !== index
+                    ) {
+                        return allocation;
                     }
-                    : allocation,
+
+                    const contextChanged =
+                        changesCommitmentContext &&
+                        allocation[field] !==
+                        value;
+
+                    return {
+                        ...allocation,
+
+                        [field]:
+                            value,
+
+                        financialCommitmentId:
+                            contextChanged
+                                ? ""
+                                : allocation
+                                    .financialCommitmentId,
+                    };
+                },
+            ),
+        );
+    }
+
+    function handleSelectFinancialCommitment(
+        index: number,
+
+        suggestion:
+            FinancialCommitmentAllocationSuggestion,
+    ) {
+        markAsManuallyEdited();
+
+        setAllocations((current) =>
+            current.map(
+                (
+                    allocation,
+                    itemIndex,
+                ) =>
+                    itemIndex === index
+                        ? {
+                            ...allocation,
+
+                            financialCommitmentId:
+                                suggestion
+                                    .commitment
+                                    .id,
+
+                            amount:
+                                String(
+                                    suggestion
+                                        .suggestedAmount,
+                                ),
+                        }
+                        : allocation,
+            ),
+        );
+    }
+
+    function handleClearFinancialCommitment(
+        index: number,
+    ) {
+        markAsManuallyEdited();
+
+        setAllocations((current) =>
+            current.map(
+                (
+                    allocation,
+                    itemIndex,
+                ) =>
+                    itemIndex === index
+                        ? {
+                            ...allocation,
+
+                            financialCommitmentId:
+                                "",
+                        }
+                        : allocation,
             ),
         );
     }
@@ -276,6 +367,7 @@ export function TransactionClassifyPanel({
                 recipientPartyId: allocation.recipientPartyId,
                 referenceMonth: allocation.referenceMonth,
                 amount: String(fromCents(formatCents(suggestion.defaultFundAmount))),
+                financialCommitmentId: allocation.financialCommitmentId,
             });
 
             return updated;
@@ -628,6 +720,7 @@ export function TransactionClassifyPanel({
                         recipientPartyId: allocation.recipientParty?.id ?? allocation.beneficiary?.id ?? "",
                         referenceMonth: defaultReferenceMonth,
                         amount: String(Math.abs(Number(allocation.amount))),
+                        financialCommitmentId: "",
                     }),
                 ),
             );
@@ -800,12 +893,11 @@ export function TransactionClassifyPanel({
 
                             if (nextType !== "INCOME") {
                                 setAllocations((current) =>
-                                    current.map(
-                                        (allocation) => ({
-                                            ...allocation,
-                                            sourcePartyId: "",
-                                        }),
-                                    ),
+                                    current.map((allocation) => ({
+                                        ...allocation,
+                                        sourcePartyId: "",
+                                        financialCommitmentId: "",
+                                    })),
                                 );
                             }
 
@@ -994,6 +1086,7 @@ export function TransactionClassifyPanel({
                             Se nenhuma alocação for informada, o sistema usará o fundo padrão.
                             Se houver alocação parcial, o restante continuará pendente para
                             alocação.
+                            Para relacionar esta transação a um doador, favorecido ou compromisso financeiro, adicione uma alocação manual.
                         </p>
                     </div>
 
@@ -1149,36 +1242,67 @@ export function TransactionClassifyPanel({
                                         </div>
                                     </div>
 
-                                    <SupportAgreementSuggestionCard
-                                        fundId={allocation.fundId}
-                                        beneficiaryId={allocation.recipientPartyId}
-                                        transactionType={type}
-                                        referenceMonth={allocation.referenceMonth}
-                                        referenceDateFallback={settlementDate}
-                                        maxAmount={getMaxAmountForAllocation(index)}
-                                        autoApply={false}
-                                        onApply={(suggestion) => {
-                                            handleChangeAllocation(
+                                    <FinancialCommitmentAllocationCard
+                                        transactionType={
+                                            type === "INCOME"
+                                                ? "INCOME"
+                                                : "EXPENSE"
+                                        }
+                                        sourcePartyId={
+                                            allocation.sourcePartyId
+                                        }
+                                        recipientPartyId={
+                                            allocation
+                                                .recipientPartyId
+                                        }
+                                        fundId={
+                                            allocation.fundId
+                                        }
+                                        referenceMonth={
+                                            allocation.referenceMonth
+                                        }
+                                        currentAmount={
+                                            Math.abs(
+                                                Number(
+                                                    allocation.amount ||
+                                                    0,
+                                                ),
+                                            )
+                                        }
+                                        availableAmount={
+                                            Math.min(
+                                                Math.abs(
+                                                    Number(
+                                                        allocation.amount ||
+                                                        0,
+                                                    ),
+                                                ),
+
+                                                getMaxAmountForAllocation(
+                                                    index,
+                                                ),
+                                            )
+                                        }
+                                        selectedCommitmentId={
+                                            allocation
+                                                .financialCommitmentId
+                                        }
+                                        currentCommitment={
+                                            null
+                                        }
+                                        onSelect={(
+                                            commitmentSuggestion,
+                                        ) =>
+                                            handleSelectFinancialCommitment(
                                                 index,
-                                                "fundId",
-                                                suggestion.fundId,
-                                            );
-                                            handleChangeAllocation(
+                                                commitmentSuggestion,
+                                            )
+                                        }
+                                        onClear={() =>
+                                            handleClearFinancialCommitment(
                                                 index,
-                                                "recipientPartyId",
-                                                suggestion.beneficiaryId,
-                                            );
-                                            handleChangeAllocation(
-                                                index,
-                                                "referenceMonth",
-                                                suggestion.referenceMonth,
-                                            );
-                                            handleChangeAllocation(
-                                                index,
-                                                "amount",
-                                                String(suggestion.amount),
-                                            );
-                                        }}
+                                            )
+                                        }
                                     />
 
                                     {suggestion && (

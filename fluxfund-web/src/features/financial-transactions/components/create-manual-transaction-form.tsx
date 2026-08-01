@@ -38,6 +38,8 @@ import { FundComboboxWithCreate } from "@/features/funds/components/fund-combobo
 import { attachmentTypeLabels } from "@/features/attachments/attachment-labels"
 import { getAttachmentAcceptAttribute, getAttachmentRulesDescription, validateAttachmentFile } from "@/features/attachments/attachment-validation"
 import { FinancialPartyCombobox } from "@/features/financial-parties/components/financial-party-combobox"
+import { FinancialCommitmentAllocationCard } from "@/features/financial-commitments/components/financial-commitment-allocation-card"
+import type { FinancialCommitmentAllocationSuggestion } from "@/features/financial-commitments/financial-commitment-types"
 
 type AllocationFormItem = {
   id: string
@@ -46,6 +48,7 @@ type AllocationFormItem = {
   recipientPartyId: string
   referenceMonth: string
   amount: string
+  financialCommitmentId: string
 }
 
 type PendingManualAttachment = {
@@ -301,6 +304,7 @@ export function CreateManualTransactionForm({
         recipientPartyId: "",
         referenceMonth: selectedSettlementDate.slice(0, 7),
         amount: remainingAmount > 0 ? String(remainingAmount) : "",
+        financialCommitmentId: "",
       },
     ])
   }
@@ -315,18 +319,137 @@ export function CreateManualTransactionForm({
 
   function handleChangeAllocation(
     id: string,
-    field: keyof Omit<AllocationFormItem, "id">,
+
+    field:
+      keyof Omit<
+        AllocationFormItem,
+        "id"
+      >,
+
     value: string,
   ) {
+    const changesCommitmentContext =
+      field ===
+      "sourcePartyId" ||
+      field ===
+      "recipientPartyId" ||
+      field ===
+      "referenceMonth"
+
     setAllocations((current) =>
-      current.map((allocation) =>
-        allocation.id === id
-          ? {
-            ...allocation,
-            [field]: value,
+      current.map(
+        (allocation) => {
+          if (
+            allocation.id !== id
+          ) {
+            return allocation
           }
-          : allocation,
+
+          const contextChanged =
+            changesCommitmentContext &&
+            allocation[field] !==
+            value
+
+          return {
+            ...allocation,
+
+            [field]:
+              value,
+
+            financialCommitmentId:
+              contextChanged
+                ? ""
+                : allocation
+                  .financialCommitmentId,
+          }
+        },
       ),
+    )
+  }
+
+  function handleSelectFinancialCommitment(
+    allocationId: string,
+
+    suggestion:
+      FinancialCommitmentAllocationSuggestion,
+  ) {
+    setAllocations((current) =>
+      current.map(
+        (allocation) =>
+          allocation.id ===
+            allocationId
+            ? {
+              ...allocation,
+
+              financialCommitmentId:
+                suggestion
+                  .commitment
+                  .id,
+
+              amount:
+                String(
+                  suggestion
+                    .suggestedAmount,
+                ),
+            }
+            : allocation,
+      ),
+    )
+  }
+
+  function handleClearFinancialCommitment(
+    allocationId: string,
+  ) {
+    setAllocations((current) =>
+      current.map(
+        (allocation) =>
+          allocation.id ===
+            allocationId
+            ? {
+              ...allocation,
+
+              financialCommitmentId:
+                "",
+            }
+            : allocation,
+      ),
+    )
+  }
+
+  function getMaxAmountForAllocation(
+    allocationId: string,
+  ) {
+    const otherAllocationsInCents =
+      allocations.reduce(
+        (
+          total,
+          allocation,
+        ) => {
+          if (
+            allocation.id ===
+            allocationId
+          ) {
+            return total
+          }
+
+          return (
+            total +
+            formatCents(
+              allocation.amount,
+            )
+          )
+        },
+        0,
+      )
+
+    return Math.max(
+      fromCents(
+        formatCents(
+          allocationBaseAmount,
+        ) -
+        otherAllocationsInCents,
+      ),
+      0,
     )
   }
 
@@ -467,8 +590,8 @@ export function CreateManualTransactionForm({
             sourcePartyId: data.type === "INCOME" ? allocation.sourcePartyId || null : null,
             recipientPartyId: allocation.recipientPartyId || null,
             referenceMonth: allocation.referenceMonth ? `${allocation.referenceMonth}-01` : null,
-            amount: Math.abs(Number(allocation.amount),
-            ),
+            amount: Math.abs(Number(allocation.amount)),
+            financialCommitmentId: allocation.financialCommitmentId || null,
           }))
 
     const hasIncompleteAllocation =
@@ -610,6 +733,7 @@ export function CreateManualTransactionForm({
                     (allocation) => ({
                       ...allocation,
                       sourcePartyId: "",
+                      financialCommitmentId: "",
                     }),
                   ),
                 )
@@ -942,8 +1066,8 @@ export function CreateManualTransactionForm({
             </div>
           ) : allocations.length === 0 ? (
             <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-              Nenhuma alocação manual. O fundo padrão será
-              utilizado quando aplicável.
+              Nenhuma alocação manual. O fundo padrão será utilizado quando aplicável.
+              Para relacionar esta transação a um doador, favorecido ou compromisso financeiro, adicione uma alocação manual.
             </div>
           ) : (
             <div className="space-y-3">
@@ -1080,6 +1204,74 @@ export function CreateManualTransactionForm({
                     >
                       <Trash2 className="size-4 text-destructive" />
                     </Button>
+                  </div>
+
+                  <div className="md:col-span-2 xl:col-span-full">
+                    <FinancialCommitmentAllocationCard
+                      transactionType={
+                        selectedType ===
+                          "INCOME"
+                          ? "INCOME"
+                          : "EXPENSE"
+                      }
+                      sourcePartyId={
+                        allocation
+                          .sourcePartyId
+                      }
+                      recipientPartyId={
+                        allocation
+                          .recipientPartyId
+                      }
+                      fundId={
+                        allocation.fundId
+                      }
+                      referenceMonth={
+                        allocation
+                          .referenceMonth
+                      }
+                      currentAmount={
+                        Math.abs(
+                          Number(
+                            allocation.amount ||
+                            0,
+                          ),
+                        )
+                      }
+                      availableAmount={
+                        Math.min(
+                          Math.abs(
+                            Number(
+                              allocation.amount ||
+                              0,
+                            ),
+                          ),
+
+                          getMaxAmountForAllocation(
+                            allocation.id,
+                          ),
+                        )
+                      }
+                      selectedCommitmentId={
+                        allocation
+                          .financialCommitmentId
+                      }
+                      currentCommitment={
+                        null
+                      }
+                      onSelect={(
+                        suggestion,
+                      ) =>
+                        handleSelectFinancialCommitment(
+                          allocation.id,
+                          suggestion,
+                        )
+                      }
+                      onClear={() =>
+                        handleClearFinancialCommitment(
+                          allocation.id,
+                        )
+                      }
+                    />
                   </div>
                 </div>
               ))}
