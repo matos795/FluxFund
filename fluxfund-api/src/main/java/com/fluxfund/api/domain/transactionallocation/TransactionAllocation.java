@@ -4,10 +4,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import com.fluxfund.api.domain.beneficiary.Beneficiary;
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitment;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.fund.Fund;
 import com.fluxfund.api.domain.organization.Organization;
-import com.fluxfund.api.domain.supportagreement.SupportAgreement;
 import com.fluxfund.api.shared.BaseEntity;
 
 import jakarta.persistence.Column;
@@ -50,7 +50,7 @@ public class TransactionAllocation extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "financial_commitment_id")
-    private SupportAgreement financialCommitment;
+    private FinancialCommitment financialCommitment;
 
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal amount = BigDecimal.ZERO;

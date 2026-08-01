@@ -12,15 +12,15 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitment;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence;
 import com.fluxfund.api.domain.financialcommitment.mapper.FinancialCommitmentMapper;
+import com.fluxfund.api.domain.financialcommitment.repository.FinancialCommitmentRepository;
 import com.fluxfund.api.domain.report.dto.financialcommitment.FinancialCommitmentMonthlyItemResponse;
 import com.fluxfund.api.domain.report.dto.financialcommitment.FinancialCommitmentMonthlyReportResponse;
 import com.fluxfund.api.domain.report.dto.financialcommitment.FinancialCommitmentRealizationProjection;
 import com.fluxfund.api.domain.report.dto.financialcommitment.FinancialCommitmentRealizationStatus;
-import com.fluxfund.api.domain.supportagreement.SupportAgreement;
-import com.fluxfund.api.domain.supportagreement.repository.SupportAgreementRepository;
 import com.fluxfund.api.domain.transactionallocation.repository.TransactionAllocationRepository;
 import com.fluxfund.api.security.OrganizationAccessService;
 
@@ -31,7 +31,7 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 public class FinancialCommitmentReportService {
 
-    private final SupportAgreementRepository commitmentRepository;
+    private final FinancialCommitmentRepository commitmentRepository;
 
     private final TransactionAllocationRepository allocationRepository;
 
@@ -73,7 +73,7 @@ public class FinancialCommitmentReportService {
 
                 : null;
 
-        List<SupportAgreement> commitments = commitmentRepository
+        List<FinancialCommitment> commitments = commitmentRepository
                 .findApplicableForMonthlyRealization(
 
                         organizationId,
@@ -186,7 +186,7 @@ public class FinancialCommitmentReportService {
 
     private FinancialCommitmentMonthlyItemResponse createItem(
 
-            SupportAgreement commitment,
+            FinancialCommitment commitment,
 
             LocalDate referenceMonth,
 
@@ -288,7 +288,7 @@ public class FinancialCommitmentReportService {
     }
 
     private LocalDate resolveDueDate(
-            SupportAgreement commitment,
+            FinancialCommitment commitment,
             LocalDate referenceMonth) {
 
         if (commitment.getRecurrence() == FinancialCommitmentRecurrence.ONE_TIME) {

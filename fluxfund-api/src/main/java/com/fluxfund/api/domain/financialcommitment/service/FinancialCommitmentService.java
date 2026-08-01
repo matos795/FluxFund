@@ -18,23 +18,23 @@ import com.fluxfund.api.domain.audit.service.AuditLogService;
 import com.fluxfund.api.domain.beneficiary.Beneficiary;
 import com.fluxfund.api.domain.beneficiary.FinancialPartyRole;
 import com.fluxfund.api.domain.beneficiary.repository.BeneficiaryRepository;
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitment;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence;
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentStatus;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentType;
 import com.fluxfund.api.domain.financialcommitment.dto.CreateFinancialCommitmentRequest;
 import com.fluxfund.api.domain.financialcommitment.dto.FinancialCommitmentAllocationSuggestionResponse;
 import com.fluxfund.api.domain.financialcommitment.dto.FinancialCommitmentResponse;
 import com.fluxfund.api.domain.financialcommitment.dto.UpdateFinancialCommitmentRequest;
 import com.fluxfund.api.domain.financialcommitment.mapper.FinancialCommitmentMapper;
+import com.fluxfund.api.domain.financialcommitment.repository.FinancialCommitmentRepository;
 import com.fluxfund.api.domain.financialcommitment.specification.FinancialCommitmentSpecification;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.fund.Fund;
 import com.fluxfund.api.domain.fund.repository.FundRepository;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.repository.OrganizationRepository;
-import com.fluxfund.api.domain.supportagreement.SupportAgreement;
-import com.fluxfund.api.domain.supportagreement.SupportAgreementStatus;
-import com.fluxfund.api.domain.supportagreement.repository.SupportAgreementRepository;
 import com.fluxfund.api.domain.transactionallocation.repository.TransactionAllocationRepository;
 import com.fluxfund.api.security.OrganizationAccessService;
 import com.fluxfund.api.shared.exception.BusinessException;
@@ -47,7 +47,7 @@ import lombok.RequiredArgsConstructor;
 @Transactional
 public class FinancialCommitmentService {
 
-    private final SupportAgreementRepository repository;
+    private final FinancialCommitmentRepository repository;
     private final OrganizationRepository organizationRepository;
     private final BeneficiaryRepository beneficiaryRepository;
     private final FundRepository fundRepository;
@@ -105,7 +105,7 @@ public class FinancialCommitmentService {
                 endDate,
                 null);
 
-        SupportAgreement commitment = new SupportAgreement();
+        FinancialCommitment commitment = new FinancialCommitment();
 
         commitment.setOrganization(
                 organization);
@@ -182,7 +182,7 @@ public class FinancialCommitmentService {
 
             FinancialCommitmentRecurrence recurrence,
 
-            SupportAgreementStatus status,
+            FinancialCommitmentStatus status,
 
             UUID partyId,
 
@@ -198,7 +198,7 @@ public class FinancialCommitmentService {
 
         LocalDate referenceDate = LocalDate.now();
 
-        Specification<SupportAgreement> specification =
+        Specification<FinancialCommitment> specification =
 
                 FinancialCommitmentSpecification
                         .withFilters(
@@ -268,7 +268,7 @@ public class FinancialCommitmentService {
                 .requireFinanceWriteAccess(
                         organizationId);
 
-        SupportAgreement commitment = findEntityById(
+        FinancialCommitment commitment = findEntityById(
                 organizationId,
                 id);
 
@@ -413,7 +413,7 @@ public class FinancialCommitmentService {
                 .requireFinanceWriteAccess(
                         organizationId);
 
-        SupportAgreement commitment = findEntityById(
+        FinancialCommitment commitment = findEntityById(
                 organizationId,
                 id);
 
@@ -451,7 +451,7 @@ public class FinancialCommitmentService {
                 .requireFinanceWriteAccess(
                         organizationId);
 
-        SupportAgreement commitment = findEntityById(
+        FinancialCommitment commitment = findEntityById(
                 organizationId,
                 id);
 
@@ -614,7 +614,7 @@ public class FinancialCommitmentService {
                 .toList();
     }
 
-    private SupportAgreement findEntityById(
+    private FinancialCommitment findEntityById(
 
             UUID organizationId,
 
@@ -725,8 +725,7 @@ public class FinancialCommitmentService {
                         || commitmentType == FinancialCommitmentType.OTHER;
 
             case PAYABLE ->
-                commitmentType == FinancialCommitmentType.SUPPORT
-                        || commitmentType == FinancialCommitmentType.SUPPLIER_PAYMENT
+                 commitmentType == FinancialCommitmentType.SUPPLIER_PAYMENT
                         || commitmentType == FinancialCommitmentType.SALARY
                         || commitmentType == FinancialCommitmentType.SERVICE_PAYMENT
                         || commitmentType == FinancialCommitmentType.REIMBURSEMENT

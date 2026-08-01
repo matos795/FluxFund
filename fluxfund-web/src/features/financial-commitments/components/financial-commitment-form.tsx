@@ -245,7 +245,7 @@ export function FinancialCommitmentForm({
       nextDirection ===
         "RECEIVABLE"
         ? "DONATION"
-        : "SUPPORT",
+        : "OTHER",
       {
         shouldDirty: true,
         shouldValidate: true,

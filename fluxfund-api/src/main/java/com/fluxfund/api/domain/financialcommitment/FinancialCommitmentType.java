@@ -2,7 +2,6 @@ package com.fluxfund.api.domain.financialcommitment;
 
 public enum FinancialCommitmentType {
 
-    SUPPORT,
     DONATION,
     CUSTOMER_PAYMENT,
     SPONSORSHIP,

@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence;
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentStatus;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentType;
 import com.fluxfund.api.domain.financialcommitment.dto.CreateFinancialCommitmentRequest;
 import com.fluxfund.api.domain.financialcommitment.dto.FinancialCommitmentAllocationSuggestionResponse;
@@ -35,7 +36,6 @@ import com.fluxfund.api.domain.financialcommitment.dto.FinancialCommitmentRespon
 import com.fluxfund.api.domain.financialcommitment.dto.UpdateFinancialCommitmentRequest;
 import com.fluxfund.api.domain.financialcommitment.service.FinancialCommitmentService;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
-import com.fluxfund.api.domain.supportagreement.SupportAgreementStatus;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -71,7 +71,7 @@ public class FinancialCommitmentController {
 
             @RequestParam(required = false) FinancialCommitmentRecurrence recurrence,
 
-            @RequestParam(required = false) SupportAgreementStatus status,
+            @RequestParam(required = false) FinancialCommitmentStatus status,
 
             @RequestParam(required = false) UUID partyId,
 

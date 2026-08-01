@@ -1,32 +1,18 @@
 /*
- * Vincula opcionalmente uma alocação a um
- * compromisso financeiro.
+ * Vínculo opcional entre uma alocação
+ * e um compromisso financeiro genérico.
  *
- * A relação é:
- *
- * compromisso 1
- *     para
- * várias alocações
- *
- * Isso permite:
- *
- * - realização parcial;
- * - realização em mais de uma transação;
- * - divisão de uma transação entre compromissos.
+ * Alocações antigas permanecem com NULL
+ * até a reconciliação histórica.
  */
-
 ALTER TABLE transaction_allocation
     ADD COLUMN financial_commitment_id UUID;
 
 ALTER TABLE transaction_allocation
     ADD CONSTRAINT fk_transaction_allocation_financial_commitment
     FOREIGN KEY (financial_commitment_id)
-    REFERENCES support_agreement(id);
+    REFERENCES financial_commitment(id);
 
-/*
- * Usado para calcular quanto foi realizado
- * de cada compromisso em uma competência.
- */
 CREATE INDEX idx_allocation_commitment_reference_month
     ON transaction_allocation (
         organization_id,
@@ -38,4 +24,4 @@ CREATE INDEX idx_allocation_commitment_reference_month
 COMMENT ON COLUMN
     transaction_allocation.financial_commitment_id
 IS
-    'Compromisso financeiro opcional realizado por esta alocação';
+    'Compromisso financeiro genérico realizado por esta alocação';

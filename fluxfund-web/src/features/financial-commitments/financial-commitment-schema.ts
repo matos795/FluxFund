@@ -30,7 +30,6 @@ const financialCommitmentBaseSchema =
     ]),
 
     commitmentType: z.enum([
-      "SUPPORT",
       "DONATION",
       "CUSTOMER_PAYMENT",
       "SPONSORSHIP",

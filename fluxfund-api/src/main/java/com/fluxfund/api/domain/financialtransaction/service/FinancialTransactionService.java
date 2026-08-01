@@ -38,8 +38,10 @@ import com.fluxfund.api.domain.beneficiary.repository.BeneficiaryRepository;
 import com.fluxfund.api.domain.category.Category;
 import com.fluxfund.api.domain.category.mapper.CategoryMapper;
 import com.fluxfund.api.domain.category.repository.CategoryRepository;
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitment;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence;
+import com.fluxfund.api.domain.financialcommitment.repository.FinancialCommitmentRepository;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
@@ -66,8 +68,6 @@ import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.repository.OrganizationRepository;
 import com.fluxfund.api.domain.organizationsettings.OrganizationSettings;
 import com.fluxfund.api.domain.organizationsettings.repository.OrganizationSettingsRepository;
-import com.fluxfund.api.domain.supportagreement.SupportAgreement;
-import com.fluxfund.api.domain.supportagreement.repository.SupportAgreementRepository;
 import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
 import com.fluxfund.api.domain.transactionallocation.dto.CreateTransactionAllocationRequest;
 import com.fluxfund.api.domain.transactionallocation.dto.TransactionAllocationResponse;
@@ -98,7 +98,7 @@ public class FinancialTransactionService {
         private final AuditLogService auditLogService;
         private final FundTransferRepository fundTransferRepository;
         private final FinancialTransactionDocumentPolicyService documentPolicyService;
-        private final SupportAgreementRepository supportAgreementRepository;
+        private final FinancialCommitmentRepository financialCommitmentRepository;
 
         public FinancialTransactionResponse create(UUID organizationId, CreateFinancialTransactionRequest request) {
                 organizationAccessService.requireFinanceWriteAccess(organizationId);
@@ -488,7 +488,7 @@ public class FinancialTransactionService {
                                         .orElseThrow(() -> new ResourceNotFoundException("Fund not found"));
                 }
 
-                SupportAgreement previousCommitment = allocation.getFinancialCommitment();
+                FinancialCommitment previousCommitment = allocation.getFinancialCommitment();
 
                 Beneficiary sourceParty = resolveFinancialParty(
                                 organizationId,
@@ -506,7 +506,7 @@ public class FinancialTransactionService {
                                 FinancialPartyRole.PAYMENT_RECIPIENT,
                                 "Payment recipient");
 
-                SupportAgreement nextCommitment = resolveUpdatedFinancialCommitment(
+                FinancialCommitment nextCommitment = resolveUpdatedFinancialCommitment(
                                 organizationId,
                                 previousCommitment,
                                 request);
@@ -1085,7 +1085,7 @@ public class FinancialTransactionService {
                                 FinancialPartyRole.PAYMENT_RECIPIENT,
                                 "Payment recipient");
 
-                SupportAgreement financialCommitment = resolveFinancialCommitment(
+                FinancialCommitment financialCommitment = resolveFinancialCommitment(
                                 organizationId,
                                 request.financialCommitmentId());
 
@@ -1197,7 +1197,7 @@ public class FinancialTransactionService {
         private void validateAllocationCommitment(TransactionAllocation allocation,
                         boolean allowInactiveCurrentCommitment) {
 
-                SupportAgreement commitment = allocation.getFinancialCommitment();
+                FinancialCommitment commitment = allocation.getFinancialCommitment();
 
                 if (commitment == null) {
                         return;
@@ -1262,7 +1262,7 @@ public class FinancialTransactionService {
         }
 
         private void validateReceivableCommitmentParties(TransactionAllocation allocation,
-                        SupportAgreement commitment) {
+                        FinancialCommitment commitment) {
 
                 Beneficiary sourceParty = allocation.getSourceParty();
 
@@ -1289,7 +1289,7 @@ public class FinancialTransactionService {
 
         private void validatePayableCommitmentParties(
                         TransactionAllocation allocation,
-                        SupportAgreement commitment) {
+                        FinancialCommitment commitment) {
 
                 Beneficiary recipientParty = allocation.getRecipientParty();
 
@@ -2178,19 +2178,19 @@ public class FinancialTransactionService {
                 return recipientPartyId != null ? recipientPartyId : legacyBeneficiaryId;
         }
 
-        private SupportAgreement resolveFinancialCommitment(UUID organizationId, UUID financialCommitmentId) {
+        private FinancialCommitment resolveFinancialCommitment(UUID organizationId, UUID financialCommitmentId) {
 
                 if (financialCommitmentId == null) {
                         return null;
                 }
 
-                return supportAgreementRepository.findByIdAndOrganizationId(financialCommitmentId, organizationId)
+                return financialCommitmentRepository.findByIdAndOrganizationId(financialCommitmentId, organizationId)
                                 .orElseThrow(() -> new ResourceNotFoundException("Financial commitment not found"));
         }
 
-        private SupportAgreement resolveUpdatedFinancialCommitment(
+        private FinancialCommitment resolveUpdatedFinancialCommitment(
                         UUID organizationId,
-                        SupportAgreement currentCommitment,
+                        FinancialCommitment currentCommitment,
                         UpdateTransactionAllocationRequest request) {
 
                 if (Boolean.TRUE.equals(request.clearFinancialCommitment())) {

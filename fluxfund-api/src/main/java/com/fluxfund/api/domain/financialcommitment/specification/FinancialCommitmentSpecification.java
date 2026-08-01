@@ -9,12 +9,12 @@ import java.util.UUID;
 import org.springframework.data.jpa.domain.Specification;
 
 import com.fluxfund.api.domain.beneficiary.Beneficiary;
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitment;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence;
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentStatus;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentType;
 import com.fluxfund.api.domain.fund.Fund;
-import com.fluxfund.api.domain.supportagreement.SupportAgreement;
-import com.fluxfund.api.domain.supportagreement.SupportAgreementStatus;
 
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
@@ -25,7 +25,7 @@ public final class FinancialCommitmentSpecification {
     private FinancialCommitmentSpecification() {
     }
 
-    public static Specification<SupportAgreement> withFilters(
+    public static Specification<FinancialCommitment> withFilters(
 
             UUID organizationId,
 
@@ -37,7 +37,7 @@ public final class FinancialCommitmentSpecification {
 
             FinancialCommitmentRecurrence recurrence,
 
-            SupportAgreementStatus status,
+            FinancialCommitmentStatus status,
 
             UUID partyId,
 
@@ -81,7 +81,7 @@ public final class FinancialCommitmentSpecification {
             if (partyId != null) {
                 predicates.add(
                         builder.equal(
-                                root.get("beneficiary")
+                                root.get("party")
                                         .get("id"),
                                 partyId));
             }
@@ -169,19 +169,19 @@ public final class FinancialCommitmentSpecification {
                                         Locale.ROOT)
                         + "%";
 
-                Join<SupportAgreement, Beneficiary> party =
+                Join<FinancialCommitment, Beneficiary> party =
 
                         root.join(
-                                "beneficiary",
+                                "party",
                                 JoinType.LEFT);
 
-                Join<SupportAgreement, Beneficiary> recipient =
+                Join<FinancialCommitment, Beneficiary> recipient =
 
                         root.join(
                                 "designatedRecipient",
                                 JoinType.LEFT);
 
-                Join<SupportAgreement, Fund> fund =
+                Join<FinancialCommitment, Fund> fund =
 
                         root.join(
                                 "fund",

@@ -11,7 +11,6 @@ export type FinancialCommitmentDirection =
     | "PAYABLE"
 
 export type FinancialCommitmentType =
-    | "SUPPORT"
     | "DONATION"
     | "CUSTOMER_PAYMENT"
     | "SPONSORSHIP"

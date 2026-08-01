@@ -11,6 +11,7 @@ target/
 .dump
 .zip
 storage-backup
+storage-*/
 
 ### STS ###
 .apt_generated

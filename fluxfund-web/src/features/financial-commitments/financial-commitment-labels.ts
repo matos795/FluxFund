@@ -39,7 +39,6 @@ export const financialCommitmentTypeLabels:
     FinancialCommitmentType,
     string
   > = {
-  SUPPORT: "Sustento",
   DONATION: "Doação",
   CUSTOMER_PAYMENT:
     "Pagamento de cliente",
@@ -66,7 +65,6 @@ export const receivableCommitmentTypes:
 
 export const payableCommitmentTypes:
   FinancialCommitmentType[] = [
-  "SUPPORT",
   "SUPPLIER_PAYMENT",
   "SALARY",
   "SERVICE_PAYMENT",

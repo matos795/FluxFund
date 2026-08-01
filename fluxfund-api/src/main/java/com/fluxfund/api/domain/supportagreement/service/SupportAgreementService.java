@@ -15,9 +15,6 @@ import com.fluxfund.api.domain.audit.service.AuditLogService;
 import com.fluxfund.api.domain.beneficiary.Beneficiary;
 import com.fluxfund.api.domain.beneficiary.FinancialPartyRole;
 import com.fluxfund.api.domain.beneficiary.repository.BeneficiaryRepository;
-import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection;
-import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence;
-import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentType;
 import com.fluxfund.api.domain.fund.Fund;
 import com.fluxfund.api.domain.fund.repository.FundRepository;
 import com.fluxfund.api.domain.organization.Organization;
@@ -76,10 +73,6 @@ public class SupportAgreementService {
                 agreement.setOrganization(organization);
                 agreement.setBeneficiary(beneficiary);
                 agreement.setFund(fund);
-                agreement.setDirection(FinancialCommitmentDirection.PAYABLE);
-                agreement.setCommitmentType(FinancialCommitmentType.SUPPORT);
-                agreement.setRecurrence(FinancialCommitmentRecurrence.MONTHLY);
-                agreement.setDueDay(null);
                 agreement.setAmount(request.amount());
                 agreement.setStartDate(request.startDate());
                 agreement.setEndDate(request.endDate());
@@ -111,7 +104,7 @@ public class SupportAgreementService {
                 Page<SupportAgreement> agreements;
 
                 if (status == null) {
-                        agreements = repository.findAllSupportByOrganizationId(organizationId, pageable);
+                        agreements = repository.findAllByOrganizationIdOrderByStartDateDesc(organizationId, pageable);
                 } else {
                         agreements = switch (status) {
                                 case ACTIVE -> repository.findCurrentActive(
@@ -237,12 +230,7 @@ public class SupportAgreementService {
                 SupportAgreement nextAgreement = new SupportAgreement();
                 nextAgreement.setOrganization(previousAgreement.getOrganization());
                 nextAgreement.setBeneficiary(previousAgreement.getBeneficiary());
-                nextAgreement.setDesignatedRecipient(previousAgreement.getDesignatedRecipient());
                 nextAgreement.setFund(previousAgreement.getFund());
-                nextAgreement.setDirection(previousAgreement.getDirection());
-                nextAgreement.setCommitmentType(previousAgreement.getCommitmentType());
-                nextAgreement.setRecurrence(previousAgreement.getRecurrence());
-                nextAgreement.setDueDay(previousAgreement.getDueDay());
                 nextAgreement.setAmount(request.amount());
                 nextAgreement.setStartDate(request.startDate());
                 nextAgreement.setEndDate(null);
@@ -349,7 +337,7 @@ public class SupportAgreementService {
         }
 
         private SupportAgreement findEntityById(UUID organizationId, UUID id) {
-                return repository.findSupportByIdAndOrganizationId(id, organizationId)
+                return repository.findByIdAndOrganizationId(id, organizationId)
                                 .orElseThrow(() -> new ResourceNotFoundException("Support agreement not found"));
         }
 
