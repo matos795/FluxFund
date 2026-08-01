@@ -16,6 +16,7 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityByAccountProjection;
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityOpeningBalanceProjection;
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportProjection;
+import com.fluxfund.api.domain.report.dto.financialcommitment.FinancialCommitmentRealizationProjection;
 import com.fluxfund.api.domain.report.dto.fund.FundMovementAllocationProjection;
 import com.fluxfund.api.domain.report.dto.fund.FundReportProjection;
 import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
@@ -323,4 +324,50 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             @Param("financialCommitmentId") UUID financialCommitmentId,
             @Param("referenceMonth") LocalDate referenceMonth,
             @Param("excludedAllocationId") UUID excludedAllocationId);
+
+    @Query("""
+            select
+                allocation.financialCommitment.id
+                    as commitmentId,
+
+                coalesce(
+                    sum(
+                        abs(
+                            allocation.amount
+                        )
+                    ),
+                    0
+                ) as realizedAmount,
+
+                count(
+                    allocation.id
+                ) as allocationCount,
+
+                max(
+                    transaction.settlementDate
+                ) as lastSettlementDate
+
+            from TransactionAllocation allocation
+
+            join allocation.financialTransaction
+                transaction
+
+            where allocation.organization.id =
+                :organizationId
+
+              and allocation.financialCommitment
+                is not null
+
+              and allocation.referenceMonth =
+                :referenceMonth
+
+              and transaction.status =
+                com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+
+            group by
+                allocation.financialCommitment.id
+            """)
+    List<FinancialCommitmentRealizationProjection> findFinancialCommitmentRealizations(
+            @Param("organizationId") UUID organizationId,
+            @Param("referenceMonth") LocalDate referenceMonth);
 }

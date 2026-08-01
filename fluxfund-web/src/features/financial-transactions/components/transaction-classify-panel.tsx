@@ -493,6 +493,7 @@ export function TransactionClassifyPanel({
                         recipientPartyId: allocation.recipientPartyId || null,
                         referenceMonth: allocation.referenceMonth ? `${allocation.referenceMonth}-01` : null,
                         amount: Math.abs(Number(allocation.amount)),
+                        financialCommitmentId: allocation.financialCommitmentId || null,
                     }));
 
         const hasIncompleteAllocation =
@@ -891,15 +892,20 @@ export function TransactionClassifyPanel({
 
                             setType(nextType);
 
-                            if (nextType !== "INCOME") {
-                                setAllocations((current) =>
-                                    current.map((allocation) => ({
+                            setAllocations((current) =>
+                                current.map(
+                                    (allocation) => ({
                                         ...allocation,
-                                        sourcePartyId: "",
+
+                                        sourcePartyId:
+                                            nextType === "INCOME"
+                                                ? allocation.sourcePartyId
+                                                : "",
+
                                         financialCommitmentId: "",
-                                    })),
-                                );
-                            }
+                                    }),
+                                ),
+                            );
 
                             setCategoryId("");
 

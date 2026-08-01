@@ -39,6 +39,7 @@ import com.fluxfund.api.domain.category.Category;
 import com.fluxfund.api.domain.category.mapper.CategoryMapper;
 import com.fluxfund.api.domain.category.repository.CategoryRepository;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection;
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
@@ -1234,8 +1235,20 @@ public class FinancialTransactionService {
 
                 YearMonth end = commitment.getEndDate() != null ? YearMonth.from(commitment.getEndDate()) : null;
 
-                if (reference.isBefore(start) || (end != null && reference.isAfter(end))) {
-                        throw new BusinessException("Reference month is outside the commitment period");
+                if (commitment.getRecurrence() == FinancialCommitmentRecurrence.ONE_TIME) {
+
+                        if (!reference.equals(start)) {
+
+                                throw new BusinessException(
+                                                "One-time commitments must use the commitment month as reference");
+                        }
+
+                } else if (reference.isBefore(start)
+                                || (end != null
+                                                && reference.isAfter(end))) {
+
+                        throw new BusinessException(
+                                        "Reference month is outside the commitment period");
                 }
 
                 if (transactionType == FinancialTransactionType.INCOME) {

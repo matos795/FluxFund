@@ -16,10 +16,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection;
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityByAccountReportResponse;
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportResponse;
 import com.fluxfund.api.domain.report.dto.accountcashflow.AccountCashFlowReportResponse;
 import com.fluxfund.api.domain.report.dto.category.CategoryResultReportResponse;
+import com.fluxfund.api.domain.report.dto.financialcommitment.FinancialCommitmentMonthlyReportResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundReportResponse;
 import com.fluxfund.api.domain.report.dto.pending.PendingItemsReportResponse;
 import com.fluxfund.api.domain.report.export.AccountMovementPdfExportService;
@@ -28,6 +30,7 @@ import com.fluxfund.api.domain.report.export.AccountabilityPdfExportService;
 import com.fluxfund.api.domain.report.export.CreditCardStatementPdfExportService;
 import com.fluxfund.api.domain.report.export.FundMovementPdfExportService;
 import com.fluxfund.api.domain.report.export.SettledFinancialReportPdfExportService;
+import com.fluxfund.api.domain.report.service.FinancialCommitmentReportService;
 import com.fluxfund.api.domain.report.service.ReportService;
 
 import lombok.RequiredArgsConstructor;
@@ -46,6 +49,7 @@ public class ReportController {
         private final FundMovementPdfExportService fundMovementPdfExportService;
         private final AccountMovementPdfExportService accountMovementPdfExportService;
         private final CreditCardStatementPdfExportService creditCardStatementPdfExportService;
+        private final FinancialCommitmentReportService financialCommitmentReportService;
 
         @GetMapping("/category-result")
         public ResponseEntity<CategoryResultReportResponse> getCategoryResultReport(
@@ -86,6 +90,24 @@ public class ReportController {
                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
                 return ResponseEntity.ok(
                                 service.getAccountabilityReportByAccount(organizationId, startDate, endDate));
+        }
+
+        @GetMapping("/financial-commitments/monthly")
+        public ResponseEntity<FinancialCommitmentMonthlyReportResponse> getFinancialCommitmentMonthlyReport(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate referenceMonth,
+                        @RequestParam FinancialCommitmentDirection direction,
+                        @RequestParam(required = false) UUID partyId,
+                        @RequestParam(required = false) UUID designatedRecipientId,
+                        @RequestParam(required = false) UUID fundId) {
+
+                return ResponseEntity.ok(financialCommitmentReportService.getMonthlyReport(
+                                organizationId,
+                                referenceMonth,
+                                direction,
+                                partyId,
+                                designatedRecipientId,
+                                fundId));
         }
 
         @GetMapping("/accountability/export.xlsx")

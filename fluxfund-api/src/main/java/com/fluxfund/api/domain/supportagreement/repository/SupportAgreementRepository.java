@@ -338,14 +338,32 @@ public interface SupportAgreementRepository
                     )
                   )
 
-              and commitment.startDate <=
-                :monthEnd
-
               and (
+                (
+                    commitment.recurrence =
+                    com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence.MONTHLY
+
+                    and commitment.startDate <=
+                    :monthEnd
+
+                    and (
                     commitment.endDate is null
                     or commitment.endDate >=
                         :monthStart
-                  )
+                    )
+                )
+
+                or
+
+                (
+                    commitment.recurrence =
+                    com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence.ONE_TIME
+
+                    and commitment.startDate
+                    between :monthStart
+                    and :monthEnd
+                )
+                )
             """)
     List<SupportAgreement> findApplicableForAllocation(
             @Param("organizationId") UUID organizationId,
@@ -354,4 +372,84 @@ public interface SupportAgreementRepository
             @Param("designatedRecipientId") UUID designatedRecipientId,
             @Param("monthStart") LocalDate monthStart,
             @Param("monthEnd") LocalDate monthEnd);
+
+    @Query("""
+            select distinct commitment
+
+            from SupportAgreement commitment
+
+            join fetch commitment.beneficiary
+                party
+
+            left join fetch
+                commitment.designatedRecipient
+                designatedRecipient
+
+            join fetch commitment.fund
+                fund
+
+            where commitment.organization.id =
+                :organizationId
+
+              and commitment.active = true
+
+              and commitment.direction =
+                :direction
+
+              and (
+                    (
+                      commitment.recurrence =
+                        com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence.MONTHLY
+
+                      and commitment.startDate <=
+                        :monthEnd
+
+                      and (
+                        commitment.endDate is null
+                        or commitment.endDate >=
+                          :monthStart
+                      )
+                    )
+
+                    or
+
+                    (
+                      commitment.recurrence =
+                        com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence.ONE_TIME
+
+                      and commitment.startDate
+                        between :monthStart
+                        and :monthEnd
+                    )
+                  )
+
+              and (
+                :partyId is null
+                or party.id = :partyId
+              )
+
+              and (
+                :designatedRecipientId is null
+                or designatedRecipient.id =
+                  :designatedRecipientId
+              )
+
+              and (
+                :fundId is null
+                or fund.id = :fundId
+              )
+
+            order by
+                party.name asc,
+                fund.name asc,
+                commitment.startDate asc
+            """)
+    List<SupportAgreement> findApplicableForMonthlyRealization(
+            @Param("organizationId") UUID organizationId,
+            @Param("direction") FinancialCommitmentDirection direction,
+            @Param("monthStart") LocalDate monthStart,
+            @Param("monthEnd") LocalDate monthEnd,
+            @Param("partyId") UUID partyId,
+            @Param("designatedRecipientId") UUID designatedRecipientId,
+            @Param("fundId") UUID fundId);
 }

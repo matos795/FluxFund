@@ -727,17 +727,26 @@ export function CreateManualTransactionForm({
                 shouldValidate: true,
               })
 
-              if (nextType !== "INCOME") {
-                setAllocations((current) =>
-                  current.map(
-                    (allocation) => ({
-                      ...allocation,
-                      sourcePartyId: "",
-                      financialCommitmentId: "",
-                    }),
-                  ),
-                )
-              }
+              setAllocations((current) =>
+                current.map(
+                  (allocation) => ({
+                    ...allocation,
+
+                    sourcePartyId:
+                      nextType === "INCOME"
+                        ? allocation
+                          .sourcePartyId
+                        : "",
+
+                    /*
+                     * Receita e despesa usam direções
+                     * diferentes de compromisso.
+                     */
+                    financialCommitmentId:
+                      "",
+                  }),
+                ),
+              )
 
               setValue("categoryId", "", {
                 shouldValidate: true,
