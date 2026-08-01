@@ -288,4 +288,200 @@ public interface FinancialCommitmentRepository
             @Param("designatedRecipientId") UUID designatedRecipientId,
 
             @Param("fundId") UUID fundId);
+
+    @Query("""
+            select commitment
+
+            from FinancialCommitment commitment
+
+            join fetch commitment.party party
+
+            join fetch commitment.fund fund
+
+            where commitment.id =
+                :id
+
+              and commitment.organization.id =
+                :organizationId
+
+              and commitment.direction =
+                com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection.PAYABLE
+
+              and commitment.commitmentType =
+                com.fluxfund.api.domain.financialcommitment.FinancialCommitmentType.SUPPORT
+
+              and commitment.recurrence =
+                com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence.MONTHLY
+            """)
+    Optional<FinancialCommitment> findSupportByIdAndOrganizationId(
+
+            @Param("id") UUID id,
+
+            @Param("organizationId") UUID organizationId);
+
+    @Query("""
+            select commitment
+
+            from FinancialCommitment commitment
+
+            join fetch commitment.party party
+
+            join fetch commitment.fund fund
+
+            where commitment.organization.id =
+                :organizationId
+
+              and commitment.direction =
+                com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection.PAYABLE
+
+              and commitment.commitmentType =
+                com.fluxfund.api.domain.financialcommitment.FinancialCommitmentType.SUPPORT
+
+              and commitment.recurrence =
+                com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence.MONTHLY
+
+              and commitment.active = true
+
+              and commitment.party.id =
+                :partyId
+
+              and commitment.startDate <=
+                :referenceDate
+
+              and (
+                commitment.endDate is null
+                or commitment.endDate >=
+                    :referenceDate
+              )
+
+            order by
+                fund.name asc
+            """)
+    List<FinancialCommitment> findActiveSupportSuggestionsByParty(
+
+            @Param("organizationId") UUID organizationId,
+
+            @Param("partyId") UUID partyId,
+
+            @Param("referenceDate") LocalDate referenceDate);
+
+    @Query("""
+            select commitment
+
+            from FinancialCommitment commitment
+
+            join fetch commitment.party party
+
+            join fetch commitment.fund fund
+
+            where commitment.organization.id =
+                :organizationId
+
+              and commitment.direction =
+                com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection.PAYABLE
+
+              and commitment.commitmentType =
+                com.fluxfund.api.domain.financialcommitment.FinancialCommitmentType.SUPPORT
+
+              and commitment.recurrence =
+                com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence.MONTHLY
+
+              and commitment.active = true
+
+              and commitment.startDate <=
+                :endDate
+
+              and (
+                commitment.endDate is null
+                or commitment.endDate >=
+                    :startDate
+              )
+            """)
+    List<FinancialCommitment> findSupportActiveInPeriodForReport(
+
+            @Param("organizationId") UUID organizationId,
+
+            @Param("startDate") LocalDate startDate,
+
+            @Param("endDate") LocalDate endDate);
+
+    @Query("""
+            select commitment
+
+            from FinancialCommitment commitment
+
+            join fetch commitment.party party
+
+            join fetch commitment.fund fund
+
+            where commitment.organization.id =
+                :organizationId
+
+              and commitment.direction =
+                com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection.PAYABLE
+
+              and commitment.commitmentType =
+                com.fluxfund.api.domain.financialcommitment.FinancialCommitmentType.SUPPORT
+
+              and commitment.recurrence =
+                com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence.MONTHLY
+
+              and commitment.active = true
+
+              and commitment.startDate <=
+                :endDate
+
+              and (
+                commitment.endDate is null
+                or commitment.endDate >=
+                    :startDate
+              )
+            """)
+    List<FinancialCommitment> findSupportApplicableInPeriodForReport(
+
+            @Param("organizationId") UUID organizationId,
+
+            @Param("startDate") LocalDate startDate,
+
+            @Param("endDate") LocalDate endDate);
+
+    @Query("""
+            select commitment
+
+            from FinancialCommitment commitment
+
+            join fetch commitment.party party
+
+            join fetch commitment.fund fund
+
+            where commitment.organization.id =
+                :organizationId
+
+              and commitment.direction =
+                com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection.PAYABLE
+
+              and commitment.commitmentType =
+                com.fluxfund.api.domain.financialcommitment.FinancialCommitmentType.SUPPORT
+
+              and commitment.recurrence =
+                com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence.MONTHLY
+
+              and commitment.active = true
+
+              and commitment.startDate <
+                :periodStartDate
+
+              and (
+                commitment.endDate is null
+                or commitment.endDate >=
+                    :historyStartDate
+              )
+            """)
+    List<FinancialCommitment> findSupportStartedBeforeForReport(
+
+            @Param("organizationId") UUID organizationId,
+
+            @Param("historyStartDate") LocalDate historyStartDate,
+
+            @Param("periodStartDate") LocalDate periodStartDate);
 }

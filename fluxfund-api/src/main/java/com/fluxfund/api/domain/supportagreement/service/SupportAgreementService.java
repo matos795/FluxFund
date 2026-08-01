@@ -5,7 +5,10 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,18 +18,23 @@ import com.fluxfund.api.domain.audit.service.AuditLogService;
 import com.fluxfund.api.domain.beneficiary.Beneficiary;
 import com.fluxfund.api.domain.beneficiary.FinancialPartyRole;
 import com.fluxfund.api.domain.beneficiary.repository.BeneficiaryRepository;
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitment;
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection;
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence;
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentStatus;
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentType;
+import com.fluxfund.api.domain.financialcommitment.repository.FinancialCommitmentRepository;
+import com.fluxfund.api.domain.financialcommitment.specification.FinancialCommitmentSpecification;
 import com.fluxfund.api.domain.fund.Fund;
 import com.fluxfund.api.domain.fund.repository.FundRepository;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.repository.OrganizationRepository;
-import com.fluxfund.api.domain.supportagreement.SupportAgreement;
 import com.fluxfund.api.domain.supportagreement.SupportAgreementStatus;
 import com.fluxfund.api.domain.supportagreement.dto.CreateSupportAgreementRequest;
 import com.fluxfund.api.domain.supportagreement.dto.CreateSupportAgreementVersionRequest;
 import com.fluxfund.api.domain.supportagreement.dto.SupportAgreementResponse;
 import com.fluxfund.api.domain.supportagreement.dto.UpdateSupportAgreementRequest;
 import com.fluxfund.api.domain.supportagreement.mapper.SupportAgreementMapper;
-import com.fluxfund.api.domain.supportagreement.repository.SupportAgreementRepository;
 import com.fluxfund.api.security.OrganizationAccessService;
 import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
@@ -38,349 +46,842 @@ import lombok.RequiredArgsConstructor;
 @Transactional
 public class SupportAgreementService {
 
-        private final SupportAgreementRepository repository;
-        private final OrganizationRepository organizationRepository;
-        private final BeneficiaryRepository beneficiaryRepository;
-        private final FundRepository fundRepository;
-        private final OrganizationAccessService organizationAccessService;
-        private final AuditLogService auditLogService;
+    private final FinancialCommitmentRepository
+            repository;
 
-        public SupportAgreementResponse create(
-                        UUID organizationId,
-                        CreateSupportAgreementRequest request) {
-                organizationAccessService.requireFinanceWriteAccess(organizationId);
+    private final OrganizationRepository
+            organizationRepository;
 
-                validateDates(request.startDate(), request.endDate());
+    private final BeneficiaryRepository
+            beneficiaryRepository;
 
-                Organization organization = organizationRepository.findById(organizationId)
-                                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+    private final FundRepository
+            fundRepository;
 
-                Beneficiary beneficiary = resolveSupportRecipient(organizationId, request.beneficiaryId());
+    private final OrganizationAccessService
+            organizationAccessService;
 
-                Fund fund = fundRepository
-                                .findByIdAndOrganizationIdAndActiveTrue(request.fundId(), organizationId)
-                                .orElseThrow(() -> new ResourceNotFoundException("Fund not found"));
+    private final AuditLogService
+            auditLogService;
 
-                validateNoActiveAgreementOverlap(
+    public SupportAgreementResponse create(
+
+            UUID organizationId,
+
+            CreateSupportAgreementRequest request) {
+
+        organizationAccessService
+                .requireFinanceWriteAccess(
+                        organizationId);
+
+        validateDates(
+                request.startDate(),
+                request.endDate());
+
+        Organization organization =
+                organizationRepository
+                        .findById(
+                                organizationId)
+
+                        .orElseThrow(
+                                () ->
+                                        new ResourceNotFoundException(
+                                                "Organization not found"));
+
+        Beneficiary recipient =
+                resolveSupportRecipient(
+
+                        organizationId,
+
+                        request
+                                .beneficiaryId());
+
+        Fund fund =
+                resolveFund(
+
+                        organizationId,
+
+                        request.fundId());
+
+        validateNoActiveAgreementOverlap(
+
+                organizationId,
+
+                request.beneficiaryId(),
+
+                request.fundId(),
+
+                request.startDate(),
+
+                request.endDate(),
+
+                null);
+
+        FinancialCommitment commitment =
+                new FinancialCommitment();
+
+        commitment.setOrganization(
+                organization);
+
+        commitment.setParty(
+                recipient);
+
+        commitment.setDesignatedRecipient(
+                null);
+
+        commitment.setFund(
+                fund);
+
+        commitment.setDirection(
+                FinancialCommitmentDirection
+                        .PAYABLE);
+
+        commitment.setCommitmentType(
+                FinancialCommitmentType
+                        .SUPPORT);
+
+        commitment.setRecurrence(
+                FinancialCommitmentRecurrence
+                        .MONTHLY);
+
+        commitment.setAmount(
+                request.amount());
+
+        commitment.setDueDay(
+                null);
+
+        commitment.setStartDate(
+                request.startDate());
+
+        commitment.setEndDate(
+                request.endDate());
+
+        commitment.setActive(
+                true);
+
+        commitment.setDescription(
+                normalizeText(
+                        request.description()));
+
+        repository.saveAndFlush(
+                commitment);
+
+        recordAudit(
+
+                organizationId,
+
+                commitment.getId(),
+
+                AuditAction.CREATE,
+
+                "Support commitment created");
+
+        return SupportAgreementMapper
+                .toResponse(
+                        commitment);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<SupportAgreementResponse>
+            findAll(
+
+                    UUID organizationId,
+
+                    SupportAgreementStatus status,
+
+                    Pageable pageable) {
+
+        organizationAccessService
+                .requireReadAccess(
+                        organizationId);
+
+        LocalDate referenceDate =
+                LocalDate.now();
+
+        FinancialCommitmentStatus
+                commitmentStatus =
+
+                status != null
+
+                        ? FinancialCommitmentStatus
+                                .valueOf(
+                                        status.name())
+
+                        : null;
+
+        Specification<FinancialCommitment>
+                specification =
+
+                FinancialCommitmentSpecification
+                        .withFilters(
+
                                 organizationId,
-                                request.beneficiaryId(),
-                                request.fundId(),
-                                request.startDate(),
-                                request.endDate(),
-                                null);
 
-                SupportAgreement agreement = new SupportAgreement();
-                agreement.setOrganization(organization);
-                agreement.setBeneficiary(beneficiary);
-                agreement.setFund(fund);
-                agreement.setAmount(request.amount());
-                agreement.setStartDate(request.startDate());
-                agreement.setEndDate(request.endDate());
-                agreement.setActive(true);
-                agreement.setDescription(request.description());
-
-                repository.save(agreement);
-
-                auditLogService.record(
-                                organizationId,
-                                AuditEntityType.SUPPORT_AGREEMENT,
-                                agreement.getId(),
-                                AuditAction.CREATE,
-                                "Support agreement created");
-
-                return SupportAgreementMapper.toResponse(agreement);
-        }
-
-        @Transactional(readOnly = true)
-        public Page<SupportAgreementResponse> findAll(
-                        UUID organizationId,
-                        SupportAgreementStatus status,
-                        Pageable pageable) {
-
-                organizationAccessService.requireReadAccess(organizationId);
-
-                LocalDate referenceDate = LocalDate.now();
-
-                Page<SupportAgreement> agreements;
-
-                if (status == null) {
-                        agreements = repository.findAllByOrganizationIdOrderByStartDateDesc(organizationId, pageable);
-                } else {
-                        agreements = switch (status) {
-                                case ACTIVE -> repository.findCurrentActive(
-                                                organizationId,
-                                                referenceDate,
-                                                pageable);
-
-                                case SCHEDULED -> repository.findScheduled(
-                                                organizationId,
-                                                referenceDate,
-                                                pageable);
-
-                                case EXPIRED -> repository.findExpired(
-                                                organizationId,
-                                                referenceDate,
-                                                pageable);
-
-                                case INACTIVE -> repository.findInactive(
-                                                organizationId,
-                                                pageable);
-                        };
-                }
-
-                return agreements.map(agreement -> SupportAgreementMapper.toResponse(
-                                agreement,
-                                referenceDate));
-        }
-
-        @Transactional(readOnly = true)
-        public SupportAgreementResponse findById(UUID organizationId, UUID id) {
-                organizationAccessService.requireReadAccess(organizationId);
-
-                SupportAgreement agreement = findEntityById(organizationId, id);
-
-                return SupportAgreementMapper.toResponse(agreement);
-        }
-
-        public SupportAgreementResponse update(
-                        UUID organizationId,
-                        UUID id,
-                        UpdateSupportAgreementRequest request) {
-                organizationAccessService.requireFinanceWriteAccess(organizationId);
-
-                validateDates(request.startDate(), request.endDate());
-
-                SupportAgreement agreement = findEntityById(organizationId, id);
-
-                Beneficiary beneficiary = resolveSupportRecipient(organizationId, request.beneficiaryId());
-
-                Fund fund = fundRepository
-                                .findByIdAndOrganizationIdAndActiveTrue(request.fundId(), organizationId)
-                                .orElseThrow(() -> new ResourceNotFoundException("Fund not found"));
-
-                boolean nextActive = request.active() != null
-                                ? request.active()
-                                : agreement.getActive();
-
-                if (nextActive) {
-                        validateNoActiveAgreementOverlap(
-                                        organizationId,
-                                        request.beneficiaryId(),
-                                        request.fundId(),
-                                        request.startDate(),
-                                        request.endDate(),
-                                        agreement.getId());
-                }
-
-                agreement.setBeneficiary(beneficiary);
-                agreement.setFund(fund);
-                agreement.setAmount(request.amount());
-                agreement.setStartDate(request.startDate());
-                agreement.setEndDate(request.endDate());
-                agreement.setActive(request.active() != null ? request.active() : agreement.getActive());
-                agreement.setDescription(request.description());
-
-                repository.save(agreement);
-
-                auditLogService.record(
-                                organizationId,
-                                AuditEntityType.SUPPORT_AGREEMENT,
-                                agreement.getId(),
-                                AuditAction.UPDATE,
-                                "Support agreement updated");
-
-                return SupportAgreementMapper.toResponse(agreement);
-        }
-
-        public SupportAgreementResponse createVersion(
-                        UUID organizationId,
-                        UUID id,
-                        CreateSupportAgreementVersionRequest request) {
-
-                organizationAccessService.requireFinanceWriteAccess(organizationId);
-
-                SupportAgreement previousAgreement = findEntityById(organizationId, id);
-
-                if (!previousAgreement.getActive()) {
-                        throw new BusinessException(
-                                        "Não é possível criar uma nova vigência a partir de um compromisso inativo.");
-                }
-
-                if (previousAgreement.getEndDate() != null) {
-                        throw new BusinessException(
-                                        "Este compromisso já possui uma data de fim. "
-                                                        + "Crie um novo compromisso normalmente.");
-                }
-
-                if (!request.startDate().isAfter(previousAgreement.getStartDate())) {
-                        throw new BusinessException(
-                                        "A nova vigência deve começar depois da data de início do compromisso atual.");
-                }
-
-                validateNoActiveAgreementOverlap(
-                                organizationId,
-                                previousAgreement.getBeneficiary().getId(),
-                                previousAgreement.getFund().getId(),
-                                request.startDate(),
                                 null,
-                                previousAgreement.getId());
 
-                previousAgreement.setEndDate(request.startDate().minusDays(1));
+                                FinancialCommitmentDirection
+                                        .PAYABLE,
 
-                SupportAgreement nextAgreement = new SupportAgreement();
-                nextAgreement.setOrganization(previousAgreement.getOrganization());
-                nextAgreement.setBeneficiary(previousAgreement.getBeneficiary());
-                nextAgreement.setFund(previousAgreement.getFund());
-                nextAgreement.setAmount(request.amount());
-                nextAgreement.setStartDate(request.startDate());
-                nextAgreement.setEndDate(null);
-                nextAgreement.setActive(true);
-                nextAgreement.setDescription(
-                                request.description() != null
-                                                ? request.description()
-                                                : previousAgreement.getDescription());
+                                FinancialCommitmentType
+                                        .SUPPORT,
 
-                repository.save(previousAgreement);
-                repository.save(nextAgreement);
+                                FinancialCommitmentRecurrence
+                                        .MONTHLY,
 
-                auditLogService.record(
+                                commitmentStatus,
+
+                                null,
+
+                                null,
+
+                                null,
+
+                                referenceDate);
+
+        Pageable resolvedPageable =
+                pageable
+                        .getSort()
+                        .isSorted()
+
+                ? pageable
+
+                : PageRequest.of(
+
+                        pageable
+                                .getPageNumber(),
+
+                        pageable
+                                .getPageSize(),
+
+                        Sort.by(
+                                Sort.Direction.DESC,
+                                "startDate"));
+
+        return repository
+                .findAll(
+                        specification,
+                        resolvedPageable)
+
+                .map(
+                        commitment ->
+                                SupportAgreementMapper
+                                        .toResponse(
+
+                                                commitment,
+
+                                                referenceDate));
+    }
+
+    @Transactional(readOnly = true)
+    public SupportAgreementResponse findById(
+
+            UUID organizationId,
+
+            UUID id) {
+
+        organizationAccessService
+                .requireReadAccess(
+                        organizationId);
+
+        return SupportAgreementMapper
+                .toResponse(
+
+                        findEntityById(
                                 organizationId,
-                                AuditEntityType.SUPPORT_AGREEMENT,
-                                previousAgreement.getId(),
-                                AuditAction.UPDATE,
-                                "Support agreement ended due to a new version.");
+                                id));
+    }
 
-                auditLogService.record(
-                                organizationId,
-                                AuditEntityType.SUPPORT_AGREEMENT,
-                                nextAgreement.getId(),
-                                AuditAction.CREATE,
-                                "New support agreement version created.");
+    public SupportAgreementResponse update(
 
-                return SupportAgreementMapper.toResponse(nextAgreement);
+            UUID organizationId,
+
+            UUID id,
+
+            UpdateSupportAgreementRequest request) {
+
+        organizationAccessService
+                .requireFinanceWriteAccess(
+                        organizationId);
+
+        validateDates(
+                request.startDate(),
+                request.endDate());
+
+        FinancialCommitment commitment =
+                findEntityById(
+                        organizationId,
+                        id);
+
+        Beneficiary recipient =
+                resolveSupportRecipient(
+
+                        organizationId,
+
+                        request
+                                .beneficiaryId());
+
+        Fund fund =
+                resolveFund(
+
+                        organizationId,
+
+                        request.fundId());
+
+        boolean nextActive =
+                request.active() != null
+
+                        ? request.active()
+
+                        : Boolean.TRUE.equals(
+                                commitment
+                                        .getActive());
+
+        if (nextActive) {
+
+            validateNoActiveAgreementOverlap(
+
+                    organizationId,
+
+                    request.beneficiaryId(),
+
+                    request.fundId(),
+
+                    request.startDate(),
+
+                    request.endDate(),
+
+                    commitment.getId());
         }
 
-        public void deactivate(UUID organizationId, UUID id) {
-                organizationAccessService.requireFinanceWriteAccess(organizationId);
+        commitment.setParty(
+                recipient);
 
-                SupportAgreement agreement = findEntityById(organizationId, id);
-                agreement.setActive(false);
+        commitment.setFund(
+                fund);
 
-                repository.save(agreement);
+        commitment.setAmount(
+                request.amount());
 
-                auditLogService.record(
-                                organizationId,
-                                AuditEntityType.SUPPORT_AGREEMENT,
-                                agreement.getId(),
-                                AuditAction.DEACTIVATE,
-                                "Support agreement deactivated");
+        commitment.setStartDate(
+                request.startDate());
+
+        commitment.setEndDate(
+                request.endDate());
+
+        commitment.setActive(
+                nextActive);
+
+        commitment.setDescription(
+                normalizeText(
+                        request.description()));
+
+        repository.saveAndFlush(
+                commitment);
+
+        recordAudit(
+
+                organizationId,
+
+                commitment.getId(),
+
+                AuditAction.UPDATE,
+
+                "Support commitment updated");
+
+        return SupportAgreementMapper
+                .toResponse(
+                        commitment);
+    }
+
+    public SupportAgreementResponse
+            createVersion(
+
+                    UUID organizationId,
+
+                    UUID id,
+
+                    CreateSupportAgreementVersionRequest
+                            request) {
+
+        organizationAccessService
+                .requireFinanceWriteAccess(
+                        organizationId);
+
+        FinancialCommitment previous =
+                findEntityById(
+                        organizationId,
+                        id);
+
+        if (!Boolean.TRUE.equals(
+                previous.getActive())) {
+
+            throw new BusinessException(
+                    "Não é possível criar uma nova vigência a partir de um compromisso inativo.");
         }
 
-        public SupportAgreementResponse activate(UUID organizationId, UUID id) {
-                organizationAccessService.requireFinanceWriteAccess(organizationId);
+        if (previous.getEndDate()
+                != null) {
 
-                SupportAgreement agreement = findEntityById(organizationId, id);
-
-                if (agreement.getActive()) {
-                        return SupportAgreementMapper.toResponse(agreement);
-                }
-
-                if (agreement.getEndDate() != null
-                                && agreement.getEndDate().isBefore(LocalDate.now())) {
-                        throw new BusinessException(
-                                        "Update the end date before reactivating an expired support agreement");
-                }
-
-                validateNoActiveAgreementOverlap(
-                                organizationId,
-                                agreement.getBeneficiary().getId(),
-                                agreement.getFund().getId(),
-                                agreement.getStartDate(),
-                                agreement.getEndDate(),
-                                agreement.getId());
-
-                agreement.setActive(true);
-
-                repository.save(agreement);
-
-                auditLogService.record(
-                                organizationId,
-                                AuditEntityType.SUPPORT_AGREEMENT,
-                                agreement.getId(),
-                                AuditAction.ACTIVATE,
-                                "Support agreement activated");
-
-                return SupportAgreementMapper.toResponse(agreement);
+            throw new BusinessException(
+                    "Este compromisso já possui uma data de fim. Crie um novo compromisso normalmente.");
         }
 
-        @Transactional(readOnly = true)
-        public List<SupportAgreementResponse> findActiveSuggestions(
-                        UUID organizationId,
-                        UUID beneficiaryId,
-                        LocalDate referenceDate) {
-                organizationAccessService.requireReadAccess(organizationId);
+        if (!request.startDate()
+                .isAfter(
+                        previous
+                                .getStartDate())) {
 
-                resolveSupportRecipient(organizationId, beneficiaryId);
+            throw new BusinessException(
+                    "A nova vigência deve começar depois da data de início do compromisso atual.");
+        }
 
-                LocalDate effectiveReferenceDate = referenceDate != null ? referenceDate : LocalDate.now();
+        validateNoActiveAgreementOverlap(
 
-                return repository
-                                .findActiveSuggestionsByBeneficiary(
-                                                organizationId,
-                                                beneficiaryId,
-                                                effectiveReferenceDate)
-                                .stream()
-                                .map(agreement -> SupportAgreementMapper.toResponse(
-                                                agreement,
+                organizationId,
+
+                previous
+                        .getParty()
+                        .getId(),
+
+                previous
+                        .getFund()
+                        .getId(),
+
+                request.startDate(),
+
+                null,
+
+                previous.getId());
+
+        previous.setEndDate(
+
+                request
+                        .startDate()
+                        .minusDays(1));
+
+        FinancialCommitment next =
+                new FinancialCommitment();
+
+        next.setOrganization(
+                previous
+                        .getOrganization());
+
+        next.setParty(
+                previous
+                        .getParty());
+
+        next.setDesignatedRecipient(
+                null);
+
+        next.setFund(
+                previous
+                        .getFund());
+
+        next.setDirection(
+                FinancialCommitmentDirection
+                        .PAYABLE);
+
+        next.setCommitmentType(
+                FinancialCommitmentType
+                        .SUPPORT);
+
+        next.setRecurrence(
+                FinancialCommitmentRecurrence
+                        .MONTHLY);
+
+        next.setAmount(
+                request.amount());
+
+        next.setDueDay(
+                previous
+                        .getDueDay());
+
+        next.setStartDate(
+                request.startDate());
+
+        next.setEndDate(
+                null);
+
+        next.setActive(
+                true);
+
+        next.setDescription(
+
+                request.description() !=
+                        null
+
+                ? normalizeText(
+                        request.description())
+
+                : previous
+                        .getDescription());
+
+        repository.saveAndFlush(
+                previous);
+
+        repository.saveAndFlush(
+                next);
+
+        recordAudit(
+
+                organizationId,
+
+                previous.getId(),
+
+                AuditAction.UPDATE,
+
+                "Support commitment ended due to a new version");
+
+        recordAudit(
+
+                organizationId,
+
+                next.getId(),
+
+                AuditAction.CREATE,
+
+                "New support commitment version created");
+
+        return SupportAgreementMapper
+                .toResponse(
+                        next);
+    }
+
+    public void deactivate(
+
+            UUID organizationId,
+
+            UUID id) {
+
+        organizationAccessService
+                .requireFinanceWriteAccess(
+                        organizationId);
+
+        FinancialCommitment commitment =
+                findEntityById(
+                        organizationId,
+                        id);
+
+        if (!Boolean.TRUE.equals(
+                commitment.getActive())) {
+
+            return;
+        }
+
+        commitment.setActive(
+                false);
+
+        repository.save(
+                commitment);
+
+        recordAudit(
+
+                organizationId,
+
+                commitment.getId(),
+
+                AuditAction.DEACTIVATE,
+
+                "Support commitment deactivated");
+    }
+
+    public SupportAgreementResponse activate(
+
+            UUID organizationId,
+
+            UUID id) {
+
+        organizationAccessService
+                .requireFinanceWriteAccess(
+                        organizationId);
+
+        FinancialCommitment commitment =
+                findEntityById(
+                        organizationId,
+                        id);
+
+        if (Boolean.TRUE.equals(
+                commitment.getActive())) {
+
+            return SupportAgreementMapper
+                    .toResponse(
+                            commitment);
+        }
+
+        if (commitment.getEndDate() !=
+                null
+
+                && commitment
+                        .getEndDate()
+                        .isBefore(
+                                LocalDate.now())) {
+
+            throw new BusinessException(
+                    "Update the end date before reactivating an expired support commitment");
+        }
+
+        validateNoActiveAgreementOverlap(
+
+                organizationId,
+
+                commitment
+                        .getParty()
+                        .getId(),
+
+                commitment
+                        .getFund()
+                        .getId(),
+
+                commitment
+                        .getStartDate(),
+
+                commitment
+                        .getEndDate(),
+
+                commitment.getId());
+
+        commitment.setActive(
+                true);
+
+        repository.saveAndFlush(
+                commitment);
+
+        recordAudit(
+
+                organizationId,
+
+                commitment.getId(),
+
+                AuditAction.ACTIVATE,
+
+                "Support commitment activated");
+
+        return SupportAgreementMapper
+                .toResponse(
+                        commitment);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SupportAgreementResponse>
+            findActiveSuggestions(
+
+                    UUID organizationId,
+
+                    UUID beneficiaryId,
+
+                    LocalDate referenceDate) {
+
+        organizationAccessService
+                .requireReadAccess(
+                        organizationId);
+
+        resolveSupportRecipient(
+
+                organizationId,
+
+                beneficiaryId);
+
+        LocalDate effectiveReferenceDate =
+                referenceDate != null
+
+                        ? referenceDate
+
+                        : LocalDate.now();
+
+        return repository
+                .findActiveSupportSuggestionsByParty(
+
+                        organizationId,
+
+                        beneficiaryId,
+
+                        effectiveReferenceDate)
+
+                .stream()
+
+                .map(
+                        commitment ->
+                                SupportAgreementMapper
+                                        .toResponse(
+
+                                                commitment,
+
                                                 effectiveReferenceDate))
-                                .toList();
+
+                .toList();
+    }
+
+    private FinancialCommitment
+            findEntityById(
+
+                    UUID organizationId,
+
+                    UUID id) {
+
+        return repository
+                .findSupportByIdAndOrganizationId(
+
+                        id,
+
+                        organizationId)
+
+                .orElseThrow(
+                        () ->
+                                new ResourceNotFoundException(
+                                        "Support commitment not found"));
+    }
+
+    private void validateDates(
+
+            LocalDate startDate,
+
+            LocalDate endDate) {
+
+        if (endDate != null
+                && endDate.isBefore(
+                        startDate)) {
+
+            throw new BusinessException(
+                    "End date cannot be before start date");
+        }
+    }
+
+    private void validateNoActiveAgreementOverlap(
+
+            UUID organizationId,
+
+            UUID beneficiaryId,
+
+            UUID fundId,
+
+            LocalDate startDate,
+
+            LocalDate endDate,
+
+            UUID excludedId) {
+
+        boolean hasOverlap =
+                repository
+                        .existsActiveFinancialCommitmentOverlap(
+
+                                organizationId,
+
+                                FinancialCommitmentDirection
+                                        .PAYABLE,
+
+                                FinancialCommitmentType
+                                        .SUPPORT,
+
+                                FinancialCommitmentRecurrence
+                                        .MONTHLY,
+
+                                beneficiaryId,
+
+                                null,
+
+                                fundId,
+
+                                startDate,
+
+                                endDate,
+
+                                excludedId);
+
+        if (hasOverlap) {
+
+            throw new BusinessException(
+                    "There is already an active support commitment for this beneficiary and fund during the selected period");
+        }
+    }
+
+    private Beneficiary
+            resolveSupportRecipient(
+
+                    UUID organizationId,
+
+                    UUID financialPartyId) {
+
+        Beneficiary financialParty =
+                beneficiaryRepository
+                        .findByIdAndOrganizationIdAndActiveTrue(
+
+                                financialPartyId,
+
+                                organizationId)
+
+                        .orElseThrow(
+                                () ->
+                                        new ResourceNotFoundException(
+                                                "Payment recipient not found"));
+
+        if (financialParty.getRoles() ==
+                null
+
+                || !financialParty
+                        .getRoles()
+                        .contains(
+                                FinancialPartyRole
+                                        .PAYMENT_RECIPIENT)) {
+
+            throw new BusinessException(
+                    "Financial party cannot be used as a support recipient");
         }
 
-        private SupportAgreement findEntityById(UUID organizationId, UUID id) {
-                return repository.findByIdAndOrganizationId(id, organizationId)
-                                .orElseThrow(() -> new ResourceNotFoundException("Support agreement not found"));
+        return financialParty;
+    }
+
+    private Fund resolveFund(
+
+            UUID organizationId,
+
+            UUID fundId) {
+
+        return fundRepository
+                .findByIdAndOrganizationIdAndActiveTrue(
+
+                        fundId,
+
+                        organizationId)
+
+                .orElseThrow(
+                        () ->
+                                new ResourceNotFoundException(
+                                        "Fund not found"));
+    }
+
+    private String normalizeText(
+            String value) {
+
+        if (value == null
+                || value.isBlank()) {
+
+            return null;
         }
 
-        private void validateDates(java.time.LocalDate startDate, java.time.LocalDate endDate) {
-                if (endDate != null && endDate.isBefore(startDate)) {
-                        throw new BusinessException("End date cannot be before start date");
-                }
-        }
+        return value.trim();
+    }
 
-        private void validateNoActiveAgreementOverlap(
-                        UUID organizationId,
-                        UUID beneficiaryId,
-                        UUID fundId,
-                        LocalDate startDate,
-                        LocalDate endDate,
-                        UUID excludedId) {
+    private void recordAudit(
 
-                boolean hasOverlap = repository
-                                .existsActiveAgreementOverlappingPeriod(
-                                                organizationId,
-                                                beneficiaryId,
-                                                fundId,
-                                                startDate,
-                                                endDate,
-                                                excludedId);
+            UUID organizationId,
 
-                if (hasOverlap) {
-                        throw new BusinessException(
-                                        "There is already an active support agreement for this beneficiary and fund during the selected period");
-                }
-        }
+            UUID commitmentId,
 
-        private Beneficiary resolveSupportRecipient(UUID organizationId, UUID financialPartyId) {
+            AuditAction action,
 
-                Beneficiary financialParty = beneficiaryRepository
-                                .findByIdAndOrganizationIdAndActiveTrue(financialPartyId, organizationId)
-                                .orElseThrow(() -> new ResourceNotFoundException("Payment recipient not found"));
+            String description) {
 
-                if (financialParty.getRoles() == null
-                                || !financialParty.getRoles().contains(FinancialPartyRole.PAYMENT_RECIPIENT)) {
-                        throw new BusinessException("Financial party cannot be used as a support recipient");
-                }
+        auditLogService.record(
 
-                return financialParty;
-        }
+                organizationId,
+
+                AuditEntityType
+                        .FINANCIAL_COMMITMENT,
+
+                commitmentId,
+
+                action,
+
+                description);
+    }
 }
