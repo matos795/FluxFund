@@ -29,6 +29,7 @@ import { PlatformAdminRoute } from "./platform-admin-route"
 import { PlatformOrganizationsPage } from "@/pages/platform-organizations-page"
 import { FinancialPartiesPage } from "@/pages/financial-parties-page"
 import { FinancialCommitmentsPage } from "@/pages/financial-commitments-page"
+import { FinancialCommitmentReconciliationPage } from "@/pages/financial-commitment-reconciliation-page"
 
 export function AppRoutes() {
   return (
@@ -104,6 +105,12 @@ export function AppRoutes() {
             path="/financial-commitments"
             element={
               <FinancialCommitmentsPage />
+            }
+          />
+          <Route
+            path="/financial-commitments/reconciliation"
+            element={
+              <FinancialCommitmentReconciliationPage />
             }
           />
           <Route

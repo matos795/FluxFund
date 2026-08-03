@@ -87,5 +87,11 @@ export async function invalidateFinancialData(
       queryKey:
         ["credit-card-statement-items"],
     }),
+
+    queryClient.invalidateQueries({
+      queryKey: [
+        "financial-commitment-reconciliation",
+      ],
+    }),
   ])
 }

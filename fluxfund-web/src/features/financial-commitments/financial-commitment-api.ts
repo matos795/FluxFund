@@ -11,7 +11,10 @@ import type {
     CreateFinancialCommitmentVersionRequest,
     FinancialCommitment,
     FinancialCommitmentAllocationSuggestion,
+    FinancialCommitmentReconciliationItem,
+    GetFinancialCommitmentReconciliationParams,
     GetFinancialCommitmentsParams,
+    LinkFinancialCommitmentReconciliationRequest,
     UpdateFinancialCommitmentRequest,
 } from "./financial-commitment-types"
 
@@ -185,4 +188,59 @@ export async function getFinancialCommitmentAllocationSuggestions({
         )
 
     return response.data
+}
+
+export async function getFinancialCommitmentReconciliation({
+  startMonth,
+  endMonth,
+  transactionType,
+  page = 0,
+  size = 8,
+}: GetFinancialCommitmentReconciliationParams) {
+  const response =
+    await httpClient.get<
+      PageResponse<
+        FinancialCommitmentReconciliationItem
+      >
+    >(
+      "/api/v1/financial-commitments/reconciliation",
+      {
+        params: {
+          startMonth:
+            `${startMonth}-01`,
+
+          endMonth:
+            `${endMonth}-01`,
+
+          transactionType:
+            transactionType ||
+            undefined,
+
+          page,
+          size,
+
+          sort:
+            "referenceMonth,desc",
+        },
+      },
+    )
+
+  return response.data
+}
+
+export async function linkFinancialCommitmentReconciliation({
+  transactionId,
+  allocationId,
+  financialCommitmentId,
+}: LinkFinancialCommitmentReconciliationRequest) {
+  const response =
+    await httpClient.patch(
+      `/api/v1/financial-commitments/reconciliation/${transactionId}/allocations/${allocationId}`,
+
+      {
+        financialCommitmentId,
+      },
+    )
+
+  return response.data
 }

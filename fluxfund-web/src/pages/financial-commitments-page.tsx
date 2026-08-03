@@ -45,6 +45,7 @@ import type {
     FinancialCommitmentType,
 } from "@/features/financial-commitments/financial-commitment-types"
 import { Button } from "@/components/ui/button"
+import { CommitmentsWorkspaceNav } from "@/features/financial-commitments/components/commitments-workspace-nav"
 
 const PAGE_SIZE = 10
 
@@ -218,6 +219,8 @@ export function FinancialCommitmentsPage() {
                     <CreateFinancialCommitmentDialog />
                 )}
             </PageHeader>
+
+            <CommitmentsWorkspaceNav />
 
             <div className="flex gap-3 rounded-xl border bg-muted/30 p-4 text-sm">
                 <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />

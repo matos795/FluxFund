@@ -167,3 +167,58 @@ export type CreateFinancialCommitmentVersionRequest = {
   startDate: string
   description?: string | null
 }
+
+export type FinancialCommitmentReconciliationStatus =
+  | "EXACT"
+  | "REVIEW"
+  | "NO_MATCH"
+
+export type FinancialCommitmentReconciliationItem = {
+  allocationId: string
+  transactionId: string
+
+  settlementDate: string
+  description: string | null
+
+  transactionType:
+    | "INCOME"
+    | "EXPENSE"
+
+  accountName: string
+
+  fund:
+    FundSummary
+
+  sourceParty:
+    FinancialPartySummary | null
+
+  recipientParty:
+    FinancialPartySummary | null
+
+  referenceMonth: string
+  amount: number
+
+  matchStatus:
+    FinancialCommitmentReconciliationStatus
+
+  suggestions:
+    FinancialCommitmentAllocationSuggestion[]
+}
+
+export type GetFinancialCommitmentReconciliationParams = {
+  startMonth: string
+  endMonth: string
+
+  transactionType?:
+    | "INCOME"
+    | "EXPENSE"
+
+  page?: number
+  size?: number
+}
+
+export type LinkFinancialCommitmentReconciliationRequest = {
+  transactionId: string
+  allocationId: string
+  financialCommitmentId: string
+}
