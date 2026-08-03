@@ -24,6 +24,7 @@ import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentStatus;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentType;
 import com.fluxfund.api.domain.financialcommitment.dto.CreateFinancialCommitmentRequest;
+import com.fluxfund.api.domain.financialcommitment.dto.CreateFinancialCommitmentVersionRequest;
 import com.fluxfund.api.domain.financialcommitment.dto.FinancialCommitmentAllocationSuggestionResponse;
 import com.fluxfund.api.domain.financialcommitment.dto.FinancialCommitmentResponse;
 import com.fluxfund.api.domain.financialcommitment.dto.UpdateFinancialCommitmentRequest;
@@ -47,744 +48,816 @@ import lombok.RequiredArgsConstructor;
 @Transactional
 public class FinancialCommitmentService {
 
-    private final FinancialCommitmentRepository repository;
-    private final OrganizationRepository organizationRepository;
-    private final BeneficiaryRepository beneficiaryRepository;
-    private final FundRepository fundRepository;
-    private final OrganizationAccessService organizationAccessService;
-    private final AuditLogService auditLogService;
-    private final TransactionAllocationRepository transactionAllocationRepository;
+        private final FinancialCommitmentRepository repository;
+        private final OrganizationRepository organizationRepository;
+        private final BeneficiaryRepository beneficiaryRepository;
+        private final FundRepository fundRepository;
+        private final OrganizationAccessService organizationAccessService;
+        private final AuditLogService auditLogService;
+        private final TransactionAllocationRepository transactionAllocationRepository;
 
-    public FinancialCommitmentResponse create(
-            UUID organizationId,
-            CreateFinancialCommitmentRequest request) {
+        public FinancialCommitmentResponse create(
+                        UUID organizationId,
+                        CreateFinancialCommitmentRequest request) {
 
-        organizationAccessService.requireFinanceWriteAccess(organizationId);
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
-        validateCommitmentDefinition(
-                request.direction(),
-                request.commitmentType(),
-                request.recurrence(),
-                request.startDate(),
-                request.endDate(),
-                request.dueDay());
+                validateCommitmentDefinition(
+                                request.direction(),
+                                request.commitmentType(),
+                                request.recurrence(),
+                                request.startDate(),
+                                request.endDate(),
+                                request.dueDay());
 
-        Organization organization = organizationRepository
-                .findById(organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+                Organization organization = organizationRepository
+                                .findById(organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
-        Beneficiary party = resolveParty(
-                organizationId,
-                request.partyId(),
-                request.direction());
+                Beneficiary party = resolveParty(
+                                organizationId,
+                                request.partyId(),
+                                request.direction());
 
-        Beneficiary designatedRecipient = resolveDesignatedRecipient(
-                organizationId,
-                request.direction(),
-                request.partyId(),
-                request.designatedRecipientId());
+                Beneficiary designatedRecipient = resolveDesignatedRecipient(
+                                organizationId,
+                                request.direction(),
+                                request.partyId(),
+                                request.designatedRecipientId());
 
-        Fund fund = resolveFund(
-                organizationId,
-                request.fundId());
+                Fund fund = resolveFund(
+                                organizationId,
+                                request.fundId());
 
-        LocalDate endDate = normalizeEndDate(
-                request.recurrence(),
-                request.startDate(),
-                request.endDate());
+                LocalDate endDate = normalizeEndDate(
+                                request.recurrence(),
+                                request.startDate(),
+                                request.endDate());
 
-        validateNoOverlap(
-                organizationId,
-                request.direction(),
-                request.commitmentType(),
-                request.recurrence(),
-                request.partyId(),
-                request.designatedRecipientId(),
-                request.fundId(),
-                request.startDate(),
-                endDate,
-                null);
+                validateNoOverlap(
+                                organizationId,
+                                request.direction(),
+                                request.commitmentType(),
+                                request.recurrence(),
+                                request.partyId(),
+                                request.designatedRecipientId(),
+                                request.fundId(),
+                                request.startDate(),
+                                endDate,
+                                null);
 
-        FinancialCommitment commitment = new FinancialCommitment();
+                FinancialCommitment commitment = new FinancialCommitment();
 
-        commitment.setOrganization(
-                organization);
+                commitment.setOrganization(
+                                organization);
 
-        commitment.setParty(
-                party);
+                commitment.setParty(
+                                party);
 
-        commitment.setDesignatedRecipient(
-                designatedRecipient);
+                commitment.setDesignatedRecipient(
+                                designatedRecipient);
 
-        commitment.setFund(
-                fund);
+                commitment.setFund(
+                                fund);
 
-        commitment.setDirection(
-                request.direction());
+                commitment.setDirection(
+                                request.direction());
 
-        commitment.setCommitmentType(
-                request.commitmentType());
+                commitment.setCommitmentType(
+                                request.commitmentType());
 
-        commitment.setRecurrence(
-                request.recurrence());
+                commitment.setRecurrence(
+                                request.recurrence());
 
-        commitment.setAmount(
-                request.amount());
+                commitment.setAmount(
+                                request.amount());
 
-        commitment.setDueDay(
-                request.recurrence() == FinancialCommitmentRecurrence.MONTHLY
+                commitment.setDueDay(
+                                request.recurrence() == FinancialCommitmentRecurrence.MONTHLY
 
-                        ? request.dueDay()
-                        : null);
+                                                ? request.dueDay()
+                                                : null);
 
-        commitment.setStartDate(
-                request.startDate());
+                commitment.setStartDate(
+                                request.startDate());
 
-        commitment.setEndDate(
-                endDate);
+                commitment.setEndDate(
+                                endDate);
 
-        commitment.setDescription(
-                normalizeText(
-                        request.description()));
+                commitment.setDescription(
+                                normalizeText(
+                                                request.description()));
 
-        commitment.setActive(true);
+                commitment.setActive(true);
 
-        repository.saveAndFlush(
-                commitment);
+                repository.saveAndFlush(
+                                commitment);
 
-        auditLogService.record(
-
-                organizationId,
-
-                AuditEntityType.FINANCIAL_COMMITMENT,
-
-                commitment.getId(),
-
-                AuditAction.CREATE,
-
-                "Financial commitment created");
-
-        return FinancialCommitmentMapper
-                .toResponse(
-                        commitment);
-    }
-
-    @Transactional(readOnly = true)
-    public Page<FinancialCommitmentResponse> findAll(
-
-            UUID organizationId,
-
-            String search,
-
-            FinancialCommitmentDirection direction,
-
-            FinancialCommitmentType commitmentType,
-
-            FinancialCommitmentRecurrence recurrence,
-
-            FinancialCommitmentStatus status,
-
-            UUID partyId,
-
-            UUID designatedRecipientId,
-
-            UUID fundId,
-
-            Pageable pageable) {
-
-        organizationAccessService
-                .requireReadAccess(
-                        organizationId);
-
-        LocalDate referenceDate = LocalDate.now();
-
-        Specification<FinancialCommitment> specification =
-
-                FinancialCommitmentSpecification
-                        .withFilters(
+                auditLogService.record(
 
                                 organizationId,
 
-                                search,
+                                AuditEntityType.FINANCIAL_COMMITMENT,
 
-                                direction,
+                                commitment.getId(),
 
-                                commitmentType,
+                                AuditAction.CREATE,
 
-                                recurrence,
+                                "Financial commitment created");
 
-                                status,
+                return FinancialCommitmentMapper
+                                .toResponse(
+                                                commitment);
+        }
 
-                                partyId,
+        @Transactional(readOnly = true)
+        public Page<FinancialCommitmentResponse> findAll(
+                        UUID organizationId,
+                        String search,
+                        FinancialCommitmentDirection direction,
+                        FinancialCommitmentType commitmentType,
+                        FinancialCommitmentRecurrence recurrence,
+                        FinancialCommitmentStatus status,
+                        UUID partyId,
+                        UUID designatedRecipientId,
+                        UUID fundId,
+                        LocalDate referenceDate,
+                        Pageable pageable) {
 
-                                designatedRecipientId,
+                organizationAccessService.requireReadAccess(organizationId);
 
-                                fundId,
+                LocalDate effectiveReferenceDate = referenceDate != null ? referenceDate : LocalDate.now();
 
-                                referenceDate);
+                Specification<FinancialCommitment> specification =
 
-        return repository
-                .findAll(
-                        specification,
-                        pageable)
+                                FinancialCommitmentSpecification
+                                                .withFilters(
+                                                                organizationId,
+                                                                search,
+                                                                direction,
+                                                                commitmentType,
+                                                                recurrence,
+                                                                status,
+                                                                partyId,
+                                                                designatedRecipientId,
+                                                                fundId,
+                                                                effectiveReferenceDate);
 
-                .map(
-                        commitment -> FinancialCommitmentMapper
+                return repository.findAll(specification, pageable)
+                                .map(commitment -> FinancialCommitmentMapper
+                                                .toResponse(commitment, effectiveReferenceDate));
+        }
+
+        @Transactional(readOnly = true)
+        public FinancialCommitmentResponse findById(
+
+                        UUID organizationId,
+
+                        UUID id) {
+
+                organizationAccessService
+                                .requireReadAccess(
+                                                organizationId);
+
+                return FinancialCommitmentMapper
                                 .toResponse(
 
-                                        commitment,
+                                                findEntityById(
+                                                                organizationId,
+                                                                id));
+        }
 
-                                        referenceDate));
-    }
+        public FinancialCommitmentResponse update(
+                        UUID organizationId,
+                        UUID id,
+                        UpdateFinancialCommitmentRequest request) {
 
-    @Transactional(readOnly = true)
-    public FinancialCommitmentResponse findById(
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
-            UUID organizationId,
+                FinancialCommitment commitment = findEntityById(organizationId, id);
 
-            UUID id) {
+                /*
+                 * Alterar a direção ou o tipo pode remover
+                 * um registro de relatórios históricos.
+                 *
+                 * Para isso, o usuário deverá encerrar o
+                 * compromisso antigo e criar outro.
+                 */
+                if (commitment.getDirection() != request.direction()) {
 
-        organizationAccessService
-                .requireReadAccess(
-                        organizationId);
+                        throw new BusinessException(
+                                        "Commitment direction cannot be changed. Create a new commitment.");
+                }
 
-        return FinancialCommitmentMapper
-                .toResponse(
+                if (commitment.getCommitmentType() != request.commitmentType()) {
 
-                        findEntityById(
+                        throw new BusinessException(
+                                        "Commitment type cannot be changed. Create a new commitment.");
+                }
+
+                validateCommitmentDefinition(
+                                request.direction(),
+                                request.commitmentType(),
+                                request.recurrence(),
+                                request.startDate(),
+                                request.endDate(),
+                                request.dueDay());
+
+                Beneficiary party = resolveParty(
                                 organizationId,
-                                id));
-    }
+                                request.partyId(),
+                                request.direction());
 
-    public FinancialCommitmentResponse update(
+                Beneficiary designatedRecipient = resolveDesignatedRecipient(
 
-            UUID organizationId,
+                                organizationId,
 
-            UUID id,
+                                request.direction(),
 
-            UpdateFinancialCommitmentRequest request) {
+                                request.partyId(),
 
-        organizationAccessService
-                .requireFinanceWriteAccess(
-                        organizationId);
+                                request.designatedRecipientId());
 
-        FinancialCommitment commitment = findEntityById(
-                organizationId,
-                id);
+                Fund fund = resolveFund(
+                                organizationId,
+                                request.fundId());
 
-        /*
-         * Alterar a direção ou o tipo pode remover
-         * um registro de relatórios históricos.
-         *
-         * Para isso, o usuário deverá encerrar o
-         * compromisso antigo e criar outro.
-         */
-        if (commitment.getDirection() != request.direction()) {
+                LocalDate endDate = normalizeEndDate(
 
-            throw new BusinessException(
-                    "Commitment direction cannot be changed. Create a new commitment.");
+                                request.recurrence(),
+
+                                request.startDate(),
+
+                                request.endDate());
+
+                if (Boolean.TRUE.equals(
+                                commitment.getActive())) {
+
+                        validateNoOverlap(
+
+                                        organizationId,
+
+                                        request.direction(),
+
+                                        request.commitmentType(),
+
+                                        request.recurrence(),
+
+                                        request.partyId(),
+
+                                        request.designatedRecipientId(),
+
+                                        request.fundId(),
+
+                                        request.startDate(),
+
+                                        endDate,
+
+                                        commitment.getId());
+                }
+
+                commitment.setParty(
+                                party);
+
+                commitment.setDesignatedRecipient(
+                                designatedRecipient);
+
+                commitment.setFund(
+                                fund);
+
+                commitment.setRecurrence(
+                                request.recurrence());
+
+                commitment.setAmount(
+                                request.amount());
+
+                commitment.setDueDay(
+                                request.recurrence() == FinancialCommitmentRecurrence.MONTHLY
+
+                                                ? request.dueDay()
+                                                : null);
+
+                commitment.setStartDate(
+                                request.startDate());
+
+                commitment.setEndDate(
+                                endDate);
+
+                commitment.setDescription(
+                                normalizeText(
+                                                request.description()));
+
+                repository.saveAndFlush(
+                                commitment);
+
+                auditLogService.record(
+
+                                organizationId,
+
+                                AuditEntityType.FINANCIAL_COMMITMENT,
+
+                                commitment.getId(),
+
+                                AuditAction.UPDATE,
+
+                                "Financial commitment updated");
+
+                return FinancialCommitmentMapper.toResponse(commitment);
         }
 
-        if (commitment.getCommitmentType() != request.commitmentType()) {
+        public FinancialCommitmentResponse createVersion(
+                        UUID organizationId,
+                        UUID id,
+                        CreateFinancialCommitmentVersionRequest request) {
 
-            throw new BusinessException(
-                    "Commitment type cannot be changed. Create a new commitment.");
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
+
+                FinancialCommitment previous = findEntityById(organizationId, id);
+
+                if (!Boolean.TRUE.equals(previous.getActive())) {
+                        throw new BusinessException("Não é possível criar uma nova vigência a partir de um compromisso inativo.");
+                }
+
+                if (previous.getRecurrence() != FinancialCommitmentRecurrence.MONTHLY) {
+                        throw new BusinessException("Somente compromissos mensais podem receber uma nova vigência.");
+                }
+
+                if (previous.getEndDate() != null) {
+                        throw new BusinessException("Este compromisso já possui uma data final. Crie um novo compromisso normalmente.");
+                }
+
+                if (!request.startDate().isAfter(previous.getStartDate())) {
+                        throw new BusinessException("A nova vigência deve começar depois da vigência atual.");
+                }
+
+                UUID designatedRecipientId = previous.getDesignatedRecipient() != null
+                                                                ? previous.getDesignatedRecipient().getId() : null;
+
+                /*
+                 * Verifica se já existe outra vigência
+                 * equivalente ocupando o novo período.
+                 *
+                 * O compromisso anterior é excluído
+                 * dessa verificação porque será encerrado.
+                 */
+                validateNoOverlap(
+                                organizationId,
+                                previous.getDirection(),
+                                previous.getCommitmentType(),
+                                previous.getRecurrence(),
+                                previous.getParty().getId(),
+                                designatedRecipientId,
+                                previous.getFund().getId(),
+                                request.startDate(),
+                                null,
+                                previous.getId());
+
+                previous.setEndDate(request.startDate().minusDays(1));
+
+                FinancialCommitment next = new FinancialCommitment();
+
+                next.setOrganization(previous.getOrganization());
+
+                next.setParty(previous.getParty());
+
+                next.setDesignatedRecipient(previous.getDesignatedRecipient());
+
+                next.setFund(previous.getFund());
+
+                next.setDirection(previous.getDirection());
+
+                next.setCommitmentType(previous.getCommitmentType());
+
+                next.setRecurrence(previous.getRecurrence());
+
+                next.setAmount(request.amount());
+
+                next.setDueDay(previous.getDueDay());
+
+                next.setStartDate(request.startDate());
+
+                next.setEndDate(null);
+
+                next.setActive(true);
+
+                next.setDescription(request.description() != null ? normalizeText(request.description()) : previous.getDescription());
+
+                repository.saveAndFlush(previous);
+
+                repository.saveAndFlush(next);
+
+                auditLogService.record(
+                                organizationId,
+                                AuditEntityType.FINANCIAL_COMMITMENT,
+                                previous.getId(),
+                                AuditAction.UPDATE,
+                                "Financial commitment ended due to a new version");
+
+                auditLogService.record(
+                                organizationId,
+                                AuditEntityType.FINANCIAL_COMMITMENT,
+                                next.getId(),
+                                AuditAction.CREATE,
+                                "New financial commitment version created");
+
+                return FinancialCommitmentMapper.toResponse(next);
         }
 
-        validateCommitmentDefinition(
-                request.direction(),
-                request.commitmentType(),
-                request.recurrence(),
-                request.startDate(),
-                request.endDate(),
-                request.dueDay());
+        public void deactivate(
 
-        Beneficiary party = resolveParty(
-                organizationId,
-                request.partyId(),
-                request.direction());
+                        UUID organizationId,
 
-        Beneficiary designatedRecipient = resolveDesignatedRecipient(
+                        UUID id) {
 
-                organizationId,
+                organizationAccessService
+                                .requireFinanceWriteAccess(
+                                                organizationId);
 
-                request.direction(),
+                FinancialCommitment commitment = findEntityById(
+                                organizationId,
+                                id);
 
-                request.partyId(),
+                if (!Boolean.TRUE.equals(
+                                commitment.getActive())) {
 
-                request.designatedRecipientId());
+                        return;
+                }
 
-        Fund fund = resolveFund(
-                organizationId,
-                request.fundId());
+                commitment.setActive(false);
 
-        LocalDate endDate = normalizeEndDate(
+                repository.save(
+                                commitment);
 
-                request.recurrence(),
+                auditLogService.record(
 
-                request.startDate(),
+                                organizationId,
 
-                request.endDate());
+                                AuditEntityType.FINANCIAL_COMMITMENT,
 
-        if (Boolean.TRUE.equals(
-                commitment.getActive())) {
+                                commitment.getId(),
 
-            validateNoOverlap(
+                                AuditAction.DEACTIVATE,
 
-                    organizationId,
-
-                    request.direction(),
-
-                    request.commitmentType(),
-
-                    request.recurrence(),
-
-                    request.partyId(),
-
-                    request.designatedRecipientId(),
-
-                    request.fundId(),
-
-                    request.startDate(),
-
-                    endDate,
-
-                    commitment.getId());
+                                "Financial commitment deactivated");
         }
 
-        commitment.setParty(
-                party);
+        public FinancialCommitmentResponse activate(
 
-        commitment.setDesignatedRecipient(
-                designatedRecipient);
+                        UUID organizationId,
 
-        commitment.setFund(
-                fund);
+                        UUID id) {
 
-        commitment.setRecurrence(
-                request.recurrence());
+                organizationAccessService
+                                .requireFinanceWriteAccess(
+                                                organizationId);
 
-        commitment.setAmount(
-                request.amount());
+                FinancialCommitment commitment = findEntityById(
+                                organizationId,
+                                id);
 
-        commitment.setDueDay(
-                request.recurrence() == FinancialCommitmentRecurrence.MONTHLY
+                if (Boolean.TRUE.equals(
+                                commitment.getActive())) {
 
-                        ? request.dueDay()
-                        : null);
+                        return FinancialCommitmentMapper
+                                        .toResponse(
+                                                        commitment);
+                }
 
-        commitment.setStartDate(
-                request.startDate());
+                if (commitment.getEndDate() != null
+                                && commitment
+                                                .getEndDate()
+                                                .isBefore(
+                                                                LocalDate.now())) {
 
-        commitment.setEndDate(
-                endDate);
+                        throw new BusinessException(
+                                        "Update the commitment period before reactivating it");
+                }
 
-        commitment.setDescription(
-                normalizeText(
-                        request.description()));
+                validateNoOverlap(
 
-        repository.saveAndFlush(
-                commitment);
+                                organizationId,
 
-        auditLogService.record(
+                                commitment.getDirection(),
 
-                organizationId,
+                                commitment.getCommitmentType(),
 
-                AuditEntityType.FINANCIAL_COMMITMENT,
+                                commitment.getRecurrence(),
 
-                commitment.getId(),
+                                commitment.getParty().getId(),
 
-                AuditAction.UPDATE,
+                                commitment.getDesignatedRecipient() != null
 
-                "Financial commitment updated");
+                                                ? commitment
+                                                                .getDesignatedRecipient()
+                                                                .getId()
 
-        return FinancialCommitmentMapper
-                .toResponse(
-                        commitment);
-    }
+                                                : null,
 
-    public void deactivate(
+                                commitment.getFund().getId(),
 
-            UUID organizationId,
+                                commitment.getStartDate(),
 
-            UUID id) {
+                                commitment.getEndDate(),
 
-        organizationAccessService
-                .requireFinanceWriteAccess(
-                        organizationId);
+                                commitment.getId());
 
-        FinancialCommitment commitment = findEntityById(
-                organizationId,
-                id);
+                commitment.setActive(true);
 
-        if (!Boolean.TRUE.equals(
-                commitment.getActive())) {
+                repository.saveAndFlush(
+                                commitment);
 
-            return;
+                auditLogService.record(
+
+                                organizationId,
+
+                                AuditEntityType.FINANCIAL_COMMITMENT,
+
+                                commitment.getId(),
+
+                                AuditAction.ACTIVATE,
+
+                                "Financial commitment activated");
+
+                return FinancialCommitmentMapper
+                                .toResponse(
+                                                commitment);
         }
 
-        commitment.setActive(false);
+        @Transactional(readOnly = true)
+        public List<FinancialCommitmentAllocationSuggestionResponse> findAllocationSuggestions(
+                        UUID organizationId,
+                        FinancialTransactionType transactionType,
+                        UUID sourcePartyId,
+                        UUID recipientPartyId,
+                        UUID fundId,
+                        LocalDate referenceMonth,
+                        BigDecimal availableAmount,
+                        UUID excludedAllocationId) {
 
-        repository.save(
-                commitment);
+                organizationAccessService.requireReadAccess(organizationId);
 
-        auditLogService.record(
+                if (transactionType == FinancialTransactionType.TRANSFER) {
+                        return List.of();
+                }
 
-                organizationId,
+                if (availableAmount == null || availableAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                        return List.of();
+                }
 
-                AuditEntityType.FINANCIAL_COMMITMENT,
+                FinancialCommitmentDirection direction;
+                UUID partyId;
+                UUID designatedRecipientId;
 
-                commitment.getId(),
+                if (transactionType == FinancialTransactionType.INCOME) {
 
-                AuditAction.DEACTIVATE,
+                        if (sourcePartyId == null) {
+                                return List.of();
+                        }
 
-                "Financial commitment deactivated");
-    }
+                        direction = FinancialCommitmentDirection.RECEIVABLE;
+                        partyId = sourcePartyId;
+                        designatedRecipientId = recipientPartyId;
 
-    public FinancialCommitmentResponse activate(
+                } else {
 
-            UUID organizationId,
+                        if (recipientPartyId == null) {
+                                return List.of();
+                        }
 
-            UUID id) {
+                        direction = FinancialCommitmentDirection.PAYABLE;
+                        partyId = recipientPartyId;
+                        designatedRecipientId = null;
+                }
 
-        organizationAccessService
-                .requireFinanceWriteAccess(
-                        organizationId);
+                LocalDate monthStart = referenceMonth.withDayOfMonth(1);
 
-        FinancialCommitment commitment = findEntityById(
-                organizationId,
-                id);
+                LocalDate monthEnd = monthStart.withDayOfMonth(monthStart.lengthOfMonth());
 
-        if (Boolean.TRUE.equals(
-                commitment.getActive())) {
+                BigDecimal normalizedAvailableAmount = availableAmount.abs();
 
-            return FinancialCommitmentMapper
-                    .toResponse(
-                            commitment);
+                return repository.findApplicableForAllocation(
+                                organizationId,
+                                direction,
+                                partyId,
+                                designatedRecipientId,
+                                monthStart,
+                                monthEnd)
+                                .stream()
+                                .map(commitment -> {
+                                        BigDecimal realized = transactionAllocationRepository
+                                                        .sumRealizedCommitmentAmount(
+                                                                        organizationId,
+                                                                        commitment.getId(),
+                                                                        monthStart,
+                                                                        excludedAllocationId)
+                                                        .abs();
+                                        BigDecimal remaining = commitment.getAmount().subtract(realized)
+                                                        .max(BigDecimal.ZERO);
+                                        BigDecimal suggested = remaining.min(normalizedAvailableAmount);
+                                        boolean exactFundMatch = commitment.getFund().getId().equals(fundId);
+                                        boolean fulfilled = remaining.compareTo(BigDecimal.ZERO) == 0;
+
+                                        return new FinancialCommitmentAllocationSuggestionResponse(
+                                                        FinancialCommitmentMapper.toAllocationSummary(commitment),
+                                                        realized,
+                                                        remaining,
+                                                        suggested,
+                                                        exactFundMatch,
+                                                        fulfilled);
+                                })
+
+                                .sorted(Comparator
+                                                .comparing(FinancialCommitmentAllocationSuggestionResponse::exactFundMatch)
+                                                .reversed()
+                                                .thenComparing(FinancialCommitmentAllocationSuggestionResponse::fulfilled)
+                                                .thenComparing(suggestion -> suggestion.commitment().dueDay(),
+                                                                Comparator.nullsLast(Comparator.naturalOrder())))
+                                .toList();
         }
 
-        if (commitment.getEndDate() != null
-                && commitment
-                        .getEndDate()
-                        .isBefore(
-                                LocalDate.now())) {
+        private FinancialCommitment findEntityById(
 
-            throw new BusinessException(
-                    "Update the commitment period before reactivating it");
+                        UUID organizationId,
+
+                        UUID id) {
+
+                return repository
+                                .findByIdAndOrganizationId(
+                                                id,
+                                                organizationId)
+
+                                .orElseThrow(
+                                                () -> new ResourceNotFoundException(
+                                                                "Financial commitment not found"));
         }
 
-        validateNoOverlap(
+        private Beneficiary resolveParty(
+                        UUID organizationId,
+                        UUID partyId,
+                        FinancialCommitmentDirection direction) {
 
-                organizationId,
+                Beneficiary party = beneficiaryRepository.findByIdAndOrganizationIdAndActiveTrue(
+                                partyId,
+                                organizationId)
 
-                commitment.getDirection(),
+                                .orElseThrow(() -> new ResourceNotFoundException("Financial party not found"));
 
-                commitment.getCommitmentType(),
+                FinancialPartyRole requiredRole = direction == FinancialCommitmentDirection.RECEIVABLE
+                                ? FinancialPartyRole.INCOME_SOURCE
+                                : FinancialPartyRole.PAYMENT_RECIPIENT;
 
-                commitment.getRecurrence(),
+                if (party.getRoles() == null || !party.getRoles().contains(requiredRole)) {
+                        throw new BusinessException("Financial party does not have the required role");
+                }
 
-                commitment.getParty().getId(),
-
-                commitment.getDesignatedRecipient() != null
-
-                        ? commitment
-                                .getDesignatedRecipient()
-                                .getId()
-
-                        : null,
-
-                commitment.getFund().getId(),
-
-                commitment.getStartDate(),
-
-                commitment.getEndDate(),
-
-                commitment.getId());
-
-        commitment.setActive(true);
-
-        repository.saveAndFlush(
-                commitment);
-
-        auditLogService.record(
-
-                organizationId,
-
-                AuditEntityType.FINANCIAL_COMMITMENT,
-
-                commitment.getId(),
-
-                AuditAction.ACTIVATE,
-
-                "Financial commitment activated");
-
-        return FinancialCommitmentMapper
-                .toResponse(
-                        commitment);
-    }
-
-    @Transactional(readOnly = true)
-    public List<FinancialCommitmentAllocationSuggestionResponse> findAllocationSuggestions(
-            UUID organizationId,
-            FinancialTransactionType transactionType,
-            UUID sourcePartyId,
-            UUID recipientPartyId,
-            UUID fundId,
-            LocalDate referenceMonth,
-            BigDecimal availableAmount,
-            UUID excludedAllocationId) {
-
-        organizationAccessService.requireReadAccess(organizationId);
-
-        if (transactionType == FinancialTransactionType.TRANSFER) {
-            return List.of();
+                return party;
         }
 
-        if (availableAmount == null || availableAmount.compareTo(BigDecimal.ZERO) <= 0) {
-            return List.of();
+        private Beneficiary resolveDesignatedRecipient(
+                        UUID organizationId,
+                        FinancialCommitmentDirection direction,
+                        UUID partyId,
+                        UUID designatedRecipientId) {
+
+                if (designatedRecipientId == null) {
+                        return null;
+                }
+
+                if (direction != FinancialCommitmentDirection.RECEIVABLE) {
+                        throw new BusinessException("Only receivable commitments can have a designated recipient");
+                }
+
+                if (partyId.equals(designatedRecipientId)) {
+                        throw new BusinessException("Source party and designated recipient must be different");
+                }
+
+                Beneficiary recipient = beneficiaryRepository
+                                .findByIdAndOrganizationIdAndActiveTrue(
+                                                designatedRecipientId,
+                                                organizationId)
+
+                                .orElseThrow(() -> new ResourceNotFoundException("Designated recipient not found"));
+
+                if (recipient.getRoles() == null || !recipient.getRoles()
+                                .contains(FinancialPartyRole.PAYMENT_RECIPIENT)) {
+
+                        throw new BusinessException("Designated recipient does not have the payment recipient role");
+                }
+
+                return recipient;
         }
 
-        FinancialCommitmentDirection direction;
-        UUID partyId;
-        UUID designatedRecipientId;
-
-        if (transactionType == FinancialTransactionType.INCOME) {
-
-            if (sourcePartyId == null) {
-                return List.of();
-            }
-
-            direction = FinancialCommitmentDirection.RECEIVABLE;
-            partyId = sourcePartyId;
-            designatedRecipientId = recipientPartyId;
-
-        } else {
-
-            if (recipientPartyId == null) {
-                return List.of();
-            }
-
-            direction = FinancialCommitmentDirection.PAYABLE;
-            partyId = recipientPartyId;
-            designatedRecipientId = null;
+        private Fund resolveFund(UUID organizationId, UUID fundId) {
+                return fundRepository.findByIdAndOrganizationIdAndActiveTrue(fundId, organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Fund not found"));
         }
 
-        LocalDate monthStart = referenceMonth.withDayOfMonth(1);
+        private void validateCommitmentDefinition(
+                        FinancialCommitmentDirection direction,
+                        FinancialCommitmentType commitmentType,
+                        FinancialCommitmentRecurrence recurrence,
+                        LocalDate startDate,
+                        LocalDate endDate,
+                        Integer dueDay) {
 
-        LocalDate monthEnd = monthStart.withDayOfMonth(monthStart.lengthOfMonth());
+                if (endDate != null && endDate.isBefore(startDate)) {
 
-        BigDecimal normalizedAvailableAmount = availableAmount.abs();
+                        throw new BusinessException("End date cannot be before start date");
+                }
 
-        return repository.findApplicableForAllocation(
-                organizationId,
-                direction,
-                partyId,
-                designatedRecipientId,
-                monthStart,
-                monthEnd)
-                .stream()
-                .map(commitment -> {
-                    BigDecimal realized = transactionAllocationRepository
-                            .sumRealizedCommitmentAmount(
-                                    organizationId,
-                                    commitment.getId(),
-                                    monthStart,
-                                    excludedAllocationId)
-                            .abs();
-                    BigDecimal remaining = commitment.getAmount().subtract(realized).max(BigDecimal.ZERO);
-                    BigDecimal suggested = remaining.min(normalizedAvailableAmount);
-                    boolean exactFundMatch = commitment.getFund().getId().equals(fundId);
-                    boolean fulfilled = remaining.compareTo(BigDecimal.ZERO) == 0;
+                if (recurrence == FinancialCommitmentRecurrence.ONE_TIME) {
 
-                    return new FinancialCommitmentAllocationSuggestionResponse(
-                            FinancialCommitmentMapper.toAllocationSummary(commitment),
-                            realized,
-                            remaining,
-                            suggested,
-                            exactFundMatch,
-                            fulfilled);
-                })
+                        if (dueDay != null) {
+                                throw new BusinessException("One-time commitments cannot have a due day");
+                        }
 
-                .sorted(Comparator
-                        .comparing(FinancialCommitmentAllocationSuggestionResponse::exactFundMatch)
-                        .reversed()
-                        .thenComparing(FinancialCommitmentAllocationSuggestionResponse::fulfilled)
-                        .thenComparing(suggestion -> suggestion.commitment().dueDay(),
-                                Comparator.nullsLast(Comparator.naturalOrder())))
-                .toList();
-    }
+                        if (endDate != null && !endDate.equals(startDate)) {
+                                throw new BusinessException("One-time commitment end date must equal its start date");
+                        }
+                }
 
-    private FinancialCommitment findEntityById(
+                boolean validType = switch (direction) {
 
-            UUID organizationId,
+                        case RECEIVABLE ->
 
-            UUID id) {
+                                commitmentType == FinancialCommitmentType.DONATION
 
-        return repository
-                .findByIdAndOrganizationId(
-                        id,
-                        organizationId)
+                                                || commitmentType == FinancialCommitmentType.CUSTOMER_PAYMENT
 
-                .orElseThrow(
-                        () -> new ResourceNotFoundException(
-                                "Financial commitment not found"));
-    }
+                                                || commitmentType == FinancialCommitmentType.SPONSORSHIP
 
-    private Beneficiary resolveParty(
-            UUID organizationId,
-            UUID partyId,
-            FinancialCommitmentDirection direction) {
+                                                || commitmentType == FinancialCommitmentType.MEMBER_CONTRIBUTION
 
-        Beneficiary party = beneficiaryRepository.findByIdAndOrganizationIdAndActiveTrue(
-                partyId,
-                organizationId)
+                                                || commitmentType == FinancialCommitmentType.OTHER;
 
-                .orElseThrow(() -> new ResourceNotFoundException("Financial party not found"));
+                        case PAYABLE ->
 
-        FinancialPartyRole requiredRole = direction == FinancialCommitmentDirection.RECEIVABLE
-                ? FinancialPartyRole.INCOME_SOURCE
-                : FinancialPartyRole.PAYMENT_RECIPIENT;
+                                commitmentType == FinancialCommitmentType.SUPPORT
 
-        if (party.getRoles() == null || !party.getRoles().contains(requiredRole)) {
-            throw new BusinessException("Financial party does not have the required role");
+                                                || commitmentType == FinancialCommitmentType.SUPPLIER_PAYMENT
+
+                                                || commitmentType == FinancialCommitmentType.SALARY
+
+                                                || commitmentType == FinancialCommitmentType.SERVICE_PAYMENT
+
+                                                || commitmentType == FinancialCommitmentType.REIMBURSEMENT
+
+                                                || commitmentType == FinancialCommitmentType.OTHER;
+                };
+
+                if (!validType) {
+                        throw new BusinessException("Commitment type is not compatible with its direction");
+                }
         }
 
-        return party;
-    }
+        private LocalDate normalizeEndDate(
+                        FinancialCommitmentRecurrence recurrence,
+                        LocalDate startDate,
+                        LocalDate endDate) {
 
-    private Beneficiary resolveDesignatedRecipient(
-            UUID organizationId,
-            FinancialCommitmentDirection direction,
-            UUID partyId,
-            UUID designatedRecipientId) {
+                if (recurrence == FinancialCommitmentRecurrence.ONE_TIME) {
+                        return startDate;
+                }
 
-        if (designatedRecipientId == null) {
-            return null;
+                return endDate;
         }
 
-        if (direction != FinancialCommitmentDirection.RECEIVABLE) {
-            throw new BusinessException("Only receivable commitments can have a designated recipient");
+        private void validateNoOverlap(
+                        UUID organizationId,
+                        FinancialCommitmentDirection direction,
+                        FinancialCommitmentType commitmentType,
+                        FinancialCommitmentRecurrence recurrence,
+                        UUID partyId,
+                        UUID designatedRecipientId,
+                        UUID fundId,
+                        LocalDate startDate,
+                        LocalDate endDate,
+                        UUID excludedId) {
+
+                boolean overlap = repository.existsActiveFinancialCommitmentOverlap(
+                                organizationId,
+                                direction,
+                                commitmentType,
+                                recurrence,
+                                partyId,
+                                designatedRecipientId,
+                                fundId,
+                                startDate,
+                                endDate,
+                                excludedId);
+
+                if (overlap) {
+                        throw new BusinessException(
+                                        "There is already an active equivalent commitment in the selected period");
+                }
         }
 
-        if (partyId.equals(designatedRecipientId)) {
-            throw new BusinessException("Source party and designated recipient must be different");
+        private String normalizeText(String value) {
+
+                if (value == null || value.isBlank()) {
+                        return null;
+                }
+
+                return value.trim();
         }
-
-        Beneficiary recipient = beneficiaryRepository
-                .findByIdAndOrganizationIdAndActiveTrue(
-                        designatedRecipientId,
-                        organizationId)
-
-                .orElseThrow(() -> new ResourceNotFoundException("Designated recipient not found"));
-
-        if (recipient.getRoles() == null || !recipient.getRoles()
-                .contains(FinancialPartyRole.PAYMENT_RECIPIENT)) {
-
-            throw new BusinessException("Designated recipient does not have the payment recipient role");
-        }
-
-        return recipient;
-    }
-
-    private Fund resolveFund(UUID organizationId, UUID fundId) {
-        return fundRepository.findByIdAndOrganizationIdAndActiveTrue(fundId, organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Fund not found"));
-    }
-
-    private void validateCommitmentDefinition(
-            FinancialCommitmentDirection direction,
-            FinancialCommitmentType commitmentType,
-            FinancialCommitmentRecurrence recurrence,
-            LocalDate startDate,
-            LocalDate endDate,
-            Integer dueDay) {
-
-        if (endDate != null && endDate.isBefore(startDate)) {
-
-            throw new BusinessException("End date cannot be before start date");
-        }
-
-        if (recurrence == FinancialCommitmentRecurrence.ONE_TIME) {
-
-            if (dueDay != null) {
-                throw new BusinessException("One-time commitments cannot have a due day");
-            }
-
-            if (endDate != null && !endDate.equals(startDate)) {
-                throw new BusinessException("One-time commitment end date must equal its start date");
-            }
-        }
-
-        boolean validType = switch (direction) {
-
-            case RECEIVABLE ->
-                commitmentType == FinancialCommitmentType.SUPPORT
-                        || commitmentType == FinancialCommitmentType.DONATION
-                        || commitmentType == FinancialCommitmentType.CUSTOMER_PAYMENT
-                        || commitmentType == FinancialCommitmentType.SPONSORSHIP
-                        || commitmentType == FinancialCommitmentType.MEMBER_CONTRIBUTION
-                        || commitmentType == FinancialCommitmentType.OTHER;
-
-            case PAYABLE ->
-                commitmentType == FinancialCommitmentType.SUPPLIER_PAYMENT
-                        || commitmentType == FinancialCommitmentType.SALARY
-                        || commitmentType == FinancialCommitmentType.SERVICE_PAYMENT
-                        || commitmentType == FinancialCommitmentType.REIMBURSEMENT
-                        || commitmentType == FinancialCommitmentType.OTHER;
-        };
-
-        if (!validType) {
-            throw new BusinessException("Commitment type is not compatible with its direction");
-        }
-    }
-
-    private LocalDate normalizeEndDate(
-            FinancialCommitmentRecurrence recurrence,
-            LocalDate startDate,
-            LocalDate endDate) {
-
-        if (recurrence == FinancialCommitmentRecurrence.ONE_TIME) {
-            return startDate;
-        }
-
-        return endDate;
-    }
-
-    private void validateNoOverlap(
-            UUID organizationId,
-            FinancialCommitmentDirection direction,
-            FinancialCommitmentType commitmentType,
-            FinancialCommitmentRecurrence recurrence,
-            UUID partyId,
-            UUID designatedRecipientId,
-            UUID fundId,
-            LocalDate startDate,
-            LocalDate endDate,
-            UUID excludedId) {
-
-        boolean overlap = repository.existsActiveFinancialCommitmentOverlap(
-                organizationId,
-                direction,
-                commitmentType,
-                recurrence,
-                partyId,
-                designatedRecipientId,
-                fundId,
-                startDate,
-                endDate,
-                excludedId);
-
-        if (overlap) {
-            throw new BusinessException("There is already an active equivalent commitment in the selected period");
-        }
-    }
-
-    private String normalizeText(String value) {
-
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-
-        return value.trim();
-    }
 }

@@ -8,6 +8,7 @@ import type {
 
 import type {
     CreateFinancialCommitmentRequest,
+    CreateFinancialCommitmentVersionRequest,
     FinancialCommitment,
     FinancialCommitmentAllocationSuggestion,
     GetFinancialCommitmentsParams,
@@ -26,6 +27,7 @@ export async function getFinancialCommitments({
     partyId,
     designatedRecipientId,
     fundId,
+    referenceDate,
 }: GetFinancialCommitmentsParams = {}) {
     const response =
         await httpClient.get<
@@ -38,24 +40,20 @@ export async function getFinancialCommitments({
                     size,
                     sort,
 
-                    search:
-                        search?.trim() ||
-                        undefined,
+                    search: search?.trim() || undefined,
 
                     direction,
                     commitmentType,
                     recurrence,
                     status,
 
-                    partyId:
-                        partyId || undefined,
+                    partyId: partyId || undefined,
 
-                    designatedRecipientId:
-                        designatedRecipientId ||
-                        undefined,
+                    designatedRecipientId: designatedRecipientId || undefined,
 
-                    fundId:
-                        fundId || undefined,
+                    fundId: fundId || undefined,
+
+                    referenceDate: referenceDate || undefined,
                 },
             },
         )
@@ -92,6 +90,26 @@ export async function updateFinancialCommitment({
             FinancialCommitment
         >(
             `/api/v1/financial-commitments/${id}`,
+            data,
+        )
+
+    return response.data
+}
+
+export async function createFinancialCommitmentVersion({
+    id,
+    data,
+}: {
+    id: string
+
+    data:
+    CreateFinancialCommitmentVersionRequest
+}) {
+    const response =
+        await httpClient.post<
+            FinancialCommitment
+        >(
+            `/api/v1/financial-commitments/${id}/versions`,
             data,
         )
 

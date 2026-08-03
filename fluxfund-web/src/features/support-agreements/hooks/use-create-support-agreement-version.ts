@@ -23,6 +23,18 @@ export function useCreateSupportAgreementVersion() {
       queryClient.invalidateQueries({
         queryKey: ["accountability-by-account-report"],
       })
+
+      queryClient.invalidateQueries({
+        queryKey: [
+          "financial-commitments",
+        ],
+      })
+
+      queryClient.invalidateQueries({
+        queryKey: [
+          "financial-commitment-allocation-suggestions",
+        ],
+      })
     },
   })
 }

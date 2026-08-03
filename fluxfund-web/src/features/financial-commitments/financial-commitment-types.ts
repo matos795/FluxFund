@@ -117,6 +117,8 @@ export type GetFinancialCommitmentsParams = {
     designatedRecipientId?: string
 
     fundId?: string
+
+    referenceDate?: string
 }
 
 export type FinancialCommitmentAllocationSummary = {
@@ -159,4 +161,10 @@ export type FinancialCommitmentAllocationSuggestion = {
 
   exactFundMatch: boolean
   fulfilled: boolean
+}
+
+export type CreateFinancialCommitmentVersionRequest = {
+  amount: number
+  startDate: string
+  description?: string | null
 }

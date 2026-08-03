@@ -31,6 +31,7 @@ import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentStatus;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentType;
 import com.fluxfund.api.domain.financialcommitment.dto.CreateFinancialCommitmentRequest;
+import com.fluxfund.api.domain.financialcommitment.dto.CreateFinancialCommitmentVersionRequest;
 import com.fluxfund.api.domain.financialcommitment.dto.FinancialCommitmentAllocationSuggestionResponse;
 import com.fluxfund.api.domain.financialcommitment.dto.FinancialCommitmentResponse;
 import com.fluxfund.api.domain.financialcommitment.dto.UpdateFinancialCommitmentRequest;
@@ -45,132 +46,122 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class FinancialCommitmentController {
 
-    private final FinancialCommitmentService service;
+        private final FinancialCommitmentService service;
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public FinancialCommitmentResponse create(
+        @PostMapping
+        @ResponseStatus(HttpStatus.CREATED)
+        public FinancialCommitmentResponse create(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @Valid @RequestBody CreateFinancialCommitmentRequest request) {
 
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                return service.create(organizationId, request);
+        }
 
-            @Valid @RequestBody CreateFinancialCommitmentRequest request) {
+        @PostMapping("/{id}/versions")
+        @ResponseStatus(HttpStatus.CREATED)
+        public FinancialCommitmentResponse createVersion(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID id,
+                        @Valid @RequestBody CreateFinancialCommitmentVersionRequest request) {
 
-        return service.create(organizationId, request);
-    }
+                return service.createVersion(organizationId, id, request);
+        }
 
-    @GetMapping
-    public Page<FinancialCommitmentResponse> findAll(
+        @GetMapping
+        public Page<FinancialCommitmentResponse> findAll(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @RequestParam(required = false) String search,
+                        @RequestParam(required = false) FinancialCommitmentDirection direction,
+                        @RequestParam(required = false) FinancialCommitmentType commitmentType,
+                        @RequestParam(required = false) FinancialCommitmentRecurrence recurrence,
+                        @RequestParam(required = false) FinancialCommitmentStatus status,
+                        @RequestParam(required = false) UUID partyId,
+                        @RequestParam(required = false) UUID designatedRecipientId,
+                        @RequestParam(required = false) UUID fundId,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate referenceDate,
+                        @PageableDefault(size = 20, sort = "startDate", direction = Sort.Direction.DESC) Pageable pageable) {
 
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                return service.findAll(
+                                organizationId,
+                                search,
+                                direction,
+                                commitmentType,
+                                recurrence,
+                                status,
+                                partyId,
+                                designatedRecipientId,
+                                fundId,
+                                referenceDate,
+                                pageable);
+        }
 
-            @RequestParam(required = false) String search,
+        @GetMapping("/allocation-suggestions")
+        public List<FinancialCommitmentAllocationSuggestionResponse> findAllocationSuggestions(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @RequestParam FinancialTransactionType transactionType,
+                        @RequestParam(required = false) UUID sourcePartyId,
+                        @RequestParam(required = false) UUID recipientPartyId,
+                        @RequestParam UUID fundId,
+                        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate referenceMonth,
+                        @RequestParam BigDecimal availableAmount,
+                        @RequestParam(required = false) UUID excludedAllocationId) {
 
-            @RequestParam(required = false) FinancialCommitmentDirection direction,
+                return service.findAllocationSuggestions(
+                                organizationId,
+                                transactionType,
+                                sourcePartyId,
+                                recipientPartyId,
+                                fundId,
+                                referenceMonth,
+                                availableAmount,
+                                excludedAllocationId);
+        }
 
-            @RequestParam(required = false) FinancialCommitmentType commitmentType,
+        @GetMapping("/{id}")
+        public FinancialCommitmentResponse findById(
 
-            @RequestParam(required = false) FinancialCommitmentRecurrence recurrence,
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
 
-            @RequestParam(required = false) FinancialCommitmentStatus status,
+                        @PathVariable UUID id) {
 
-            @RequestParam(required = false) UUID partyId,
+                return service.findById(
+                                organizationId,
+                                id);
+        }
 
-            @RequestParam(required = false) UUID designatedRecipientId,
+        @PutMapping("/{id}")
+        public FinancialCommitmentResponse update(
 
-            @RequestParam(required = false) UUID fundId,
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
 
-            @PageableDefault(size = 20, sort = "startDate", direction = Sort.Direction.DESC) Pageable pageable) {
+                        @PathVariable UUID id,
 
-        return service.findAll(
+                        @Valid @RequestBody UpdateFinancialCommitmentRequest request) {
 
-                organizationId,
+                return service.update(
+                                organizationId,
+                                id,
+                                request);
+        }
 
-                search,
+        @DeleteMapping("/{id}")
+        @ResponseStatus(HttpStatus.NO_CONTENT)
+        public void deactivate(
 
-                direction,
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
 
-                commitmentType,
+                        @PathVariable UUID id) {
 
-                recurrence,
+                service.deactivate(
+                                organizationId,
+                                id);
+        }
 
-                status,
+        @PatchMapping("/{id}/activate")
+        public FinancialCommitmentResponse activate(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID id) {
 
-                partyId,
-
-                designatedRecipientId,
-
-                fundId,
-
-                pageable);
-    }
-
-    @GetMapping("/allocation-suggestions")
-    public List<FinancialCommitmentAllocationSuggestionResponse> findAllocationSuggestions(
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @RequestParam FinancialTransactionType transactionType,
-            @RequestParam(required = false) UUID sourcePartyId,
-            @RequestParam(required = false) UUID recipientPartyId,
-            @RequestParam UUID fundId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate referenceMonth,
-            @RequestParam BigDecimal availableAmount,
-            @RequestParam(required = false) UUID excludedAllocationId) {
-
-        return service.findAllocationSuggestions(
-                organizationId,
-                transactionType,
-                sourcePartyId,
-                recipientPartyId,
-                fundId,
-                referenceMonth,
-                availableAmount,
-                excludedAllocationId);
-    }
-
-    @GetMapping("/{id}")
-    public FinancialCommitmentResponse findById(
-
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-
-            @PathVariable UUID id) {
-
-        return service.findById(
-                organizationId,
-                id);
-    }
-
-    @PutMapping("/{id}")
-    public FinancialCommitmentResponse update(
-
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-
-            @PathVariable UUID id,
-
-            @Valid @RequestBody UpdateFinancialCommitmentRequest request) {
-
-        return service.update(
-                organizationId,
-                id,
-                request);
-    }
-
-    @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deactivate(
-
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-
-            @PathVariable UUID id) {
-
-        service.deactivate(
-                organizationId,
-                id);
-    }
-
-    @PatchMapping("/{id}/activate")
-    public FinancialCommitmentResponse activate(
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @PathVariable UUID id) {
-
-        return service.activate(organizationId, id);
-    }
+                return service.activate(organizationId, id);
+        }
 }
