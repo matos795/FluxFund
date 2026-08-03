@@ -21,6 +21,7 @@ import type { FinancialTransactionType } from "../financial-transaction-types"
 import { FinancialPartyCombobox } from "@/features/financial-parties/components/financial-party-combobox"
 import type { FinancialCommitmentAllocationSuggestion, FinancialCommitmentAllocationSummary } from "@/features/financial-commitments/financial-commitment-types"
 import { FinancialCommitmentAllocationCard } from "@/features/financial-commitments/components/financial-commitment-allocation-card"
+import { SupportAgreementSuggestionCard } from "@/features/support-agreements/components/support-agreement-suggestion-card"
 
 type TransactionAllocationFormProps = {
   onCancel?: () => void
@@ -273,6 +274,56 @@ export function TransactionAllocationForm({
     )
   }
 
+  function handleApplySupportAgreementSuggestion(
+    suggestion: {
+      fundId: string
+      beneficiaryId: string
+      referenceMonth: string
+      amount: number
+    },
+  ) {
+    /*
+     * Sustento não usa o vínculo genérico.
+     */
+    clearFinancialCommitmentLink()
+
+    setValue(
+      "fundId",
+      suggestion.fundId,
+      {
+        shouldDirty: true,
+        shouldValidate: true,
+      },
+    )
+
+    setValue(
+      "recipientPartyId",
+      suggestion.beneficiaryId,
+      {
+        shouldDirty: true,
+        shouldValidate: true,
+      },
+    )
+
+    setValue(
+      "referenceMonth",
+      suggestion.referenceMonth,
+      {
+        shouldDirty: true,
+        shouldValidate: true,
+      },
+    )
+
+    setValue(
+      "amount",
+      suggestion.amount,
+      {
+        shouldDirty: true,
+        shouldValidate: true,
+      },
+    )
+  }
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div
@@ -510,6 +561,33 @@ export function TransactionAllocationForm({
             }
             onClear={
               clearFinancialCommitmentLink
+            }
+          />
+        )}
+
+      {transactionType ===
+        "EXPENSE" && (
+          <SupportAgreementSuggestionCard
+            transactionType={
+              transactionType
+            }
+            beneficiaryId={
+              selectedRecipientPartyId
+            }
+            fundId={
+              selectedFundId
+            }
+            referenceMonth={
+              referenceMonth
+            }
+            maxAmount={
+              commitmentAvailableAmount
+            }
+            autoApply={
+              false
+            }
+            onApply={
+              handleApplySupportAgreementSuggestion
             }
           />
         )}

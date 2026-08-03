@@ -18,17 +18,5 @@ export async function invalidateFinancialCommitments(
                 "financial-commitment-allocation-suggestions",
             ],
         }),
-        
-        queryClient.invalidateQueries({
-            queryKey: [
-                "support-agreements",
-            ],
-        }),
-
-        queryClient.invalidateQueries({
-            queryKey: [
-                "support-agreement-suggestions",
-            ],
-        }),
     ])
 }

@@ -11,21 +11,13 @@ export function useActivateSupportAgreement() {
       queryClient.invalidateQueries({
         queryKey: ["support-agreements"],
       })
+
       queryClient.invalidateQueries({
         queryKey: ["accountability-report"],
       })
+
       queryClient.invalidateQueries({
         queryKey: ["accountability-by-account-report"],
-      })
-      queryClient.invalidateQueries({
-        queryKey: [
-          "financial-commitments",
-        ],
-      })
-      queryClient.invalidateQueries({
-        queryKey: [
-          "financial-commitment-allocation-suggestions",
-        ],
       })
     },
   })

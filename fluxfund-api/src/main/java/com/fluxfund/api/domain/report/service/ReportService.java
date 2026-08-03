@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -23,8 +24,6 @@ import com.fluxfund.api.domain.creditcardstatement.CreditCardStatementStatus;
 import com.fluxfund.api.domain.creditcardstatement.repository.CreditCardStatementPaymentRepository;
 import com.fluxfund.api.domain.creditcardstatement.repository.CreditCardStatementRepository;
 import com.fluxfund.api.domain.dashboard.dto.DashboardTransactionActionItemProjection;
-import com.fluxfund.api.domain.financialcommitment.FinancialCommitment;
-import com.fluxfund.api.domain.financialcommitment.repository.FinancialCommitmentRepository;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
@@ -59,6 +58,7 @@ import com.fluxfund.api.domain.report.dto.fund.FundMovementAllocationProjection;
 import com.fluxfund.api.domain.report.dto.fund.FundMovementReportItemResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundMovementReportResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundReportItemResponse;
+import com.fluxfund.api.domain.report.dto.fund.FundReportProjection;
 import com.fluxfund.api.domain.report.dto.fund.FundReportResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundTransferPeriodProjection;
 import com.fluxfund.api.domain.report.dto.income.SettledIncomeReportItemResponse;
@@ -70,6 +70,8 @@ import com.fluxfund.api.domain.report.dto.pending.PendingTransactionItemResponse
 import com.fluxfund.api.domain.report.projection.AccountCashFlowProjection;
 import com.fluxfund.api.domain.report.projection.PendingCreditCardStatementProjection;
 import com.fluxfund.api.domain.report.projection.PendingDocumentTransactionProjection;
+import com.fluxfund.api.domain.supportagreement.SupportAgreement;
+import com.fluxfund.api.domain.supportagreement.repository.SupportAgreementRepository;
 import com.fluxfund.api.domain.transactionallocation.repository.TransactionAllocationRepository;
 import com.fluxfund.api.security.OrganizationAccessService;
 import com.fluxfund.api.shared.exception.BusinessException;
@@ -85,7 +87,7 @@ public class ReportService {
         private final OrganizationRepository organizationRepository;
         private final FinancialTransactionRepository financialTransactionRepository;
         private final TransactionAllocationRepository transactionAllocationRepository;
-        private final FinancialCommitmentRepository financialCommitmentRepository;
+        private final SupportAgreementRepository supportAgreementRepository;
         private final OrganizationSettingsRepository organizationSettingsRepository;
         private final OrganizationAccessService organizationAccessService;
         private final FundTransferRepository fundTransferRepository;
@@ -757,13 +759,13 @@ public class ReportService {
                                 organizationId,
                                 resolvedStartDate);
 
-                List<FinancialCommitment> periodSupportAgreements = findSupportAgreementsForReport(
+                List<SupportAgreement> periodSupportAgreements = findSupportAgreementsForReport(
                                 organizationId,
                                 resolvedStartDate,
                                 resolvedEndDate);
 
-                List<FinancialCommitment> historicalSupportAgreements = financialCommitmentRepository
-                                .findSupportStartedBeforeForReport(
+                List<SupportAgreement> historicalSupportAgreements = supportAgreementRepository
+                                .findStartedBeforeForReport(
                                                 organizationId,
                                                 historyStartDate,
                                                 resolvedStartDate);
@@ -811,20 +813,20 @@ public class ReportService {
                                         projection.fundName());
                 }
 
-                for (FinancialCommitment agreement : periodSupportAgreements) {
+                for (SupportAgreement agreement : periodSupportAgreements) {
                         addAccountabilityContext(
                                         contextByKey,
-                                        agreement.getParty().getId(),
-                                        agreement.getParty().getName(),
+                                        agreement.getBeneficiary().getId(),
+                                        agreement.getBeneficiary().getName(),
                                         agreement.getFund().getId(),
                                         agreement.getFund().getName());
                 }
 
-                for (FinancialCommitment agreement : historicalSupportAgreements) {
+                for (SupportAgreement agreement : historicalSupportAgreements) {
                         addAccountabilityContext(
                                         contextByKey,
-                                        agreement.getParty().getId(),
-                                        agreement.getParty().getName(),
+                                        agreement.getBeneficiary().getId(),
+                                        agreement.getBeneficiary().getName(),
                                         agreement.getFund().getId(),
                                         agreement.getFund().getName());
                 }
@@ -964,13 +966,13 @@ public class ReportService {
                                 organizationId,
                                 resolvedStartDate);
 
-                List<FinancialCommitment> periodSupportAgreements = findSupportAgreementsForReport(
+                List<SupportAgreement> periodSupportAgreements = findSupportAgreementsForReport(
                                 organizationId,
                                 resolvedStartDate,
                                 resolvedEndDate);
 
-                List<FinancialCommitment> historicalSupportAgreements = financialCommitmentRepository
-                                .findSupportStartedBeforeForReport(
+                List<SupportAgreement> historicalSupportAgreements = supportAgreementRepository
+                                .findStartedBeforeForReport(
                                                 organizationId,
                                                 historyStartDate,
                                                 resolvedStartDate);
@@ -1021,20 +1023,20 @@ public class ReportService {
                                         projection.fundName());
                 }
 
-                for (FinancialCommitment agreement : periodSupportAgreements) {
+                for (SupportAgreement agreement : periodSupportAgreements) {
                         addAccountabilityContext(
                                         contextByKey,
-                                        agreement.getParty().getId(),
-                                        agreement.getParty().getName(),
+                                        agreement.getBeneficiary().getId(),
+                                        agreement.getBeneficiary().getName(),
                                         agreement.getFund().getId(),
                                         agreement.getFund().getName());
                 }
 
-                for (FinancialCommitment agreement : historicalSupportAgreements) {
+                for (SupportAgreement agreement : historicalSupportAgreements) {
                         addAccountabilityContext(
                                         contextByKey,
-                                        agreement.getParty().getId(),
-                                        agreement.getParty().getName(),
+                                        agreement.getBeneficiary().getId(),
+                                        agreement.getBeneficiary().getName(),
                                         agreement.getFund().getId(),
                                         agreement.getFund().getName());
                 }
@@ -1437,7 +1439,7 @@ public class ReportService {
         }
 
         private BigDecimal calculateCommitmentAmountForPeriod(
-                        FinancialCommitment agreement,
+                        SupportAgreement agreement,
                         LocalDate startDate,
                         LocalDate endDate) {
                 LocalDate effectiveStartDate = agreement.getStartDate().isAfter(startDate)
@@ -1464,16 +1466,16 @@ public class ReportService {
                         UUID organizationId,
                         LocalDate startDate,
                         LocalDate endDate) {
-                List<FinancialCommitment> agreements = financialCommitmentRepository.findSupportActiveInPeriodForReport(
+                List<SupportAgreement> agreements = supportAgreementRepository.findActiveInPeriodForReport(
                                 organizationId,
                                 startDate,
                                 endDate);
 
                 Map<String, BigDecimal> commitmentByBeneficiaryAndFund = new HashMap<>();
 
-                for (FinancialCommitment agreement : agreements) {
+                for (SupportAgreement agreement : agreements) {
                         String key = buildBeneficiaryFundKey(
-                                        agreement.getParty().getId(),
+                                        agreement.getBeneficiary().getId(),
                                         agreement.getFund().getId());
 
                         BigDecimal commitmentAmount = calculateCommitmentAmountForPeriod(
@@ -1503,7 +1505,7 @@ public class ReportService {
 
         private Map<String, BigDecimal> buildOpeningPendingAmountMap(
                         List<AccountabilityOpeningBalanceProjection> openingProjections,
-                        List<FinancialCommitment> historicalSupportAgreements,
+                        List<SupportAgreement> historicalSupportAgreements,
                         LocalDate historyStartDate,
                         LocalDate periodStartDate) {
 
@@ -1538,7 +1540,7 @@ public class ReportService {
         }
 
         private Map<String, BigDecimal> buildHistoricalCommitmentAmountMap(
-                        List<FinancialCommitment> agreements,
+                        List<SupportAgreement> agreements,
                         LocalDate historyStartDate,
                         LocalDate periodStartDate) {
 
@@ -1546,7 +1548,7 @@ public class ReportService {
 
                 LocalDate historicalEndDate = periodStartDate.minusDays(1);
 
-                for (FinancialCommitment agreement : agreements) {
+                for (SupportAgreement agreement : agreements) {
                         LocalDate effectiveHistoricalStartDate = agreement.getStartDate().isAfter(historyStartDate)
                                         ? agreement.getStartDate()
                                         : historyStartDate;
@@ -1565,7 +1567,7 @@ public class ReportService {
                         }
 
                         String key = buildBeneficiaryFundKey(
-                                        agreement.getParty().getId(),
+                                        agreement.getBeneficiary().getId(),
                                         agreement.getFund().getId());
 
                         commitmentByBeneficiaryAndFund.merge(
@@ -1599,12 +1601,12 @@ public class ReportService {
                 return beneficiaryId + ":" + fundId;
         }
 
-        private List<FinancialCommitment> findSupportAgreementsForReport(
+        private List<SupportAgreement> findSupportAgreementsForReport(
                         UUID organizationId,
                         LocalDate startDate,
                         LocalDate endDate) {
 
-                return financialCommitmentRepository.findSupportApplicableInPeriodForReport(
+                return supportAgreementRepository.findApplicableInPeriodForReport(
                                 organizationId,
                                 startDate,
                                 endDate);

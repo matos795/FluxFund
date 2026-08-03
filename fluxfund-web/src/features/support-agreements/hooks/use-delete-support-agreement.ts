@@ -17,16 +17,6 @@ export function useDeleteSupportAgreement() {
       queryClient.invalidateQueries({
         queryKey: ["accountability-by-account-report"],
       })
-      queryClient.invalidateQueries({
-        queryKey: [
-          "financial-commitments",
-        ],
-      })
-      queryClient.invalidateQueries({
-        queryKey: [
-          "financial-commitment-allocation-suggestions",
-        ],
-      })
     },
   })
 }

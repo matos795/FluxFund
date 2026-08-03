@@ -3,65 +3,40 @@ package com.fluxfund.api.domain.supportagreement.mapper;
 import java.time.LocalDate;
 
 import com.fluxfund.api.domain.beneficiary.mapper.BeneficiaryMapper;
-import com.fluxfund.api.domain.financialcommitment.FinancialCommitment;
 import com.fluxfund.api.domain.fund.mapper.FundMapper;
-import com.fluxfund.api.domain.supportagreement.SupportAgreementStatus;
+import com.fluxfund.api.domain.supportagreement.SupportAgreement;
 import com.fluxfund.api.domain.supportagreement.dto.SupportAgreementResponse;
 
-public final class SupportAgreementMapper {
+public class SupportAgreementMapper {
 
     private SupportAgreementMapper() {
     }
 
-    public static SupportAgreementResponse
-            toResponse(
-                    FinancialCommitment commitment) {
+    public static SupportAgreementResponse toResponse(
+            SupportAgreement agreement) {
 
-        return toResponse(
-                commitment,
-                LocalDate.now());
+        return toResponse(agreement, LocalDate.now());
     }
 
-    public static SupportAgreementResponse
-            toResponse(
-
-                    FinancialCommitment commitment,
-
-                    LocalDate referenceDate) {
-
-        SupportAgreementStatus status =
-                SupportAgreementStatus.valueOf(
-
-                        commitment
-                                .resolveStatusAt(
-                                        referenceDate)
-
-                                .name());
+    public static SupportAgreementResponse toResponse(
+            SupportAgreement agreement,
+            LocalDate referenceDate) {
 
         return new SupportAgreementResponse(
-
-                commitment.getId(),
-
-                commitment
-                        .getOrganization()
-                        .getId(),
-
-                BeneficiaryMapper
-                        .toSummaryResponse(
-                                commitment
-                                        .getParty()),
-
-                FundMapper
-                        .toSummaryResponse(
-                                commitment
-                                        .getFund()),
-                commitment.getAmount(),
-                commitment.getStartDate(),
-                commitment.getEndDate(),
-                status,
-                commitment.getActive(),
-                commitment.getDescription(),
-                commitment.getCreatedAt(),
-                commitment.getUpdatedAt());
+                agreement.getId(),
+                agreement.getOrganization().getId(),
+                BeneficiaryMapper.toSummaryResponse(
+                        agreement.getBeneficiary()),
+                FundMapper.toSummaryResponse(
+                        agreement.getFund()),
+                agreement.getAmount(),
+                agreement.getStartDate(),
+                agreement.getEndDate(),
+                agreement.resolveStatusAt(referenceDate),
+                agreement.getActive(),
+                agreement.getDescription(),
+                agreement.getCreatedAt(),
+                agreement.getUpdatedAt()
+        );
     }
 }

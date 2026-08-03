@@ -45,8 +45,6 @@ export const financialCommitmentTypeLabels:
     SPONSORSHIP: "Patrocínio",
     MEMBER_CONTRIBUTION:
         "Contribuição de membro",
-    SUPPORT:
-        "Sustento",
     SUPPLIER_PAYMENT:
         "Pagamento de fornecedor",
     SALARY: "Salário",
@@ -67,7 +65,6 @@ export const receivableCommitmentTypes:
 
 export const payableCommitmentTypes:
     FinancialCommitmentType[] = [
-        "SUPPORT",
         "SUPPLIER_PAYMENT",
         "SALARY",
         "SERVICE_PAYMENT",

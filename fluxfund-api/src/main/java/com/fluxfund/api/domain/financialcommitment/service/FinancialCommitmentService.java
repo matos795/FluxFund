@@ -375,7 +375,8 @@ public class FinancialCommitmentService {
                 FinancialCommitment previous = findEntityById(organizationId, id);
 
                 if (!Boolean.TRUE.equals(previous.getActive())) {
-                        throw new BusinessException("Não é possível criar uma nova vigência a partir de um compromisso inativo.");
+                        throw new BusinessException(
+                                        "Não é possível criar uma nova vigência a partir de um compromisso inativo.");
                 }
 
                 if (previous.getRecurrence() != FinancialCommitmentRecurrence.MONTHLY) {
@@ -383,7 +384,8 @@ public class FinancialCommitmentService {
                 }
 
                 if (previous.getEndDate() != null) {
-                        throw new BusinessException("Este compromisso já possui uma data final. Crie um novo compromisso normalmente.");
+                        throw new BusinessException(
+                                        "Este compromisso já possui uma data final. Crie um novo compromisso normalmente.");
                 }
 
                 if (!request.startDate().isAfter(previous.getStartDate())) {
@@ -391,7 +393,8 @@ public class FinancialCommitmentService {
                 }
 
                 UUID designatedRecipientId = previous.getDesignatedRecipient() != null
-                                                                ? previous.getDesignatedRecipient().getId() : null;
+                                ? previous.getDesignatedRecipient().getId()
+                                : null;
 
                 /*
                  * Verifica se já existe outra vigência
@@ -440,7 +443,8 @@ public class FinancialCommitmentService {
 
                 next.setActive(true);
 
-                next.setDescription(request.description() != null ? normalizeText(request.description()) : previous.getDescription());
+                next.setDescription(request.description() != null ? normalizeText(request.description())
+                                : previous.getDescription());
 
                 repository.saveAndFlush(previous);
 
@@ -792,9 +796,7 @@ public class FinancialCommitmentService {
 
                         case PAYABLE ->
 
-                                commitmentType == FinancialCommitmentType.SUPPORT
-
-                                                || commitmentType == FinancialCommitmentType.SUPPLIER_PAYMENT
+                                commitmentType == FinancialCommitmentType.SUPPLIER_PAYMENT
 
                                                 || commitmentType == FinancialCommitmentType.SALARY
 
