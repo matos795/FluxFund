@@ -370,4 +370,143 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
     List<FinancialCommitmentRealizationProjection> findFinancialCommitmentRealizations(
             @Param("organizationId") UUID organizationId,
             @Param("referenceMonth") LocalDate referenceMonth);
+
+    @Query(value = """
+            select allocation
+
+            from TransactionAllocation allocation
+
+            join fetch
+                allocation.financialTransaction
+                financialTransaction
+
+            join fetch
+                financialTransaction.account
+                account
+
+            join fetch
+                allocation.fund
+                fund
+
+            left join fetch
+                allocation.sourceParty
+                sourceParty
+
+            left join fetch
+                allocation.recipientParty
+                recipientParty
+
+            where allocation.organization.id =
+                :organizationId
+
+              and allocation.financialCommitment
+                is null
+
+              and allocation.referenceMonth
+                is not null
+
+              and financialTransaction.status =
+                com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+
+              and financialTransaction.type <>
+                com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
+
+              and allocation.referenceMonth
+                between :startMonth
+                and :endMonth
+
+              and (
+                :transactionType is null
+                or financialTransaction.type =
+                    :transactionType
+              )
+
+              and (
+                (
+                  financialTransaction.type =
+                    com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.INCOME
+
+                  and sourceParty is not null
+                )
+
+                or
+
+                (
+                  financialTransaction.type =
+                    com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.EXPENSE
+
+                  and recipientParty is not null
+                )
+              )
+
+            order by
+                allocation.referenceMonth desc,
+                financialTransaction.settlementDate desc,
+                allocation.createdAt desc
+            """,
+
+            countQuery = """
+                    select count(allocation)
+
+                    from TransactionAllocation allocation
+
+                    join allocation.financialTransaction
+                        financialTransaction
+
+                    where allocation.organization.id =
+                        :organizationId
+
+                      and allocation.financialCommitment
+                        is null
+
+                      and allocation.referenceMonth
+                        is not null
+
+                      and financialTransaction.status =
+                        com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+
+                      and financialTransaction.type <>
+                        com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
+
+                      and allocation.referenceMonth
+                        between :startMonth
+                        and :endMonth
+
+                      and (
+                        :transactionType is null
+                        or financialTransaction.type =
+                            :transactionType
+                      )
+
+                      and (
+                        (
+                          financialTransaction.type =
+                            com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.INCOME
+
+                          and allocation.sourceParty
+                            is not null
+                        )
+
+                        or
+
+                        (
+                          financialTransaction.type =
+                            com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.EXPENSE
+
+                          and allocation.recipientParty
+                            is not null
+                        )
+                      )
+                    """)
+    Page<TransactionAllocation> findUnlinkedFinancialCommitmentAllocations(
+
+            @Param("organizationId") UUID organizationId,
+
+            @Param("startMonth") LocalDate startMonth,
+
+            @Param("endMonth") LocalDate endMonth,
+
+            @Param("transactionType") com.fluxfund.api.domain.financialtransaction.FinancialTransactionType transactionType,
+
+            Pageable pageable);
 }

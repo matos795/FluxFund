@@ -40,6 +40,7 @@ import { getAttachmentAcceptAttribute, getAttachmentRulesDescription, validateAt
 import { FinancialPartyCombobox } from "@/features/financial-parties/components/financial-party-combobox"
 import { FinancialCommitmentAllocationCard } from "@/features/financial-commitments/components/financial-commitment-allocation-card"
 import type { FinancialCommitmentAllocationSuggestion } from "@/features/financial-commitments/financial-commitment-types"
+import { SupportAgreementSuggestionCard } from "@/features/support-agreements/components/support-agreement-suggestion-card"
 
 type AllocationFormItem = {
   id: string
@@ -688,6 +689,48 @@ export function CreateManualTransactionForm({
     })
   }
 
+  function handleApplySupportAgreementSuggestion(
+    allocationId: string,
+
+    suggestion: {
+      fundId: string
+      beneficiaryId: string
+      referenceMonth: string
+      amount: number
+    },
+  ) {
+    setAllocations((current) =>
+      current.map((allocation) =>
+        allocation.id === allocationId
+          ? {
+            ...allocation,
+
+            fundId:
+              suggestion.fundId,
+
+            recipientPartyId:
+              suggestion.beneficiaryId,
+
+            referenceMonth:
+              suggestion.referenceMonth,
+
+            amount:
+              String(
+                suggestion.amount,
+              ),
+
+            /*
+             * Sustento não usa o vínculo
+             * de compromisso genérico.
+             */
+            financialCommitmentId:
+              "",
+          }
+          : allocation,
+      ),
+    )
+  }
+
   return (
     <form
       onSubmit={handleSubmit(handleManualSubmit)}
@@ -1281,6 +1324,47 @@ export function CreateManualTransactionForm({
                         )
                       }
                     />
+
+                    {selectedType ===
+                      "EXPENSE" && (
+                        <div className="md:col-span-2 xl:col-span-full">
+                          <SupportAgreementSuggestionCard
+                            transactionType="EXPENSE"
+                            beneficiaryId={
+                              allocation
+                                .recipientPartyId
+                            }
+                            fundId={
+                              allocation.fundId
+                            }
+                            referenceMonth={
+                              allocation
+                                .referenceMonth
+                            }
+                            maxAmount={
+                              Math.min(
+                                Math.abs(
+                                  Number(
+                                    allocation.amount ||
+                                    0,
+                                  ),
+                                ),
+
+                                getMaxAmountForAllocation(
+                                  allocation.id,
+                                ),
+                              )
+                            }
+                            autoApply={false}
+                            onApply={(suggestion) =>
+                              handleApplySupportAgreementSuggestion(
+                                allocation.id,
+                                suggestion,
+                              )
+                            }
+                          />
+                        </div>
+                      )}
                   </div>
                 </div>
               ))}

@@ -544,6 +544,100 @@ public class FinancialTransactionService {
                 return TransactionAllocationMapper.toResponse(allocation);
         }
 
+        public TransactionAllocationResponse linkFinancialCommitment(
+
+                        UUID organizationId,
+
+                        UUID transactionId,
+
+                        UUID allocationId,
+
+                        UUID financialCommitmentId) {
+
+                organizationAccessService
+                                .requireFinanceWriteAccess(
+                                                organizationId);
+
+                FinancialTransaction transaction = findFinancialTransactionById(
+
+                                organizationId,
+
+                                transactionId);
+
+                TransactionAllocation allocation = transaction
+                                .getAllocations()
+                                .stream()
+
+                                .filter(
+                                                item -> item.getId()
+                                                                .equals(
+                                                                                allocationId))
+
+                                .findFirst()
+
+                                .orElseThrow(
+                                                () -> new ResourceNotFoundException(
+                                                                "Transaction allocation not found"));
+
+                if (allocation.getFinancialCommitment() != null) {
+
+                        if (allocation
+                                        .getFinancialCommitment()
+                                        .getId()
+                                        .equals(
+                                                        financialCommitmentId)) {
+
+                                return TransactionAllocationMapper
+                                                .toResponse(
+                                                                allocation);
+                        }
+
+                        throw new BusinessException(
+                                        "Allocation is already linked to another financial commitment");
+                }
+
+                FinancialCommitment commitment = resolveFinancialCommitment(
+
+                                organizationId,
+
+                                financialCommitmentId);
+
+                allocation.setFinancialCommitment(
+                                commitment);
+
+                /*
+                 * Reutiliza todas as regras atuais:
+                 *
+                 * direção;
+                 * origem;
+                 * destinatário;
+                 * competência;
+                 * vigência;
+                 * compromisso ativo.
+                 */
+                validateBasicAllocationRules(
+                                allocation);
+
+                TransactionAllocation saved = allocationRepository
+                                .saveAndFlush(
+                                                allocation);
+
+                auditLogService.record(
+
+                                organizationId,
+
+                                AuditEntityType.TRANSACTION_ALLOCATION,
+
+                                saved.getId(),
+
+                                AuditAction.UPDATE_ALLOCATION,
+
+                                "Historical allocation linked to financial commitment "
+                                                + financialCommitmentId);
+
+                return TransactionAllocationMapper.toResponse(saved);
+        }
+
         public void removeAllocation(UUID organizationId, UUID id, UUID allocationId) {
                 organizationAccessService.requireFinanceWriteAccess(organizationId);
 

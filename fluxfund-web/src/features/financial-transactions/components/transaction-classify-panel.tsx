@@ -50,6 +50,7 @@ import { usePairTransferTransactions } from "../hooks/use-pair-transfer-transact
 import { FinancialPartyCombobox } from "@/features/financial-parties/components/financial-party-combobox";
 import type { FinancialCommitmentAllocationSuggestion } from "@/features/financial-commitments/financial-commitment-types";
 import { FinancialCommitmentAllocationCard } from "@/features/financial-commitments/components/financial-commitment-allocation-card";
+import { SupportAgreementSuggestionCard } from "@/features/support-agreements/components/support-agreement-suggestion-card";
 
 type AllocationFormItem = {
     fundId: string;
@@ -327,6 +328,50 @@ export function TransactionClassifyPanel({
                     itemIndex === index
                         ? {
                             ...allocation,
+
+                            financialCommitmentId:
+                                "",
+                        }
+                        : allocation,
+            ),
+        );
+    }
+
+    function handleApplySupportAgreementSuggestion(
+        index: number,
+
+        suggestion: {
+            fundId: string;
+            beneficiaryId: string;
+            referenceMonth: string;
+            amount: number;
+        },
+    ) {
+        markAsManuallyEdited();
+
+        setAllocations((current) =>
+            current.map(
+                (
+                    allocation,
+                    allocationIndex,
+                ) =>
+                    allocationIndex === index
+                        ? {
+                            ...allocation,
+
+                            fundId:
+                                suggestion.fundId,
+
+                            recipientPartyId:
+                                suggestion.beneficiaryId,
+
+                            referenceMonth:
+                                suggestion.referenceMonth,
+
+                            amount:
+                                String(
+                                    suggestion.amount,
+                                ),
 
                             financialCommitmentId:
                                 "",
@@ -1310,6 +1355,44 @@ export function TransactionClassifyPanel({
                                             )
                                         }
                                     />
+
+                                    {type === "EXPENSE" && (
+                                        <SupportAgreementSuggestionCard
+                                            transactionType="EXPENSE"
+                                            beneficiaryId={
+                                                allocation
+                                                    .recipientPartyId
+                                            }
+                                            fundId={
+                                                allocation.fundId
+                                            }
+                                            referenceMonth={
+                                                allocation
+                                                    .referenceMonth
+                                            }
+                                            maxAmount={
+                                                Math.min(
+                                                    Math.abs(
+                                                        Number(
+                                                            allocation.amount ||
+                                                            0,
+                                                        ),
+                                                    ),
+
+                                                    getMaxAmountForAllocation(
+                                                        index,
+                                                    ),
+                                                )
+                                            }
+                                            autoApply={false}
+                                            onApply={(suggestion) =>
+                                                handleApplySupportAgreementSuggestion(
+                                                    index,
+                                                    suggestion,
+                                                )
+                                            }
+                                        />
+                                    )}
 
                                     {suggestion && (
                                         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">

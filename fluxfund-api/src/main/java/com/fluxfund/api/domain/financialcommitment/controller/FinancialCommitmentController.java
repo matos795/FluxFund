@@ -33,10 +33,14 @@ import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentType;
 import com.fluxfund.api.domain.financialcommitment.dto.CreateFinancialCommitmentRequest;
 import com.fluxfund.api.domain.financialcommitment.dto.CreateFinancialCommitmentVersionRequest;
 import com.fluxfund.api.domain.financialcommitment.dto.FinancialCommitmentAllocationSuggestionResponse;
+import com.fluxfund.api.domain.financialcommitment.dto.FinancialCommitmentReconciliationItemResponse;
 import com.fluxfund.api.domain.financialcommitment.dto.FinancialCommitmentResponse;
+import com.fluxfund.api.domain.financialcommitment.dto.LinkFinancialCommitmentRequest;
 import com.fluxfund.api.domain.financialcommitment.dto.UpdateFinancialCommitmentRequest;
+import com.fluxfund.api.domain.financialcommitment.service.FinancialCommitmentReconciliationService;
 import com.fluxfund.api.domain.financialcommitment.service.FinancialCommitmentService;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
+import com.fluxfund.api.domain.transactionallocation.dto.TransactionAllocationResponse;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +51,7 @@ import lombok.RequiredArgsConstructor;
 public class FinancialCommitmentController {
 
         private final FinancialCommitmentService service;
+        private final FinancialCommitmentReconciliationService reconciliationService;
 
         @PostMapping
         @ResponseStatus(HttpStatus.CREATED)
@@ -115,6 +120,57 @@ public class FinancialCommitmentController {
                                 referenceMonth,
                                 availableAmount,
                                 excludedAllocationId);
+        }
+
+        @GetMapping("/reconciliation")
+        public Page<FinancialCommitmentReconciliationItemResponse> findReconciliationItems(
+
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+
+                        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startMonth,
+
+                        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endMonth,
+
+                        @RequestParam(required = false) FinancialTransactionType transactionType,
+
+                        Pageable pageable) {
+
+                return reconciliationService
+                                .findAll(
+
+                                                organizationId,
+
+                                                startMonth,
+
+                                                endMonth,
+
+                                                transactionType,
+
+                                                pageable);
+        }
+
+        @PatchMapping("/reconciliation/{transactionId}/allocations/{allocationId}")
+        public TransactionAllocationResponse linkReconciliationItem(
+
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+
+                        @PathVariable UUID transactionId,
+
+                        @PathVariable UUID allocationId,
+
+                        @Valid @RequestBody LinkFinancialCommitmentRequest request) {
+
+                return reconciliationService
+                                .link(
+
+                                                organizationId,
+
+                                                transactionId,
+
+                                                allocationId,
+
+                                                request
+                                                                .financialCommitmentId());
         }
 
         @GetMapping("/{id}")
