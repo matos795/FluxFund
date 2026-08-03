@@ -205,74 +205,82 @@ public interface FinancialCommitmentRepository
             @Param("monthEnd") LocalDate monthEnd);
 
     @Query("""
-            select distinct commitment
+                    select distinct commitment
 
-            from FinancialCommitment commitment
+                    from FinancialCommitment commitment
 
-            join fetch commitment.party party
+                    join fetch commitment.party party
 
-            left join fetch
-                commitment.designatedRecipient
-                designatedRecipient
+                    left join fetch
+                        commitment.designatedRecipient
+                        designatedRecipient
 
-            join fetch commitment.fund fund
+                    join fetch commitment.fund fund
 
-            where commitment.organization.id =
-                :organizationId
+                    where commitment.organization.id =
+                        :organizationId
 
-              and commitment.active = true
+                      and (
+              commitment.active = true
 
-              and commitment.direction =
-                :direction
+              or (
+                commitment.active = false
+                and commitment.endDate
+                  is not null
+              )
+            )
 
-              and (
-                    (
-                        commitment.recurrence =
-                            com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence.MONTHLY
+                      and commitment.direction =
+                        :direction
 
-                        and commitment.startDate <=
-                            :monthEnd
+                      and (
+                            (
+                                commitment.recurrence =
+                                    com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence.MONTHLY
 
-                        and (
-                            commitment.endDate is null
-                            or commitment.endDate >=
-                                :monthStart
-                        )
-                    )
+                                and commitment.startDate <=
+                                    :monthEnd
 
-                    or
+                                and (
+                                    commitment.endDate is null
+                                    or commitment.endDate >=
+                                        :monthStart
+                                )
+                            )
 
-                    (
-                        commitment.recurrence =
-                            com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence.ONE_TIME
+                            or
 
-                        and commitment.startDate
-                            between :monthStart
-                            and :monthEnd
-                    )
-                  )
+                            (
+                                commitment.recurrence =
+                                    com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence.ONE_TIME
 
-              and (
-                    :partyId is null
-                    or party.id = :partyId
-                  )
+                                and commitment.startDate
+                                    between :monthStart
+                                    and :monthEnd
+                            )
+                          )
 
-              and (
-                    :designatedRecipientId is null
-                    or designatedRecipient.id =
-                        :designatedRecipientId
-                  )
+                      and (
+                            :partyId is null
+                            or party.id = :partyId
+                          )
 
-              and (
-                    :fundId is null
-                    or fund.id = :fundId
-                  )
+                      and (
+                            :designatedRecipientId is null
+                            or designatedRecipient.id =
+                                :designatedRecipientId
+                          )
 
-            order by
-                party.name asc,
-                fund.name asc,
-                commitment.startDate asc
-            """)
+                      and (
+                            :fundId is null
+                            or fund.id = :fundId
+                          )
+
+                    order by
+                        party.name asc,
+                        fund.name asc,
+                        commitment.startDate asc
+                    """)
     List<FinancialCommitment> findApplicableForMonthlyRealization(
             @Param("organizationId") UUID organizationId,
             @Param("direction") FinancialCommitmentDirection direction,

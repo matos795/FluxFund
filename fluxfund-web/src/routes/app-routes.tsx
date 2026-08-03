@@ -30,6 +30,7 @@ import { PlatformOrganizationsPage } from "@/pages/platform-organizations-page"
 import { FinancialPartiesPage } from "@/pages/financial-parties-page"
 import { FinancialCommitmentsPage } from "@/pages/financial-commitments-page"
 import { FinancialCommitmentReconciliationPage } from "@/pages/financial-commitment-reconciliation-page"
+import { FinancialCommitmentsPayableReportPage, FinancialCommitmentsReceivableReportPage } from "@/pages/financial-commitment-monthly-report-page"
 
 export function AppRoutes() {
   return (
@@ -143,6 +144,19 @@ export function AppRoutes() {
           <Route
             path="/reports/closing-dossier"
             element={<ClosingDossierReportPage />}
+          />
+          <Route
+            path="/reports/commitments-receivable"
+            element={
+              <FinancialCommitmentsReceivableReportPage />
+            }
+          />
+
+          <Route
+            path="/reports/commitments-payable"
+            element={
+              <FinancialCommitmentsPayableReportPage />
+            }
           />
           <Route path="/credit-card-statements" element={<CreditCardStatementsPage />} />
           <Route path="/settings" element={<SettingsPage />} />

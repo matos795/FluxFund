@@ -78,8 +78,18 @@ O contato do compromisso deve preencher
 O contato do compromisso deve preencher
 `recipientParty`.
 
-O compromisso de sustento missionário é um
-tipo de compromisso a pagar.
+Sustento é apresentado ao usuário como uma
+obrigação a pagar, mas permanece no domínio
+SupportAgreement.
+
+FinancialCommitment representa somente
+compromissos financeiros genéricos, como
+doações, clientes, fornecedores, salários,
+serviços e reembolsos.
+
+Os dois domínios podem ser reunidos
+visualmente, mas não compartilham tabela
+nem vínculo de alocação.
 
 ## Renomeação definitiva
 

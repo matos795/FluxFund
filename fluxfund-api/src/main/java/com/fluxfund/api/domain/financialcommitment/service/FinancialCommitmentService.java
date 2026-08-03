@@ -487,10 +487,35 @@ public class FinancialCommitmentService {
                         return;
                 }
 
+                LocalDate today = LocalDate.now();
+
+                /*
+                 * Um compromisso mensal que já começou
+                 * precisa guardar quando deixou de valer.
+                 *
+                 * Assim ele continua aparecendo nos
+                 * relatórios dos meses anteriores, mas
+                 * não será projetado para meses futuros.
+                 */
+                if (commitment.getRecurrence() == FinancialCommitmentRecurrence.MONTHLY
+
+                                && !commitment
+                                                .getStartDate()
+                                                .isAfter(today)
+
+                                && (commitment.getEndDate() == null
+
+                                                || commitment
+                                                                .getEndDate()
+                                                                .isAfter(today))) {
+
+                        commitment.setEndDate(
+                                        today);
+                }
+
                 commitment.setActive(false);
 
-                repository.save(
-                                commitment);
+                repository.save(commitment);
 
                 auditLogService.record(
 

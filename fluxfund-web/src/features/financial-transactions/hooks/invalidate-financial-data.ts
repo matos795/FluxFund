@@ -93,5 +93,11 @@ export async function invalidateFinancialData(
         "financial-commitment-reconciliation",
       ],
     }),
+
+    queryClient.invalidateQueries({
+      queryKey: [
+        "financial-commitment-monthly-report",
+      ],
+    }),
   ])
 }
