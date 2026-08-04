@@ -17,4 +17,5 @@ public enum AuditEntityType {
     ORGANIZATION,
     ORGANIZATION_USER,
     ORGANIZATION_USER_INVITATION,
+    RECEIPT,
 }
