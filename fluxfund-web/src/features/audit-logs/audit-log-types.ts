@@ -25,6 +25,10 @@ export type AuditAction =
   | "CHANGE_ROLE"
   | "REGENERATE_INVITATION"
   | "ACCEPT_INVITATION"
+  | "DELETE_RECEIPT_DRAFT"
+  | "ISSUE_RECEIPT"
+  | "CANCEL_RECEIPT"
+  | "REISSUE_RECEIPT"
 
 export type AuditEntityType =
   | "FINANCIAL_TRANSACTION"
@@ -43,6 +47,7 @@ export type AuditEntityType =
   | "ORGANIZATION"
   | "ORGANIZATION_USER"
   | "ORGANIZATION_USER_INVITATION"
+  | "RECEIPT"
 
 export type AuditLog = {
   id: string

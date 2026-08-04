@@ -286,7 +286,7 @@ public class ReceiptService {
 
                 receiptId,
 
-                AuditAction.CANCEL,
+                AuditAction.DELETE_RECEIPT_DRAFT,
 
                 "Receipt draft deleted");
     }
