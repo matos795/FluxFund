@@ -3,6 +3,7 @@ import { useState } from "react"
 import {
   CheckCircle2,
   Eye,
+  FileSignature,
   MoreHorizontal,
   Paperclip,
   Pencil,
@@ -30,6 +31,7 @@ import { CancelAccountTransferDialog } from "./cancel-account-transfer-dialog"
 import { TransactionWorkspaceDialog } from "./transaction-workspace-dialog"
 import { ConfirmActionDialog } from "@/components/layout/confirm-action-dialog"
 import { useFinancialTransaction } from "../hooks/use-financial-transaction"
+import { ReceiptDraftDialog } from "@/features/receipts/components/receipt-draft-dialog"
 
 type FinancialTransactionActionsProps = {
   transaction: FinancialTransaction
@@ -61,6 +63,11 @@ export function FinancialTransactionActions({
 
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [cancelTransferDialogOpen, setCancelTransferDialogOpen] = useState(false)
+
+  const [
+    receiptDialogOpen,
+    setReceiptDialogOpen,
+  ] = useState(false)
 
   const cancelFinancialTransactionMutation = useCancelFinancialTransaction()
 
@@ -100,6 +107,14 @@ export function FinancialTransactionActions({
     currentTransaction.type === "TRANSFER" &&
     currentTransaction.status !== "CANCELED" &&
     Boolean(currentTransaction.transferGroupId)
+
+  const canCreateTransactionReceipt =
+    currentTransaction.status ===
+    "SETTLED" &&
+    currentTransaction.type !==
+    "TRANSFER" &&
+    currentTransaction.allocations
+      .length === 0
 
   function handleCancelTransaction() {
     cancelFinancialTransactionMutation.mutate(transaction.id, {
@@ -195,6 +210,23 @@ export function FinancialTransactionActions({
             />
           )}
 
+          {canFinanceWrite &&
+            canCreateTransactionReceipt && (
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault()
+
+                  setReceiptDialogOpen(
+                    true,
+                  )
+                }}
+              >
+                <FileSignature className="mr-2 size-4" />
+
+                Criar recibo
+              </DropdownMenuItem>
+            )}
+
           {canFinanceWrite && canCancel && (
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
@@ -232,6 +264,54 @@ export function FinancialTransactionActions({
         canManageAllocations={canFinanceWrite && canManageAllocations}
         canManageAttachments={canFinanceWrite && canManageAttachments}
         canClassify={canFinanceWrite && needsClassification}
+      />
+
+      <ReceiptDraftDialog
+        open={
+          receiptDialogOpen
+        }
+        onOpenChange={
+          setReceiptDialogOpen
+        }
+        source={{
+          sourceType:
+            "TRANSACTION",
+
+          financialTransactionId:
+            currentTransaction.id,
+
+          defaultReceiptType:
+            currentTransaction.type ===
+              "INCOME"
+              ? "OTHER_INCOME"
+              : "OTHER_PAYMENT",
+
+          defaultAmount:
+            Math.abs(
+              currentTransaction
+                .settledAmount ??
+              0,
+            ),
+
+          defaultPaymentDate:
+            currentTransaction
+              .settlementDate ??
+            undefined,
+
+          defaultPurpose:
+            currentTransaction
+              .description?.trim() ||
+            currentTransaction
+              .rawDescription?.trim() ||
+            "",
+
+          description:
+            currentTransaction
+              .description?.trim() ||
+            currentTransaction
+              .rawDescription?.trim() ||
+            "Transação financeira",
+        }}
       />
 
       <CancelAccountTransferDialog

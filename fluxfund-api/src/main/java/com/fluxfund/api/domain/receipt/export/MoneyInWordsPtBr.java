@@ -74,24 +74,33 @@ public final class MoneyInWordsPtBr {
                         RoundingMode.HALF_UP);
 
         long reais;
+        int centavos;
 
         try {
 
+            /*
+             * Remove os centavos antes de converter
+             * a parte inteira para long.
+             */
             reais = normalized
+                    .setScale(
+                            0,
+                            RoundingMode.DOWN)
                     .longValueExact();
+
+            centavos = normalized
+                    .subtract(
+                            BigDecimal.valueOf(
+                                    reais))
+
+                    .movePointRight(2)
+                    .intValueExact();
 
         } catch (ArithmeticException exception) {
 
             throw new BusinessException(
                     "Receipt amount is too large");
         }
-
-        int centavos = normalized
-                .remainder(
-                        BigDecimal.ONE)
-
-                .movePointRight(2)
-                .intValue();
 
         List<String> parts = new ArrayList<>();
 

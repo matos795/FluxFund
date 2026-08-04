@@ -32,6 +32,7 @@ import { FinancialCommitmentsPage } from "@/pages/financial-commitments-page"
 import { FinancialCommitmentReconciliationPage } from "@/pages/financial-commitment-reconciliation-page"
 import { FinancialCommitmentsPayableReportPage, FinancialCommitmentsReceivableReportPage } from "@/pages/financial-commitment-monthly-report-page"
 import { FinancialForecastReportPage } from "@/pages/results/financial-forecast-report-page"
+import { ReceiptsPage } from "@/pages/receipts-page"
 
 export function AppRoutes() {
   return (
@@ -118,6 +119,13 @@ export function AppRoutes() {
           <Route
             path="/support-agreements"
             element={<SupportAgreementsPage />}
+          />
+
+          <Route
+            path="/receipts"
+            element={
+              <ReceiptsPage />
+            }
           />
           <Route path="/transactions" element={<TransactionsPage />} />
           <Route path="/reports" element={<ReportsPage />} />

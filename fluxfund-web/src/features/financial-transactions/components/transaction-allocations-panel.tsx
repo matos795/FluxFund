@@ -1,4 +1,4 @@
-import { Pencil, Trash2, Wand2 } from "lucide-react"
+import { FileSignature, Pencil, Trash2, Wand2 } from "lucide-react"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 
@@ -37,6 +37,8 @@ import { TransactionAllocationForm } from "./transaction-allocation-form"
 import { useAddTransactionAllocationsBatch } from "../hooks/use-add-transaction-allocations-batch"
 import { financialCommitmentRecurrenceLabels, financialCommitmentTypeLabels } from "@/features/financial-commitments/financial-commitment-labels"
 import { Badge } from "@/components/ui/badge"
+import { ReceiptDraftDialog } from "@/features/receipts/components/receipt-draft-dialog"
+import type { ReceiptType } from "@/features/receipts/receipt-types"
 
 type TransactionAllocationsPanelProps = {
   transaction: FinancialTransaction
@@ -107,6 +109,14 @@ export function TransactionAllocationsPanel({
 }: TransactionAllocationsPanelProps) {
   const [editingAllocation, setEditingAllocation] =
     useState<TransactionAllocation | null>(null)
+
+  const [
+    receiptAllocation,
+    setReceiptAllocation,
+  ] =
+    useState<
+      TransactionAllocation | null
+    >(null)
 
   const { data: organizationSettings } = useOrganizationSettings()
   const defaultFund = organizationSettings?.defaultFund ?? null
@@ -388,6 +398,56 @@ export function TransactionAllocationsPanel({
     )
   }
 
+  function getDefaultReceiptType(
+    allocation:
+      TransactionAllocation,
+  ): ReceiptType {
+    const commitmentType =
+      allocation
+        .financialCommitment
+        ?.commitmentType
+
+    if (
+      transaction.type ===
+      "INCOME"
+    ) {
+      switch (
+      commitmentType
+      ) {
+        case "DONATION":
+          return "DONATION"
+
+        case "MEMBER_CONTRIBUTION":
+          return "MEMBER_CONTRIBUTION"
+
+        case "CUSTOMER_PAYMENT":
+          return "CUSTOMER_PAYMENT"
+
+        case "SPONSORSHIP":
+          return "SPONSORSHIP"
+
+        default:
+          return "OTHER_INCOME"
+      }
+    }
+
+    switch (
+    commitmentType
+    ) {
+      case "SUPPLIER_PAYMENT":
+        return "SUPPLIER_PAYMENT"
+
+      case "SERVICE_PAYMENT":
+        return "SERVICE_PAYMENT"
+
+      case "REIMBURSEMENT":
+        return "REIMBURSEMENT"
+
+      default:
+        return "OTHER_PAYMENT"
+    }
+  }
+
   return (
     <div className="space-y-5">
       <div className="grid gap-3 md:grid-cols-4">
@@ -603,6 +663,25 @@ export function TransactionAllocationsPanel({
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1">
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          title="Criar recibo"
+                          onClick={() =>
+                            setReceiptAllocation(
+                              allocation,
+                            )
+                          }
+                        >
+                          <FileSignature className="size-4" />
+
+                          <span className="sr-only">
+                            Criar recibo
+                          </span>
+                        </Button>
+
                         <Button
                           type="button"
                           variant="ghost"
@@ -630,6 +709,65 @@ export function TransactionAllocationsPanel({
               )}
             </TableBody>
           </Table>
+
+          <ReceiptDraftDialog
+            open={
+              receiptAllocation !==
+              null
+            }
+            onOpenChange={(open) => {
+              if (!open) {
+                setReceiptAllocation(
+                  null,
+                )
+              }
+            }}
+            source={
+              receiptAllocation
+                ? {
+                  sourceType:
+                    "ALLOCATION",
+
+                  financialTransactionId:
+                    transaction.id,
+
+                  transactionAllocationId:
+                    receiptAllocation.id,
+
+                  defaultReceiptType:
+                    getDefaultReceiptType(
+                      receiptAllocation,
+                    ),
+
+                  defaultAmount:
+                    Math.abs(
+                      receiptAllocation.amount,
+                    ),
+
+                  defaultPaymentDate:
+                    transaction.settlementDate ??
+                    undefined,
+
+                  defaultPurpose:
+                    transaction.description
+                      ?.trim() ||
+                    transaction.rawDescription
+                      ?.trim() ||
+                    "",
+
+                  description:
+                    `${receiptAllocation.fund.name} · ${receiptAllocation.sourceParty
+                      ?.name ??
+                    receiptAllocation.recipientParty
+                      ?.name ??
+                    receiptAllocation.beneficiary
+                      ?.name ??
+                    "Sem contato"
+                    }`,
+                }
+                : null
+            }
+          />
         </div>
       </AppDialogSection>
     </div>

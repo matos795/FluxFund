@@ -5,6 +5,7 @@ import {
   ChartNoAxesCombined,
   ChevronsUpDown,
   CreditCard,
+  FileSignature,
   FolderTree,
   HandCoins,
   LayoutDashboard,
@@ -62,14 +63,24 @@ const navigationItems = [
       CalendarClock,
   },
   {
+    label: "Cartões",
+    href: "/credit-card-statements",
+    icon: CreditCard,
+  },
+  {
     label: "Transações",
     href: "/transactions",
     icon: ReceiptText,
   },
   {
-    label: "Cartões",
-    href: "/credit-card-statements",
-    icon: CreditCard,
+    label:
+      "Recibos",
+
+    href:
+      "/receipts",
+
+    icon:
+      FileSignature,
   },
   {
     label: "Relatórios",
