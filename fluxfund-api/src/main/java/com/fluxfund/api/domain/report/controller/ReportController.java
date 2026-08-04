@@ -22,6 +22,7 @@ import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportRes
 import com.fluxfund.api.domain.report.dto.accountcashflow.AccountCashFlowReportResponse;
 import com.fluxfund.api.domain.report.dto.category.CategoryResultReportResponse;
 import com.fluxfund.api.domain.report.dto.financialcommitment.FinancialCommitmentMonthlyReportResponse;
+import com.fluxfund.api.domain.report.dto.forecast.FinancialForecastReportResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundReportResponse;
 import com.fluxfund.api.domain.report.dto.pending.PendingItemsReportResponse;
 import com.fluxfund.api.domain.report.export.AccountMovementPdfExportService;
@@ -31,6 +32,7 @@ import com.fluxfund.api.domain.report.export.CreditCardStatementPdfExportService
 import com.fluxfund.api.domain.report.export.FundMovementPdfExportService;
 import com.fluxfund.api.domain.report.export.SettledFinancialReportPdfExportService;
 import com.fluxfund.api.domain.report.service.FinancialCommitmentReportService;
+import com.fluxfund.api.domain.report.service.FinancialForecastReportService;
 import com.fluxfund.api.domain.report.service.ReportService;
 
 import lombok.RequiredArgsConstructor;
@@ -50,6 +52,7 @@ public class ReportController {
         private final AccountMovementPdfExportService accountMovementPdfExportService;
         private final CreditCardStatementPdfExportService creditCardStatementPdfExportService;
         private final FinancialCommitmentReportService financialCommitmentReportService;
+        private final FinancialForecastReportService financialForecastReportService;
 
         @GetMapping("/category-result")
         public ResponseEntity<CategoryResultReportResponse> getCategoryResultReport(
@@ -372,5 +375,35 @@ public class ReportController {
                                                 organizationId,
                                                 startDate,
                                                 endDate));
+        }
+
+        @GetMapping("/financial-forecast")
+        public ResponseEntity<FinancialForecastReportResponse> getFinancialForecast(
+
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startMonth,
+
+                        @RequestParam(required = false, defaultValue = "6") Integer months,
+
+                        @RequestParam(required = false) UUID fundId,
+
+                        @RequestParam(required = false, defaultValue = "true") Boolean includeSupport) {
+
+                return ResponseEntity.ok(
+
+                                financialForecastReportService
+                                                .getForecast(
+
+                                                                organizationId,
+
+                                                                startMonth,
+
+                                                                months,
+
+                                                                fundId,
+
+                                                                Boolean.TRUE.equals(
+                                                                                includeSupport)));
         }
 }

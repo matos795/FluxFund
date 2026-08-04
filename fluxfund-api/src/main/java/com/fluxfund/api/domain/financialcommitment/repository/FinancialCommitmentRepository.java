@@ -289,4 +289,72 @@ public interface FinancialCommitmentRepository
             @Param("partyId") UUID partyId,
             @Param("designatedRecipientId") UUID designatedRecipientId,
             @Param("fundId") UUID fundId);
+
+    @Query("""
+            select distinct commitment
+
+            from FinancialCommitment commitment
+
+            join fetch commitment.party party
+
+            left join fetch
+                commitment.designatedRecipient
+                designatedRecipient
+
+            join fetch commitment.fund fund
+
+            where commitment.organization.id =
+                :organizationId
+
+              and commitment.active = true
+
+              and (
+                    (
+                        commitment.recurrence =
+                            com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence.MONTHLY
+
+                        and commitment.startDate <=
+                            :periodEnd
+
+                        and (
+                            commitment.endDate is null
+
+                            or commitment.endDate >=
+                                :periodStart
+                        )
+                    )
+
+                    or
+
+                    (
+                        commitment.recurrence =
+                            com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence.ONE_TIME
+
+                        and commitment.startDate
+                            between
+                                :periodStart
+                                and :periodEnd
+                    )
+                  )
+
+              and (
+                    :fundId is null
+
+                    or fund.id =
+                        :fundId
+                  )
+
+            order by
+                commitment.startDate asc,
+                party.name asc
+            """)
+    List<FinancialCommitment> findActiveForForecast(
+
+            @Param("organizationId") UUID organizationId,
+
+            @Param("periodStart") LocalDate periodStart,
+
+            @Param("periodEnd") LocalDate periodEnd,
+
+            @Param("fundId") UUID fundId);
 }

@@ -119,10 +119,10 @@ const reportGroups = [
           TrendingUp,
 
         to:
-          null,
+          "/reports/financial-forecast",
 
         available:
-          false,
+          true,
       },
     ],
   },
@@ -315,6 +315,14 @@ const quickQuestions = [
 
     to:
       "/reports/pending-items",
+  },
+
+  {
+    label:
+      "O que entra e sai nos próximos meses?",
+
+    to:
+      "/reports/financial-forecast",
   },
 ]
 

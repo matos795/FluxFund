@@ -31,6 +31,7 @@ import { FinancialPartiesPage } from "@/pages/financial-parties-page"
 import { FinancialCommitmentsPage } from "@/pages/financial-commitments-page"
 import { FinancialCommitmentReconciliationPage } from "@/pages/financial-commitment-reconciliation-page"
 import { FinancialCommitmentsPayableReportPage, FinancialCommitmentsReceivableReportPage } from "@/pages/financial-commitment-monthly-report-page"
+import { FinancialForecastReportPage } from "@/pages/results/financial-forecast-report-page"
 
 export function AppRoutes() {
   return (
@@ -156,6 +157,13 @@ export function AppRoutes() {
             path="/reports/commitments-payable"
             element={
               <FinancialCommitmentsPayableReportPage />
+            }
+          />
+
+          <Route
+            path="/reports/financial-forecast"
+            element={
+              <FinancialForecastReportPage />
             }
           />
           <Route path="/credit-card-statements" element={<CreditCardStatementsPage />} />

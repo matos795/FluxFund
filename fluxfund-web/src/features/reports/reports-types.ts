@@ -215,7 +215,7 @@ export type FinancialCommitmentRealizationStatus =
 
 export type FinancialCommitmentMonthlyReportItem = {
   commitment:
-    FinancialCommitmentAllocationSummary
+  FinancialCommitmentAllocationSummary
 
   referenceMonth: string
   dueDate: string
@@ -226,21 +226,21 @@ export type FinancialCommitmentMonthlyReportItem = {
   exceededAmount: number
 
   status:
-    FinancialCommitmentRealizationStatus
+  FinancialCommitmentRealizationStatus
 
   overdue: boolean
 
   allocationCount: number
 
   lastSettlementDate:
-    string | null
+  string | null
 }
 
 export type FinancialCommitmentMonthlyReport = {
   referenceMonth: string
 
   direction:
-    FinancialCommitmentDirection
+  FinancialCommitmentDirection
 
   expectedTotal: number
   realizedTotal: number
@@ -256,19 +256,78 @@ export type FinancialCommitmentMonthlyReport = {
   exceededCount: number
 
   items:
-    FinancialCommitmentMonthlyReportItem[]
+  FinancialCommitmentMonthlyReportItem[]
 }
 
 export type GetFinancialCommitmentMonthlyReportParams = {
   referenceMonth: string
 
   direction:
-    FinancialCommitmentDirection
+  FinancialCommitmentDirection
 
   partyId?: string
 
   designatedRecipientId?:
-    string
+  string
 
   fundId?: string
+}
+
+export type FinancialForecastMonth = {
+  referenceMonth: string
+
+  receivableAmount: number
+
+  genericPayableAmount: number
+
+  supportAmount: number
+
+  payableAmount: number
+
+  netAmount: number
+
+  cumulativeNetAmount: number
+
+  receivableCount: number
+
+  genericPayableCount: number
+
+  supportCount: number
+}
+
+export type FinancialForecastReport = {
+  startMonth: string
+  endMonth: string
+
+  monthCount: number
+
+  includesSupport: boolean
+
+  receivableTotal: number
+
+  genericPayableTotal: number
+
+  supportTotal: number
+
+  payableTotal: number
+
+  netTotal: number
+
+  lowestCumulativeNet: number
+
+  lowestCumulativeMonth:
+  string | null
+
+  months:
+  FinancialForecastMonth[]
+}
+
+export type GetFinancialForecastReportParams = {
+  startMonth: string
+
+  months: number
+
+  fundId?: string
+
+  includeSupport: boolean
 }

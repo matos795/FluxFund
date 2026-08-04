@@ -1,5 +1,5 @@
 import { httpClient } from "@/api/http-client"
-import type { AccountabilityByAccountReport, AccountabilityReport, AccountCashFlowReport, CategoryResultReport, FinancialCommitmentMonthlyReport, FundReport, GetFinancialCommitmentMonthlyReportParams, PendingItemsReport } from "./reports-types"
+import type { AccountabilityByAccountReport, AccountabilityReport, AccountCashFlowReport, CategoryResultReport, FinancialCommitmentMonthlyReport, FinancialForecastReport, FundReport, GetFinancialCommitmentMonthlyReportParams, GetFinancialForecastReportParams, PendingItemsReport } from "./reports-types"
 
 type GetCategoryResultReportParams = {
   startDate?: string
@@ -215,6 +215,36 @@ export const reportsApi = {
             fundId:
               fundId ||
               undefined,
+          },
+        },
+      )
+
+    return response.data
+  },
+
+  async getFinancialForecast({
+    startMonth,
+    months,
+    fundId,
+    includeSupport,
+  }: GetFinancialForecastReportParams) {
+    const response =
+      await httpClient.get<
+        FinancialForecastReport
+      >(
+        "/api/v1/reports/financial-forecast",
+        {
+          params: {
+            startMonth:
+              `${startMonth}-01`,
+
+            months,
+
+            fundId:
+              fundId ||
+              undefined,
+
+            includeSupport,
           },
         },
       )
