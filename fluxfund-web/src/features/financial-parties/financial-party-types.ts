@@ -1,3 +1,7 @@
+import type { FinancialCommitment, FinancialCommitmentAllocationSummary } from "../financial-commitments/financial-commitment-types"
+import type { Receipt } from "../receipts/receipt-types"
+import type { SupportAgreement } from "../support-agreements/support-agreement-types"
+
 export type FinancialPartyType =
     | "INDIVIDUAL"
     | "LEGAL_ENTITY"
@@ -107,3 +111,71 @@ export type GetFinancialPartiesParams = {
     role?: FinancialPartyRole
     active?: boolean
 }
+
+export type FinancialPartyActivityRole =
+    | "INCOME_SOURCE"
+    | "DESIGNATED_RECIPIENT"
+    | "PAYMENT_RECIPIENT"
+
+export type FinancialPartyActivity = {
+    allocationId: string
+    transactionId: string
+
+    transactionType:
+    | "INCOME"
+    | "EXPENSE"
+
+    settlementDate: string
+
+    description: string
+
+    accountName: string
+    fundName: string
+
+    amount: number
+
+    referenceMonth:
+    string | null
+
+    roles:
+    FinancialPartyActivityRole[]
+
+    financialCommitment:
+    FinancialCommitmentAllocationSummary | null
+}
+
+export type FinancialPartyOverviewSummary = {
+    receivedFromParty: number
+    destinedToParty: number
+    paidToParty: number
+
+    transactionCount: number
+
+    activeCommitmentCount: number
+
+    activeSupportAgreementCount: number
+
+    issuedReceiptCount: number
+
+    issuedReceiptAmount: number
+}
+
+export type FinancialPartyOverview = {
+    party:
+    FinancialParty
+
+    summary:
+    FinancialPartyOverviewSummary
+
+    recentActivities:
+    FinancialPartyActivity[]
+
+    commitments:
+    FinancialCommitment[]
+
+    supportAgreements:
+    SupportAgreement[]
+
+    receipts:
+    Receipt[]
+} 

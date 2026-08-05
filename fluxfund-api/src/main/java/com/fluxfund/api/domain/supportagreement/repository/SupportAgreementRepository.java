@@ -237,4 +237,29 @@ public interface SupportAgreementRepository extends JpaRepository<SupportAgreeme
             @Param("periodEnd") LocalDate periodEnd,
 
             @Param("fundId") UUID fundId);
+
+    @Query("""
+            select agreement
+
+            from SupportAgreement agreement
+
+            join fetch agreement.beneficiary
+                beneficiary
+
+            join fetch agreement.fund
+                fund
+
+            where agreement.organization.id =
+                :organizationId
+
+              and beneficiary.id =
+                :partyId
+
+            order by
+                agreement.startDate desc,
+                agreement.createdAt desc
+            """)
+    List<SupportAgreement> findAllByFinancialParty(
+            @Param("organizationId") UUID organizationId,
+            @Param("partyId") UUID partyId);
 }

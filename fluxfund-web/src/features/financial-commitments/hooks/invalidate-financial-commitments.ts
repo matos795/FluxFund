@@ -36,5 +36,11 @@ export async function invalidateFinancialCommitments(
                 "financial-forecast-report",
             ],
         }),
+
+        queryClient.invalidateQueries({
+            queryKey: [
+                "financial-parties-360",
+            ],
+        }),
     ])
 }

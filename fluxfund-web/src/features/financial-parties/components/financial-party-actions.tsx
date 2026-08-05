@@ -1,4 +1,5 @@
 import {
+  Eye,
   MoreHorizontal,
   RotateCcw,
   UserRoundX,
@@ -48,10 +49,11 @@ import {
 import {
   EditFinancialPartyDialog,
 } from "./edit-financial-party-dialog"
+import { Link } from "react-router-dom"
 
 type FinancialPartyActionsProps = {
   financialParty:
-    FinancialParty
+  FinancialParty
 }
 
 export function FinancialPartyActions({
@@ -129,10 +131,6 @@ export function FinancialPartyActions({
     )
   }
 
-  if (!canFinanceWrite) {
-    return null
-  }
-
   return (
     <>
       <DropdownMenu>
@@ -154,37 +152,49 @@ export function FinancialPartyActions({
         <DropdownMenuContent
           align="end"
         >
-          {financialParty.active ? (
-            <>
-              <EditFinancialPartyDialog
-                financialParty={
-                  financialParty
-                }
-              />
 
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={() =>
-                  setDeactivateDialogOpen(
-                    true,
-                  )
-                }
-              >
-                <UserRoundX className="mr-2 size-4" />
-                Desativar
-              </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link to={`/financial-parties/${financialParty.id}`}>
+              <Eye className="mr-2 size-4" />
+              Visão 360º
+            </Link>
+          </DropdownMenuItem>
+
+          {canFinanceWrite && (
+            <>
+              {financialParty.active ? (
+                <>
+                  <EditFinancialPartyDialog
+                    financialParty={
+                      financialParty
+                    }
+                  />
+
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() =>
+                      setDeactivateDialogOpen(
+                        true,
+                      )
+                    }
+                  >
+                    <UserRoundX className="mr-2 size-4" />
+                    Desativar
+                  </DropdownMenuItem>
+                </>
+              ) : (
+                <DropdownMenuItem
+                  onClick={() =>
+                    setActivateDialogOpen(
+                      true,
+                    )
+                  }
+                >
+                  <RotateCcw className="mr-2 size-4" />
+                  Reativar
+                </DropdownMenuItem>
+              )}
             </>
-          ) : (
-            <DropdownMenuItem
-              onClick={() =>
-                setActivateDialogOpen(
-                  true,
-                )
-              }
-            >
-              <RotateCcw className="mr-2 size-4" />
-              Reativar
-            </DropdownMenuItem>
           )}
         </DropdownMenuContent>
       </DropdownMenu>
@@ -217,9 +227,9 @@ export function FinancialPartyActions({
         errorMessage={
           deactivateMutation.isError
             ? getApiErrorMessage(
-                deactivateMutation.error,
-                "Não foi possível desativar o contato financeiro.",
-              )
+              deactivateMutation.error,
+              "Não foi possível desativar o contato financeiro.",
+            )
             : null
         }
         onConfirm={
@@ -257,9 +267,9 @@ export function FinancialPartyActions({
         errorMessage={
           activateMutation.isError
             ? getApiErrorMessage(
-                activateMutation.error,
-                "Não foi possível reativar o contato financeiro.",
-              )
+              activateMutation.error,
+              "Não foi possível reativar o contato financeiro.",
+            )
             : null
         }
         onConfirm={

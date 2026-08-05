@@ -105,5 +105,11 @@ export async function invalidateFinancialData(
         "receipts",
       ],
     }),
+
+    queryClient.invalidateQueries({
+      queryKey: [
+        "financial-parties-360",
+      ],
+    }),
   ])
 }

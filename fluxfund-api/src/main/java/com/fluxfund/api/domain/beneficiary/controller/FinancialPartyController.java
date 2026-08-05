@@ -28,6 +28,8 @@ import com.fluxfund.api.domain.beneficiary.dto.CreateBeneficiaryRequest;
 import com.fluxfund.api.domain.beneficiary.dto.FinancialPartyOptionResponse;
 import com.fluxfund.api.domain.beneficiary.dto.UpdateBeneficiaryRequest;
 import com.fluxfund.api.domain.beneficiary.service.BeneficiaryService;
+import com.fluxfund.api.domain.financialparty.dto.FinancialPartyOverviewResponse;
+import com.fluxfund.api.domain.financialparty.service.FinancialPartyOverviewService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +42,7 @@ import static com.fluxfund.api.security.TenantHeaders.ORGANIZATION_ID;
 public class FinancialPartyController {
 
     private final BeneficiaryService service;
+    private final FinancialPartyOverviewService overviewService;
 
     @PostMapping
     public ResponseEntity<BeneficiaryResponse> create(
@@ -114,5 +117,16 @@ public class FinancialPartyController {
         return ResponseEntity.ok(service.activate(
                 organizationId,
                 id));
+    }
+
+    @GetMapping("/{id}/overview")
+    public ResponseEntity<FinancialPartyOverviewResponse> getOverview(
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+            @PathVariable UUID id) {
+
+        return ResponseEntity.ok(
+                overviewService.getOverview(
+                        organizationId,
+                        id));
     }
 }

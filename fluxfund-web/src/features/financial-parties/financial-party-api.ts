@@ -5,6 +5,7 @@ import type {
   CreateFinancialPartyRequest,
   FinancialParty,
   FinancialPartyOption,
+  FinancialPartyOverview,
   FinancialPartyRole,
   GetFinancialPartiesParams,
   UpdateFinancialPartyRequest,
@@ -112,6 +113,20 @@ export async function getFinancialPartyOptions(
           role,
         },
       },
+    )
+
+  return response.data
+}
+
+export async function getFinancialPartyOverview(
+  partyId:
+    string,
+) {
+  const response =
+    await httpClient.get<
+      FinancialPartyOverview
+    >(
+      `/api/v1/financial-parties/${partyId}/overview`,
     )
 
   return response.data

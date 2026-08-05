@@ -349,12 +349,42 @@ public interface FinancialCommitmentRepository
                 party.name asc
             """)
     List<FinancialCommitment> findActiveForForecast(
-
             @Param("organizationId") UUID organizationId,
-
             @Param("periodStart") LocalDate periodStart,
-
             @Param("periodEnd") LocalDate periodEnd,
-
             @Param("fundId") UUID fundId);
+
+    @Query("""
+            select distinct commitment
+
+            from FinancialCommitment commitment
+
+            join fetch commitment.party
+                party
+
+            left join fetch
+                commitment.designatedRecipient
+                designatedRecipient
+
+            join fetch commitment.fund
+                fund
+
+            where commitment.organization.id =
+                :organizationId
+
+              and (
+                    party.id =
+                        :partyId
+
+                    or designatedRecipient.id =
+                        :partyId
+                  )
+
+            order by
+                commitment.startDate desc,
+                commitment.createdAt desc
+            """)
+    List<FinancialCommitment> findAllByFinancialParty(
+            @Param("organizationId") UUID organizationId,
+            @Param("partyId") UUID partyId);
 }

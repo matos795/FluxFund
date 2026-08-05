@@ -499,14 +499,178 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
                                       )
                                     """)
     Page<TransactionAllocation> findUnlinkedFinancialCommitmentAllocations(
+            @Param("organizationId") UUID organizationId,
+            @Param("startMonth") LocalDate startMonth,
+            @Param("endMonth") LocalDate endMonth,
+            @Param("transactionType") com.fluxfund.api.domain.financialtransaction.FinancialTransactionType transactionType,
+            Pageable pageable);
+
+    @Query("""
+            select coalesce(
+                sum(abs(allocation.amount)),
+                0
+            )
+
+            from TransactionAllocation allocation
+
+            join allocation.financialTransaction
+                transaction
+
+            where allocation.organization.id =
+                :organizationId
+
+              and transaction.status =
+                com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+
+              and transaction.type =
+                com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.INCOME
+
+              and allocation.sourceParty.id =
+                :partyId
+            """)
+    BigDecimal sumSettledIncomeFromParty(
 
             @Param("organizationId") UUID organizationId,
 
-            @Param("startMonth") LocalDate startMonth,
+            @Param("partyId") UUID partyId);
 
-            @Param("endMonth") LocalDate endMonth,
+    @Query("""
+            select coalesce(
+                sum(abs(allocation.amount)),
+                0
+            )
 
-            @Param("transactionType") com.fluxfund.api.domain.financialtransaction.FinancialTransactionType transactionType,
+            from TransactionAllocation allocation
 
+            join allocation.financialTransaction
+                transaction
+
+            where allocation.organization.id =
+                :organizationId
+
+              and transaction.status =
+                com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+
+              and transaction.type =
+                com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.INCOME
+
+              and allocation.beneficiary.id =
+                :partyId
+            """)
+    BigDecimal sumSettledIncomeDestinedToParty(
+
+            @Param("organizationId") UUID organizationId,
+
+            @Param("partyId") UUID partyId);
+
+    @Query("""
+            select coalesce(
+                sum(abs(allocation.amount)),
+                0
+            )
+
+            from TransactionAllocation allocation
+
+            join allocation.financialTransaction
+                transaction
+
+            where allocation.organization.id =
+                :organizationId
+
+              and transaction.status =
+                com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+
+              and transaction.type =
+                com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.EXPENSE
+
+              and allocation.beneficiary.id =
+                :partyId
+            """)
+    BigDecimal sumSettledExpensePaidToParty(
+
+            @Param("organizationId") UUID organizationId,
+
+            @Param("partyId") UUID partyId);
+
+    @Query("""
+            select count(
+                distinct transaction.id
+            )
+
+            from TransactionAllocation allocation
+
+            join allocation.financialTransaction
+                transaction
+
+            where allocation.organization.id =
+                :organizationId
+
+              and transaction.status =
+                com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+
+              and transaction.type <>
+                com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
+
+              and (
+                    allocation.sourceParty.id =
+                        :partyId
+
+                    or allocation.beneficiary.id =
+                        :partyId
+                  )
+            """)
+    long countSettledTransactionsByParty(
+
+            @Param("organizationId") UUID organizationId,
+
+            @Param("partyId") UUID partyId);
+
+    @Query("""
+            select distinct allocation
+
+            from TransactionAllocation allocation
+
+            join fetch allocation.financialTransaction
+                transaction
+
+            join fetch transaction.account
+                account
+
+            join fetch allocation.fund
+                fund
+
+            left join fetch allocation.sourceParty
+                sourceParty
+
+            left join fetch allocation.beneficiary
+                recipientParty
+
+            left join fetch allocation.financialCommitment
+                commitment
+
+            where allocation.organization.id =
+                :organizationId
+
+              and transaction.status =
+                com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+
+              and transaction.type <>
+                com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
+
+              and (
+                    sourceParty.id =
+                        :partyId
+
+                    or recipientParty.id =
+                        :partyId
+                  )
+
+            order by
+                transaction.settlementDate desc,
+                allocation.createdAt desc
+            """)
+    List<TransactionAllocation> findRecentSettledByFinancialParty(
+            @Param("organizationId") UUID organizationId,
+            @Param("partyId") UUID partyId,
             Pageable pageable);
 }

@@ -25,6 +25,12 @@ export function useActivateSupportAgreement() {
           "financial-forecast-report",
         ],
       })
+
+      queryClient.invalidateQueries({
+        queryKey: [
+          "financial-parties-360",
+        ],
+      })
     },
   })
 }

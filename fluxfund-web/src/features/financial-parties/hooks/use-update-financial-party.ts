@@ -42,6 +42,12 @@ export function useUpdateFinancialParty() {
         queryKey:
           ["financial-party-options"],
       })
+
+      queryClient.invalidateQueries({
+        queryKey: [
+          "financial-parties-360",
+        ],
+      })
     },
   })
 }

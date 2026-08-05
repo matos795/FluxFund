@@ -33,6 +33,7 @@ import { FinancialCommitmentReconciliationPage } from "@/pages/financial-commitm
 import { FinancialCommitmentsPayableReportPage, FinancialCommitmentsReceivableReportPage } from "@/pages/financial-commitment-monthly-report-page"
 import { FinancialForecastReportPage } from "@/pages/results/financial-forecast-report-page"
 import { ReceiptsPage } from "@/pages/receipts-page"
+import { FinancialPartyOverviewPage } from "@/pages/financial-party-overview-page"
 
 export function AppRoutes() {
   return (
@@ -95,6 +96,13 @@ export function AppRoutes() {
             path="/financial-parties"
             element={
               <FinancialPartiesPage />
+            }
+          />
+
+          <Route
+            path="/financial-parties/:partyId"
+            element={
+              <FinancialPartyOverviewPage />
             }
           />
 

@@ -27,6 +27,7 @@ import type {
     FinancialParty,
 } from "../financial-party-types"
 import { FinancialPartyActions } from "./financial-party-actions"
+import { Link } from "react-router-dom"
 
 type FinancialPartiesTableProps = {
     financialParties: FinancialParty[]
@@ -99,11 +100,12 @@ export function FinancialPartiesTable({
                                         >
                                             <TableCell>
                                                 <div className="min-w-48">
-                                                    <p className="font-medium">
-                                                        {
-                                                            financialParty.name
-                                                        }
-                                                    </p>
+                                                    <Link
+                                                        to={`/financial-parties/${financialParty.id}`}
+                                                        className="font-medium hover:underline"
+                                                    >
+                                                        {financialParty.name}
+                                                    </Link>
 
                                                     {financialParty.legalName &&
                                                         financialParty.legalName !==

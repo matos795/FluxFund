@@ -23,6 +23,12 @@ export function useDeleteSupportAgreement() {
           "financial-forecast-report",
         ],
       })
+
+      queryClient.invalidateQueries({
+        queryKey: [
+          "financial-parties-360",
+        ],
+      })
     },
   })
 }

@@ -1,6 +1,7 @@
 package com.fluxfund.api.domain.receipt.repository;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -147,10 +148,101 @@ public interface ReceiptRepository
                 :transactionId
             """)
     boolean existsIssuedByTransactionAndSourceType(
-
             @Param("organizationId") UUID organizationId,
-
             @Param("transactionId") UUID transactionId,
-
             @Param("sourceType") com.fluxfund.api.domain.receipt.ReceiptSourceType sourceType);
+
+    @Query("""
+            select distinct receipt
+
+            from Receipt receipt
+
+            join fetch receipt.organization
+                organization
+
+            left join fetch receipt.counterpartyParty
+                counterparty
+
+            left join fetch receipt.beneficiaryParty
+                beneficiary
+
+            left join fetch receipt.fund
+                fund
+
+            left join fetch receipt.financialTransaction
+                transaction
+
+            left join fetch receipt.transactionAllocation
+                allocation
+
+            left join fetch receipt.replacesReceipt
+                replacedReceipt
+
+            where receipt.organization.id =
+                :organizationId
+
+              and (
+                    counterparty.id =
+                        :partyId
+
+                    or beneficiary.id =
+                        :partyId
+                  )
+
+            order by
+                receipt.createdAt desc
+            """)
+    List<Receipt> findRecentByFinancialParty(
+            @Param("organizationId") UUID organizationId,
+            @Param("partyId") UUID partyId,
+            Pageable pageable);
+
+    @Query("""
+            select count(receipt)
+
+            from Receipt receipt
+
+            where receipt.organization.id =
+                :organizationId
+
+              and receipt.status =
+                com.fluxfund.api.domain.receipt.ReceiptStatus.ISSUED
+
+              and (
+                    receipt.counterpartyParty.id =
+                        :partyId
+
+                    or receipt.beneficiaryParty.id =
+                        :partyId
+                  )
+            """)
+    long countIssuedByFinancialParty(
+            @Param("organizationId") UUID organizationId,
+            @Param("partyId") UUID partyId);
+
+    @Query("""
+            select coalesce(
+                sum(receipt.amount),
+                0
+            )
+
+            from Receipt receipt
+
+            where receipt.organization.id =
+                :organizationId
+
+              and receipt.status =
+                com.fluxfund.api.domain.receipt.ReceiptStatus.ISSUED
+
+              and (
+                    receipt.counterpartyParty.id =
+                        :partyId
+
+                    or receipt.beneficiaryParty.id =
+                        :partyId
+                  )
+            """)
+    BigDecimal sumIssuedByFinancialParty(
+            @Param("organizationId") UUID organizationId,
+            @Param("partyId") UUID partyId);
 }
