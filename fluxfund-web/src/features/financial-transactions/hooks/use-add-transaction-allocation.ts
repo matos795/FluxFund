@@ -16,8 +16,9 @@ export function useAddTransactionAllocation() {
     mutationFn: ({ transactionId, data }: AddTransactionAllocationMutationData) =>
       addTransactionAllocation(transactionId, data),
 
-    onSuccess: () => {
-      invalidateFinancialData(queryClient)
-    },
+    onSuccess: () =>
+      invalidateFinancialData(
+        queryClient,
+      ),
   })
 }

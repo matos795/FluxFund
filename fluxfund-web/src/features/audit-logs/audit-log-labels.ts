@@ -58,6 +58,18 @@ export const auditActionLabels: Record<AuditAction, string> = {
 
   ACCEPT_INVITATION:
     "Convite aceito",
+
+  DELETE_RECEIPT_DRAFT:
+    "Rascunho de recibo removido",
+
+  ISSUE_RECEIPT:
+    "Recibo emitido",
+
+  CANCEL_RECEIPT:
+    "Recibo cancelado",
+
+  REISSUE_RECEIPT:
+    "Reemissão de recibo iniciada",
 }
 
 export const auditEntityTypeLabels: Record<
@@ -70,8 +82,14 @@ export const auditEntityTypeLabels: Record<
   TRANSACTION_ALLOCATION:
     "Alocação",
 
+  FINANCIAL_PARTY:
+    "Contato financeiro",
+
   ATTACHMENT:
     "Anexo",
+
+  FINANCIAL_COMMITMENT:
+    "Compromisso financeiro",
 
   SUPPORT_AGREEMENT:
     "Compromisso",
@@ -105,6 +123,9 @@ export const auditEntityTypeLabels: Record<
 
   ORGANIZATION_USER_INVITATION:
     "Convite de acesso",
+
+  RECEIPT:
+    "Recibo",
 }
 
 export function getAuditActionLabel(

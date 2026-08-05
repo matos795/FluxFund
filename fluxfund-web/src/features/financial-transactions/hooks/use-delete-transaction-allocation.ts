@@ -18,8 +18,9 @@ export function useDeleteTransactionAllocation() {
     }: DeleteTransactionAllocationMutationData) =>
       deleteTransactionAllocation(transactionId, allocationId),
 
-    onSuccess: () => {
-      invalidateFinancialData(queryClient)
-    },
+    onSuccess: () =>
+      invalidateFinancialData(
+        queryClient,
+      ),
   })
 }

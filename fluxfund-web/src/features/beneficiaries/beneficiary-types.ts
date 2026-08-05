@@ -1,9 +1,15 @@
 export type BeneficiaryType =
-    | 'MISSIONARY'
-    | 'SUPPLIER'
-    | 'EMPLOYEE'
-    | 'PROJECT_RESPONSIBLE'
-    | 'OTHER'
+  | "DONOR"
+  | "SUPPORTER"
+  | "CUSTOMER"
+  | "SPONSOR"
+  | "MEMBER"
+  | "SUPPLIER"
+  | "SERVICE_PROVIDER"
+  | "EMPLOYEE"
+  | "MISSIONARY"
+  | "PROJECT_RESPONSIBLE"
+  | "OTHER"
 
 export type Beneficiary = {
     id: string

@@ -3,6 +3,7 @@ import { useState } from "react"
 import {
   CheckCircle2,
   Eye,
+  FileSignature,
   MoreHorizontal,
   Paperclip,
   Pencil,
@@ -29,6 +30,8 @@ import { useCancelFinancialTransaction } from "../hooks/use-cancel-financial-tra
 import { CancelAccountTransferDialog } from "./cancel-account-transfer-dialog"
 import { TransactionWorkspaceDialog } from "./transaction-workspace-dialog"
 import { ConfirmActionDialog } from "@/components/layout/confirm-action-dialog"
+import { useFinancialTransaction } from "../hooks/use-financial-transaction"
+import { ReceiptDraftDialog } from "@/features/receipts/components/receipt-draft-dialog"
 
 type FinancialTransactionActionsProps = {
   transaction: FinancialTransaction
@@ -41,6 +44,15 @@ export function FinancialTransactionActions({
 
   const [workspaceOpen, setWorkspaceOpen] = useState(false)
 
+  const {
+    data:
+    refreshedTransaction,
+  } = useFinancialTransaction({
+    id: workspaceOpen ? transaction.id : null,
+  })
+
+  const currentTransaction = refreshedTransaction ?? transaction
+
   const [workspaceTab, setWorkspaceTab] =
     useState<TransactionWorkspaceTab>("overview")
 
@@ -52,41 +64,57 @@ export function FinancialTransactionActions({
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [cancelTransferDialogOpen, setCancelTransferDialogOpen] = useState(false)
 
+  const [
+    receiptDialogOpen,
+    setReceiptDialogOpen,
+  ] = useState(false)
+
   const cancelFinancialTransactionMutation = useCancelFinancialTransaction()
 
-  const needsClassification = needsFinancialTransactionClassification(transaction)
+  const needsClassification =
+    needsFinancialTransactionClassification(
+      currentTransaction,
+    )
 
   const canEdit =
-    transaction.status !== "CANCELED" &&
-    transaction.status !== "IMPORTED" &&
-    transaction.type !== "TRANSFER" &&
+    currentTransaction.status !== "CANCELED" &&
+    currentTransaction.status !== "IMPORTED" &&
+    currentTransaction.type !== "TRANSFER" &&
     !needsClassification
 
   const canManageAllocations =
-    transaction.status === "SETTLED" &&
-    transaction.type !== "TRANSFER" &&
+    currentTransaction.status === "SETTLED" &&
+    currentTransaction.type !== "TRANSFER" &&
     !needsClassification
 
   const canManageAttachments =
-    transaction.status !== "CANCELED" &&
-    transaction.status !== "IMPORTED" &&
-    transaction.type !== "TRANSFER" &&
+    currentTransaction.status !== "CANCELED" &&
+    currentTransaction.status !== "IMPORTED" &&
+    currentTransaction.type !== "TRANSFER" &&
     !needsClassification
 
   const canCancel =
-    transaction.status !== "CANCELED" && transaction.type !== "TRANSFER"
+    currentTransaction.status !== "CANCELED" && currentTransaction.type !== "TRANSFER"
 
   const canLinkCreditCardPayment =
-    (transaction.source === "OFX" || transaction.source === "CSV") &&
-    transaction.status === "SETTLED" &&
-    transaction.type === "EXPENSE" &&
-    transaction.account.type !== "CREDIT_CARD" &&
-    !transaction.category
+    (currentTransaction.source === "OFX" || currentTransaction.source === "CSV") &&
+    currentTransaction.status === "SETTLED" &&
+    currentTransaction.type === "EXPENSE" &&
+    currentTransaction.account.type !== "CREDIT_CARD" &&
+    !currentTransaction.category
 
   const canCancelAccountTransfer =
-    transaction.type === "TRANSFER" &&
-    transaction.status !== "CANCELED" &&
-    Boolean(transaction.transferGroupId)
+    currentTransaction.type === "TRANSFER" &&
+    currentTransaction.status !== "CANCELED" &&
+    Boolean(currentTransaction.transferGroupId)
+
+  const canCreateTransactionReceipt =
+    currentTransaction.status ===
+    "SETTLED" &&
+    currentTransaction.type !==
+    "TRANSFER" &&
+    currentTransaction.allocations
+      .length === 0
 
   function handleCancelTransaction() {
     cancelFinancialTransactionMutation.mutate(transaction.id, {
@@ -175,8 +203,29 @@ export function FinancialTransactionActions({
           )}
 
           {canFinanceWrite && canLinkCreditCardPayment && (
-            <LinkCreditCardPaymentDialog transaction={transaction} />
+            <LinkCreditCardPaymentDialog
+              transaction={
+                currentTransaction
+              }
+            />
           )}
+
+          {canFinanceWrite &&
+            canCreateTransactionReceipt && (
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault()
+
+                  setReceiptDialogOpen(
+                    true,
+                  )
+                }}
+              >
+                <FileSignature className="mr-2 size-4" />
+
+                Criar recibo
+              </DropdownMenuItem>
+            )}
 
           {canFinanceWrite && canCancel && (
             <DropdownMenuItem
@@ -204,7 +253,9 @@ export function FinancialTransactionActions({
       </DropdownMenu>
 
       <TransactionWorkspaceDialog
-        transaction={transaction}
+        transaction={
+          currentTransaction
+        }
         open={workspaceOpen}
         onOpenChange={setWorkspaceOpen}
         activeTab={workspaceTab}
@@ -215,8 +266,58 @@ export function FinancialTransactionActions({
         canClassify={canFinanceWrite && needsClassification}
       />
 
+      <ReceiptDraftDialog
+        open={
+          receiptDialogOpen
+        }
+        onOpenChange={
+          setReceiptDialogOpen
+        }
+        source={{
+          sourceType:
+            "TRANSACTION",
+
+          financialTransactionId:
+            currentTransaction.id,
+
+          defaultReceiptType:
+            currentTransaction.type ===
+              "INCOME"
+              ? "OTHER_INCOME"
+              : "OTHER_PAYMENT",
+
+          defaultAmount:
+            Math.abs(
+              currentTransaction
+                .settledAmount ??
+              0,
+            ),
+
+          defaultPaymentDate:
+            currentTransaction
+              .settlementDate ??
+            undefined,
+
+          defaultPurpose:
+            currentTransaction
+              .description?.trim() ||
+            currentTransaction
+              .rawDescription?.trim() ||
+            "",
+
+          description:
+            currentTransaction
+              .description?.trim() ||
+            currentTransaction
+              .rawDescription?.trim() ||
+            "Transação financeira",
+        }}
+      />
+
       <CancelAccountTransferDialog
-        transaction={transaction}
+        transaction={
+          currentTransaction
+        }
         open={cancelTransferDialogOpen}
         onOpenChange={setCancelTransferDialogOpen}
       />

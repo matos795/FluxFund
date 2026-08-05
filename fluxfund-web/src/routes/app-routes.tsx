@@ -2,7 +2,6 @@ import { Route, Routes } from "react-router-dom"
 
 import { AppLayout } from "@/components/layout/app-layout"
 import { AccountsPage } from "@/pages/accounts-page"
-import { BeneficiariesPage } from "@/pages/beneficiaries-page"
 import { CategoriesPage } from "@/pages/categories-page"
 import { DashboardPage } from "@/pages/dashboard-page"
 import { FundsPage } from "@/pages/funds-page"
@@ -28,6 +27,13 @@ import { ForgotPasswordPage } from "@/pages/forgot-password-page"
 import { ResetPasswordPage } from "@/pages/reset-password-page"
 import { PlatformAdminRoute } from "./platform-admin-route"
 import { PlatformOrganizationsPage } from "@/pages/platform-organizations-page"
+import { FinancialPartiesPage } from "@/pages/financial-parties-page"
+import { FinancialCommitmentsPage } from "@/pages/financial-commitments-page"
+import { FinancialCommitmentReconciliationPage } from "@/pages/financial-commitment-reconciliation-page"
+import { FinancialCommitmentsPayableReportPage, FinancialCommitmentsReceivableReportPage } from "@/pages/financial-commitment-monthly-report-page"
+import { FinancialForecastReportPage } from "@/pages/results/financial-forecast-report-page"
+import { ReceiptsPage } from "@/pages/receipts-page"
+import { FinancialPartyOverviewPage } from "@/pages/financial-party-overview-page"
 
 export function AppRoutes() {
   return (
@@ -86,10 +92,48 @@ export function AppRoutes() {
           <Route path="/accounts" element={<AccountsPage />} />
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/funds" element={<FundsPage />} />
-          <Route path="/beneficiaries" element={<BeneficiariesPage />} />
+          <Route
+            path="/financial-parties"
+            element={
+              <FinancialPartiesPage />
+            }
+          />
+
+          <Route
+            path="/financial-parties/:partyId"
+            element={
+              <FinancialPartyOverviewPage />
+            }
+          />
+
+          <Route
+            path="/beneficiaries"
+            element={
+              <FinancialPartiesPage />
+            }
+          />
+          <Route
+            path="/financial-commitments"
+            element={
+              <FinancialCommitmentsPage />
+            }
+          />
+          <Route
+            path="/financial-commitments/reconciliation"
+            element={
+              <FinancialCommitmentReconciliationPage />
+            }
+          />
           <Route
             path="/support-agreements"
             element={<SupportAgreementsPage />}
+          />
+
+          <Route
+            path="/receipts"
+            element={
+              <ReceiptsPage />
+            }
           />
           <Route path="/transactions" element={<TransactionsPage />} />
           <Route path="/reports" element={<ReportsPage />} />
@@ -117,6 +161,26 @@ export function AppRoutes() {
           <Route
             path="/reports/closing-dossier"
             element={<ClosingDossierReportPage />}
+          />
+          <Route
+            path="/reports/commitments-receivable"
+            element={
+              <FinancialCommitmentsReceivableReportPage />
+            }
+          />
+
+          <Route
+            path="/reports/commitments-payable"
+            element={
+              <FinancialCommitmentsPayableReportPage />
+            }
+          />
+
+          <Route
+            path="/reports/financial-forecast"
+            element={
+              <FinancialForecastReportPage />
+            }
           />
           <Route path="/credit-card-statements" element={<CreditCardStatementsPage />} />
           <Route path="/settings" element={<SettingsPage />} />

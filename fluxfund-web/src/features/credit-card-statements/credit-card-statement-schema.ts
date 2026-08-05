@@ -27,7 +27,7 @@ export const creditCardStatementItemFormSchema = z
     installmentNumber: z.coerce.number().optional(),
     installmentCount: z.coerce.number().optional(),
     fundId: z.string().optional(),
-    beneficiaryId: z.string().optional(),
+    recipientPartyId: z.string().optional(),
     referenceMonth: z.string().optional(),
     allocationAmount: z.coerce.number().optional(),
   })

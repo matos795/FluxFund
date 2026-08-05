@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -58,7 +59,7 @@ public class FinancialTransactionExcelExportService {
             UUID organizationId,
             LocalDate startDate,
             LocalDate endDate) {
-            organizationAccessService.requireReadAccess(organizationId);
+        organizationAccessService.requireReadAccess(organizationId);
 
         validateOrganizationExists(organizationId);
 
@@ -259,7 +260,7 @@ public class FinancialTransactionExcelExportService {
         createHeaderCell(headerRow, 2, "Mês Referência", styles);
         createHeaderCell(headerRow, 3, "Ano", styles);
         createHeaderCell(headerRow, 4, "Descrição", styles);
-        createHeaderCell(headerRow, 5, incomeSheet ? "Pagador" : "Fornecedor/Favorecido", styles);
+        createHeaderCell(headerRow, 5, incomeSheet ? "Origem da receita / pagador" : "Fornecedor / recebedor", styles);
         createHeaderCell(headerRow, 6, "Valor", styles);
         createHeaderCell(headerRow, 7, "Conta Contábil", styles);
         createHeaderCell(headerRow, 8, "Conta Corrente", styles);
@@ -269,7 +270,7 @@ public class FinancialTransactionExcelExportService {
         createHeaderCell(headerRow, 12, "Comprovante Pgto?", styles);
         createHeaderCell(headerRow, 13, "Anexo Fiscal?", styles);
         createHeaderCell(headerRow, 14, "Tipos de Anexo", styles);
-        createHeaderCell(headerRow, 15, "Origem", styles);
+        createHeaderCell(headerRow, 15, "Origem do lançamento", styles);
         createHeaderCell(headerRow, 16, "Descrição Original", styles);
         createHeaderCell(headerRow, 17, "Documento", styles);
         createHeaderCell(headerRow, 18, "ID", styles);
@@ -290,7 +291,7 @@ public class FinancialTransactionExcelExportService {
                 createDateCell(row, 2, getReferenceMonth(transaction), styles);
                 createNumberCell(row, 3, getReferenceYear(transaction), styles);
                 createTextCell(row, 4, getDescription(transaction), styles);
-                createTextCell(row, 5, getBeneficiaryNames(transaction), styles);
+                createTextCell(row, 5, getFinancialCounterpartyNames(transaction), styles);
                 createMoneyCell(row, 6, getAbsoluteSettledAmount(transaction), styles);
                 createTextCell(row, 7, getCategoryName(transaction), styles);
                 createTextCell(row, 8, getAccountName(transaction), styles);
@@ -342,7 +343,7 @@ public class FinancialTransactionExcelExportService {
         createHeaderCell(headerRow, 3, "Mês Referência", styles);
         createHeaderCell(headerRow, 4, "Ano", styles);
         createHeaderCell(headerRow, 5, "Descrição", styles);
-        createHeaderCell(headerRow, 6, "Favorecido/Pagador", styles);
+        createHeaderCell(headerRow, 6, "Contato financeiro principal", styles);
         createHeaderCell(headerRow, 7, "Valor", styles);
         createHeaderCell(headerRow, 8, "Conta Contábil", styles);
         createHeaderCell(headerRow, 9, "Conta Corrente", styles);
@@ -352,7 +353,7 @@ public class FinancialTransactionExcelExportService {
         createHeaderCell(headerRow, 13, "Comprovante Pgto?", styles);
         createHeaderCell(headerRow, 14, "Anexo Fiscal?", styles);
         createHeaderCell(headerRow, 15, "Tipos de Anexo", styles);
-        createHeaderCell(headerRow, 16, "Origem", styles);
+        createHeaderCell(headerRow, 16, "Origem do lançamento", styles);
         createHeaderCell(headerRow, 17, "Descrição Original", styles);
         createHeaderCell(headerRow, 18, "Documento", styles);
         createHeaderCell(headerRow, 19, "ID", styles);
@@ -374,7 +375,7 @@ public class FinancialTransactionExcelExportService {
                 createDateCell(row, 3, getReferenceMonth(transaction), styles);
                 createNumberCell(row, 4, getReferenceYear(transaction), styles);
                 createTextCell(row, 5, getDescription(transaction), styles);
-                createTextCell(row, 6, getBeneficiaryNames(transaction), styles);
+                createTextCell(row, 6, getFinancialCounterpartyNames(transaction), styles);
                 createMoneyCell(row, 7, getAbsoluteSettledAmount(transaction), styles);
                 createTextCell(row, 8, getCategoryName(transaction), styles);
                 createTextCell(row, 9, getAccountName(transaction), styles);
@@ -487,16 +488,23 @@ public class FinancialTransactionExcelExportService {
                 .collect(Collectors.joining(", "));
     }
 
-    private String getBeneficiaryNames(FinancialTransaction transaction) {
+    private String getFinancialCounterpartyNames(
+            FinancialTransaction transaction) {
+
         List<TransactionAllocation> allocations = transaction.getAllocations();
+
         if (allocations == null) {
             return "";
         }
-        return allocations.stream()
-                .map(TransactionAllocation::getBeneficiary)
-                .filter(beneficiary -> beneficiary != null)
-                .map(beneficiary -> beneficiary.getName())
-                .filter(name -> name != null)
+
+        return allocations
+                .stream()
+                .map(allocation -> transaction.getType() == FinancialTransactionType.INCOME
+                                ? allocation.getSourceParty()
+                                : allocation.getRecipientParty())
+                .filter(Objects::nonNull)
+                .map(financialParty -> financialParty.getName())
+                .filter(Objects::nonNull)
                 .distinct()
                 .collect(Collectors.joining(", "));
     }
@@ -667,7 +675,7 @@ public class FinancialTransactionExcelExportService {
             16, // Origem
             42, // Descrição Original
             22, // Documento
-            38  // ID
+            38 // ID
     };
 
     private static final int[] ALL_TRANSACTIONS_COLUMN_WIDTHS = {
@@ -690,7 +698,7 @@ public class FinancialTransactionExcelExportService {
             16, // Origem
             42, // Descrição Original
             22, // Documento
-            38  // ID
+            38 // ID
     };
 
     private void applySheetDefaults(Sheet sheet, int numberOfColumns, int headerRowIndex) {

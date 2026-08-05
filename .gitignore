@@ -11,6 +11,8 @@ target/
 .dump
 .zip
 storage-backup
+storage-*/
+**/application-local.properties
 
 ### STS ###
 .apt_generated

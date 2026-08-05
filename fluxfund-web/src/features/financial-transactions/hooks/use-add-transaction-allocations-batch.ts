@@ -19,8 +19,9 @@ export function useAddTransactionAllocationsBatch() {
     }: AddTransactionAllocationsBatchMutationData) =>
       addTransactionAllocationsBatch(transactionId, allocations),
 
-    onSuccess: () => {
-      invalidateFinancialData(queryClient)
-    },
+    onSuccess: () =>
+      invalidateFinancialData(
+        queryClient,
+      ),
   })
 }

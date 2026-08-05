@@ -10,6 +10,7 @@ import { CreateSupportAgreementDialog } from "@/features/support-agreements/comp
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import type { SupportAgreementStatus } from "@/features/support-agreements/support-agreement-types"
 import { Info } from "lucide-react"
+import { CommitmentsWorkspaceNav } from "@/features/financial-commitments/components/commitments-workspace-nav"
 
 export function SupportAgreementsPage() {
 
@@ -32,11 +33,13 @@ export function SupportAgreementsPage() {
     return (
         <div className="space-y-6">
             <PageHeader
-                title="Compromissos"
-                description="Gerencie compromissos fixos de sustento vinculados a favorecidos e fundos."
+                title="Sustento"
+                description="Gerencie compromissos mensais de sustento vinculados a favorecidos e fundos."
             >
                 {canFinanceWrite && <CreateSupportAgreementDialog />}
             </PageHeader>
+
+            <CommitmentsWorkspaceNav />
 
             <div className="flex flex-wrap gap-2">
                 <Button

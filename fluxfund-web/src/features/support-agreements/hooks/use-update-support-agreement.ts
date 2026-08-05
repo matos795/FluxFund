@@ -17,6 +17,18 @@ export function useUpdateSupportAgreement() {
       queryClient.invalidateQueries({
         queryKey: ["accountability-by-account-report"],
       })
+
+      queryClient.invalidateQueries({
+        queryKey: [
+          "financial-forecast-report",
+        ],
+      })
+
+      queryClient.invalidateQueries({
+        queryKey: [
+          "financial-parties-360",
+        ],
+      })
     },
   })
 }

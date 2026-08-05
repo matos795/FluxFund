@@ -1,6 +1,8 @@
 import type { AccountSummary } from "../accounts/types"
 import type { BeneficiarySummary } from "../beneficiaries/beneficiary-types"
 import type { CategorySummary } from "../categories/category-types"
+import type { FinancialCommitmentAllocationSummary } from "../financial-commitments/financial-commitment-types"
+import type { FinancialPartySummary } from "../financial-parties/financial-party-types"
 import type { FundSummary } from "../funds/fund-types"
 
 export type FinancialTransactionType =
@@ -32,7 +34,15 @@ export type TransactionAllocation = {
   id: string
   financialTransactionId: string
   fund: FundSummary
+
   beneficiary: BeneficiarySummary | null
+
+  sourceParty: FinancialPartySummary | null
+
+  recipientParty: FinancialPartySummary | null
+
+  financialCommitment: FinancialCommitmentAllocationSummary | null
+
   amount: number
   referenceMonth: string | null
   createdAt: string
@@ -138,6 +148,9 @@ export type UpdateFinancialTransactionRequest = {
 export type CreateTransactionAllocationRequest = {
   fundId: string
   beneficiaryId?: string | null
+  sourcePartyId?: string | null
+  recipientPartyId?: string | null
+  financialCommitmentId?: string | null
   amount: number
   referenceMonth: string | null
 }
@@ -145,8 +158,12 @@ export type CreateTransactionAllocationRequest = {
 export type UpdateTransactionAllocationRequest = {
   fundId?: string | null
   beneficiaryId?: string | null
+  sourcePartyId?: string | null
+  recipientPartyId?: string | null
   amount?: number | null
   referenceMonth: string | null
+  financialCommitmentId?: string | null
+  clearFinancialCommitment?: boolean
 }
 
 export type ImportOfxResponse = {
@@ -172,6 +189,9 @@ export type ClassifyFinancialTransactionRequest = {
   allocations?: {
     fundId: string
     beneficiaryId?: string | null
+    sourcePartyId?: string | null
+    recipientPartyId?: string | null
+    financialCommitmentId?: string | null
     amount: number
     referenceMonth: string | null
   }[]
@@ -187,9 +207,13 @@ export type ImportCsvResponse = {
 export type ClassificationSuggestionAllocation = {
   fund: FundSummary
   beneficiary: BeneficiarySummary | null
+  sourceParty?: FinancialPartySummary | null
+  recipientParty?: FinancialPartySummary | null
   amount: number
   referenceMonth: string | null
-  source: "HISTORY" | "SUPPORT_AGREEMENT"
+  source:
+  | "HISTORY"
+  | "SUPPORT_AGREEMENT"
 }
 
 export type FinancialTransactionClassificationSuggestion = {

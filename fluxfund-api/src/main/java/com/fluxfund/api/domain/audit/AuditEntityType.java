@@ -3,8 +3,10 @@ package com.fluxfund.api.domain.audit;
 public enum AuditEntityType {
     FINANCIAL_TRANSACTION,
     TRANSACTION_ALLOCATION,
+    FINANCIAL_PARTY,
     ATTACHMENT,
     SUPPORT_AGREEMENT,
+    FINANCIAL_COMMITMENT,
     ORGANIZATION_SETTINGS,
     OFX_IMPORT,
     FUND,
@@ -15,4 +17,5 @@ public enum AuditEntityType {
     ORGANIZATION,
     ORGANIZATION_USER,
     ORGANIZATION_USER_INVITATION,
+    RECEIPT,
 }

@@ -79,6 +79,8 @@ export type CreateCreditCardItemRequest = {
   allocations?: {
     fundId: string
     beneficiaryId?: string | null
+    sourcePartyId?: string | null
+    recipientPartyId?: string | null
     amount: number
     referenceMonth: string | null
   }[]

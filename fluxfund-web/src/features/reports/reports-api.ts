@@ -1,5 +1,5 @@
 import { httpClient } from "@/api/http-client"
-import type { AccountabilityByAccountReport, AccountabilityReport, AccountCashFlowReport, CategoryResultReport, FundReport, PendingItemsReport } from "./reports-types"
+import type { AccountabilityByAccountReport, AccountabilityReport, AccountCashFlowReport, CategoryResultReport, FinancialCommitmentMonthlyReport, FinancialForecastReport, FundReport, GetFinancialCommitmentMonthlyReportParams, GetFinancialForecastReportParams, PendingItemsReport } from "./reports-types"
 
 type GetCategoryResultReportParams = {
   startDate?: string
@@ -181,6 +181,73 @@ export const reportsApi = {
         params,
       },
     )
+
+    return response.data
+  },
+
+  async getFinancialCommitmentMonthly({
+    referenceMonth,
+    direction,
+    partyId,
+    designatedRecipientId,
+    fundId,
+  }: GetFinancialCommitmentMonthlyReportParams) {
+    const response =
+      await httpClient.get<
+        FinancialCommitmentMonthlyReport
+      >(
+        "/api/v1/reports/financial-commitments/monthly",
+        {
+          params: {
+            referenceMonth:
+              `${referenceMonth}-01`,
+
+            direction,
+
+            partyId:
+              partyId ||
+              undefined,
+
+            designatedRecipientId:
+              designatedRecipientId ||
+              undefined,
+
+            fundId:
+              fundId ||
+              undefined,
+          },
+        },
+      )
+
+    return response.data
+  },
+
+  async getFinancialForecast({
+    startMonth,
+    months,
+    fundId,
+    includeSupport,
+  }: GetFinancialForecastReportParams) {
+    const response =
+      await httpClient.get<
+        FinancialForecastReport
+      >(
+        "/api/v1/reports/financial-forecast",
+        {
+          params: {
+            startMonth:
+              `${startMonth}-01`,
+
+            months,
+
+            fundId:
+              fundId ||
+              undefined,
+
+            includeSupport,
+          },
+        },
+      )
 
     return response.data
   },

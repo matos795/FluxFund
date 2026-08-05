@@ -14,7 +14,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { BeneficiaryComboboxWithCreate } from "@/features/beneficiaries/components/beneficiary-combobox-with-create"
 import { CategoryComboboxWithCreate } from "@/features/categories/components/category-combobox-with-create"
 import { FundComboboxWithCreate } from "@/features/funds/components/fund-combobox-with-create"
 import { toReferenceMonthDate } from "@/utils/formatters"
@@ -29,6 +28,7 @@ import { getApiErrorMessage } from "@/utils/api-error"
 import { normalizeFiscalDocumentNote } from "@/features/financial-transactions/financial-transaction-labels"
 import { FiscalDocumentPolicyField } from "@/features/financial-transactions/components/fiscal-document-policy-field"
 import { AppDialogBody, AppDialogContent, AppDialogFooter, AppDialogHeader } from "@/components/layout/app-dialog"
+import { FinancialPartyCombobox } from "@/features/financial-parties/components/financial-party-combobox"
 
 type AddCreditCardStatementItemDialogProps = {
   statement: CreditCardStatement
@@ -75,7 +75,7 @@ export function AddCreditCardStatementItemDialog({
       installmentNumber: undefined,
       installmentCount: undefined,
       fundId: "",
-      beneficiaryId: "",
+      recipientPartyId: "",
       referenceMonth: statement.dueDate?.slice(0, 7) ?? "",
       allocationAmount: undefined,
     },
@@ -83,7 +83,7 @@ export function AddCreditCardStatementItemDialog({
 
   const selectedCategoryId = useWatch({ control, name: "categoryId" })
   const selectedFundId = useWatch({ control, name: "fundId" })
-  const selectedBeneficiaryId = useWatch({ control, name: "beneficiaryId" })
+  const selectedRecipientPartyId = useWatch({ control, name: "recipientPartyId" })
 
   const fiscalDocumentPolicy = useWatch({
     control,
@@ -132,7 +132,7 @@ export function AddCreditCardStatementItemDialog({
             ? [
               {
                 fundId: data.fundId ?? "",
-                beneficiaryId: data.beneficiaryId || null,
+                recipientPartyId: data.recipientPartyId || null,
                 amount: data.allocationAmount ?? data.amount,
                 referenceMonth: toReferenceMonthDate(data.referenceMonth),
               },
@@ -324,13 +324,28 @@ export function AddCreditCardStatementItemDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Favorecido</Label>
-                  <BeneficiaryComboboxWithCreate
-                    value={selectedBeneficiaryId ?? ""}
+                  <Label>
+                    Recebedor do pagamento
+                  </Label>
+
+                  <FinancialPartyCombobox
+                    role="PAYMENT_RECIPIENT"
+                    value={
+                      selectedRecipientPartyId ??
+                      ""
+                    }
                     allowClear
-                    clearLabel="Sem favorecido"
+                    clearLabel="Sem recebedor identificado"
+                    placeholder="Sem recebedor identificado"
                     onChange={(value) =>
-                      setValue("beneficiaryId", value, { shouldValidate: true })
+                      setValue(
+                        "recipientPartyId",
+                        value,
+                        {
+                          shouldValidate:
+                            true,
+                        },
+                      )
                     }
                   />
                 </div>

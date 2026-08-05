@@ -1,12 +1,13 @@
 import {
   Banknote,
   Building2,
+  CalendarClock,
   ChartNoAxesCombined,
   ChevronsUpDown,
   CreditCard,
+  FileSignature,
   FolderTree,
   HandCoins,
-  HandHeart,
   LayoutDashboard,
   ReceiptText,
   Settings,
@@ -14,7 +15,7 @@ import {
   Users,
 } from "lucide-react"
 
-import { NavLink, useNavigate } from "react-router-dom"
+import { NavLink, useLocation, useNavigate } from "react-router-dom"
 
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/features/auth/hooks/use-auth"
@@ -49,14 +50,22 @@ const navigationItems = [
     icon: FolderTree,
   },
   {
-    label: "Favorecidos",
-    href: "/beneficiaries",
+    label: "Contatos financeiros",
+    href: "/financial-parties",
     icon: Users,
   },
   {
-    label: "Compromissos",
-    href: "/support-agreements",
-    icon: HandHeart,
+    label:
+      "Compromissos",
+    href:
+      "/financial-commitments",
+    icon:
+      CalendarClock,
+  },
+  {
+    label: "Cartões",
+    href: "/credit-card-statements",
+    icon: CreditCard,
   },
   {
     label: "Transações",
@@ -64,9 +73,14 @@ const navigationItems = [
     icon: ReceiptText,
   },
   {
-    label: "Cartões",
-    href: "/credit-card-statements",
-    icon: CreditCard,
+    label:
+      "Recibos",
+
+    href:
+      "/receipts",
+
+    icon:
+      FileSignature,
   },
   {
     label: "Relatórios",
@@ -91,6 +105,9 @@ export function AppSidebar({
 }: AppSidebarProps) {
 
   const navigate = useNavigate()
+
+  const location =
+    useLocation()
 
   const {
     activeOrganization,
@@ -136,20 +153,39 @@ export function AppSidebar({
           {navigationItems.map((item) => {
             const Icon = item.icon
 
+            const commitmentsSectionActive =
+              item.href ===
+              "/financial-commitments" &&
+              (
+                location.pathname.startsWith(
+                  "/financial-commitments",
+                ) ||
+                location.pathname.startsWith(
+                  "/support-agreements",
+                )
+              )
+
             return (
               <NavLink
                 key={item.href}
                 to={item.href}
                 title={!expanded ? item.label : undefined}
-                className={({ isActive }) =>
-                  cn(
+                className={({ isActive }) => {
+                  const active =
+                    isActive ||
+                    commitmentsSectionActive
+
+                  return cn(
                     "flex items-center rounded-lg px-3 py-2 text-sm transition-colors",
-                    expanded ? "gap-3" : "justify-center",
-                    isActive
+                    expanded
+                      ? "gap-3"
+                      : "justify-center",
+
+                    active
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )
-                }
+                }}
               >
                 <Icon className="size-4 shrink-0" />
 
@@ -233,6 +269,6 @@ export function AppSidebar({
           )}
         </div>
       </aside>
-    </div>
+    </div >
   )
 }
