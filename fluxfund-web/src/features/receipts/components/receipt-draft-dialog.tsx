@@ -91,21 +91,22 @@ import type {
 import {
   useReceiptMutations,
 } from "../hooks/use-receipt-mutations"
+import { EntityCombobox } from "@/components/form/entity-combobox"
 
 type Props = {
   open: boolean
 
   onOpenChange:
-    (
-      open:
-        boolean,
-    ) => void
+  (
+    open:
+      boolean,
+  ) => void
 
   receipt?:
-    Receipt | null
+  Receipt | null
 
   source?:
-    ReceiptDraftSource | null
+  ReceiptDraftSource | null
 }
 
 function today() {
@@ -122,10 +123,10 @@ function buildDefaultValues({
   source,
 }: {
   receipt?:
-    Receipt | null
+  Receipt | null
 
   source?:
-    ReceiptDraftSource | null
+  ReceiptDraftSource | null
 }): ReceiptDraftFormData {
   if (receipt) {
     return {
@@ -197,7 +198,7 @@ function buildDefaultValues({
         receipt.fundId
           ? ""
           : receipt.fundName ??
-            "",
+          "",
 
       purposeDescription:
         receipt.purposeDescription,
@@ -427,52 +428,52 @@ export function ReceiptDraftDialog({
         data.counterpartyMode ===
           "REGISTERED"
           ? data.counterpartyPartyId ||
-            null
+          null
           : null,
 
       counterpartyName:
         data.counterpartyMode ===
           "MANUAL"
           ? data.counterpartyName ||
-            null
+          null
           : null,
 
       counterpartyDocument:
         data.counterpartyMode ===
           "MANUAL"
           ? data.counterpartyDocument ||
-            null
+          null
           : null,
 
       counterpartyAddress:
         data.counterpartyMode ===
           "MANUAL"
           ? data.counterpartyAddress ||
-            null
+          null
           : null,
 
       beneficiaryPartyId:
         incoming &&
-        data.beneficiaryMode ===
+          data.beneficiaryMode ===
           "REGISTERED"
           ? data.beneficiaryPartyId ||
-            null
+          null
           : null,
 
       beneficiaryName:
         incoming &&
-        data.beneficiaryMode ===
+          data.beneficiaryMode ===
           "MANUAL"
           ? data.beneficiaryName ||
-            null
+          null
           : null,
 
       beneficiaryDocument:
         incoming &&
-        data.beneficiaryMode ===
+          data.beneficiaryMode ===
           "MANUAL"
           ? data.beneficiaryDocument ||
-            null
+          null
           : null,
 
       fundId:
@@ -482,7 +483,7 @@ export function ReceiptDraftDialog({
       fundName:
         !data.fundId
           ? data.fundName ||
-            null
+          null
           : null,
 
       purposeDescription:
@@ -577,7 +578,7 @@ export function ReceiptDraftDialog({
         onOpenChange
       }
     >
-      <DialogContent className="max-h-[92vh] max-w-4xl overflow-y-auto">
+      <DialogContent className="max-h-[94vh] overflow-y-auto sm:max-w-5xl lg:max-w-6xl">
         <DialogHeader>
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -614,7 +615,7 @@ export function ReceiptDraftDialog({
             <p className="mt-1 text-sm text-muted-foreground">
               {
                 receiptSourceTypeLabels[
-                  sourceType
+                sourceType
                 ]
               }
 
@@ -634,44 +635,43 @@ export function ReceiptDraftDialog({
                 render={({
                   field,
                 }) => (
-                  <Select
+                  <EntityCombobox
                     value={
                       field.value
                     }
-                    onValueChange={
-                      field.onChange
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-
-                    <SelectContent>
-                      {(
+                    options={
+                      (
                         Object.keys(
                           receiptTypeLabels,
                         ) as
-                          ReceiptType[]
+                        ReceiptType[]
                       ).map(
-                        (type) => (
-                          <SelectItem
-                            key={
-                              type
-                            }
-                            value={
-                              type
-                            }
-                          >
-                            {
-                              receiptTypeLabels[
-                                type
-                              ]
-                            }
-                          </SelectItem>
-                        ),
-                      )}
-                    </SelectContent>
-                  </Select>
+                        (type) => ({
+                          value:
+                            type,
+
+                          label:
+                            receiptTypeLabels[
+                            type
+                            ],
+                        }),
+                      )
+                    }
+                    placeholder="Selecione o tipo"
+                    searchPlaceholder="Buscar tipo de recibo..."
+                    emptyMessage="Nenhum tipo encontrado."
+                    allowClear={
+                      false
+                    }
+                    onChange={(
+                      value,
+                    ) =>
+                      field.onChange(
+                        value as
+                        ReceiptType,
+                      )
+                    }
+                  />
                 )}
               />
             </Field>
@@ -768,10 +768,10 @@ export function ReceiptDraftDialog({
                   <SelectContent>
                     {sourceType ===
                       "ALLOCATION" && (
-                      <SelectItem value="INFERRED">
-                        Usar dados da alocação
-                      </SelectItem>
-                    )}
+                        <SelectItem value="INFERRED">
+                          Usar dados da alocação
+                        </SelectItem>
+                      )}
 
                     <SelectItem value="REGISTERED">
                       Contato cadastrado
@@ -787,71 +787,71 @@ export function ReceiptDraftDialog({
 
             {counterpartyMode ===
               "REGISTERED" && (
-              <Controller
-                control={
-                  control
-                }
-                name="counterpartyPartyId"
-                render={({
-                  field,
-                }) => (
-                  <FinancialPartyCombobox
-                    role={
-                      incoming
-                        ? "INCOME_SOURCE"
-                        : "PAYMENT_RECIPIENT"
-                    }
-                    value={
-                      field.value ??
-                      ""
-                    }
-                    allowClear
-                    onChange={
-                      field.onChange
-                    }
-                  />
-                )}
-              />
-            )}
+                <Controller
+                  control={
+                    control
+                  }
+                  name="counterpartyPartyId"
+                  render={({
+                    field,
+                  }) => (
+                    <FinancialPartyCombobox
+                      role={
+                        incoming
+                          ? "INCOME_SOURCE"
+                          : "PAYMENT_RECIPIENT"
+                      }
+                      value={
+                        field.value ??
+                        ""
+                      }
+                      allowClear
+                      onChange={
+                        field.onChange
+                      }
+                    />
+                  )}
+                />
+              )}
 
             {counterpartyMode ===
               "MANUAL" && (
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field
-                  label="Nome ou razão social"
-                  error={
-                    errors
-                      .counterpartyName
-                      ?.message
-                  }
-                >
-                  <Input
-                    {...register(
-                      "counterpartyName",
-                    )}
-                  />
-                </Field>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field
+                    label="Nome ou razão social"
+                    error={
+                      errors
+                        .counterpartyName
+                        ?.message
+                    }
+                  >
+                    <Input
+                      {...register(
+                        "counterpartyName",
+                      )}
+                    />
+                  </Field>
 
-                <Field label="CPF ou CNPJ">
-                  <Input
-                    {...register(
-                      "counterpartyDocument",
-                    )}
-                  />
-                </Field>
+                  <Field label="CPF ou CNPJ">
+                    <Input
+                      {...register(
+                        "counterpartyDocument",
+                      )}
+                    />
+                  </Field>
 
-                <Field
-                  label="Endereço"
-                  className="md:col-span-2"
-                >
-                  <Input
-                    {...register(
-                      "counterpartyAddress",
-                    )}
-                  />
-                </Field>
-              </div>
-            )}
+                  <Field
+                    label="Endereço"
+                    className="md:col-span-2"
+                  >
+                    <Input
+                      {...register(
+                        "counterpartyAddress",
+                      )}
+                    />
+                  </Field>
+                </div>
+              )}
           </section>
 
           {incoming && (
@@ -905,56 +905,56 @@ export function ReceiptDraftDialog({
 
               {beneficiaryMode ===
                 "REGISTERED" && (
-                <Controller
-                  control={
-                    control
-                  }
-                  name="beneficiaryPartyId"
-                  render={({
-                    field,
-                  }) => (
-                    <FinancialPartyCombobox
-                      role="PAYMENT_RECIPIENT"
-                      value={
-                        field.value ??
-                        ""
-                      }
-                      allowClear
-                      onChange={
-                        field.onChange
-                      }
-                    />
-                  )}
-                />
-              )}
+                  <Controller
+                    control={
+                      control
+                    }
+                    name="beneficiaryPartyId"
+                    render={({
+                      field,
+                    }) => (
+                      <FinancialPartyCombobox
+                        role="PAYMENT_RECIPIENT"
+                        value={
+                          field.value ??
+                          ""
+                        }
+                        allowClear
+                        onChange={
+                          field.onChange
+                        }
+                      />
+                    )}
+                  />
+                )}
 
               {beneficiaryMode ===
                 "MANUAL" && (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field
-                    label="Nome do destinatário"
-                    error={
-                      errors
-                        .beneficiaryName
-                        ?.message
-                    }
-                  >
-                    <Input
-                      {...register(
-                        "beneficiaryName",
-                      )}
-                    />
-                  </Field>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field
+                      label="Nome do destinatário"
+                      error={
+                        errors
+                          .beneficiaryName
+                          ?.message
+                      }
+                    >
+                      <Input
+                        {...register(
+                          "beneficiaryName",
+                        )}
+                      />
+                    </Field>
 
-                  <Field label="CPF ou CNPJ">
-                    <Input
-                      {...register(
-                        "beneficiaryDocument",
-                      )}
-                    />
-                  </Field>
-                </div>
-              )}
+                    <Field label="CPF ou CNPJ">
+                      <Input
+                        {...register(
+                          "beneficiaryDocument",
+                        )}
+                      />
+                    </Field>
+                  </div>
+                )}
             </section>
           )}
 
@@ -1094,7 +1094,7 @@ function Field({
   error?: string
   className?: string
   children:
-    React.ReactNode
+  React.ReactNode
 }) {
   return (
     <div

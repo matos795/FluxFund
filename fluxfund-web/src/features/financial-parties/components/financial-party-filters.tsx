@@ -26,13 +26,14 @@ import type {
   FinancialPartyRole,
   FinancialPartyType,
 } from "../financial-party-types"
+import { EntityCombobox } from "@/components/form/entity-combobox"
 
 type FinancialPartyFiltersProps = {
   search: string
   partyType: FinancialPartyType | ""
   classification:
-    | FinancialPartyClassification
-    | ""
+  | FinancialPartyClassification
+  | ""
   role: FinancialPartyRole | ""
   active: boolean
 
@@ -136,39 +137,38 @@ export function FinancialPartyFilters({
         <div className="space-y-2">
           <Label>Classificação</Label>
 
-          <Select
+          <EntityCombobox
             value={
-              classification || "ALL"
+              classification
             }
-            onValueChange={(value) =>
-              onClassificationChange(
-                value === "ALL"
-                  ? ""
-                  : value as FinancialPartyClassification,
+            options={
+              Object.entries(
+                financialPartyClassificationLabels,
+              ).map(
+                ([
+                  value,
+                  label,
+                ]) => ({
+                  value,
+                  label,
+                }),
               )
             }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Todas" />
-            </SelectTrigger>
-
-            <SelectContent>
-              <SelectItem value="ALL">
-                Todas
-              </SelectItem>
-
-              {Object.entries(
-                financialPartyClassificationLabels,
-              ).map(([value, label]) => (
-                <SelectItem
-                  key={value}
-                  value={value}
-                >
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            placeholder="Todas as classificações"
+            searchPlaceholder="Buscar classificação..."
+            emptyMessage="Nenhuma classificação encontrada."
+            allowClear
+            clearLabel="Todas as classificações"
+            onChange={(
+              value,
+            ) =>
+              onClassificationChange(
+                value as
+                | FinancialPartyClassification
+                | "",
+              )
+            }
+          />
         </div>
 
         <div className="space-y-2">
