@@ -557,6 +557,19 @@ export function FinancialPartyOverviewPage() {
                                                 </Badge>
                                             </div>
 
+                                            <p className="mt-3 text-sm">
+                                                <span className="text-muted-foreground">
+                                                    {commitment.direction ===
+                                                        "RECEIVABLE"
+                                                        ? "Compromitente:"
+                                                        : "Parte principal:"}
+                                                </span>{" "}
+
+                                                <strong>
+                                                    {commitment.party.name}
+                                                </strong>
+                                            </p>
+
                                             <p className="mt-2 text-sm text-muted-foreground">
                                                 Fundo{" "}
                                                 {
