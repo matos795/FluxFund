@@ -1,6 +1,7 @@
 package com.fluxfund.api.domain.financialparty.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
@@ -15,6 +16,7 @@ import com.fluxfund.api.domain.beneficiary.Beneficiary;
 import com.fluxfund.api.domain.beneficiary.mapper.BeneficiaryMapper;
 import com.fluxfund.api.domain.beneficiary.repository.BeneficiaryRepository;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitment;
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentStatus;
 import com.fluxfund.api.domain.financialcommitment.mapper.FinancialCommitmentMapper;
 import com.fluxfund.api.domain.financialcommitment.repository.FinancialCommitmentRepository;
 import com.fluxfund.api.domain.financialparty.dto.FinancialPartyActivityResponse;
@@ -26,6 +28,7 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.receipt.mapper.ReceiptMapper;
 import com.fluxfund.api.domain.receipt.repository.ReceiptRepository;
 import com.fluxfund.api.domain.supportagreement.SupportAgreement;
+import com.fluxfund.api.domain.supportagreement.SupportAgreementStatus;
 import com.fluxfund.api.domain.supportagreement.mapper.SupportAgreementMapper;
 import com.fluxfund.api.domain.supportagreement.repository.SupportAgreementRepository;
 import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
@@ -40,279 +43,277 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 public class FinancialPartyOverviewService {
 
-    private static final int RECENT_ACTIVITY_LIMIT = 20;
+        private static final int RECENT_ACTIVITY_LIMIT = 20;
 
-    private static final int RECENT_RECEIPT_LIMIT = 10;
+        private static final int RECENT_RECEIPT_LIMIT = 10;
 
-    private final BeneficiaryRepository beneficiaryRepository;
+        private final BeneficiaryRepository beneficiaryRepository;
 
-    private final TransactionAllocationRepository allocationRepository;
+        private final TransactionAllocationRepository allocationRepository;
 
-    private final FinancialCommitmentRepository commitmentRepository;
+        private final FinancialCommitmentRepository commitmentRepository;
 
-    private final SupportAgreementRepository supportAgreementRepository;
+        private final SupportAgreementRepository supportAgreementRepository;
 
-    private final ReceiptRepository receiptRepository;
+        private final ReceiptRepository receiptRepository;
 
-    private final OrganizationAccessService organizationAccessService;
+        private final OrganizationAccessService organizationAccessService;
 
-    public FinancialPartyOverviewResponse getOverview(
+        public FinancialPartyOverviewResponse getOverview(
 
-            UUID organizationId,
+                        UUID organizationId,
 
-            UUID partyId) {
+                        UUID partyId) {
 
-        organizationAccessService
-                .requireReadAccess(
-                        organizationId);
+                organizationAccessService
+                                .requireReadAccess(
+                                                organizationId);
 
-        Beneficiary party = beneficiaryRepository
-                .findByIdAndOrganizationId(
+                Beneficiary party = beneficiaryRepository
+                                .findByIdAndOrganizationId(
 
-                        partyId,
+                                                partyId,
 
-                        organizationId)
+                                                organizationId)
 
-                .orElseThrow(
-                        () -> new ResourceNotFoundException(
-                                "Financial party not found"));
+                                .orElseThrow(
+                                                () -> new ResourceNotFoundException(
+                                                                "Financial party not found"));
 
-        List<FinancialCommitment> commitments = commitmentRepository
-                .findAllByFinancialParty(
+                List<FinancialCommitment> commitments = commitmentRepository
+                                .findAllByFinancialParty(
 
-                        organizationId,
+                                                organizationId,
 
-                        partyId);
+                                                partyId);
 
-        List<SupportAgreement> supportAgreements = supportAgreementRepository
-                .findAllByFinancialParty(
+                List<SupportAgreement> supportAgreements = supportAgreementRepository
+                                .findAllByFinancialParty(
 
-                        organizationId,
+                                                organizationId,
 
-                        partyId);
+                                                partyId);
 
-        List<TransactionAllocation> activities = allocationRepository
-                .findRecentSettledByFinancialParty(
+                List<TransactionAllocation> activities = allocationRepository
+                                .findRecentSettledByFinancialParty(
 
-                        organizationId,
+                                                organizationId,
 
-                        partyId,
+                                                partyId,
 
-                        PageRequest.of(
-                                0,
-                                RECENT_ACTIVITY_LIMIT));
+                                                PageRequest.of(
+                                                                0,
+                                                                RECENT_ACTIVITY_LIMIT));
 
-        var receipts = receiptRepository
-                .findRecentByFinancialParty(
+                var receipts = receiptRepository
+                                .findRecentByFinancialParty(
 
-                        organizationId,
+                                                organizationId,
 
-                        partyId,
+                                                partyId,
 
-                        PageRequest.of(
-                                0,
-                                RECENT_RECEIPT_LIMIT));
+                                                PageRequest.of(
+                                                                0,
+                                                                RECENT_RECEIPT_LIMIT));
 
-        long activeCommitmentCount = commitments
-                .stream()
+                LocalDate today = LocalDate.now();
 
-                .filter(
-                        commitment -> Boolean.TRUE.equals(
-                                commitment.getActive()))
+                long activeCommitmentCount = commitments
+                                .stream()
+                                .filter(
+                                                commitment -> commitment.resolveStatusAt(
+                                                                today) == FinancialCommitmentStatus.ACTIVE)
+                                .count();
 
-                .count();
+                long activeSupportAgreementCount = supportAgreements
+                                .stream()
+                                .filter(
+                                                agreement -> agreement.resolveStatusAt(
+                                                                today) == SupportAgreementStatus.ACTIVE)
+                                .count();
 
-        long activeSupportAgreementCount = supportAgreements
-                .stream()
+                FinancialPartyOverviewSummaryResponse summary = new FinancialPartyOverviewSummaryResponse(
 
-                .filter(
-                        agreement -> Boolean.TRUE.equals(
-                                agreement.getActive()))
+                                allocationRepository
+                                                .sumSettledIncomeFromParty(
 
-                .count();
+                                                                organizationId,
 
-        FinancialPartyOverviewSummaryResponse summary = new FinancialPartyOverviewSummaryResponse(
+                                                                partyId),
 
-                allocationRepository
-                        .sumSettledIncomeFromParty(
+                                allocationRepository
+                                                .sumSettledIncomeDestinedToParty(
 
-                                organizationId,
+                                                                organizationId,
 
-                                partyId),
+                                                                partyId),
 
-                allocationRepository
-                        .sumSettledIncomeDestinedToParty(
+                                allocationRepository
+                                                .sumSettledExpensePaidToParty(
 
-                                organizationId,
+                                                                organizationId,
 
-                                partyId),
+                                                                partyId),
 
-                allocationRepository
-                        .sumSettledExpensePaidToParty(
+                                allocationRepository
+                                                .countSettledTransactionsByParty(
 
-                                organizationId,
+                                                                organizationId,
 
-                                partyId),
+                                                                partyId),
 
-                allocationRepository
-                        .countSettledTransactionsByParty(
+                                activeCommitmentCount,
 
-                                organizationId,
+                                activeSupportAgreementCount,
 
-                                partyId),
+                                receiptRepository
+                                                .countIssuedByFinancialParty(
 
-                activeCommitmentCount,
+                                                                organizationId,
 
-                activeSupportAgreementCount,
+                                                                partyId),
 
-                receiptRepository
-                        .countIssuedByFinancialParty(
+                                receiptRepository
+                                                .sumIssuedByFinancialParty(
 
-                                organizationId,
+                                                                organizationId,
 
-                                partyId),
+                                                                partyId));
 
-                receiptRepository
-                        .sumIssuedByFinancialParty(
+                return new FinancialPartyOverviewResponse(
 
-                                organizationId,
+                                BeneficiaryMapper
+                                                .toResponse(
+                                                                party),
 
-                                partyId));
+                                summary,
 
-        return new FinancialPartyOverviewResponse(
+                                activities
+                                                .stream()
 
-                BeneficiaryMapper
-                        .toResponse(
-                                party),
+                                                .map(
+                                                                activity -> toActivityResponse(
 
-                summary,
+                                                                                partyId,
 
-                activities
-                        .stream()
+                                                                                activity))
 
-                        .map(
-                                activity -> toActivityResponse(
+                                                .toList(),
 
-                                        partyId,
+                                commitments
+                                                .stream()
+                                                .map(FinancialCommitmentMapper::toResponse)
+                                                .toList(),
 
-                                        activity))
+                                supportAgreements.stream()
+                                                .map(SupportAgreementMapper::toResponse)
+                                                .toList(),
 
-                        .toList(),
+                                receipts
+                                                .stream()
 
-                commitments
-                        .stream()
-                        .map(FinancialCommitmentMapper::toResponse)
-                        .toList(),
+                                                .map(
+                                                                ReceiptMapper::toResponse)
 
-                supportAgreements.stream()
-                        .map(SupportAgreementMapper::toResponse)
-                        .toList(),
-
-                receipts
-                        .stream()
-
-                        .map(
-                                ReceiptMapper::toResponse)
-
-                        .toList());
-    }
-
-    private FinancialPartyActivityResponse toActivityResponse(
-
-            UUID partyId,
-
-            TransactionAllocation allocation) {
-
-        FinancialTransaction transaction = allocation
-                .getFinancialTransaction();
-
-        Set<FinancialPartyActivityRole> roles = EnumSet.noneOf(
-                FinancialPartyActivityRole.class);
-
-        if (allocation.getSourceParty() != null
-
-                && allocation
-                        .getSourceParty()
-                        .getId()
-                        .equals(
-                                partyId)) {
-
-            roles.add(
-                    FinancialPartyActivityRole.INCOME_SOURCE);
+                                                .toList());
         }
 
-        if (allocation.getRecipientParty() != null
+        private FinancialPartyActivityResponse toActivityResponse(
 
-                && allocation
-                        .getRecipientParty()
-                        .getId()
-                        .equals(
-                                partyId)) {
+                        UUID partyId,
 
-            roles.add(
+                        TransactionAllocation allocation) {
 
-                    transaction.getType() == FinancialTransactionType.INCOME
+                FinancialTransaction transaction = allocation
+                                .getFinancialTransaction();
 
-                            ? FinancialPartyActivityRole.DESIGNATED_RECIPIENT
+                Set<FinancialPartyActivityRole> roles = EnumSet.noneOf(
+                                FinancialPartyActivityRole.class);
 
-                            : FinancialPartyActivityRole.PAYMENT_RECIPIENT);
-        }
+                if (allocation.getSourceParty() != null
 
-        String description = firstText(
+                                && allocation
+                                                .getSourceParty()
+                                                .getId()
+                                                .equals(
+                                                                partyId)) {
 
-                transaction.getDescription(),
+                        roles.add(
+                                        FinancialPartyActivityRole.INCOME_SOURCE);
+                }
 
-                transaction.getRawDescription(),
+                if (allocation.getRecipientParty() != null
 
-                "Movimentação financeira");
+                                && allocation
+                                                .getRecipientParty()
+                                                .getId()
+                                                .equals(
+                                                                partyId)) {
 
-        return new FinancialPartyActivityResponse(
+                        roles.add(
 
-                allocation.getId(),
+                                        transaction.getType() == FinancialTransactionType.INCOME
 
-                transaction.getId(),
+                                                        ? FinancialPartyActivityRole.DESIGNATED_RECIPIENT
 
-                transaction.getType(),
+                                                        : FinancialPartyActivityRole.PAYMENT_RECIPIENT);
+                }
 
-                transaction.getSettlementDate(),
+                String description = firstText(
 
-                description,
+                                transaction.getDescription(),
 
-                transaction
-                        .getAccount()
-                        .getName(),
+                                transaction.getRawDescription(),
 
-                allocation
-                        .getFund()
-                        .getName(),
+                                "Movimentação financeira");
 
-                allocation
-                        .getAmount()
-                        .abs(),
+                return new FinancialPartyActivityResponse(
 
-                allocation.getReferenceMonth(),
+                                allocation.getId(),
 
-                roles,
+                                transaction.getId(),
 
-                FinancialCommitmentMapper
-                        .toAllocationSummary(
+                                transaction.getType(),
+
+                                transaction.getSettlementDate(),
+
+                                description,
+
+                                transaction
+                                                .getAccount()
+                                                .getName(),
 
                                 allocation
-                                        .getFinancialCommitment()));
-    }
+                                                .getFund()
+                                                .getName(),
 
-    private String firstText(
-            String... values) {
+                                allocation
+                                                .getAmount()
+                                                .abs(),
 
-        for (String value : values) {
+                                allocation.getReferenceMonth(),
 
-            if (StringUtils.hasText(
-                    value)) {
+                                roles,
 
-                return value.trim();
-            }
+                                FinancialCommitmentMapper
+                                                .toAllocationSummary(
+
+                                                                allocation
+                                                                                .getFinancialCommitment()));
         }
 
-        return null;
-    }
+        private String firstText(
+                        String... values) {
+
+                for (String value : values) {
+
+                        if (StringUtils.hasText(
+                                        value)) {
+
+                                return value.trim();
+                        }
+                }
+
+                return null;
+        }
 }
