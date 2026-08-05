@@ -82,11 +82,11 @@ public interface FinancialCommitmentRepository
                         :excludedId
                   )
 
-              and (
-                    :endDate is null
-                    or commitment.startDate <=
-                        :endDate
-                  )
+              and commitment.startDate <=
+                    coalesce(
+                        :endDate,
+                        commitment.startDate
+                    )
 
               and (
                     commitment.endDate is null
