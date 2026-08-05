@@ -76,6 +76,7 @@ import {
     formatCurrency,
     formatDate,
 } from "@/utils/formatters"
+import { EntityCombobox } from "@/components/form/entity-combobox"
 
 const PAGE_SIZE =
     10
@@ -283,61 +284,47 @@ export function ReceiptsPage() {
                         </SelectContent>
                     </Select>
 
-                    <Select
+                    <EntityCombobox
                         value={
-                            receiptType ||
-                            "ALL"
+                            receiptType
                         }
-                        onValueChange={(
+                        options={
+                            (
+                                Object.keys(
+                                    receiptTypeLabels,
+                                ) as
+                                ReceiptType[]
+                            ).map(
+                                (type) => ({
+                                    value:
+                                        type,
+
+                                    label:
+                                        receiptTypeLabels[
+                                        type
+                                        ],
+                                }),
+                            )
+                        }
+                        placeholder="Todos os tipos"
+                        searchPlaceholder="Buscar tipo de recibo..."
+                        emptyMessage="Nenhum tipo encontrado."
+                        allowClear
+                        clearLabel="Todos os tipos"
+                        onChange={(
                             value,
                         ) => {
                             setReceiptType(
-                                value ===
-                                    "ALL"
-                                    ? ""
-                                    : value as
-                                    ReceiptType,
+                                value as
+                                | ReceiptType
+                                | "",
                             )
 
                             setPage(
                                 0,
                             )
                         }}
-                    >
-                        <SelectTrigger>
-                            <SelectValue placeholder="Tipo" />
-                        </SelectTrigger>
-
-                        <SelectContent>
-                            <SelectItem value="ALL">
-                                Todos os tipos
-                            </SelectItem>
-
-                            {(
-                                Object.keys(
-                                    receiptTypeLabels,
-                                ) as
-                                ReceiptType[]
-                            ).map(
-                                (item) => (
-                                    <SelectItem
-                                        key={
-                                            item
-                                        }
-                                        value={
-                                            item
-                                        }
-                                    >
-                                        {
-                                            receiptTypeLabels[
-                                            item
-                                            ]
-                                        }
-                                    </SelectItem>
-                                ),
-                            )}
-                        </SelectContent>
-                    </Select>
+                    />
                 </CardContent>
             </Card>
 

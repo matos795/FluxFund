@@ -39,24 +39,25 @@ import type {
   FinancialCommitmentRecurrence,
   FinancialCommitmentType,
 } from "../financial-commitment-types"
+import { EntityCombobox } from "@/components/form/entity-combobox"
 
 type FinancialCommitmentFiltersProps = {
   search: string
 
   direction:
-    | FinancialCommitmentDirection
-    | ""
+  | FinancialCommitmentDirection
+  | ""
 
   commitmentType:
-    | FinancialCommitmentType
-    | ""
+  | FinancialCommitmentType
+  | ""
 
   recurrence:
-    | FinancialCommitmentRecurrence
-    | ""
+  | FinancialCommitmentRecurrence
+  | ""
 
   designatedRecipientId:
-    string
+  string
 
   onSearchChange: (
     value: string,
@@ -103,14 +104,14 @@ export function FinancialCommitmentFilters({
   const commitmentTypes =
     direction
       ? getCommitmentTypesByDirection(
-          direction,
-        )
+        direction,
+      )
       : (
-          Object.keys(
-            financialCommitmentTypeLabels,
-          ) as
-            FinancialCommitmentType[]
-        )
+        Object.keys(
+          financialCommitmentTypeLabels,
+        ) as
+        FinancialCommitmentType[]
+      )
 
   const recipientFilterDisabled =
     direction === "PAYABLE"
@@ -154,7 +155,7 @@ export function FinancialCommitmentFilters({
                 value === "ALL"
                   ? ""
                   : value as
-                      FinancialCommitmentDirection,
+                  FinancialCommitmentDirection,
               )
             }
           >
@@ -191,45 +192,38 @@ export function FinancialCommitmentFilters({
             Tipo
           </Label>
 
-          <Select
+          <EntityCombobox
             value={
-              commitmentType ||
-              "ALL"
+              commitmentType
             }
-            onValueChange={(value) =>
-              onCommitmentTypeChange(
-                value === "ALL"
-                  ? ""
-                  : value as
-                      FinancialCommitmentType,
+            options={
+              commitmentTypes.map(
+                (type) => ({
+                  value:
+                    type,
+
+                  label:
+                    financialCommitmentTypeLabels[
+                    type
+                    ],
+                }),
               )
             }
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-
-            <SelectContent>
-              <SelectItem value="ALL">
-                Todos
-              </SelectItem>
-
-              {commitmentTypes.map(
-                (type) => (
-                  <SelectItem
-                    key={type}
-                    value={type}
-                  >
-                    {
-                      financialCommitmentTypeLabels[
-                        type
-                      ]
-                    }
-                  </SelectItem>
-                ),
-              )}
-            </SelectContent>
-          </Select>
+            placeholder="Todos os tipos"
+            searchPlaceholder="Buscar tipo..."
+            emptyMessage="Nenhum tipo encontrado."
+            allowClear
+            clearLabel="Todos os tipos"
+            onChange={(
+              value,
+            ) =>
+              onCommitmentTypeChange(
+                value as
+                | FinancialCommitmentType
+                | "",
+              )
+            }
+          />
         </div>
 
         <div className="space-y-2">
@@ -246,7 +240,7 @@ export function FinancialCommitmentFilters({
                 value === "ALL"
                   ? ""
                   : value as
-                      FinancialCommitmentRecurrence,
+                  FinancialCommitmentRecurrence,
               )
             }
           >

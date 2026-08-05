@@ -73,12 +73,13 @@ import type {
   FinancialCommitmentRecurrence,
   FinancialCommitmentType,
 } from "../financial-commitment-types"
+import { EntityCombobox } from "@/components/form/entity-combobox"
 
 type FinancialCommitmentFormProps = {
   defaultValues?:
-    Partial<
-      FinancialCommitmentFormInput
-    >
+  Partial<
+    FinancialCommitmentFormInput
+  >
 
   lockDefinition?: boolean
   isSubmitting?: boolean
@@ -97,7 +98,7 @@ export function FinancialCommitmentForm({
   lockDefinition = false,
   isSubmitting = false,
   submitLabel =
-    "Salvar compromisso",
+  "Salvar compromisso",
   onSubmit,
   onCancel,
 }: FinancialCommitmentFormProps) {
@@ -292,7 +293,7 @@ export function FinancialCommitmentForm({
 
   const PartyIcon =
     direction ===
-    "RECEIVABLE"
+      "RECEIVABLE"
       ? ArrowDownToLine
       : ArrowUpFromLine
 
@@ -328,7 +329,7 @@ export function FinancialCommitmentForm({
                 ) =>
                   handleDirectionChange(
                     value as
-                      FinancialCommitmentDirection,
+                    FinancialCommitmentDirection,
                   )
                 }
               >
@@ -359,54 +360,49 @@ export function FinancialCommitmentForm({
                 Tipo
               </Label>
 
-              <Select
-                disabled={
-                  lockDefinition
-                }
+              <EntityCombobox
                 value={
                   commitmentType
                 }
-                onValueChange={(
+                options={
+                  allowedTypes.map(
+                    (type) => ({
+                      value:
+                        type,
+
+                      label:
+                        financialCommitmentTypeLabels[
+                        type
+                        ],
+                    }),
+                  )
+                }
+                placeholder="Selecione o tipo"
+                searchPlaceholder="Buscar tipo de compromisso..."
+                emptyMessage="Nenhum tipo encontrado."
+                allowClear={
+                  false
+                }
+                disabled={
+                  lockDefinition
+                }
+                onChange={(
                   value,
                 ) =>
                   setValue(
                     "commitmentType",
                     value as
-                      FinancialCommitmentType,
+                    FinancialCommitmentType,
                     {
                       shouldDirty:
                         true,
+
                       shouldValidate:
                         true,
                     },
                   )
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-
-                <SelectContent>
-                  {allowedTypes.map(
-                    (type) => (
-                      <SelectItem
-                        key={
-                          type
-                        }
-                        value={
-                          type
-                        }
-                      >
-                        {
-                          financialCommitmentTypeLabels[
-                            type
-                          ]
-                        }
-                      </SelectItem>
-                    ),
-                  )}
-                </SelectContent>
-              </Select>
+              />
 
               {errors.commitmentType && (
                 <p className="text-sm text-destructive">
@@ -426,14 +422,14 @@ export function FinancialCommitmentForm({
             <div className="space-y-1">
               <p className="text-sm font-medium">
                 {direction ===
-                "RECEIVABLE"
+                  "RECEIVABLE"
                   ? "A organização espera receber este valor."
                   : "A organização espera pagar ou repassar este valor."}
               </p>
 
               <p className="text-xs text-muted-foreground">
                 {direction ===
-                "RECEIVABLE"
+                  "RECEIVABLE"
                   ? "O contato principal será usado como origem da receita quando o compromisso for realizado."
                   : "O contato principal será usado como recebedor do pagamento."}
               </p>
@@ -449,7 +445,7 @@ export function FinancialCommitmentForm({
             <div className="space-y-2">
               <Label>
                 {direction ===
-                "RECEIVABLE"
+                  "RECEIVABLE"
                   ? "Quem deverá enviar"
                   : "Quem deverá receber"}
               </Label>
@@ -457,7 +453,7 @@ export function FinancialCommitmentForm({
               <FinancialPartyCombobox
                 role={
                   direction ===
-                  "RECEIVABLE"
+                    "RECEIVABLE"
                     ? "INCOME_SOURCE"
                     : "PAYMENT_RECIPIENT"
                 }
@@ -469,7 +465,7 @@ export function FinancialCommitmentForm({
                 }
                 placeholder={
                   direction ===
-                  "RECEIVABLE"
+                    "RECEIVABLE"
                     ? "Selecione o doador ou pagador"
                     : "Selecione o recebedor"
                 }
@@ -501,63 +497,63 @@ export function FinancialCommitmentForm({
 
             {direction ===
               "RECEIVABLE" && (
-              <div className="space-y-2">
-                <Label>
-                  Destinatário indicado
-                </Label>
+                <div className="space-y-2">
+                  <Label>
+                    Destinatário indicado
+                  </Label>
 
-                <FinancialPartyCombobox
-                  role="PAYMENT_RECIPIENT"
-                  value={
-                    designatedRecipientId ??
-                    ""
-                  }
-                  allowClear
-                  clearLabel="Sem destinatário individual"
-                  placeholder="Sem destinatário individual"
-                  onChange={(
-                    value,
-                  ) =>
-                    setValue(
-                      "designatedRecipientId",
-                      value,
-                      {
-                        shouldDirty:
-                          true,
-                        shouldValidate:
-                          true,
-                      },
-                    )
-                  }
-                />
-
-                {errors.designatedRecipientId && (
-                  <p className="text-sm text-destructive">
-                    {
-                      errors
-                        .designatedRecipientId
-                        .message
+                  <FinancialPartyCombobox
+                    role="PAYMENT_RECIPIENT"
+                    value={
+                      designatedRecipientId ??
+                      ""
                     }
-                  </p>
-                )}
+                    allowClear
+                    clearLabel="Sem destinatário individual"
+                    placeholder="Sem destinatário individual"
+                    onChange={(
+                      value,
+                    ) =>
+                      setValue(
+                        "designatedRecipientId",
+                        value,
+                        {
+                          shouldDirty:
+                            true,
+                          shouldValidate:
+                            true,
+                        },
+                      )
+                    }
+                  />
 
-                <p className="text-xs text-muted-foreground">
-                  Deixe vazio quando a contribuição for destinada somente ao fundo.
-                </p>
-              </div>
-            )}
+                  {errors.designatedRecipientId && (
+                    <p className="text-sm text-destructive">
+                      {
+                        errors
+                          .designatedRecipientId
+                          .message
+                      }
+                    </p>
+                  )}
+
+                  <p className="text-xs text-muted-foreground">
+                    Deixe vazio quando a contribuição for destinada somente ao fundo.
+                  </p>
+                </div>
+              )}
           </div>
 
           {direction ===
             "RECEIVABLE" && (
-            <div className="mt-4 flex gap-3 rounded-lg bg-muted/40 p-3">
-              <Target className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+              <div className="mt-4 flex gap-3 rounded-lg bg-muted/40 p-3">
+                <Target className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
 
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                Ao indicar um destinatário, o sistema poderá mostrar futuramente este doador na visão do favorecido e conferir mensalmente se a contribuição foi recebida.
-              </p>
-            </div>
-          )}
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Ao indicar um destinatário, o sistema poderá mostrar futuramente este doador na visão do favorecido e conferir mensalmente se a contribuição foi recebida.
+                </p>
+              </div>
+            )}
         </AppDialogSection>
 
         <AppDialogSection
@@ -616,7 +612,7 @@ export function FinancialCommitmentForm({
                 ) =>
                   handleRecurrenceChange(
                     value as
-                      FinancialCommitmentRecurrence,
+                    FinancialCommitmentRecurrence,
                   )
                 }
               >
@@ -642,7 +638,7 @@ export function FinancialCommitmentForm({
                       >
                         {
                           financialCommitmentRecurrenceLabels[
-                            value
+                          value
                           ]
                         }
                       </SelectItem>
@@ -668,9 +664,9 @@ export function FinancialCommitmentForm({
                   <CurrencyInput
                     value={
                       field.value as
-                        | number
-                        | null
-                        | undefined
+                      | number
+                      | null
+                      | undefined
                     }
                     onValueChange={
                       field.onChange
@@ -698,7 +694,7 @@ export function FinancialCommitmentForm({
           <div
             className={
               recurrence ===
-              "MONTHLY"
+                "MONTHLY"
                 ? "grid gap-4 md:grid-cols-3"
                 : "grid gap-4 md:grid-cols-1"
             }
@@ -706,7 +702,7 @@ export function FinancialCommitmentForm({
             <div className="space-y-2">
               <Label htmlFor="commitment-start-date">
                 {recurrence ===
-                "ONE_TIME"
+                  "ONE_TIME"
                   ? "Data prevista"
                   : "Início"}
               </Label>
@@ -731,61 +727,61 @@ export function FinancialCommitmentForm({
 
             {recurrence ===
               "MONTHLY" && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="commitment-end-date">
-                    Fim opcional
-                  </Label>
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="commitment-end-date">
+                      Fim opcional
+                    </Label>
 
-                  <Input
-                    id="commitment-end-date"
-                    type="date"
-                    {...register(
-                      "endDate",
+                    <Input
+                      id="commitment-end-date"
+                      type="date"
+                      {...register(
+                        "endDate",
+                      )}
+                    />
+
+                    {errors.endDate && (
+                      <p className="text-sm text-destructive">
+                        {
+                          errors.endDate
+                            .message
+                        }
+                      </p>
                     )}
-                  />
+                  </div>
 
-                  {errors.endDate && (
-                    <p className="text-sm text-destructive">
-                      {
-                        errors.endDate
-                          .message
-                      }
-                    </p>
-                  )}
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="commitment-due-day">
+                      Dia esperado
+                    </Label>
 
-                <div className="space-y-2">
-                  <Label htmlFor="commitment-due-day">
-                    Dia esperado
-                  </Label>
+                    <Input
+                      id="commitment-due-day"
+                      type="number"
+                      min={1}
+                      max={31}
+                      placeholder="Ex: 10"
+                      {...register(
+                        "dueDay",
+                      )}
+                    />
 
-                  <Input
-                    id="commitment-due-day"
-                    type="number"
-                    min={1}
-                    max={31}
-                    placeholder="Ex: 10"
-                    {...register(
-                      "dueDay",
+                    {errors.dueDay && (
+                      <p className="text-sm text-destructive">
+                        {
+                          errors.dueDay
+                            .message
+                        }
+                      </p>
                     )}
-                  />
 
-                  {errors.dueDay && (
-                    <p className="text-sm text-destructive">
-                      {
-                        errors.dueDay
-                          .message
-                      }
+                    <p className="text-xs text-muted-foreground">
+                      Opcional. Usado para previsões e alertas futuros.
                     </p>
-                  )}
-
-                  <p className="text-xs text-muted-foreground">
-                    Opcional. Usado para previsões e alertas futuros.
-                  </p>
-                </div>
-              </>
-            )}
+                  </div>
+                </>
+              )}
           </div>
         </AppDialogSection>
 
