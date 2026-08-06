@@ -277,6 +277,12 @@ export function FinancialTransactionActions({
           sourceType:
             "TRANSACTION",
 
+          defaultDirection:
+            currentTransaction.type ===
+              "INCOME"
+              ? "RECEIVED_BY_ORGANIZATION"
+              : "PAID_BY_ORGANIZATION",
+
           financialTransactionId:
             currentTransaction.id,
 

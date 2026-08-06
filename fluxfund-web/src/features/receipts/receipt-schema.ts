@@ -20,6 +20,12 @@ export const receiptDraftFormSchema =
                 "ALLOCATION",
             ]),
 
+        direction:
+            z.enum([
+                "RECEIVED_BY_ORGANIZATION",
+                "PAID_BY_ORGANIZATION",
+            ]),
+
         financialTransactionId:
             optionalText,
 
@@ -223,8 +229,31 @@ export const receiptDraftFormSchema =
                             data.receiptType,
                         )
 
+                const directionIsIncoming =
+                    data.direction ===
+                    "RECEIVED_BY_ORGANIZATION"
+
                 if (
-                    isIncoming &&
+                    directionIsIncoming !==
+                    isIncoming
+                ) {
+                    context.addIssue({
+                        code:
+                            "custom",
+
+                        path: [
+                            "receiptType",
+                        ],
+
+                        message:
+                            directionIsIncoming
+                                ? "Selecione um tipo de recebimento."
+                                : "Selecione um tipo de pagamento.",
+                    })
+                }
+
+                if (
+                    directionIsIncoming &&
                     data.beneficiaryMode ===
                     "REGISTERED" &&
                     !data.beneficiaryPartyId
@@ -243,7 +272,7 @@ export const receiptDraftFormSchema =
                 }
 
                 if (
-                    isIncoming &&
+                    directionIsIncoming &&
                     data.beneficiaryMode ===
                     "MANUAL" &&
                     !data.beneficiaryName
