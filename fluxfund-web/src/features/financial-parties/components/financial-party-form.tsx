@@ -7,9 +7,16 @@ import {
 } from "@hookform/resolvers/zod"
 
 import {
+    Controller,
     useForm,
     useWatch,
 } from "react-hook-form"
+
+import {
+    formatDocument,
+    formatPhone,
+    formatZipCode,
+} from "@/utils/input-masks"
 
 import {
     Building2,
@@ -467,16 +474,40 @@ export function FinancialPartyForm({
                                     : "CPF"}
                             </Label>
 
-                            <Input
-                                id="financial-party-document"
-                                placeholder={
-                                    selectedPartyType ===
-                                        "LEGAL_ENTITY"
-                                        ? "Ex: 12.345.678/0001-90"
-                                        : "Ex: 123.456.789-00"
+                            <Controller
+                                control={
+                                    control
                                 }
-                                {...register(
-                                    "document",
+                                name="document"
+                                render={({
+                                    field,
+                                }) => (
+                                    <Input
+                                        id="financial-party-document"
+                                        ref={field.ref}
+                                        name={field.name}
+                                        value={formatDocument(
+                                            field.value ?? "",
+                                            selectedPartyType,
+                                        )}
+                                        inputMode="numeric"
+                                        autoComplete="off"
+                                        placeholder={
+                                            selectedPartyType ===
+                                                "LEGAL_ENTITY"
+                                                ? "Ex: 12.345.678/0001-90"
+                                                : "Ex: 123.456.789-00"
+                                        }
+                                        onBlur={field.onBlur}
+                                        onChange={(event) =>
+                                            field.onChange(
+                                                formatDocument(
+                                                    event.target.value,
+                                                    selectedPartyType,
+                                                ),
+                                            )
+                                        }
+                                    />
                                 )}
                             />
 
@@ -669,11 +700,26 @@ export function FinancialPartyForm({
                                 Telefone ou celular
                             </Label>
 
-                            <Input
-                                id="financial-party-phone"
-                                placeholder="Ex: (11) 99999-9999"
-                                {...register(
-                                    "phone",
+                            <Controller
+                                control={control}
+                                name="phone"
+                                render={({ field }) => (
+                                    <Input
+                                        id="financial-party-phone"
+                                        ref={field.ref}
+                                        name={field.name}
+                                        value={formatPhone(
+                                            field.value ?? ""
+                                        )}
+                                        type="tel"
+                                        inputMode="tel"
+                                        autoComplete="tel"
+                                        placeholder="Ex: (11) 99999-9999"
+                                        onBlur={field.onBlur}
+                                        onChange={(event) =>
+                                            field.onChange(formatPhone(event.target.value))
+                                        }
+                                    />
                                 )}
                             />
 
@@ -847,11 +893,25 @@ export function FinancialPartyForm({
                                 CEP
                             </Label>
 
-                            <Input
-                                id="financial-party-zip-code"
-                                placeholder="12940-000"
-                                {...register(
-                                    "zipCode",
+                            <Controller
+                                control={control}
+                                name="zipCode"
+                                render={({ field }) => (
+                                    <Input
+                                        id="financial-party-zipCode"
+                                        ref={field.ref}
+                                        name={field.name}
+                                        value={formatZipCode(
+                                            field.value ?? ""
+                                        )}
+                                        inputMode="numeric"
+                                        autoComplete="postal-code"
+                                        placeholder="12940-000"
+                                        onBlur={field.onBlur}
+                                        onChange={(event) =>
+                                            field.onChange(formatZipCode(event.target.value))
+                                        }
+                                    />
                                 )}
                             />
 

@@ -92,6 +92,7 @@ import {
   useReceiptMutations,
 } from "../hooks/use-receipt-mutations"
 import { EntityCombobox } from "@/components/form/entity-combobox"
+import { formatCpfOrCnpj } from "@/utils/input-masks"
 
 type Props = {
   open: boolean
@@ -833,9 +834,39 @@ export function ReceiptDraftDialog({
                   </Field>
 
                   <Field label="CPF ou CNPJ">
-                    <Input
-                      {...register(
-                        "counterpartyDocument",
+                    <Controller
+                      control={
+                        control
+                      }
+                      name="counterpartyDocument"
+                      render={({
+                        field,
+                      }) => (
+                        <Input
+                          ref={
+                            field.ref
+                          }
+                          name={
+                            field.name
+                          }
+                          value={formatCpfOrCnpj(
+                            field.value ?? "",
+                          )}
+                          inputMode="numeric"
+                          placeholder="CPF ou CNPJ"
+                          onBlur={
+                            field.onBlur
+                          }
+                          onChange={(
+                            event,
+                          ) =>
+                            field.onChange(
+                              formatCpfOrCnpj(
+                                event.target.value,
+                              ),
+                            )
+                          }
+                        />
                       )}
                     />
                   </Field>
@@ -947,9 +978,39 @@ export function ReceiptDraftDialog({
                     </Field>
 
                     <Field label="CPF ou CNPJ">
-                      <Input
-                        {...register(
-                          "beneficiaryDocument",
+                      <Controller
+                        control={
+                          control
+                        }
+                        name="beneficiaryDocument"
+                        render={({
+                          field,
+                        }) => (
+                          <Input
+                            ref={
+                              field.ref
+                            }
+                            name={
+                              field.name
+                            }
+                            value={formatCpfOrCnpj(
+                              field.value ?? "",
+                            )}
+                            inputMode="numeric"
+                            placeholder="CPF ou CNPJ"
+                            onBlur={
+                              field.onBlur
+                            }
+                            onChange={(
+                              event,
+                            ) =>
+                              field.onChange(
+                                formatCpfOrCnpj(
+                                  event.target.value,
+                                ),
+                              )
+                            }
+                          />
                         )}
                       />
                     </Field>
