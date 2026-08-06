@@ -46,7 +46,9 @@ import {
 } from "@/components/ui/select"
 
 import {
+    financialPartyClassificationDescriptions,
     financialPartyClassificationLabels,
+    financialPartyClassificationSearchTerms,
 } from "../financial-party-labels"
 
 import {
@@ -56,8 +58,10 @@ import {
 } from "../financial-party-schema"
 
 import type {
+    FinancialPartyClassification,
     FinancialPartyRole,
 } from "../financial-party-types"
+import { EntityCombobox } from "@/components/form/entity-combobox"
 
 type FinancialPartyFormProps = {
     onSubmit: (
@@ -77,6 +81,62 @@ type FinancialPartyFormProps = {
 
     requiredRole?: FinancialPartyRole
 }
+
+const classificationOrder:
+    FinancialPartyClassification[] = [
+        "DONOR",
+        "SUPPORTER",
+        "MEMBER",
+        "CUSTOMER",
+        "SPONSOR",
+        "SUPPLIER",
+        "SERVICE_PROVIDER",
+        "EMPLOYEE",
+        "MISSIONARY",
+        "PROJECT_RESPONSIBLE",
+        "OTHER",
+    ]
+
+const classificationOptions =
+    classificationOrder.map(
+        (
+            classification,
+        ) => ({
+            value:
+                classification,
+
+            label:
+                financialPartyClassificationLabels[
+                classification
+                ],
+
+            selectedLabel:
+                financialPartyClassificationLabels[
+                classification
+                ],
+
+            description:
+                financialPartyClassificationDescriptions[
+                classification
+                ],
+
+            searchValue: [
+                financialPartyClassificationLabels[
+                classification
+                ],
+
+                financialPartyClassificationDescriptions[
+                classification
+                ],
+
+                financialPartyClassificationSearchTerms[
+                classification
+                ],
+            ].join(
+                " ",
+            ),
+        }),
+    )
 
 const roleOptions: Array<{
     value: FinancialPartyRole
@@ -367,67 +427,74 @@ export function FinancialPartyForm({
 
                         <div className="space-y-2">
                             <Label>
-                                Classificação
+                                Tipo de relacionamento
                             </Label>
 
-                            <Select
+                            <EntityCombobox
                                 value={
                                     selectedClassification
                                 }
-                                onValueChange={(
+                                options={
+                                    classificationOptions
+                                }
+                                placeholder="Selecione o relacionamento"
+                                searchPlaceholder="Buscar por doador, fornecedor, salário..."
+                                emptyMessage="Nenhum relacionamento encontrado."
+                                allowClear={
+                                    false
+                                }
+                                onChange={(
                                     value,
                                 ) =>
                                     setValue(
                                         "type",
-                                        value as FinancialPartyFormInput["type"],
+                                        value as
+                                        FinancialPartyClassification,
                                         {
                                             shouldValidate:
                                                 true,
+
                                             shouldDirty:
                                                 true,
                                         },
                                     )
                                 }
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecione a classificação" />
-                                </SelectTrigger>
+                            />
 
-                                <SelectContent>
-                                    {Object.entries(
-                                        financialPartyClassificationLabels,
-                                    ).map(
-                                        ([
-                                            value,
-                                            label,
-                                        ]) => (
-                                            <SelectItem
-                                                key={
-                                                    value
-                                                }
-                                                value={
-                                                    value
-                                                }
-                                            >
-                                                {
-                                                    label
-                                                }
-                                            </SelectItem>
-                                        ),
-                                    )}
-                                </SelectContent>
-                            </Select>
-
-                            {errors.type && (
-                                <p className="text-sm text-destructive">
-                                    {
-                                        errors.type
-                                            .message
-                                    }
-                                </p>
-                            )}
+                            <p className="text-xs leading-relaxed text-muted-foreground">
+                                Identifica quem esse contato é em relação à organização.
+                            </p>
                         </div>
                     </div>
+
+                    {selectedClassification && (
+                        <div className="rounded-lg border bg-muted/30 p-3">
+                            <p className="text-sm font-medium">
+                                {
+                                    financialPartyClassificationLabels[
+                                    selectedClassification
+                                    ]
+                                }
+                            </p>
+
+                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                {
+                                    financialPartyClassificationDescriptions[
+                                    selectedClassification
+                                    ]
+                                }
+                            </p>
+                        </div>
+                    )}
+
+                    {errors.type && (
+                        <p className="text-sm text-destructive">
+                            {
+                                errors.type
+                                    .message
+                            }
+                        </p>
+                    )}
 
                     <div className="mt-4 grid gap-4 md:grid-cols-2">
                         <div className="space-y-2 md:col-span-2">
@@ -579,7 +646,7 @@ export function FinancialPartyForm({
 
                 <AppDialogSection
                     title="Papéis financeiros"
-                    description="Selecione como este contato participa das movimentações da organização."
+                    description="Depois de identificar quem é o contato, selecione como ele participa das movimentações."
                 >
                     <div className="grid gap-3 md:grid-cols-2">
                         {roleOptions.map(
@@ -661,8 +728,20 @@ export function FinancialPartyForm({
                         </p>
                     )}
 
-                    <div className="mt-3 rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
-                        Um contato pode exercer os dois papéis. Por exemplo, uma empresa pode comprar serviços da organização e também receber um pagamento.
+                    <div className="mt-3 space-y-1 rounded-lg bg-muted/40 p-3 text-xs leading-relaxed text-muted-foreground">
+                        <p>
+                            <strong className="text-foreground">
+                                Tipo de relacionamento:
+                            </strong>{" "}
+                            identifica quem o contato é, como doador, fornecedor ou missionário.
+                        </p>
+
+                        <p>
+                            <strong className="text-foreground">
+                                Papéis financeiros:
+                            </strong>{" "}
+                            indicam se ele envia recursos, recebe pagamentos ou exerce as duas funções.
+                        </p>
                     </div>
                 </AppDialogSection>
 

@@ -21,6 +21,7 @@ import { useCommandListWheelScroll } from "./use-command-list-wheel-scroll"
 type EntityComboboxOption = {
   value: string
   label: string
+  description?: string
   searchValue?: string
   selectedLabel?: string
 }
@@ -139,26 +140,57 @@ export function EntityCombobox({
                 {options.map((option) => (
                   <CommandItem
                     key={option.value}
-                    value={option.searchValue ?? option.label}
+                    value={
+                      option.searchValue ??
+                      option.label
+                    }
                     onSelect={() => {
-                      onChange(option.value)
-                      setOpen(false)
+                      onChange(
+                        option.value,
+                      )
+
+                      setOpen(
+                        false,
+                      )
                     }}
-                    className="min-w-0"
+                    className={cn(
+                      "min-w-0",
+                      option.description &&
+                      "items-start",
+                    )}
                   >
                     <Check
                       className={cn(
-                        "mr-2 size-4",
-                        value === option.value ? "opacity-100" : "opacity-0",
+                        "mr-2 size-4 shrink-0",
+                        option.description &&
+                        "mt-0.5",
+                        value ===
+                          option.value
+                          ? "opacity-100"
+                          : "opacity-0",
                       )}
                     />
 
-                    <span
-                      className="min-w-0 flex-1 truncate"
-                      title={option.label}
-                    >
-                      {option.label}
-                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className="truncate"
+                        title={
+                          option.label
+                        }
+                      >
+                        {
+                          option.label
+                        }
+                      </p>
+
+                      {option.description && (
+                        <p className="mt-0.5 whitespace-normal text-xs leading-relaxed text-muted-foreground">
+                          {
+                            option.description
+                          }
+                        </p>
+                      )}
+                    </div>
                   </CommandItem>
                 ))}
               </CommandGroup>
