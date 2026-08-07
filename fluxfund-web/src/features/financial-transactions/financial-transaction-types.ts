@@ -240,3 +240,13 @@ export type TransferMatchSuggestion = {
   suggestedDirection: TransferDirection | null
   candidates: TransferMatchCandidate[]
 }
+
+export type BulkCancelFinancialTransactionsRequest = {
+  transactionIds:
+  string[]
+}
+
+export type BulkCancelFinancialTransactionsResponse = {
+  canceledCount:
+  number
+}

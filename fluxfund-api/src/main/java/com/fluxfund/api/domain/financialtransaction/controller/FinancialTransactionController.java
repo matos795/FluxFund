@@ -29,6 +29,8 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.TransferDirection;
+import com.fluxfund.api.domain.financialtransaction.dto.BulkCancelFinancialTransactionsRequest;
+import com.fluxfund.api.domain.financialtransaction.dto.BulkCancelFinancialTransactionsResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.ClassifyFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.CreateAccountTransferRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.CreateFinancialTransactionRequest;
@@ -139,6 +141,14 @@ public class FinancialTransactionController {
                 service.delete(organizationId, id);
 
                 return ResponseEntity.noContent().build();
+        }
+
+        @PostMapping("/bulk-cancel")
+        public ResponseEntity<BulkCancelFinancialTransactionsResponse> bulkCancel(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @RequestBody @Valid BulkCancelFinancialTransactionsRequest request) {
+
+                return ResponseEntity.ok(service.bulkCancel(organizationId, request));
         }
 
         @PostMapping("/{id}/allocations")

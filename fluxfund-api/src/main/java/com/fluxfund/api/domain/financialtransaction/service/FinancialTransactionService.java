@@ -48,6 +48,8 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.FiscalDocumentPolicy;
 import com.fluxfund.api.domain.financialtransaction.TransferDirection;
+import com.fluxfund.api.domain.financialtransaction.dto.BulkCancelFinancialTransactionsRequest;
+import com.fluxfund.api.domain.financialtransaction.dto.BulkCancelFinancialTransactionsResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.ClassificationSuggestionAllocationResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.ClassifyFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.CreateAccountTransferRequest;
@@ -267,15 +269,53 @@ public class FinancialTransactionService {
         }
 
         public void delete(UUID organizationId, UUID id) {
+
                 organizationAccessService.requireFinanceWriteAccess(organizationId);
 
                 FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
+
+                validateCancellationAllowed(financialTransaction);
+
+                applyCancellation(organizationId, financialTransaction);
+        }
+
+        public BulkCancelFinancialTransactionsResponse bulkCancel(UUID organizationId, BulkCancelFinancialTransactionsRequest request) {
+
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
+
+                List<FinancialTransaction> transactions = request.transactionIds()
+                                .stream()
+                                .distinct()
+                                .map(id -> findFinancialTransactionById(organizationId, id))
+                                .toList();
+
+                for (FinancialTransaction transaction : transactions) {
+                        validateCancellationAllowed(transaction);
+                }
+
+                for (FinancialTransaction transaction : transactions) {
+                        applyCancellation(organizationId, transaction);
+                }
+
+                return new BulkCancelFinancialTransactionsResponse(transactions.size());
+        }
+
+        private void validateCancellationAllowed(FinancialTransaction financialTransaction) {
 
                 if (financialTransaction.getStatus() == FinancialTransactionStatus.CANCELED) {
                         throw new BusinessException("Transaction already canceled");
                 }
 
+                if (financialTransaction.getType() == FinancialTransactionType.TRANSFER) {
+                        throw new BusinessException(
+                                        "Use the account transfer cancellation endpoint to cancel transfers");
+                }
+        }
+
+        private void applyCancellation(UUID organizationId, FinancialTransaction financialTransaction) {
+
                 financialTransaction.setStatus(FinancialTransactionStatus.CANCELED);
+
                 repository.save(financialTransaction);
 
                 auditLogService.record(

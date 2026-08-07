@@ -17,8 +17,12 @@ import { needsFinancialTransactionClassification } from "@/features/financial-tr
 import { TransactionWorkspaceDialog } from "@/features/financial-transactions/components/transaction-workspace-dialog"
 import { ImportFinancialTransactionsDialog } from "@/features/financial-transactions/components/import-financial-transactions-dialog"
 import type { DateRangeValue } from "@/components/filters/date-range-presets"
-import { X } from "lucide-react"
+import { Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useBulkCancelFinancialTransactions } from "@/features/financial-transactions/hooks/use-bulk-cancel-financial-transactions"
+import { getApiErrorMessage } from "@/utils/api-error"
+import { toast } from "sonner"
+import { ConfirmActionDialog } from "@/components/layout/confirm-action-dialog"
 
 
 const ALL_SETTLEMENT_DATE_PERIOD: DateRangeValue = {
@@ -87,6 +91,16 @@ export function TransactionsPage() {
   const [sort, setSort] = useState("settlementDate,desc")
   const [fundId, setFundId] = useState(searchParams.get("fundId") ?? "")
 
+  const [
+    bulkCancelDialogOpen,
+    setBulkCancelDialogOpen,
+  ] = useState(
+    false,
+  )
+
+  const bulkCancelMutation =
+    useBulkCancelFinancialTransactions()
+
   const [type, setType] = useState(searchParams.get("type") ?? "")
   const [status, setStatus] = useState(searchParams.get("status") ?? "")
   const [accountId, setAccountId] = useState(searchParams.get("accountId") ?? "")
@@ -143,6 +157,23 @@ export function TransactionsPage() {
     useFinancialTransaction({
       id: actionTransactionId,
     })
+
+  const selectedTransactions =
+    data?.content.filter(
+      (transaction) =>
+        selectedTransactionIds.has(
+          transaction.id,
+        ),
+    ) ?? []
+
+  const hasNonCancelableSelection =
+    selectedTransactions.some(
+      (transaction) =>
+        transaction.status ===
+        "CANCELED" ||
+        transaction.type ===
+        "TRANSFER",
+    )
 
   useEffect(() => {
     if (!directTransaction || !directDialogKey) {
@@ -213,6 +244,46 @@ export function TransactionsPage() {
     setSearchParams(nextParams, {
       replace: true,
     })
+  }
+
+  function handleBulkCancel() {
+    const transactionIds =
+      Array.from(
+        selectedTransactionIds,
+      )
+
+    bulkCancelMutation.mutate(
+      transactionIds,
+      {
+        onSuccess: (
+          response,
+        ) => {
+          toast.success(
+            response.canceledCount ===
+              1
+              ? "1 transação cancelada com sucesso."
+              : `${response.canceledCount} transações canceladas com sucesso.`,
+          )
+
+          setBulkCancelDialogOpen(
+            false,
+          )
+
+          clearSelection()
+        },
+
+        onError: (
+          error,
+        ) => {
+          toast.error(
+            getApiErrorMessage(
+              error,
+              "Não foi possível cancelar as transações selecionadas.",
+            ),
+          )
+        },
+      },
+    )
   }
 
   return (
@@ -333,23 +404,49 @@ export function TransactionsPage() {
       )}
 
       {canFinanceWrite && selectedTransactionIds.size > 0 && (
-          <div className="flex flex-col gap-3 rounded-xl border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-medium">
-                {
-                  selectedTransactionIds
-                    .size
-                }{" "}
-                {selectedTransactionIds
-                  .size === 1
-                  ? "transação selecionada"
-                  : "transações selecionadas"}
-              </p>
+        <div className="flex flex-col gap-3 rounded-xl border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium">
+              {
+                selectedTransactionIds
+                  .size
+              }{" "}
+              {selectedTransactionIds
+                .size === 1
+                ? "transação selecionada"
+                : "transações selecionadas"}
+            </p>
 
-              <p className="text-xs text-muted-foreground">
-                A seleção é limitada à página atual.
+            <p className="text-xs text-muted-foreground">
+              A seleção é limitada à página atual.
+            </p>
+
+            {hasNonCancelableSelection && (
+              <p className="mt-1 text-xs text-destructive">
+                Remova transferências ou transações já canceladas da seleção para usar o cancelamento em massa.
               </p>
-            </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={
+                hasNonCancelableSelection
+              }
+              onClick={() => {
+                bulkCancelMutation.reset()
+
+                setBulkCancelDialogOpen(
+                  true,
+                )
+              }}
+            >
+              <Trash2 className="mr-2 size-4" />
+              Cancelar
+            </Button>
 
             <Button
               type="button"
@@ -363,7 +460,8 @@ export function TransactionsPage() {
               Limpar seleção
             </Button>
           </div>
-        )}
+        </div>
+      )}
 
       {data && (
         <>
@@ -430,6 +528,50 @@ export function TransactionsPage() {
           }
         />
       )}
+
+      <ConfirmActionDialog
+        open={
+          bulkCancelDialogOpen
+        }
+        onOpenChange={
+          setBulkCancelDialogOpen
+        }
+        title={
+          selectedTransactionIds.size ===
+            1
+            ? "Cancelar transação?"
+            : `Cancelar ${selectedTransactionIds.size} transações?`
+        }
+        description={
+          <>
+            As transações selecionadas serão marcadas como canceladas.
+            {" "}
+            <strong>
+              Se alguma delas não puder ser cancelada, nenhuma será alterada.
+            </strong>
+          </>
+        }
+        confirmLabel={
+          selectedTransactionIds.size ===
+            1
+            ? "Cancelar transação"
+            : `Cancelar ${selectedTransactionIds.size} transações`
+        }
+        pendingLabel="Cancelando..."
+        cancelLabel="Voltar"
+        isPending={
+          bulkCancelMutation.isPending
+        }
+        isDestructive
+        errorMessage={
+          bulkCancelMutation.isError
+            ? "Não foi possível concluir o cancelamento em massa."
+            : null
+        }
+        onConfirm={
+          handleBulkCancel
+        }
+      />
     </div>
   )
 }
