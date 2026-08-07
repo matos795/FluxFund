@@ -17,6 +17,8 @@ import { needsFinancialTransactionClassification } from "@/features/financial-tr
 import { TransactionWorkspaceDialog } from "@/features/financial-transactions/components/transaction-workspace-dialog"
 import { ImportFinancialTransactionsDialog } from "@/features/financial-transactions/components/import-financial-transactions-dialog"
 import type { DateRangeValue } from "@/components/filters/date-range-presets"
+import { X } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 
 const ALL_SETTLEMENT_DATE_PERIOD: DateRangeValue = {
@@ -80,6 +82,7 @@ export function TransactionsPage() {
   }, [actionTransactionId, safeResolvedAction])
 
   const [page, setPage] = useState(0)
+  const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(() => new Set())
   const [size, setSize] = useState(10)
   const [sort, setSort] = useState("settlementDate,desc")
   const [fundId, setFundId] = useState(searchParams.get("fundId") ?? "")
@@ -177,8 +180,22 @@ export function TransactionsPage() {
     setSettlementDatePeriod(ALL_SETTLEMENT_DATE_PERIOD)
     setOnlyUnclassified(false)
     setOnlyUnallocated(false)
-    setPage(0)
+    resetPageAndSelection()
     setSearchParams({})
+  }
+
+  function clearSelection() {
+    setSelectedTransactionIds(new Set())
+  }
+
+  function resetPageAndSelection() {
+    setPage(0)
+    clearSelection()
+  }
+
+  function handlePageChange(nextPage: number) {
+    clearSelection()
+    setPage(nextPage)
   }
 
   function handleDirectDialogOpenChange(open: boolean) {
@@ -235,36 +252,36 @@ export function TransactionsPage() {
         }))}
         onTypeChange={(value) => {
           setType(value)
-          setPage(0)
+          resetPageAndSelection()
         }}
         onStatusChange={(value) => {
           setStatus(value)
-          setPage(0)
+          resetPageAndSelection()
         }}
         onSourceChange={(value) => {
           setSource(value)
-          setPage(0)
+          resetPageAndSelection()
         }}
         onAccountIdChange={(value) => {
           setAccountId(value)
-          setPage(0)
+          resetPageAndSelection()
         }}
         onCategoryIdChange={(value) => {
           setCategoryId(value)
-          setPage(0)
+          resetPageAndSelection()
         }}
         onDescriptionChange={(value) => {
           setDescription(value)
-          setPage(0)
+          resetPageAndSelection()
         }}
         onSettlementDatePeriodChange={(value) => {
           setSettlementDatePeriod(value)
-          setPage(0)
+          resetPageAndSelection()
         }}
         onOnlyUnclassifiedChange={(value) => {
           setOnlyUnclassified(value)
           setOnlyUnallocated(false)
-          setPage(0)
+          resetPageAndSelection()
 
           if (value) {
             setSearchParams({
@@ -277,7 +294,7 @@ export function TransactionsPage() {
         onOnlyUnallocatedChange={(value) => {
           setOnlyUnallocated(value)
           setOnlyUnclassified(false)
-          setPage(0)
+          resetPageAndSelection()
 
           if (value) {
             setStatus("SETTLED")
@@ -315,20 +332,56 @@ export function TransactionsPage() {
         </div>
       )}
 
+      {canFinanceWrite && selectedTransactionIds.size > 0 && (
+          <div className="flex flex-col gap-3 rounded-xl border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium">
+                {
+                  selectedTransactionIds
+                    .size
+                }{" "}
+                {selectedTransactionIds
+                  .size === 1
+                  ? "transação selecionada"
+                  : "transações selecionadas"}
+              </p>
+
+              <p className="text-xs text-muted-foreground">
+                A seleção é limitada à página atual.
+              </p>
+            </div>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={
+                clearSelection
+              }
+            >
+              <X className="mr-2 size-4" />
+              Limpar seleção
+            </Button>
+          </div>
+        )}
+
       {data && (
         <>
           <FinancialTransactionsTable
             financialTransactions={data.content}
+            selectionEnabled={canFinanceWrite}
+            selectedTransactionIds={selectedTransactionIds}
+            onSelectionChange={setSelectedTransactionIds}
             totalElements={data.totalElements}
             size={size}
             sort={sort}
             onSizeChange={(value) => {
               setSize(value)
-              setPage(0)
+              resetPageAndSelection()
             }}
             onSortChange={(value) => {
               setSort(value)
-              setPage(0)
+              resetPageAndSelection()
             }}
           />
 
@@ -339,7 +392,7 @@ export function TransactionsPage() {
             size={data.size}
             isFirst={data.first}
             isLast={data.last}
-            onPageChange={setPage}
+            onPageChange={handlePageChange}
           />
         </>
       )}

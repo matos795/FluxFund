@@ -33,12 +33,16 @@ import { getTransactionDocumentationStatus } from "../transaction-documentation"
 import type { TransactionWorkspaceTab } from "../transaction-workspace-types"
 import { TransactionWorkspaceDialog } from "./transaction-workspace-dialog"
 import { useFinancialTransaction } from "../hooks/use-financial-transaction"
+import { Checkbox } from "@/components/ui/checkbox"
 
 type FinancialTransactionsTableProps = {
   financialTransactions: FinancialTransaction[]
   totalElements: number
   size: number
   sort: string
+  selectionEnabled: boolean
+  selectedTransactionIds: Set<string>
+  onSelectionChange: (selectedIds: Set<string>) => void
   onSizeChange: (size: number) => void
   onSortChange: (sort: string) => void
 }
@@ -48,6 +52,9 @@ export function FinancialTransactionsTable({
   totalElements,
   size,
   sort,
+  selectionEnabled,
+  selectedTransactionIds,
+  onSelectionChange,
   onSizeChange,
   onSortChange,
 }: FinancialTransactionsTableProps) {
@@ -106,6 +113,54 @@ export function FinancialTransactionsTable({
     }
 
     openWorkspace(transaction, "overview")
+  }
+
+  const selectedPageCount =
+    financialTransactions.filter(
+      (transaction) =>
+        selectedTransactionIds.has(
+          transaction.id,
+        ),
+    ).length
+
+  const allPageTransactionsSelected =
+    financialTransactions.length >
+    0 &&
+    selectedPageCount ===
+    financialTransactions.length
+
+  const somePageTransactionsSelected =
+    selectedPageCount > 0 &&
+    !allPageTransactionsSelected
+
+  function handleTransactionSelection(transactionId: string, selected: boolean) {
+    const nextSelection = new Set(selectedTransactionIds)
+
+    if (selected) {
+      nextSelection.add(transactionId)
+    } else {
+      nextSelection.delete(transactionId)
+    }
+
+    onSelectionChange(
+      nextSelection,
+    )
+  }
+
+  function handlePageSelection(
+    selected: boolean,
+  ) {
+    const nextSelection = new Set(selectedTransactionIds)
+
+    for (const transaction of financialTransactions) {
+      if (selected) {
+        nextSelection.add(transaction.id)
+      } else {
+        nextSelection.delete(transaction.id)
+      }
+    }
+
+    onSelectionChange(nextSelection)
   }
 
   return (
@@ -168,6 +223,28 @@ export function FinancialTransactionsTable({
               <Table>
                 <TableHeader>
                   <TableRow>
+                    {selectionEnabled && (
+                      <TableHead className="w-12">
+                        <Checkbox
+                          aria-label="Selecionar todas as transações desta página"
+                          checked={
+                            allPageTransactionsSelected
+                              ? true
+                              : somePageTransactionsSelected
+                                ? "indeterminate"
+                                : false
+                          }
+                          onCheckedChange={(
+                            checked,
+                          ) =>
+                            handlePageSelection(
+                              checked ===
+                              true,
+                            )
+                          }
+                        />
+                      </TableHead>
+                    )}
                     <TableHead className="w-[140px]">Situação</TableHead>
                     <TableHead className="w-[110px]">Data</TableHead>
                     <TableHead className="w-[110px]">Tipo</TableHead>
@@ -199,12 +276,45 @@ export function FinancialTransactionsTable({
                       : transaction.settlementDate ??
                       transaction.dueDate
 
+                    const selected =
+                      selectedTransactionIds.has(
+                        transaction.id,
+                      )
+
                     return (
                       <TableRow
                         key={transaction.id}
+                        data-state={selected ? "selected" : undefined}
                         className="cursor-pointer hover:bg-muted/50"
                         onClick={() => handleRowClick(transaction)}
                       >
+                        {selectionEnabled && (
+                          <TableCell
+                            className="w-12"
+                            onClick={(
+                              event,
+                            ) =>
+                              event.stopPropagation()
+                            }
+                          >
+                            <Checkbox
+                              aria-label={`Selecionar transação ${displayDescription}`}
+                              checked={
+                                selected
+                              }
+                              onCheckedChange={(
+                                checked,
+                              ) =>
+                                handleTransactionSelection(
+                                  transaction.id,
+                                  checked ===
+                                  true,
+                                )
+                              }
+                            />
+                          </TableCell>
+                        )}
+                        
                         <TableCell>
                           <div className="flex flex-col gap-1">
                             {needsFinancialTransactionClassification(transaction) ? (
