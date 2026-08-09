@@ -71,12 +71,16 @@ type TransactionClassifyPanelProps = {
     transaction: FinancialTransaction;
     enabled?: boolean;
     onSaved?: () => void;
+    onCancel?: () => void;
+    cancelLabel?: string;
 };
 
 export function TransactionClassifyPanel({
     transaction,
     enabled = true,
     onSaved,
+    onCancel,
+    cancelLabel = "Cancelar",
 }: TransactionClassifyPanelProps) {
 
     const isCreditCardItem =
@@ -1595,9 +1599,19 @@ export function TransactionClassifyPanel({
             )}
 
             <div className="flex justify-end gap-2 border-t pt-4">
-                <Button type="button" variant="outline" onClick={() => { }}>
-                    Cancelar
-                </Button>
+                {onCancel && (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        disabled={
+                            classifyTransaction.isPending ||
+                            uploadAttachmentMutation.isPending
+                        }
+                        onClick={onCancel}
+                    >
+                        {cancelLabel}
+                    </Button>
+                )}
 
                 <Button
                     type="submit"

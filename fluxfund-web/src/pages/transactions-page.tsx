@@ -17,12 +17,14 @@ import { needsFinancialTransactionClassification } from "@/features/financial-tr
 import { TransactionWorkspaceDialog } from "@/features/financial-transactions/components/transaction-workspace-dialog"
 import { ImportFinancialTransactionsDialog } from "@/features/financial-transactions/components/import-financial-transactions-dialog"
 import type { DateRangeValue } from "@/components/filters/date-range-presets"
-import { Trash2, X } from "lucide-react"
+import { ListChecks, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useBulkCancelFinancialTransactions } from "@/features/financial-transactions/hooks/use-bulk-cancel-financial-transactions"
 import { getApiErrorMessage } from "@/utils/api-error"
 import { toast } from "sonner"
 import { ConfirmActionDialog } from "@/components/layout/confirm-action-dialog"
+import type { FinancialTransaction } from "@/features/financial-transactions/financial-transaction-types"
+import { TransactionClassificationQueueDialog } from "@/features/financial-transactions/components/transaction-classification-queue-dialog"
 
 
 const ALL_SETTLEMENT_DATE_PERIOD: DateRangeValue = {
@@ -98,6 +100,9 @@ export function TransactionsPage() {
     false,
   )
 
+  const [classificationQueueOpen, setClassificationQueueOpen] = useState(false)
+  const [classificationQueue, setClassificationQueue] = useState<FinancialTransaction[]>([])
+
   const bulkCancelMutation =
     useBulkCancelFinancialTransactions()
 
@@ -165,6 +170,16 @@ export function TransactionsPage() {
           transaction.id,
         ),
     ) ?? []
+
+  const selectedClassifiableTransactions =
+    selectedTransactions.filter(
+      (
+        transaction,
+      ) =>
+        needsFinancialTransactionClassification(
+          transaction,
+        ),
+    )
 
   const hasNonCancelableSelection =
     selectedTransactions.some(
@@ -284,6 +299,17 @@ export function TransactionsPage() {
         },
       },
     )
+  }
+
+  function handleOpenClassificationQueue() {
+
+    if (selectedClassifiableTransactions.length === 0) {
+      toast.info("Nenhuma das transações selecionadas está pendente de classificação.")
+      return
+    }
+
+    setClassificationQueue(selectedClassifiableTransactions)
+    setClassificationQueueOpen(true)
   }
 
   return (
@@ -421,6 +447,17 @@ export function TransactionsPage() {
               A seleção é limitada à página atual.
             </p>
 
+            {selectedClassifiableTransactions.length > 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {
+                  selectedClassifiableTransactions.length
+                }{" "}
+                {selectedClassifiableTransactions.length === 1
+                  ? "selecionada está pendente de classificação."
+                  : "selecionadas estão pendentes de classificação."}
+              </p>
+            )}
+
             {hasNonCancelableSelection && (
               <p className="mt-1 text-xs text-destructive">
                 Remova transferências ou transações já canceladas da seleção para usar o cancelamento em massa.
@@ -429,6 +466,29 @@ export function TransactionsPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              disabled={
+                selectedClassifiableTransactions
+                  .length === 0
+              }
+              onClick={
+                handleOpenClassificationQueue
+              }
+            >
+              <ListChecks className="mr-2 size-4" />
+
+              Classificar pendentes
+
+              {selectedClassifiableTransactions
+                .length >
+                0 &&
+                ` (${selectedClassifiableTransactions.length})`}
+            </Button>
+
             <Button
               type="button"
               variant="destructive"
@@ -571,6 +631,31 @@ export function TransactionsPage() {
         onConfirm={
           handleBulkCancel
         }
+      />
+
+      <TransactionClassificationQueueDialog
+        open={classificationQueueOpen}
+        transactions={classificationQueue}
+        onOpenChange={(open) => { setClassificationQueueOpen(open)
+
+          if (!open) {
+            setClassificationQueue([])
+          }
+        }}
+        onComplete={({classifiedCount, skippedCount}) => {
+          clearSelection()
+
+          if (skippedCount === 0) {
+            toast.success(classifiedCount === 1
+                ? "Classificação concluída."
+                : `${classifiedCount} transações classificadas.`,
+            )
+
+            return
+          }
+
+          toast.success(`${classifiedCount} classificadas e ${skippedCount} puladas.`)
+        }}
       />
     </div>
   )
