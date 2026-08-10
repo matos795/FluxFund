@@ -668,7 +668,7 @@ export function TransactionAllocationsPanel({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          title="Criar recibo"
+                          title="Criar recibo desta alocação"
                           onClick={() =>
                             setReceiptAllocation(
                               allocation,
@@ -678,7 +678,7 @@ export function TransactionAllocationsPanel({
                           <FileSignature className="size-4" />
 
                           <span className="sr-only">
-                            Criar recibo
+                            Criar recibo desta alocação
                           </span>
                         </Button>
 
