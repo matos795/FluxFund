@@ -681,10 +681,23 @@ export function ReceiptDraftDialog({
       previewOrganizationDocument,
     )
 
+  const defaultIncomingSignatory =
+    organizationProfile
+      ?.approverName
+      ?.trim() ||
+    organizationProfile
+      ?.reviewerName
+      ?.trim() ||
+    ""
+
   const previewSignatoryName =
     signatoryName
       ?.trim() ||
-    previewCounterpartyName
+    (
+      incoming
+        ? defaultIncomingSignatory
+        : previewCounterpartyName
+    )
 
   const receiptPreviewText =
     incoming
