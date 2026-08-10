@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.fluxfund.api.domain.category.dto.CategorySummaryResponse;
+import com.fluxfund.api.domain.financialtransaction.ClassificationSuggestionConfidence;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 
 public record FinancialTransactionClassificationSuggestionResponse(
@@ -13,8 +14,12 @@ public record FinancialTransactionClassificationSuggestionResponse(
         FinancialTransactionType type,
         CategorySummaryResponse category,
         String description,
-        List<ClassificationSuggestionAllocationResponse> allocations
+        List<ClassificationSuggestionAllocationResponse> allocations,
+        ClassificationSuggestionConfidence confidence,
+        ClassificationSuggestionEvidenceResponse evidence
+
 ) {
+
     public static FinancialTransactionClassificationSuggestionResponse unavailable() {
         return new FinancialTransactionClassificationSuggestionResponse(
                 false,
@@ -23,6 +28,8 @@ public record FinancialTransactionClassificationSuggestionResponse(
                 null,
                 null,
                 null,
-                List.of());
+                List.of(),
+                null,
+                null);
     }
 }

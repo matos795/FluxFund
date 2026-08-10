@@ -874,7 +874,7 @@ List<MonthlyCashFlowProjection> findMonthlyCashFlow(
           and t.id <> :transactionId
           and t.type = :type
           and t.status <>
-              com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.CANCELED
+              com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
           and t.type <>
               com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
           and t.category is not null

@@ -216,6 +216,20 @@ export type ClassificationSuggestionAllocation = {
   | "SUPPORT_AGREEMENT"
 }
 
+export type ClassificationSuggestionConfidence =
+  | "HIGH"
+  | "MEDIUM"
+  | "LOW"
+
+export type ClassificationSuggestionEvidence = {
+  historyCount: number
+  categoryMatchCount: number
+  categoryAgreementPercent: number
+  allocationHistoryCount: number
+  allocationMatchCount: number
+  allocationAgreementPercent: number
+}
+
 export type FinancialTransactionClassificationSuggestion = {
   available: boolean
   source: "HISTORY" | null
@@ -224,6 +238,8 @@ export type FinancialTransactionClassificationSuggestion = {
   category: CategorySummary | null
   description: string | null
   allocations: ClassificationSuggestionAllocation[]
+  confidence: ClassificationSuggestionConfidence | null
+  evidence: ClassificationSuggestionEvidence | null
 }
 
 export type TransferMatchCandidate = {
