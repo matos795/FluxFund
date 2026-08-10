@@ -1,5 +1,7 @@
 import {
     useEffect,
+    useLayoutEffect,
+    useRef,
     useState,
 } from "react"
 
@@ -31,6 +33,7 @@ import {
 
 import type {
     FinancialTransaction,
+    TransactionClassificationPrefill,
 } from "../financial-transaction-types"
 
 import {
@@ -40,6 +43,7 @@ import {
 import {
     TransactionClassifyPanel,
 } from "./transaction-classify-panel"
+import { TransactionClassificationQueueSetup } from "./transaction-classification-queue-setup"
 
 type QueueResult = {
     classifiedCount:
@@ -78,6 +82,11 @@ export function TransactionClassificationQueueDialog({
     const queryClient =
         useQueryClient()
 
+    const bodyRef =
+        useRef<HTMLDivElement>(
+            null,
+        )
+
     const {
         data:
         organizationSettings,
@@ -108,6 +117,27 @@ export function TransactionClassificationQueueDialog({
             0,
         )
 
+    const [
+        stage,
+        setStage,
+    ] =
+        useState<
+            "SETUP" |
+            "REVIEW"
+        >(
+            "SETUP",
+        )
+
+    const [
+        prefill,
+        setPrefill,
+    ] =
+        useState<
+            TransactionClassificationPrefill
+        >(
+            {},
+        )
+
     const currentTransaction =
         transactions[
         currentIndex
@@ -118,12 +148,19 @@ export function TransactionClassificationQueueDialog({
         currentIndex + 1
         ]
 
+    const suggestionPrefetchTarget =
+        stage === "SETUP"
+            ? transactions[0]
+            : nextTransaction
+
     function resetQueue() {
         setCurrentIndex(0)
 
         setClassifiedCount(0)
 
         setSkippedCount(0)
+        setStage("SETUP")
+        setPrefill({})
     }
 
     function handleOpenChange(
@@ -139,10 +176,24 @@ export function TransactionClassificationQueueDialog({
         )
     }
 
+    useLayoutEffect(() => {
+        if (!open) {
+            return
+        }
+
+        bodyRef.current?.scrollTo({
+            top: 0,
+            behavior: "auto",
+        })
+    }, [
+        currentIndex,
+        open,
+    ])
+
     useEffect(() => {
         if (
             !open ||
-            !nextTransaction ||
+            !suggestionPrefetchTarget ||
             organizationSettings
                 ?.autoFillClassificationSuggestions !==
             true
@@ -153,16 +204,16 @@ export function TransactionClassificationQueueDialog({
         void queryClient.prefetchQuery({
             queryKey: [
                 "classification-suggestion",
-                nextTransaction.id,
+                suggestionPrefetchTarget.id,
             ],
 
             queryFn: () =>
                 getClassificationSuggestion(
-                    nextTransaction.id,
+                    suggestionPrefetchTarget.id,
                 ),
         })
     }, [
-        nextTransaction,
+        suggestionPrefetchTarget,
         open,
         organizationSettings
             ?.autoFillClassificationSuggestions,
@@ -242,7 +293,7 @@ export function TransactionClassificationQueueDialog({
     }
 
     if (
-        !currentTransaction
+        transactions.length === 0
     ) {
         return null
     }
@@ -273,73 +324,112 @@ export function TransactionClassificationQueueDialog({
                     icon={
                         <ListChecks className="size-4 text-muted-foreground" />
                     }
-                    title="Classificação em sequência"
-                    description="Revise cada movimentação. Ao salvar, o FluxFund abre automaticamente a próxima."
+                    title={
+                        stage === "SETUP"
+                            ? "Preparar classificação"
+                            : "Classificação em sequência"
+                    }
+                    description={
+                        stage ===
+                            "SETUP"
+                            ? "Defina dados que podem ser usados como ponto de partida para todas as movimentações selecionadas."
+                            : "Revise cada movimentação. Ao salvar, o FluxFund abre automaticamente a próxima."
+                    }
                     aside={
                         <Badge variant="secondary">
-                            {currentIndex +
-                                1}{" "}
-                            de{" "}
-                            {
-                                transactions.length
-                            }
+                            {stage ===
+                                "SETUP"
+                                ? `${transactions.length} selecionadas`
+                                : `${currentIndex + 1} de ${transactions.length}`}
                         </Badge>
                     }
                 />
 
-                <AppDialogBody>
-                    <div className="mb-6 space-y-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                            <span className="font-medium">
-                                {
-                                    classifiedCount
-                                }{" "}
-                                classificadas
-                            </span>
+                <AppDialogBody
+                    ref={bodyRef}
+                >
+                    {stage ===
+                        "SETUP" ? (
+                        <TransactionClassificationQueueSetup
+                            transactions={
+                                transactions
+                            }
+                            onCancel={() =>
+                                handleOpenChange(
+                                    false,
+                                )
+                            }
+                            onStart={(
+                                nextPrefill,
+                            ) => {
+                                setPrefill(
+                                    nextPrefill,
+                                )
 
-                            <span className="text-muted-foreground">
-                                {
-                                    skippedCount
-                                }{" "}
-                                puladas
-                            </span>
-                        </div>
+                                setStage(
+                                    "REVIEW",
+                                )
+                            }}
+                        />
+                    ) : currentTransaction ? (
+                        <>
+                            <div className="mb-6 space-y-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                                    <span className="font-medium">
+                                        {
+                                            classifiedCount
+                                        }{" "}
+                                        classificadas
+                                    </span>
 
-                        <div className="h-2 overflow-hidden rounded-full bg-muted">
-                            <div
-                                className="h-full bg-primary transition-all"
-                                style={{
-                                    width:
-                                        `${progress}%`,
-                                }}
+                                    <span className="text-muted-foreground">
+                                        {
+                                            skippedCount
+                                        }{" "}
+                                        puladas
+                                    </span>
+                                </div>
+
+                                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                                    <div
+                                        className="h-full bg-primary transition-all"
+                                        style={{
+                                            width:
+                                                `${progress}%`,
+                                        }}
+                                    />
+                                </div>
+                            </div>
+
+                            <TransactionClassifyPanel
+                                key={
+                                    currentTransaction.id
+                                }
+                                transaction={
+                                    currentTransaction
+                                }
+                                enabled={
+                                    open
+                                }
+                                prefill={
+                                    prefill
+                                }
+                                onSaved={
+                                    handleSaved
+                                }
+                                onCancel={
+                                    handleSkip
+                                }
+                                cancelLabel={
+                                    currentIndex ===
+                                        transactions.length -
+                                        1
+                                        ? "Pular e finalizar"
+                                        : "Pular por agora"
+                                }
                             />
-                        </div>
-                    </div>
-
-                    <TransactionClassifyPanel
-                        key={
-                            currentTransaction.id
-                        }
-                        transaction={
-                            currentTransaction
-                        }
-                        enabled={
-                            open
-                        }
-                        onSaved={
-                            handleSaved
-                        }
-                        onCancel={
-                            handleSkip
-                        }
-                        cancelLabel={
-                            currentIndex ===
-                                transactions.length -
-                                1
-                                ? "Pular e finalizar"
-                                : "Pular por agora"
-                        }
-                    />
+                        </>
+                    ) : null}
                 </AppDialogBody>
             </AppDialogContent>
         </Dialog>

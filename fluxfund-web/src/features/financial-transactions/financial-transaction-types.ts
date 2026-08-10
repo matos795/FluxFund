@@ -250,3 +250,14 @@ export type BulkCancelFinancialTransactionsResponse = {
   canceledCount:
   number
 }
+
+export type TransactionClassificationPrefill = {
+  categoryId?: string
+  description?: string
+
+  allocation?: {
+    fundId: string
+    sourcePartyId?: string
+    recipientPartyId?: string
+  }
+}

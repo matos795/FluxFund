@@ -19,7 +19,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 
-import type { FinancialTransaction } from "../financial-transaction-types";
+import type { FinancialTransaction, TransactionClassificationPrefill } from "../financial-transaction-types";
 import { useClassifyFinancialTransaction } from "../hooks/use-classify-financial-transaction";
 import type { AttachmentType } from "@/features/attachments/attachment-types";
 import { useUploadAttachment } from "@/features/attachments/hooks/use-upload-attachment";
@@ -73,7 +73,57 @@ type TransactionClassifyPanelProps = {
     onSaved?: () => void;
     onCancel?: () => void;
     cancelLabel?: string;
+    prefill?: TransactionClassificationPrefill
 };
+
+function buildPrefillAllocations(
+    transaction: FinancialTransaction,
+    prefill?: TransactionClassificationPrefill
+): AllocationFormItem[] {
+
+    const allocation = prefill?.allocation
+
+    if (
+        !allocation?.fundId ||
+        transaction.type ===
+        "TRANSFER"
+    ) {
+        return []
+    }
+
+    const referenceDate =
+        transaction.purchaseDate ??
+        transaction.settlementDate ??
+        transaction.dueDate ??
+        ""
+
+    const amount =
+        Math.abs(
+            transaction.settledAmount ??
+            transaction.expectedAmount ??
+            0,
+        )
+
+    return [
+        {
+            fundId: allocation.fundId,
+
+            sourcePartyId:
+                transaction.type === "INCOME"
+                    ? allocation.sourcePartyId ?? ""
+                    : "",
+
+            recipientPartyId: allocation.recipientPartyId ?? "",
+
+            referenceMonth:
+                referenceDate ? referenceDate.slice(0, 7) : "",
+
+            amount: String(amount),
+
+            financialCommitmentId: "",
+        },
+    ]
+}
 
 export function TransactionClassifyPanel({
     transaction,
@@ -81,6 +131,7 @@ export function TransactionClassifyPanel({
     onSaved,
     onCancel,
     cancelLabel = "Cancelar",
+    prefill,
 }: TransactionClassifyPanelProps) {
 
     const isCreditCardItem =
@@ -90,8 +141,16 @@ export function TransactionClassifyPanel({
     const dialogOpen = enabled;
 
     const [type, setType] = useState(transaction.type);
-    const [categoryId, setCategoryId] = useState(transaction.category?.id ?? "");
-    const [description, setDescription] = useState(transaction.description ?? "");
+    const [categoryId, setCategoryId] = useState(prefill?.categoryId ??
+        transaction.category?.id ?? "")
+    const [
+        description,
+        setDescription,
+    ] = useState(
+        prefill?.description ??
+        transaction.description ??
+        "",
+    )
 
     const [fiscalDocumentPolicy, setFiscalDocumentPolicy] = useState(
         transaction.fiscalDocumentPolicy ?? "CATEGORY",
@@ -115,7 +174,9 @@ export function TransactionClassifyPanel({
         ),
     );
 
-    const [allocations, setAllocations] = useState<AllocationFormItem[]>([]);
+    const [allocations, setAllocations] = useState<AllocationFormItem[]>(
+        () => buildPrefillAllocations(transaction, prefill),
+    )
 
     const [pendingAttachments, setPendingAttachments] = useState<
         PendingAttachmentItem[]
@@ -674,6 +735,12 @@ export function TransactionClassifyPanel({
         }
     }
 
+    const hasPrefilledCategory = Boolean(prefill?.categoryId)
+
+    const hasPrefilledDescription = Boolean(prefill?.description?.trim())
+
+    const hasPrefilledAllocation = Boolean(prefill?.allocation?.fundId)
+
     useEffect(() => {
         if (!dialogOpen) {
             return;
@@ -682,8 +749,16 @@ export function TransactionClassifyPanel({
         const resetForm = () => {
             hasManualChangesRef.current = false;
             setType(transaction.type);
-            setCategoryId(transaction.category?.id ?? "");
-            setDescription(transaction.description ?? "");
+            setCategoryId(
+                prefill?.categoryId ??
+                transaction.category?.id ??
+                "",
+            )
+            setDescription(
+                prefill?.description ??
+                transaction.description ??
+                "",
+            )
             setSettlementDate(transaction.settlementDate ?? "");
             setSettledAmount(
                 String(
@@ -694,7 +769,7 @@ export function TransactionClassifyPanel({
             );
             setFiscalDocumentPolicy(transaction.fiscalDocumentPolicy ?? "CATEGORY");
             setFiscalDocumentNote(transaction.fiscalDocumentNote ?? "");
-            setAllocations([]);
+            setAllocations(buildPrefillAllocations(transaction, prefill))
             setPendingAttachments([]);
             setTransferDirection(
                 transaction.transferDirection ??
@@ -711,17 +786,8 @@ export function TransactionClassifyPanel({
         return () => window.clearTimeout(timeoutId);
     }, [
         dialogOpen,
-        transaction.id,
-        transaction.type,
-        transaction.category?.id,
-        transaction.description,
-        transaction.settlementDate,
-        transaction.settledAmount,
-        transaction.expectedAmount,
-        transaction.fiscalDocumentPolicy,
-        transaction.fiscalDocumentNote,
-        transaction.transferDirection,
-        transaction.transferCounterpartyAccount?.id,
+        prefill,
+        transaction,
     ]);
 
     useEffect(() => {
@@ -752,30 +818,110 @@ export function TransactionClassifyPanel({
 
             appliedSuggestionKeyRef.current = suggestionKey;
             setType(suggestion.type!);
-            setCategoryId(suggestion.category!.id);
 
-            if (!description.trim() && suggestion.description) {
-                setDescription(suggestion.description);
+            if (!hasPrefilledCategory) {
+                setCategoryId(suggestion.category!.id)
+            }
+
+            if (!hasPrefilledDescription && !description.trim() && suggestion.description) {
+                setDescription(suggestion.description)
             }
 
             const defaultReferenceMonth = settlementDate
                 ? settlementDate.slice(0, 7)
                 : "";
 
-            setAllocations(
-                suggestion.allocations.map(
-                    (allocation) => ({
-                        fundId: allocation.fund.id,
-                        sourcePartyId: allocation.sourceParty?.id ?? "",
-                        recipientPartyId: allocation.recipientParty?.id ?? allocation.beneficiary?.id ?? "",
-                        referenceMonth: defaultReferenceMonth,
-                        amount: String(Math.abs(Number(allocation.amount))),
-                        financialCommitmentId: "",
-                    }),
-                ),
-            );
+            if (
+                !hasPrefilledAllocation
+            ) {
+                setAllocations(
+                    suggestion.allocations.map(
+                        (allocation) => ({
+                            fundId:
+                                allocation
+                                    .fund
+                                    .id,
+
+                            sourcePartyId:
+                                allocation
+                                    .sourceParty
+                                    ?.id ??
+                                "",
+
+                            recipientPartyId:
+                                allocation
+                                    .recipientParty
+                                    ?.id ??
+                                allocation
+                                    .beneficiary
+                                    ?.id ??
+                                "",
+
+                            referenceMonth:
+                                defaultReferenceMonth,
+
+                            amount:
+                                String(
+                                    Math.abs(
+                                        Number(
+                                            allocation.amount,
+                                        ),
+                                    ),
+                                ),
+
+                            financialCommitmentId:
+                                "",
+                        }),
+                    ),
+                )
+            }
+
+            if (
+                hasPrefilledAllocation &&
+                suggestion.allocations.length ===
+                1
+            ) {
+                const historicalAllocation =
+                    suggestion.allocations[0]
+
+                setAllocations(
+                    (current) =>
+                        current.map(
+                            (
+                                allocation,
+                                index,
+                            ) =>
+                                index ===
+                                    0
+                                    ? {
+                                        ...allocation,
+
+                                        sourcePartyId:
+                                            allocation
+                                                .sourcePartyId ||
+                                            historicalAllocation
+                                                .sourceParty
+                                                ?.id ||
+                                            "",
+
+                                        recipientPartyId:
+                                            allocation
+                                                .recipientPartyId ||
+                                            historicalAllocation
+                                                .recipientParty
+                                                ?.id ||
+                                            historicalAllocation
+                                                .beneficiary
+                                                ?.id ||
+                                            "",
+                                    }
+                                    : allocation,
+                        ),
+                )
+            }
+
             toast.info(
-                "Sugestão aplicada com base no histórico. Categoria, fundos e contatos foram preenchidos para revisão.",
+                "Sugestão histórica usada para completar os campos que ainda estavam sem pré-preenchimento. Revise antes de salvar.",
             )
         }, 0);
 
@@ -785,6 +931,9 @@ export function TransactionClassifyPanel({
         classificationSuggestionQuery.data,
         description,
         dialogOpen,
+        hasPrefilledAllocation,
+        hasPrefilledCategory,
+        hasPrefilledDescription,
         settlementDate,
         transaction.id,
     ]);
