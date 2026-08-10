@@ -196,6 +196,7 @@ export function TransactionWorkspaceDialog({
                                     transaction={transaction}
                                     enabled={open && safeActiveTab === "classify"}
                                     onSaved={() => onOpenChange(false)}
+                                    onCancel={() => onOpenChange(false)}
                                 />
                             </TabsContent>
                         )}

@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     AlertTriangle,
     ArrowRightLeft,
@@ -19,7 +19,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 
-import type { FinancialTransaction } from "../financial-transaction-types";
+import type { FinancialTransaction, FinancialTransactionClassificationSuggestion, TransactionClassificationPrefill } from "../financial-transaction-types";
 import { useClassifyFinancialTransaction } from "../hooks/use-classify-financial-transaction";
 import type { AttachmentType } from "@/features/attachments/attachment-types";
 import { useUploadAttachment } from "@/features/attachments/hooks/use-upload-attachment";
@@ -51,6 +51,7 @@ import { FinancialPartyCombobox } from "@/features/financial-parties/components/
 import type { FinancialCommitmentAllocationSuggestion } from "@/features/financial-commitments/financial-commitment-types";
 import { FinancialCommitmentAllocationCard } from "@/features/financial-commitments/components/financial-commitment-allocation-card";
 import { SupportAgreementSuggestionCard } from "@/features/support-agreements/components/support-agreement-suggestion-card";
+import { ClassificationSuggestionCard } from "./classification-suggestion-card";
 
 type AllocationFormItem = {
     fundId: string;
@@ -71,12 +72,67 @@ type TransactionClassifyPanelProps = {
     transaction: FinancialTransaction;
     enabled?: boolean;
     onSaved?: () => void;
+    onCancel?: () => void;
+    cancelLabel?: string;
+    prefill?: TransactionClassificationPrefill
 };
+
+function buildPrefillAllocations(
+    transaction: FinancialTransaction,
+    prefill?: TransactionClassificationPrefill
+): AllocationFormItem[] {
+
+    const allocation = prefill?.allocation
+
+    if (
+        !allocation?.fundId ||
+        transaction.type ===
+        "TRANSFER"
+    ) {
+        return []
+    }
+
+    const referenceDate =
+        transaction.purchaseDate ??
+        transaction.settlementDate ??
+        transaction.dueDate ??
+        ""
+
+    const amount =
+        Math.abs(
+            transaction.settledAmount ??
+            transaction.expectedAmount ??
+            0,
+        )
+
+    return [
+        {
+            fundId: allocation.fundId,
+
+            sourcePartyId:
+                transaction.type === "INCOME"
+                    ? allocation.sourcePartyId ?? ""
+                    : "",
+
+            recipientPartyId: allocation.recipientPartyId ?? "",
+
+            referenceMonth:
+                referenceDate ? referenceDate.slice(0, 7) : "",
+
+            amount: String(amount),
+
+            financialCommitmentId: "",
+        },
+    ]
+}
 
 export function TransactionClassifyPanel({
     transaction,
     enabled = true,
     onSaved,
+    onCancel,
+    cancelLabel = "Cancelar",
+    prefill,
 }: TransactionClassifyPanelProps) {
 
     const isCreditCardItem =
@@ -86,8 +142,16 @@ export function TransactionClassifyPanel({
     const dialogOpen = enabled;
 
     const [type, setType] = useState(transaction.type);
-    const [categoryId, setCategoryId] = useState(transaction.category?.id ?? "");
-    const [description, setDescription] = useState(transaction.description ?? "");
+    const [categoryId, setCategoryId] = useState(prefill?.categoryId ??
+        transaction.category?.id ?? "")
+    const [
+        description,
+        setDescription,
+    ] = useState(
+        prefill?.description ??
+        transaction.description ??
+        "",
+    )
 
     const [fiscalDocumentPolicy, setFiscalDocumentPolicy] = useState(
         transaction.fiscalDocumentPolicy ?? "CATEGORY",
@@ -111,7 +175,9 @@ export function TransactionClassifyPanel({
         ),
     );
 
-    const [allocations, setAllocations] = useState<AllocationFormItem[]>([]);
+    const [allocations, setAllocations] = useState<AllocationFormItem[]>(
+        () => buildPrefillAllocations(transaction, prefill),
+    )
 
     const [pendingAttachments, setPendingAttachments] = useState<
         PendingAttachmentItem[]
@@ -138,12 +204,23 @@ export function TransactionClassifyPanel({
 
     const autoFillEnabled = settings?.autoFillClassificationSuggestions === true;
 
-    const classificationSuggestionQuery = useClassificationSuggestion(
-        transaction.id,
-        {
-            enabled: dialogOpen && autoFillEnabled && !transaction.category,
-        },
-    );
+    const [
+        appliedHistoricalSuggestionKey,
+        setAppliedHistoricalSuggestionKey,
+    ] =
+        useState<string | null>(
+            null,
+        )
+
+    const classificationSuggestionQuery =
+        useClassificationSuggestion(
+            transaction.id,
+            {
+                enabled:
+                    dialogOpen &&
+                    !transaction.category,
+            },
+        )
 
     const appliedSuggestionKeyRef = useRef<string | null>(null);
 
@@ -206,6 +283,19 @@ export function TransactionClassifyPanel({
     const remainingAmount = fromCents(
         formatCents(amountNumber) - formatCents(totalAllocated),
     );
+
+    const historicalSuggestionKey =
+        classificationSuggestionQuery
+            .data
+            ?.basedOnTransactionId
+            ? `${transaction.id}:${classificationSuggestionQuery.data.basedOnTransactionId}`
+            : null
+
+    const historicalSuggestionApplied =
+        historicalSuggestionKey !==
+        null &&
+        appliedHistoricalSuggestionKey ===
+        historicalSuggestionKey
 
     function handleAddAllocation() {
         markAsManuallyEdited();
@@ -670,6 +760,183 @@ export function TransactionClassifyPanel({
         }
     }
 
+    const hasPrefilledCategory = Boolean(prefill?.categoryId)
+
+    const hasPrefilledDescription = Boolean(prefill?.description?.trim())
+
+    const hasPrefilledAllocation = Boolean(prefill?.allocation?.fundId)
+
+    const applyHistoricalSuggestion =
+        useCallback(
+            (
+                suggestion:
+                    FinancialTransactionClassificationSuggestion,
+            ) => {
+
+                if (
+                    !suggestion.available ||
+                    !suggestion.type ||
+                    !suggestion.category
+                ) {
+                    return
+                }
+
+                const suggestionKey =
+                    `${transaction.id}:${suggestion.basedOnTransactionId}`
+
+                appliedSuggestionKeyRef.current =
+                    suggestionKey
+
+                setAppliedHistoricalSuggestionKey(
+                    suggestionKey,
+                )
+
+                setType(
+                    suggestion.type,
+                )
+
+                if (
+                    !hasPrefilledCategory
+                ) {
+                    setCategoryId(
+                        suggestion
+                            .category
+                            .id,
+                    )
+                }
+
+                if (
+                    !hasPrefilledDescription &&
+                    !description.trim() &&
+                    suggestion.description
+                ) {
+                    setDescription(
+                        suggestion.description,
+                    )
+                }
+
+                if (
+                    suggestion.type === "EXPENSE" &&
+                    suggestion.fiscalDocumentPolicy
+                ) {
+                    setFiscalDocumentPolicy(
+                        suggestion.fiscalDocumentPolicy,
+                    )
+
+                    setFiscalDocumentNote(
+                        suggestion.fiscalDocumentNote ?? "",
+                    )
+                }
+
+                const defaultReferenceMonth =
+                    settlementDate
+                        ? settlementDate.slice(
+                            0,
+                            7,
+                        )
+                        : ""
+
+                if (
+                    !hasPrefilledAllocation
+                ) {
+                    setAllocations(
+                        suggestion.allocations.map(
+                            allocation => ({
+                                fundId:
+                                    allocation
+                                        .fund
+                                        .id,
+
+                                sourcePartyId:
+                                    allocation
+                                        .sourceParty
+                                        ?.id ??
+                                    "",
+
+                                recipientPartyId:
+                                    allocation
+                                        .recipientParty
+                                        ?.id ??
+                                    allocation
+                                        .beneficiary
+                                        ?.id ??
+                                    "",
+
+                                referenceMonth:
+                                    defaultReferenceMonth,
+
+                                amount:
+                                    String(
+                                        Math.abs(
+                                            Number(
+                                                allocation.amount,
+                                            ),
+                                        ),
+                                    ),
+
+                                financialCommitmentId:
+                                    "",
+                            }),
+                        ),
+                    )
+                }
+
+                if (
+                    hasPrefilledAllocation &&
+                    suggestion.allocations
+                        .length ===
+                    1
+                ) {
+                    const historicalAllocation =
+                        suggestion
+                            .allocations[0]
+
+                    setAllocations(
+                        current =>
+                            current.map(
+                                (
+                                    allocation,
+                                    index,
+                                ) =>
+                                    index ===
+                                        0
+                                        ? {
+                                            ...allocation,
+
+                                            sourcePartyId:
+                                                allocation
+                                                    .sourcePartyId ||
+                                                historicalAllocation
+                                                    .sourceParty
+                                                    ?.id ||
+                                                "",
+
+                                            recipientPartyId:
+                                                allocation
+                                                    .recipientPartyId ||
+                                                historicalAllocation
+                                                    .recipientParty
+                                                    ?.id ||
+                                                historicalAllocation
+                                                    .beneficiary
+                                                    ?.id ||
+                                                "",
+                                        }
+                                        : allocation,
+                            ),
+                    )
+                }
+            },
+            [
+                description,
+                hasPrefilledAllocation,
+                hasPrefilledCategory,
+                hasPrefilledDescription,
+                settlementDate,
+                transaction.id,
+            ],
+        )
+
     useEffect(() => {
         if (!dialogOpen) {
             return;
@@ -678,8 +945,16 @@ export function TransactionClassifyPanel({
         const resetForm = () => {
             hasManualChangesRef.current = false;
             setType(transaction.type);
-            setCategoryId(transaction.category?.id ?? "");
-            setDescription(transaction.description ?? "");
+            setCategoryId(
+                prefill?.categoryId ??
+                transaction.category?.id ??
+                "",
+            )
+            setDescription(
+                prefill?.description ??
+                transaction.description ??
+                "",
+            )
             setSettlementDate(transaction.settlementDate ?? "");
             setSettledAmount(
                 String(
@@ -690,7 +965,7 @@ export function TransactionClassifyPanel({
             );
             setFiscalDocumentPolicy(transaction.fiscalDocumentPolicy ?? "CATEGORY");
             setFiscalDocumentNote(transaction.fiscalDocumentNote ?? "");
-            setAllocations([]);
+            setAllocations(buildPrefillAllocations(transaction, prefill))
             setPendingAttachments([]);
             setTransferDirection(
                 transaction.transferDirection ??
@@ -701,89 +976,86 @@ export function TransactionClassifyPanel({
                 transaction.transferCounterpartyAccount?.id ?? "",
             );
             setSelectedTransferMatchId("");
+            setAppliedHistoricalSuggestionKey(null)
         };
 
         const timeoutId = window.setTimeout(resetForm, 0);
         return () => window.clearTimeout(timeoutId);
     }, [
         dialogOpen,
-        transaction.id,
-        transaction.type,
-        transaction.category?.id,
-        transaction.description,
-        transaction.settlementDate,
-        transaction.settledAmount,
-        transaction.expectedAmount,
-        transaction.fiscalDocumentPolicy,
-        transaction.fiscalDocumentNote,
-        transaction.transferDirection,
-        transaction.transferCounterpartyAccount?.id,
+        prefill,
+        transaction,
     ]);
 
     useEffect(() => {
-        if (!dialogOpen || !autoFillEnabled) {
-            return;
+
+        if (
+            !dialogOpen ||
+            !autoFillEnabled
+        ) {
+            return
         }
 
-        const suggestion = classificationSuggestionQuery.data;
+        const suggestion =
+            classificationSuggestionQuery.data
 
-        if (!suggestion?.available || !suggestion.type || !suggestion.category) {
-            return;
+        if (
+            !suggestion?.available ||
+            suggestion.confidence !==
+            "HIGH"
+        ) {
+            return
         }
 
-        if (hasManualChangesRef.current) {
-            return;
+        if (
+            hasManualChangesRef.current
+        ) {
+            return
         }
 
-        const suggestionKey = `${transaction.id}:${suggestion.basedOnTransactionId}`;
+        const suggestionKey =
+            `${transaction.id}:${suggestion.basedOnTransactionId}`
 
-        if (appliedSuggestionKeyRef.current === suggestionKey) {
-            return;
+        if (
+            appliedSuggestionKeyRef.current ===
+            suggestionKey
+        ) {
+            return
         }
 
-        const timeoutId = window.setTimeout(() => {
-            if (hasManualChangesRef.current) {
-                return;
-            }
+        const timeoutId =
+            window.setTimeout(
+                () => {
 
-            appliedSuggestionKeyRef.current = suggestionKey;
-            setType(suggestion.type!);
-            setCategoryId(suggestion.category!.id);
+                    if (
+                        hasManualChangesRef.current
+                    ) {
+                        return
+                    }
 
-            if (!description.trim() && suggestion.description) {
-                setDescription(suggestion.description);
-            }
+                    applyHistoricalSuggestion(
+                        suggestion,
+                    )
 
-            const defaultReferenceMonth = settlementDate
-                ? settlementDate.slice(0, 7)
-                : "";
-
-            setAllocations(
-                suggestion.allocations.map(
-                    (allocation) => ({
-                        fundId: allocation.fund.id,
-                        sourcePartyId: allocation.sourceParty?.id ?? "",
-                        recipientPartyId: allocation.recipientParty?.id ?? allocation.beneficiary?.id ?? "",
-                        referenceMonth: defaultReferenceMonth,
-                        amount: String(Math.abs(Number(allocation.amount))),
-                        financialCommitmentId: "",
-                    }),
-                ),
-            );
-            toast.info(
-                "Sugestão aplicada com base no histórico. Categoria, fundos e contatos foram preenchidos para revisão.",
+                    toast.info(
+                        "Sugestão de alta confiança pré-preenchida pelo histórico. Revise antes de salvar.",
+                    )
+                },
+                0,
             )
-        }, 0);
 
-        return () => window.clearTimeout(timeoutId);
+        return () =>
+            window.clearTimeout(
+                timeoutId,
+            )
+
     }, [
+        applyHistoricalSuggestion,
         autoFillEnabled,
         classificationSuggestionQuery.data,
-        description,
         dialogOpen,
-        settlementDate,
         transaction.id,
-    ]);
+    ])
 
     function handlePairTransfer() {
         if (!currentTransferMatchId) {
@@ -860,6 +1132,41 @@ export function TransactionClassifyPanel({
                         "Sem descrição original"}
                 </p>
             </div>
+
+            {!historicalSuggestionApplied &&
+                classificationSuggestionQuery
+                    .data
+                    ?.available && (
+                    <ClassificationSuggestionCard
+                        suggestion={
+                            classificationSuggestionQuery
+                                .data
+                        }
+                        autoFillEnabled={
+                            autoFillEnabled
+                        }
+                        onApply={() => {
+                            const suggestion =
+                                classificationSuggestionQuery
+                                    .data
+
+                            if (!suggestion) {
+                                return
+                            }
+
+                            hasManualChangesRef.current =
+                                true
+
+                            applyHistoricalSuggestion(
+                                suggestion,
+                            )
+
+                            toast.info(
+                                "Sugestão aplicada ao formulário. Revise antes de salvar.",
+                            )
+                        }}
+                    />
+                )}
 
             {transferMatchQuery.data?.available && (
                 <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
@@ -1595,9 +1902,19 @@ export function TransactionClassifyPanel({
             )}
 
             <div className="flex justify-end gap-2 border-t pt-4">
-                <Button type="button" variant="outline" onClick={() => { }}>
-                    Cancelar
-                </Button>
+                {onCancel && (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        disabled={
+                            classifyTransaction.isPending ||
+                            uploadAttachmentMutation.isPending
+                        }
+                        onClick={onCancel}
+                    >
+                        {cancelLabel}
+                    </Button>
+                )}
 
                 <Button
                     type="submit"

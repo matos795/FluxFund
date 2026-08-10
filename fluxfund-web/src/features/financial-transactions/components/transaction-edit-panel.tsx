@@ -92,7 +92,6 @@ export function TransactionEditPanel({
                     fiscalDocumentNote: transaction.fiscalDocumentNote ?? "",
                 }}
                 disableAccountField
-                showFiscalDocumentPolicy={false}
                 submitLabel="Salvar alterações"
                 onSubmit={handleUpdateFinancialTransaction}
                 isSubmitting={updateFinancialTransactionMutation.isPending}

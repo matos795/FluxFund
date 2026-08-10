@@ -216,6 +216,24 @@ export type ClassificationSuggestionAllocation = {
   | "SUPPORT_AGREEMENT"
 }
 
+export type ClassificationSuggestionConfidence =
+  | "HIGH"
+  | "MEDIUM"
+  | "LOW"
+
+export type ClassificationSuggestionEvidence = {
+  historyCount: number
+  categoryMatchCount: number
+  categoryAgreementPercent: number
+  allocationHistoryCount: number
+  allocationMatchCount: number
+  allocationAgreementPercent: number
+  historyDates: string[]
+  documentPolicyHistoryCount: number
+  documentPolicyMatchCount: number
+  documentPolicyAgreementPercent: number
+}
+
 export type FinancialTransactionClassificationSuggestion = {
   available: boolean
   source: "HISTORY" | null
@@ -223,7 +241,11 @@ export type FinancialTransactionClassificationSuggestion = {
   type: "INCOME" | "EXPENSE" | "TRANSFER" | null
   category: CategorySummary | null
   description: string | null
+  fiscalDocumentPolicy: FiscalDocumentPolicy | null
+  fiscalDocumentNote: string | null
   allocations: ClassificationSuggestionAllocation[]
+  confidence: ClassificationSuggestionConfidence | null
+  evidence: ClassificationSuggestionEvidence | null
 }
 
 export type TransferMatchCandidate = {
@@ -239,4 +261,25 @@ export type TransferMatchSuggestion = {
   available: boolean
   suggestedDirection: TransferDirection | null
   candidates: TransferMatchCandidate[]
+}
+
+export type BulkCancelFinancialTransactionsRequest = {
+  transactionIds:
+  string[]
+}
+
+export type BulkCancelFinancialTransactionsResponse = {
+  canceledCount:
+  number
+}
+
+export type TransactionClassificationPrefill = {
+  categoryId?: string
+  description?: string
+
+  allocation?: {
+    fundId: string
+    sourcePartyId?: string
+    recipientPartyId?: string
+  }
 }

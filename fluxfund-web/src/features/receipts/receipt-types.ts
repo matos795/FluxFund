@@ -199,6 +199,9 @@ export type ReceiptDraftSource = {
     sourceType:
     ReceiptSourceType
 
+    defaultDirection?:
+    ReceiptDirection
+
     financialTransactionId?:
     string
 

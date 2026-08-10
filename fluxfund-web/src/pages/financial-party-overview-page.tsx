@@ -72,6 +72,7 @@ import {
     formatDate,
     formatReferenceMonth,
 } from "@/utils/formatters"
+import { formatPhone } from "@/utils/input-masks"
 
 const activityRoleLabels = {
     INCOME_SOURCE:
@@ -290,8 +291,9 @@ export function FinancialPartyOverviewPage() {
                                 Phone
                             }
                             value={
-                                party.phone ||
-                                "Telefone não informado"
+                                party.phone
+                                    ? formatPhone(party.phone)
+                                    : "Telefone não informado"
                             }
                         />
 

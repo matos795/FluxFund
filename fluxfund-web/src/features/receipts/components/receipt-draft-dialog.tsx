@@ -71,7 +71,10 @@ import {
 } from "@/utils/api-error"
 
 import {
+  incomingReceiptTypes,
   isIncomingReceiptType,
+  outgoingReceiptTypes,
+  receiptDirectionLabels,
   receiptSourceTypeLabels,
   receiptTypeLabels,
 } from "../receipt-labels"
@@ -84,6 +87,7 @@ import {
 import type {
   CreateReceiptDraftRequest,
   Receipt,
+  ReceiptDirection,
   ReceiptDraftSource,
   ReceiptType,
 } from "../receipt-types"
@@ -92,6 +96,7 @@ import {
   useReceiptMutations,
 } from "../hooks/use-receipt-mutations"
 import { EntityCombobox } from "@/components/form/entity-combobox"
+import { formatCpfOrCnpj } from "@/utils/input-masks"
 
 type Props = {
   open: boolean
@@ -132,6 +137,9 @@ function buildDefaultValues({
     return {
       sourceType:
         receipt.sourceType,
+
+      direction:
+        receipt.direction,
 
       financialTransactionId:
         receipt.financialTransactionId ??
@@ -229,8 +237,33 @@ function buildDefaultValues({
     source?.sourceType ??
     "MANUAL"
 
+  const direction:
+    ReceiptDirection =
+    source?.defaultDirection ??
+    (
+      source?.defaultReceiptType
+        ? isIncomingReceiptType(
+          source.defaultReceiptType,
+        )
+          ? "RECEIVED_BY_ORGANIZATION"
+          : "PAID_BY_ORGANIZATION"
+        : "RECEIVED_BY_ORGANIZATION"
+    )
+
+  const defaultReceiptType:
+    ReceiptType =
+    source?.defaultReceiptType ??
+    (
+      direction ===
+        "RECEIVED_BY_ORGANIZATION"
+        ? "DONATION"
+        : "OTHER_PAYMENT"
+    )
+
   return {
     sourceType,
+
+    direction,
 
     financialTransactionId:
       source?.financialTransactionId ??
@@ -241,8 +274,7 @@ function buildDefaultValues({
       "",
 
     receiptType:
-      source?.defaultReceiptType ??
-      "DONATION",
+      defaultReceiptType,
 
     amount:
       source?.defaultAmount,
@@ -325,6 +357,7 @@ export function ReceiptDraftDialog({
     control,
     handleSubmit,
     reset,
+    setValue,
     formState: {
       errors,
     },
@@ -360,11 +393,11 @@ export function ReceiptDraftDialog({
     source,
   ])
 
-  const receiptType =
+  const direction =
     useWatch({
       control,
       name:
-        "receiptType",
+        "direction",
     })
 
   const sourceType =
@@ -389,9 +422,13 @@ export function ReceiptDraftDialog({
     })
 
   const incoming =
-    isIncomingReceiptType(
-      receiptType,
-    )
+    direction ===
+    "RECEIVED_BY_ORGANIZATION"
+
+  const availableReceiptTypes =
+    incoming
+      ? incomingReceiptTypes
+      : outgoingReceiptTypes
 
   const isSubmitting =
     createMutation.isPending ||
@@ -626,6 +663,90 @@ export function ReceiptDraftDialog({
           </div>
 
           <section className="grid gap-4 md:grid-cols-2">
+
+            <Field label="Movimentação">
+              {sourceType ===
+                "MANUAL" ? (
+                <Controller
+                  control={
+                    control
+                  }
+                  name="direction"
+                  render={({
+                    field,
+                  }) => (
+                    <Select
+                      value={
+                        field.value
+                      }
+                      onValueChange={(
+                        value,
+                      ) => {
+                        const nextDirection =
+                          value as
+                          ReceiptDirection
+
+                        field.onChange(
+                          nextDirection,
+                        )
+
+                        setValue(
+                          "receiptType",
+                          nextDirection ===
+                            "RECEIVED_BY_ORGANIZATION"
+                            ? "DONATION"
+                            : "OTHER_PAYMENT",
+                          {
+                            shouldDirty:
+                              true,
+
+                            shouldValidate:
+                              true,
+                          },
+                        )
+
+                        if (
+                          nextDirection ===
+                          "PAID_BY_ORGANIZATION"
+                        ) {
+                          setValue(
+                            "beneficiaryMode",
+                            "NONE",
+                            {
+                              shouldDirty:
+                                true,
+                            },
+                          )
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a movimentação" />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        <SelectItem value="RECEIVED_BY_ORGANIZATION">
+                          Valor recebido
+                        </SelectItem>
+
+                        <SelectItem value="PAID_BY_ORGANIZATION">
+                          Valor pago
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              ) : (
+                <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">
+                  {
+                    receiptDirectionLabels[
+                    direction
+                    ]
+                  }
+                </div>
+              )}
+            </Field>
+
             <Field label="Tipo do recibo">
               <Controller
                 control={
@@ -640,22 +761,18 @@ export function ReceiptDraftDialog({
                       field.value
                     }
                     options={
-                      (
-                        Object.keys(
-                          receiptTypeLabels,
-                        ) as
-                        ReceiptType[]
-                      ).map(
-                        (type) => ({
-                          value:
-                            type,
+                      availableReceiptTypes
+                        .map(
+                          (type) => ({
+                            value:
+                              type,
 
-                          label:
-                            receiptTypeLabels[
-                            type
-                            ],
-                        }),
-                      )
+                            label:
+                              receiptTypeLabels[
+                              type
+                              ],
+                          }),
+                        )
                     }
                     placeholder="Selecione o tipo"
                     searchPlaceholder="Buscar tipo de recibo..."
@@ -833,9 +950,39 @@ export function ReceiptDraftDialog({
                   </Field>
 
                   <Field label="CPF ou CNPJ">
-                    <Input
-                      {...register(
-                        "counterpartyDocument",
+                    <Controller
+                      control={
+                        control
+                      }
+                      name="counterpartyDocument"
+                      render={({
+                        field,
+                      }) => (
+                        <Input
+                          ref={
+                            field.ref
+                          }
+                          name={
+                            field.name
+                          }
+                          value={formatCpfOrCnpj(
+                            field.value ?? "",
+                          )}
+                          inputMode="numeric"
+                          placeholder="CPF ou CNPJ"
+                          onBlur={
+                            field.onBlur
+                          }
+                          onChange={(
+                            event,
+                          ) =>
+                            field.onChange(
+                              formatCpfOrCnpj(
+                                event.target.value,
+                              ),
+                            )
+                          }
+                        />
                       )}
                     />
                   </Field>
@@ -947,9 +1094,39 @@ export function ReceiptDraftDialog({
                     </Field>
 
                     <Field label="CPF ou CNPJ">
-                      <Input
-                        {...register(
-                          "beneficiaryDocument",
+                      <Controller
+                        control={
+                          control
+                        }
+                        name="beneficiaryDocument"
+                        render={({
+                          field,
+                        }) => (
+                          <Input
+                            ref={
+                              field.ref
+                            }
+                            name={
+                              field.name
+                            }
+                            value={formatCpfOrCnpj(
+                              field.value ?? "",
+                            )}
+                            inputMode="numeric"
+                            placeholder="CPF ou CNPJ"
+                            onBlur={
+                              field.onBlur
+                            }
+                            onChange={(
+                              event,
+                            ) =>
+                              field.onChange(
+                                formatCpfOrCnpj(
+                                  event.target.value,
+                                ),
+                              )
+                            }
+                          />
                         )}
                       />
                     </Field>

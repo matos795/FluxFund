@@ -17,6 +17,14 @@ import { needsFinancialTransactionClassification } from "@/features/financial-tr
 import { TransactionWorkspaceDialog } from "@/features/financial-transactions/components/transaction-workspace-dialog"
 import { ImportFinancialTransactionsDialog } from "@/features/financial-transactions/components/import-financial-transactions-dialog"
 import type { DateRangeValue } from "@/components/filters/date-range-presets"
+import { ListChecks, Trash2, X } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { useBulkCancelFinancialTransactions } from "@/features/financial-transactions/hooks/use-bulk-cancel-financial-transactions"
+import { getApiErrorMessage } from "@/utils/api-error"
+import { toast } from "sonner"
+import { ConfirmActionDialog } from "@/components/layout/confirm-action-dialog"
+import type { FinancialTransaction } from "@/features/financial-transactions/financial-transaction-types"
+import { TransactionClassificationQueueDialog } from "@/features/financial-transactions/components/transaction-classification-queue-dialog"
 
 
 const ALL_SETTLEMENT_DATE_PERIOD: DateRangeValue = {
@@ -80,9 +88,23 @@ export function TransactionsPage() {
   }, [actionTransactionId, safeResolvedAction])
 
   const [page, setPage] = useState(0)
+  const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(() => new Set())
   const [size, setSize] = useState(10)
   const [sort, setSort] = useState("settlementDate,desc")
   const [fundId, setFundId] = useState(searchParams.get("fundId") ?? "")
+
+  const [
+    bulkCancelDialogOpen,
+    setBulkCancelDialogOpen,
+  ] = useState(
+    false,
+  )
+
+  const [classificationQueueOpen, setClassificationQueueOpen] = useState(false)
+  const [classificationQueue, setClassificationQueue] = useState<FinancialTransaction[]>([])
+
+  const bulkCancelMutation =
+    useBulkCancelFinancialTransactions()
 
   const [type, setType] = useState(searchParams.get("type") ?? "")
   const [status, setStatus] = useState(searchParams.get("status") ?? "")
@@ -141,6 +163,33 @@ export function TransactionsPage() {
       id: actionTransactionId,
     })
 
+  const selectedTransactions =
+    data?.content.filter(
+      (transaction) =>
+        selectedTransactionIds.has(
+          transaction.id,
+        ),
+    ) ?? []
+
+  const selectedClassifiableTransactions =
+    selectedTransactions.filter(
+      (
+        transaction,
+      ) =>
+        needsFinancialTransactionClassification(
+          transaction,
+        ),
+    )
+
+  const hasNonCancelableSelection =
+    selectedTransactions.some(
+      (transaction) =>
+        transaction.status ===
+        "CANCELED" ||
+        transaction.type ===
+        "TRANSFER",
+    )
+
   useEffect(() => {
     if (!directTransaction || !directDialogKey) {
       return
@@ -177,8 +226,22 @@ export function TransactionsPage() {
     setSettlementDatePeriod(ALL_SETTLEMENT_DATE_PERIOD)
     setOnlyUnclassified(false)
     setOnlyUnallocated(false)
-    setPage(0)
+    resetPageAndSelection()
     setSearchParams({})
+  }
+
+  function clearSelection() {
+    setSelectedTransactionIds(new Set())
+  }
+
+  function resetPageAndSelection() {
+    setPage(0)
+    clearSelection()
+  }
+
+  function handlePageChange(nextPage: number) {
+    clearSelection()
+    setPage(nextPage)
   }
 
   function handleDirectDialogOpenChange(open: boolean) {
@@ -196,6 +259,57 @@ export function TransactionsPage() {
     setSearchParams(nextParams, {
       replace: true,
     })
+  }
+
+  function handleBulkCancel() {
+    const transactionIds =
+      Array.from(
+        selectedTransactionIds,
+      )
+
+    bulkCancelMutation.mutate(
+      transactionIds,
+      {
+        onSuccess: (
+          response,
+        ) => {
+          toast.success(
+            response.canceledCount ===
+              1
+              ? "1 transação cancelada com sucesso."
+              : `${response.canceledCount} transações canceladas com sucesso.`,
+          )
+
+          setBulkCancelDialogOpen(
+            false,
+          )
+
+          clearSelection()
+        },
+
+        onError: (
+          error,
+        ) => {
+          toast.error(
+            getApiErrorMessage(
+              error,
+              "Não foi possível cancelar as transações selecionadas.",
+            ),
+          )
+        },
+      },
+    )
+  }
+
+  function handleOpenClassificationQueue() {
+
+    if (selectedClassifiableTransactions.length === 0) {
+      toast.info("Nenhuma das transações selecionadas está pendente de classificação.")
+      return
+    }
+
+    setClassificationQueue(selectedClassifiableTransactions)
+    setClassificationQueueOpen(true)
   }
 
   return (
@@ -235,36 +349,36 @@ export function TransactionsPage() {
         }))}
         onTypeChange={(value) => {
           setType(value)
-          setPage(0)
+          resetPageAndSelection()
         }}
         onStatusChange={(value) => {
           setStatus(value)
-          setPage(0)
+          resetPageAndSelection()
         }}
         onSourceChange={(value) => {
           setSource(value)
-          setPage(0)
+          resetPageAndSelection()
         }}
         onAccountIdChange={(value) => {
           setAccountId(value)
-          setPage(0)
+          resetPageAndSelection()
         }}
         onCategoryIdChange={(value) => {
           setCategoryId(value)
-          setPage(0)
+          resetPageAndSelection()
         }}
         onDescriptionChange={(value) => {
           setDescription(value)
-          setPage(0)
+          resetPageAndSelection()
         }}
         onSettlementDatePeriodChange={(value) => {
           setSettlementDatePeriod(value)
-          setPage(0)
+          resetPageAndSelection()
         }}
         onOnlyUnclassifiedChange={(value) => {
           setOnlyUnclassified(value)
           setOnlyUnallocated(false)
-          setPage(0)
+          resetPageAndSelection()
 
           if (value) {
             setSearchParams({
@@ -277,7 +391,7 @@ export function TransactionsPage() {
         onOnlyUnallocatedChange={(value) => {
           setOnlyUnallocated(value)
           setOnlyUnclassified(false)
-          setPage(0)
+          resetPageAndSelection()
 
           if (value) {
             setStatus("SETTLED")
@@ -315,20 +429,117 @@ export function TransactionsPage() {
         </div>
       )}
 
+      {canFinanceWrite && selectedTransactionIds.size > 0 && (
+        <div className="flex flex-col gap-3 rounded-xl border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium">
+              {
+                selectedTransactionIds
+                  .size
+              }{" "}
+              {selectedTransactionIds
+                .size === 1
+                ? "transação selecionada"
+                : "transações selecionadas"}
+            </p>
+
+            <p className="text-xs text-muted-foreground">
+              A seleção é limitada à página atual.
+            </p>
+
+            {selectedClassifiableTransactions.length > 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {
+                  selectedClassifiableTransactions.length
+                }{" "}
+                {selectedClassifiableTransactions.length === 1
+                  ? "selecionada está pendente de classificação."
+                  : "selecionadas estão pendentes de classificação."}
+              </p>
+            )}
+
+            {hasNonCancelableSelection && (
+              <p className="mt-1 text-xs text-destructive">
+                Remova transferências ou transações já canceladas da seleção para usar o cancelamento em massa.
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              disabled={
+                selectedClassifiableTransactions
+                  .length === 0
+              }
+              onClick={
+                handleOpenClassificationQueue
+              }
+            >
+              <ListChecks className="mr-2 size-4" />
+
+              Classificar pendentes
+
+              {selectedClassifiableTransactions
+                .length >
+                0 &&
+                ` (${selectedClassifiableTransactions.length})`}
+            </Button>
+
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={
+                hasNonCancelableSelection
+              }
+              onClick={() => {
+                bulkCancelMutation.reset()
+
+                setBulkCancelDialogOpen(
+                  true,
+                )
+              }}
+            >
+              <Trash2 className="mr-2 size-4" />
+              Cancelar
+            </Button>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={
+                clearSelection
+              }
+            >
+              <X className="mr-2 size-4" />
+              Limpar seleção
+            </Button>
+          </div>
+        </div>
+      )}
+
       {data && (
         <>
           <FinancialTransactionsTable
             financialTransactions={data.content}
+            selectionEnabled={canFinanceWrite}
+            selectedTransactionIds={selectedTransactionIds}
+            onSelectionChange={setSelectedTransactionIds}
             totalElements={data.totalElements}
             size={size}
             sort={sort}
             onSizeChange={(value) => {
               setSize(value)
-              setPage(0)
+              resetPageAndSelection()
             }}
             onSortChange={(value) => {
               setSort(value)
-              setPage(0)
+              resetPageAndSelection()
             }}
           />
 
@@ -339,7 +550,7 @@ export function TransactionsPage() {
             size={data.size}
             isFirst={data.first}
             isLast={data.last}
-            onPageChange={setPage}
+            onPageChange={handlePageChange}
           />
         </>
       )}
@@ -377,6 +588,75 @@ export function TransactionsPage() {
           }
         />
       )}
+
+      <ConfirmActionDialog
+        open={
+          bulkCancelDialogOpen
+        }
+        onOpenChange={
+          setBulkCancelDialogOpen
+        }
+        title={
+          selectedTransactionIds.size ===
+            1
+            ? "Cancelar transação?"
+            : `Cancelar ${selectedTransactionIds.size} transações?`
+        }
+        description={
+          <>
+            As transações selecionadas serão marcadas como canceladas.
+            {" "}
+            <strong>
+              Se alguma delas não puder ser cancelada, nenhuma será alterada.
+            </strong>
+          </>
+        }
+        confirmLabel={
+          selectedTransactionIds.size ===
+            1
+            ? "Cancelar transação"
+            : `Cancelar ${selectedTransactionIds.size} transações`
+        }
+        pendingLabel="Cancelando..."
+        cancelLabel="Voltar"
+        isPending={
+          bulkCancelMutation.isPending
+        }
+        isDestructive
+        errorMessage={
+          bulkCancelMutation.isError
+            ? "Não foi possível concluir o cancelamento em massa."
+            : null
+        }
+        onConfirm={
+          handleBulkCancel
+        }
+      />
+
+      <TransactionClassificationQueueDialog
+        open={classificationQueueOpen}
+        transactions={classificationQueue}
+        onOpenChange={(open) => { setClassificationQueueOpen(open)
+
+          if (!open) {
+            setClassificationQueue([])
+          }
+        }}
+        onComplete={({classifiedCount, skippedCount}) => {
+          clearSelection()
+
+          if (skippedCount === 0) {
+            toast.success(classifiedCount === 1
+                ? "Classificação concluída."
+                : `${classifiedCount} transações classificadas.`,
+            )
+
+            return
+          }
+
+          toast.success(`${classifiedCount} classificadas e ${skippedCount} puladas.`)
+        }}
+      />
     </div>
   )
 }

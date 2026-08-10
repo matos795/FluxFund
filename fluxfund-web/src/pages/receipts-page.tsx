@@ -535,6 +535,9 @@ export function ReceiptsPage() {
                     sourceType:
                         "MANUAL",
 
+                    defaultDirection:
+                        "RECEIVED_BY_ORGANIZATION",
+
                     description:
                         "Recibo sem vínculo obrigatório com uma transação",
                 }}

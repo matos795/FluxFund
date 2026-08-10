@@ -2,6 +2,7 @@ package com.fluxfund.api.domain.financialtransaction.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
@@ -10,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -19,6 +21,7 @@ import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,13 +45,17 @@ import com.fluxfund.api.domain.financialcommitment.FinancialCommitment;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence;
 import com.fluxfund.api.domain.financialcommitment.repository.FinancialCommitmentRepository;
+import com.fluxfund.api.domain.financialtransaction.ClassificationSuggestionConfidence;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.FiscalDocumentPolicy;
 import com.fluxfund.api.domain.financialtransaction.TransferDirection;
+import com.fluxfund.api.domain.financialtransaction.dto.BulkCancelFinancialTransactionsRequest;
+import com.fluxfund.api.domain.financialtransaction.dto.BulkCancelFinancialTransactionsResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.ClassificationSuggestionAllocationResponse;
+import com.fluxfund.api.domain.financialtransaction.dto.ClassificationSuggestionEvidenceResponse;
 import com.fluxfund.api.domain.financialtransaction.dto.ClassifyFinancialTransactionRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.CreateAccountTransferRequest;
 import com.fluxfund.api.domain.financialtransaction.dto.CreateFinancialTransactionRequest;
@@ -99,6 +106,10 @@ public class FinancialTransactionService {
         private final FundTransferRepository fundTransferRepository;
         private final FinancialTransactionDocumentPolicyService documentPolicyService;
         private final FinancialCommitmentRepository financialCommitmentRepository;
+
+        private static final int CLASSIFICATION_HISTORY_LIMIT = 10;
+        private static final int CLASSIFICATION_HISTORY_PAGE_SIZE = 250;
+        private static final int CLASSIFICATION_HISTORY_LOOKBACK_MONTHS = 12;
 
         public FinancialTransactionResponse create(UUID organizationId, CreateFinancialTransactionRequest request) {
                 organizationAccessService.requireFinanceWriteAccess(organizationId);
@@ -267,15 +278,54 @@ public class FinancialTransactionService {
         }
 
         public void delete(UUID organizationId, UUID id) {
+
                 organizationAccessService.requireFinanceWriteAccess(organizationId);
 
                 FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
+
+                validateCancellationAllowed(financialTransaction);
+
+                applyCancellation(organizationId, financialTransaction);
+        }
+
+        public BulkCancelFinancialTransactionsResponse bulkCancel(UUID organizationId,
+                        BulkCancelFinancialTransactionsRequest request) {
+
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
+
+                List<FinancialTransaction> transactions = request.transactionIds()
+                                .stream()
+                                .distinct()
+                                .map(id -> findFinancialTransactionById(organizationId, id))
+                                .toList();
+
+                for (FinancialTransaction transaction : transactions) {
+                        validateCancellationAllowed(transaction);
+                }
+
+                for (FinancialTransaction transaction : transactions) {
+                        applyCancellation(organizationId, transaction);
+                }
+
+                return new BulkCancelFinancialTransactionsResponse(transactions.size());
+        }
+
+        private void validateCancellationAllowed(FinancialTransaction financialTransaction) {
 
                 if (financialTransaction.getStatus() == FinancialTransactionStatus.CANCELED) {
                         throw new BusinessException("Transaction already canceled");
                 }
 
+                if (financialTransaction.getType() == FinancialTransactionType.TRANSFER) {
+                        throw new BusinessException(
+                                        "Use the account transfer cancellation endpoint to cancel transfers");
+                }
+        }
+
+        private void applyCancellation(UUID organizationId, FinancialTransaction financialTransaction) {
+
                 financialTransaction.setStatus(FinancialTransactionStatus.CANCELED);
+
                 repository.save(financialTransaction);
 
                 auditLogService.record(
@@ -605,16 +655,6 @@ public class FinancialTransactionService {
                 allocation.setFinancialCommitment(
                                 commitment);
 
-                /*
-                 * Reutiliza todas as regras atuais:
-                 *
-                 * direção;
-                 * origem;
-                 * destinatário;
-                 * competência;
-                 * vigência;
-                 * compromisso ativo.
-                 */
                 validateBasicAllocationRules(
                                 allocation);
 
@@ -863,7 +903,7 @@ public class FinancialTransactionService {
                                 organizationId,
                                 id);
 
-                if (currentTransaction.getStatus() == FinancialTransactionStatus.CANCELED) {
+                if (currentTransaction.getStatus() != FinancialTransactionStatus.SETTLED) {
                         return FinancialTransactionClassificationSuggestionResponse.unavailable();
                 }
 
@@ -875,39 +915,165 @@ public class FinancialTransactionService {
                         return FinancialTransactionClassificationSuggestionResponse.unavailable();
                 }
 
-                String rawDescription = normalizeSuggestionText(
-                                currentTransaction.getRawDescription());
+                String normalizedRawDescription = normalizeSuggestionText(currentTransaction.getRawDescription());
 
-                if (rawDescription == null) {
+                if (normalizedRawDescription == null) {
                         return FinancialTransactionClassificationSuggestionResponse.unavailable();
                 }
 
-                List<FinancialTransaction> candidates = repository.findClassificationSuggestionCandidates(
+                List<FinancialTransaction> candidates = findMatchingClassificationHistory(
                                 organizationId,
-                                currentTransaction.getId(),
-                                currentTransaction.getType(),
-                                rawDescription,
-                                PageRequest.of(0, 1));
+                                currentTransaction,
+                                normalizedRawDescription);
 
                 if (candidates.isEmpty()) {
                         return FinancialTransactionClassificationSuggestionResponse.unavailable();
                 }
 
-                FinancialTransaction baseTransaction = candidates.get(0);
+                UUID winningCategoryId = findWinningSuggestionCategoryId(
+                                candidates);
+
+                if (winningCategoryId == null) {
+                        return FinancialTransactionClassificationSuggestionResponse
+                                        .unavailable();
+                }
+
+                List<FinancialTransaction> categoryMatches = candidates.stream()
+                                .filter(transaction -> transaction
+                                                .getCategory()
+                                                .getId()
+                                                .equals(winningCategoryId))
+                                .toList();
+
+                FiscalDocumentPolicy suggestedFiscalDocumentPolicy = null;
+
+                String suggestedFiscalDocumentNote = null;
+
+                List<FinancialTransaction> documentPolicyMatches = List.of();
+
+                int documentPolicyAgreementPercent = 0;
+
+                if (currentTransaction.getType() == FinancialTransactionType.EXPENSE) {
+
+                        suggestedFiscalDocumentPolicy = findWinningFiscalDocumentPolicy(
+                                        categoryMatches);
+
+                        if (suggestedFiscalDocumentPolicy != null) {
+
+                                FiscalDocumentPolicy winningPolicy = suggestedFiscalDocumentPolicy;
+
+                                documentPolicyMatches = categoryMatches.stream()
+
+                                                .filter(transaction -> transaction
+                                                                .getFiscalDocumentPolicy() == winningPolicy)
+                                                .toList();
+
+                                documentPolicyAgreementPercent = calculateAgreementPercent(
+                                                documentPolicyMatches.size(),
+                                                categoryMatches.size());
+                        }
+                }
+
+                boolean documentPolicyRequiresNote = suggestedFiscalDocumentPolicy == FiscalDocumentPolicy.WAIVED
+                                || suggestedFiscalDocumentPolicy == FiscalDocumentPolicy.MISSING;
+
+                if (documentPolicyRequiresNote) {
+                        suggestedFiscalDocumentNote = resolveConsensusFiscalDocumentNote(
+                                        documentPolicyMatches);
+                }
+
+                int documentPolicyHistoryCount = currentTransaction.getType() == FinancialTransactionType.EXPENSE
+                                ? categoryMatches.size()
+                                : 0;
+
+                boolean documentNoteReliable = !documentPolicyRequiresNote
+                                || suggestedFiscalDocumentNote != null;
+
+                int categoryAgreementPercent = calculateAgreementPercent(
+                                categoryMatches.size(),
+                                candidates.size());
+
+                List<FinancialTransaction> allocationHistory = categoryMatches.stream()
+                                .filter(transaction -> buildSuggestionAllocationSignature(transaction) != null)
+                                .toList();
+
+                Map<String, Long> allocationSignatureCounts = allocationHistory.stream()
+                                .map(this::buildSuggestionAllocationSignature)
+                                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+
+                long highestAllocationCount = allocationSignatureCounts.values()
+                                .stream()
+                                .mapToLong(Long::longValue)
+                                .max()
+                                .orElse(0);
+
+                String winningAllocationSignature = allocationHistory.stream()
+                                .map(this::buildSuggestionAllocationSignature)
+                                .filter(signature -> allocationSignatureCounts
+                                                .getOrDefault(signature, 0L) == highestAllocationCount)
+                                .findFirst()
+                                .orElse(null);
+
+                List<FinancialTransaction> allocationMatches = winningAllocationSignature == null
+                                ? List.of()
+                                : allocationHistory.stream()
+                                                .filter(transaction -> winningAllocationSignature
+                                                                .equals(buildSuggestionAllocationSignature(
+                                                                                transaction)))
+                                                .toList();
+
+                FinancialTransaction representativeTransaction = !allocationMatches.isEmpty()
+                                ? allocationMatches.get(0)
+                                : categoryMatches.get(0);
+
+                int allocationAgreementPercent = calculateAgreementPercent(
+                                allocationMatches.size(),
+                                allocationHistory.size());
+
+                ClassificationSuggestionConfidence confidence = resolveClassificationSuggestionConfidence(
+                                currentTransaction.getType(),
+                                candidates.size(),
+                                categoryAgreementPercent,
+                                allocationHistory.size(),
+                                allocationAgreementPercent,
+                                documentPolicyHistoryCount,
+                                documentPolicyAgreementPercent,
+                                documentNoteReliable);
 
                 BigDecimal currentAmount = getSuggestionAmount(currentTransaction);
 
-                List<ClassificationSuggestionAllocationResponse> suggestedAllocations = buildSuggestedAllocations(
-                                baseTransaction, currentAmount);
+                List<ClassificationSuggestionAllocationResponse> suggestedAllocations = winningAllocationSignature == null
+                                ? List.of()
+                                : buildSuggestedAllocations(representativeTransaction, currentAmount);
+
+                String suggestedDescription = resolveConsensusDescription(categoryMatches);
+
+                ClassificationSuggestionEvidenceResponse evidence = new ClassificationSuggestionEvidenceResponse(
+                                candidates.size(),
+                                categoryMatches.size(),
+                                categoryAgreementPercent,
+                                allocationHistory.size(),
+                                allocationMatches.size(),
+                                allocationAgreementPercent,
+                                candidates.stream().map(FinancialTransaction::getSettlementDate)
+                                                .filter(Objects::nonNull)
+                                                .toList(),
+                                documentPolicyHistoryCount,
+                                documentPolicyMatches.size(),
+                                documentPolicyAgreementPercent);
 
                 return new FinancialTransactionClassificationSuggestionResponse(
                                 true,
                                 "HISTORY",
-                                baseTransaction.getId(),
-                                baseTransaction.getType(),
-                                CategoryMapper.toSummary(baseTransaction.getCategory()),
-                                baseTransaction.getDescription(),
-                                suggestedAllocations);
+                                representativeTransaction.getId(),
+                                currentTransaction.getType(),
+                                CategoryMapper.toSummary(representativeTransaction.getCategory()),
+                                suggestedDescription,
+                                suggestedFiscalDocumentPolicy,
+                                suggestedFiscalDocumentNote,
+                                suggestedAllocations,
+                                confidence,
+                                evidence);
         }
 
         @Transactional(readOnly = true)
@@ -1729,11 +1895,28 @@ public class FinancialTransactionService {
         }
 
         private String normalizeSuggestionText(String value) {
+
                 if (value == null || value.isBlank()) {
                         return null;
                 }
 
-                return value.trim();
+                String normalized = Normalizer.normalize(value, Normalizer.Form.NFD)
+
+                                .replaceAll("\\p{M}", "")
+
+                                .toLowerCase(Locale.ROOT)
+
+                                .replaceAll("\\b\\d{1,2}[./-]\\d{1,2}(?:[./-]\\d{2,4})?\\b", " ")
+
+                                .replaceAll("\\b\\d{1,2}:\\d{2}(?::\\d{2})?\\b", " ")
+
+                                .replaceAll("[^a-z0-9]+", " ")
+
+                                .replaceAll("\\s+", " ")
+
+                                .trim();
+
+                return normalized.isBlank() ? null : normalized;
         }
 
         private BigDecimal getSuggestionAmount(FinancialTransaction transaction) {
@@ -2302,5 +2485,364 @@ public class FinancialTransactionService {
                 }
 
                 return currentCommitment;
+        }
+
+        private int calculateAgreementPercent(long matchingCount, long totalCount) {
+
+                if (totalCount <= 0) {
+                        return 0;
+                }
+
+                return (int) Math.round(matchingCount * 100.0 / totalCount);
+        }
+
+        private UUID findWinningSuggestionCategoryId(List<FinancialTransaction> candidates) {
+
+                Map<UUID, Long> categoryCounts = candidates.stream()
+                                .collect(Collectors.groupingBy(transaction -> transaction
+                                                .getCategory().getId(),
+                                                Collectors.counting()));
+
+                long highestCount = categoryCounts.values()
+                                .stream()
+                                .mapToLong(Long::longValue)
+                                .max()
+                                .orElse(0);
+
+                return candidates.stream()
+                                .map(transaction -> transaction.getCategory().getId())
+                                .filter(categoryId -> categoryCounts.getOrDefault(categoryId,
+                                                0L) == highestCount)
+                                .findFirst()
+                                .orElse(null);
+        }
+
+        private String buildSuggestionAllocationSignature(
+                        FinancialTransaction transaction) {
+
+                if (transaction.getAllocations() == null
+                                || transaction.getAllocations().isEmpty()) {
+
+                        return null;
+                }
+
+                BigDecimal transactionAmount = getSuggestionAmount(
+                                transaction);
+
+                if (transactionAmount.compareTo(
+                                BigDecimal.ZERO) <= 0) {
+
+                        return null;
+                }
+
+                List<String> parts = transaction.getAllocations()
+                                .stream()
+                                .filter(allocation -> allocation.getFund() != null
+                                                && allocation.getAmount() != null
+                                                && allocation.getAmount()
+                                                                .abs()
+                                                                .compareTo(BigDecimal.ZERO) > 0)
+                                .map(allocation -> {
+                                        String fundId = allocation.getFund()
+                                                        .getId()
+                                                        .toString();
+
+                                        String sourcePartyId = allocation.getSourceParty() != null
+                                                        ? allocation.getSourceParty()
+                                                                        .getId()
+                                                                        .toString()
+                                                        : "-";
+
+                                        String recipientPartyId = allocation.getRecipientParty() != null
+                                                        ? allocation
+                                                                        .getRecipientParty()
+                                                                        .getId()
+                                                                        .toString()
+                                                        : "-";
+
+                                        BigDecimal proportion = allocation.getAmount()
+                                                        .abs()
+                                                        .divide(transactionAmount, 4, RoundingMode.HALF_UP);
+
+                                        return String.join(
+                                                        "|",
+                                                        fundId,
+                                                        sourcePartyId,
+                                                        recipientPartyId,
+                                                        proportion.toPlainString());
+                                })
+                                .sorted()
+                                .toList();
+
+                if (parts.isEmpty()) {
+                        return null;
+                }
+
+                return String.join(";", parts);
+        }
+
+        private String resolveConsensusDescription(List<FinancialTransaction> candidates) {
+
+                Map<String, Long> descriptionCounts = candidates.stream()
+                                .map(FinancialTransaction::getDescription)
+                                .map(this::normalizeSuggestionText)
+                                .filter(Objects::nonNull)
+                                .collect(Collectors.groupingBy(description -> description.toLowerCase(
+                                                Locale.ROOT),
+                                                Collectors.counting()));
+
+                if (descriptionCounts.isEmpty()) {
+                        return null;
+                }
+
+                long highestCount = descriptionCounts.values()
+                                .stream()
+                                .mapToLong(Long::longValue)
+                                .max()
+                                .orElse(0);
+
+                String winningKey = candidates.stream()
+                                .map(FinancialTransaction::getDescription)
+                                .map(this::normalizeSuggestionText)
+                                .filter(Objects::nonNull)
+                                .map(description -> description.toLowerCase(Locale.ROOT))
+                                .filter(description -> descriptionCounts
+                                                .getOrDefault(
+                                                                description,
+                                                                0L) == highestCount)
+                                .findFirst()
+                                .orElse(null);
+
+                if (winningKey == null) {
+                        return null;
+                }
+
+                int agreement = calculateAgreementPercent(
+                                highestCount,
+                                candidates.size());
+
+                if (agreement < 60) {
+                        return null;
+                }
+
+                return candidates.stream()
+                                .map(FinancialTransaction::getDescription)
+                                .map(this::normalizeSuggestionText)
+                                .filter(Objects::nonNull)
+                                .filter(description -> description
+                                                .toLowerCase(Locale.ROOT)
+                                                .equals(winningKey))
+                                .findFirst()
+                                .orElse(null);
+        }
+
+        private ClassificationSuggestionConfidence resolveClassificationSuggestionConfidence(
+                        FinancialTransactionType type,
+                        int historyCount,
+                        int categoryAgreementPercent,
+                        int allocationHistoryCount,
+                        int allocationAgreementPercent,
+                        int documentPolicyHistoryCount,
+                        int documentPolicyAgreementPercent,
+                        boolean documentNoteReliable) {
+
+                boolean categoryIsHighlyReliable = historyCount >= 3 && categoryAgreementPercent >= 80;
+
+                boolean allocationIsHighlyReliable = allocationHistoryCount == 0
+                                || (allocationHistoryCount >= 3
+                                                && allocationAgreementPercent >= 80);
+
+                boolean documentPolicyIsHighlyReliable = type != FinancialTransactionType.EXPENSE
+                                || (documentPolicyHistoryCount >= 3
+                                                && documentPolicyAgreementPercent >= 80
+                                                && documentNoteReliable);
+
+                if (categoryIsHighlyReliable
+                                && allocationIsHighlyReliable
+                                && documentPolicyIsHighlyReliable) {
+
+                        return ClassificationSuggestionConfidence.HIGH;
+                }
+
+                boolean documentPolicyIsReliableEnough = type != FinancialTransactionType.EXPENSE
+                                || (documentPolicyHistoryCount >= 2
+                                                && documentPolicyAgreementPercent >= 60
+                                                && documentNoteReliable);
+
+                if (historyCount >= 2
+                                && categoryAgreementPercent >= 60
+                                && documentPolicyIsReliableEnough) {
+
+                        return ClassificationSuggestionConfidence.MEDIUM;
+                }
+
+                return ClassificationSuggestionConfidence.LOW;
+        }
+
+        private List<FinancialTransaction> findMatchingClassificationHistory(
+
+                        UUID organizationId,
+
+                        FinancialTransaction currentTransaction,
+
+                        String normalizedRawDescription) {
+
+                LocalDate settlementDate = currentTransaction.getSettlementDate();
+
+                if (settlementDate == null) {
+                        return List.of();
+                }
+
+                LocalDate historyStartDate = settlementDate.minusMonths(
+                                CLASSIFICATION_HISTORY_LOOKBACK_MONTHS);
+
+                List<FinancialTransaction> matches = new ArrayList<>();
+
+                int page = 0;
+
+                while (matches.size() < CLASSIFICATION_HISTORY_LIMIT) {
+
+                        Slice<FinancialTransaction> candidateSlice = repository
+                                        .findClassificationSuggestionCandidatePool(
+                                                        organizationId,
+                                                        currentTransaction.getId(),
+                                                        currentTransaction.getType(),
+                                                        historyStartDate,
+
+                                                        PageRequest.of(page, CLASSIFICATION_HISTORY_PAGE_SIZE));
+
+                        for (FinancialTransaction candidate : candidateSlice.getContent()) {
+
+                                String candidateKey = normalizeSuggestionText(
+                                                candidate.getRawDescription());
+
+                                if (!normalizedRawDescription.equals(candidateKey)) {
+                                        continue;
+                                }
+
+                                matches.add(candidate);
+
+                                if (matches.size() == CLASSIFICATION_HISTORY_LIMIT) {
+                                        break;
+                                }
+                        }
+
+                        if (matches.size() == CLASSIFICATION_HISTORY_LIMIT
+                                        || !candidateSlice.hasNext()) {
+                                break;
+                        }
+
+                        page++;
+                }
+
+                return matches;
+        }
+
+        private FiscalDocumentPolicy findWinningFiscalDocumentPolicy(
+
+                        List<FinancialTransaction> candidates) {
+
+                if (candidates.isEmpty()) {
+                        return null;
+                }
+
+                Map<FiscalDocumentPolicy, Long> counts = candidates.stream()
+
+                                .map(
+                                                FinancialTransaction::getFiscalDocumentPolicy)
+
+                                .filter(
+                                                Objects::nonNull)
+
+                                .collect(
+                                                Collectors.groupingBy(
+                                                                Function.identity(),
+                                                                Collectors.counting()));
+
+                long highestCount = counts.values()
+                                .stream()
+                                .mapToLong(
+                                                Long::longValue)
+                                .max()
+                                .orElse(0);
+
+                return candidates.stream()
+
+                                .map(
+                                                FinancialTransaction::getFiscalDocumentPolicy)
+
+                                .filter(
+                                                Objects::nonNull)
+
+                                .filter(
+                                                policy -> counts.getOrDefault(
+                                                                policy,
+                                                                0L) == highestCount)
+
+                                .findFirst()
+                                .orElse(null);
+        }
+
+        private String resolveConsensusFiscalDocumentNote(
+                        List<FinancialTransaction> candidates) {
+
+                Map<String, Long> noteCounts = candidates.stream()
+
+                                .map(
+                                                FinancialTransaction::getFiscalDocumentNote)
+
+                                .filter(
+                                                note -> note != null
+                                                                && !note.isBlank())
+
+                                .map(
+                                                String::trim)
+
+                                .collect(
+                                                Collectors.groupingBy(
+                                                                note -> note.toLowerCase(
+                                                                                Locale.ROOT),
+
+                                                                Collectors.counting()));
+
+                if (noteCounts.isEmpty()) {
+                        return null;
+                }
+
+                long highestCount = noteCounts.values()
+                                .stream()
+                                .mapToLong(
+                                                Long::longValue)
+                                .max()
+                                .orElse(0);
+
+                int agreement = calculateAgreementPercent(
+                                highestCount,
+                                candidates.size());
+
+                if (agreement < 60) {
+                        return null;
+                }
+
+                return candidates.stream()
+
+                                .map(
+                                                FinancialTransaction::getFiscalDocumentNote)
+
+                                .filter(
+                                                note -> note != null
+                                                                && !note.isBlank())
+
+                                .map(
+                                                String::trim)
+
+                                .filter(
+                                                note -> noteCounts.getOrDefault(
+                                                                note.toLowerCase(
+                                                                                Locale.ROOT),
+                                                                0L) == highestCount)
+
+                                .findFirst()
+                                .orElse(null);
         }
 }

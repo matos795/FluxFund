@@ -2,6 +2,8 @@ package com.fluxfund.api.domain.financialtransaction.specification;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.jpa.domain.Specification;
@@ -12,6 +14,8 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
 
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
@@ -63,19 +67,81 @@ public class FinancialTransactionSpecification {
                         }
 
                         if (description != null && !description.isBlank()) {
-                                String searchTerm = "%" + description.trim().toLowerCase() + "%";
+                                String normalizedSearch = description
+                                                .trim()
+                                                .toLowerCase();
 
-                                Predicate descriptionPredicate = cb.like(
-                                                cb.lower(root.get("description")),
-                                                searchTerm);
+                                String searchTerm = "%"
+                                                + normalizedSearch
+                                                + "%";
 
-                                Predicate rawDescriptionPredicate = cb.like(
-                                                cb.lower(root.get("rawDescription")),
-                                                searchTerm);
+                                List<Predicate> searchPredicates = new ArrayList<>();
 
-                                predicates = cb.and(
-                                                predicates,
-                                                cb.or(descriptionPredicate, rawDescriptionPredicate));
+                                searchPredicates.add(
+                                                cb.like(
+                                                                cb.lower(
+                                                                                cb.coalesce(
+                                                                                                root.<String>get(
+                                                                                                                "description"),
+                                                                                                "")),
+                                                                searchTerm));
+
+                                searchPredicates.add(
+                                                cb.like(
+                                                                cb.lower(
+                                                                                cb.coalesce(
+                                                                                                root.<String>get(
+                                                                                                                "rawDescription"),
+                                                                                                "")),
+                                                                searchTerm));
+
+                                searchPredicates.add(
+                                                cb.like(
+                                                                cb.lower(
+                                                                                cb.coalesce(
+                                                                                                root.<String>get(
+                                                                                                                "documentNumber"),
+                                                                                                "")),
+                                                                searchTerm));
+
+                                searchPredicates.add(
+                                                cb.like(
+                                                                cb.lower(
+                                                                                cb.coalesce(
+                                                                                                root.<String>get(
+                                                                                                                "externalId"),
+                                                                                                "")),
+                                                                searchTerm));
+
+                                String numericSearch = description.replaceAll(
+                                                "[^0-9]",
+                                                "");
+
+                                if (!numericSearch.isBlank()) {
+
+                                        String numericSearchTerm = "%"
+                                                        + numericSearch
+                                                        + "%";
+
+                                        searchPredicates.add(cb.like(digitsOnly(
+                                                        cb,
+                                                        root,
+                                                        "rawDescription"),
+                                                        numericSearchTerm));
+
+                                        searchPredicates.add(cb.like(digitsOnly(
+                                                        cb,
+                                                        root,
+                                                        "documentNumber"),
+                                                        numericSearchTerm));
+
+                                        searchPredicates.add(cb.like(digitsOnly(cb, root,
+                                                        "externalId"),
+                                                        numericSearchTerm));
+                                }
+
+                                predicates = cb.and(predicates,
+                                                cb.or(searchPredicates.toArray(new Predicate[0])));
                         }
 
                         if (settlementDateFrom != null) {
@@ -167,5 +233,27 @@ public class FinancialTransactionSpecification {
 
                         return predicates;
                 };
+        }
+
+        private static Expression<String> digitsOnly(
+                        CriteriaBuilder cb,
+                        Root<FinancialTransaction> root,
+                        String fieldName) {
+
+                Expression<String> value = cb.coalesce(
+                                root.<String>get(
+                                                fieldName),
+                                "");
+
+                return cb.function(
+                                "regexp_replace",
+                                String.class,
+                                value,
+                                cb.literal(
+                                                "[^0-9]"),
+                                cb.literal(
+                                                ""),
+                                cb.literal(
+                                                "g"));
         }
 }

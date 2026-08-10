@@ -1,6 +1,6 @@
 import { httpClient } from "@/api/http-client"
 import type { PageResponse } from "@/types/page-response"
-import type { ClassifyFinancialTransactionRequest, CreateAccountTransferRequest, CreateFinancialTransactionRequest, CreateTransactionAllocationRequest, FinancialTransaction, FinancialTransactionClassificationSuggestion, ImportCsvResponse, ImportOfxResponse, TransactionAllocation, TransferDirection, TransferMatchSuggestion, UpdateFinancialTransactionRequest, UpdateTransactionAllocationRequest } from "./financial-transaction-types"
+import type { BulkCancelFinancialTransactionsResponse, ClassifyFinancialTransactionRequest, CreateAccountTransferRequest, CreateFinancialTransactionRequest, CreateTransactionAllocationRequest, FinancialTransaction, FinancialTransactionClassificationSuggestion, ImportCsvResponse, ImportOfxResponse, TransactionAllocation, TransferDirection, TransferMatchSuggestion, UpdateFinancialTransactionRequest, UpdateTransactionAllocationRequest } from "./financial-transaction-types"
 import type { ImportProfile } from "@/utils/imports/import-profile"
 
 type GetFinancialTransactionsParams = {
@@ -91,6 +91,21 @@ export async function updateFinancialTransaction(
 
 export async function cancelFinancialTransaction(id: string) {
   await httpClient.delete(`/api/v1/financial-transactions/${id}`)
+}
+
+export async function bulkCancelFinancialTransactions(
+  transactionIds:
+    string[],
+) {
+  const response =
+    await httpClient.post<BulkCancelFinancialTransactionsResponse>(
+      "/api/v1/financial-transactions/bulk-cancel",
+      {
+        transactionIds,
+      },
+    )
+
+  return response.data
 }
 
 export async function addTransactionAllocation(

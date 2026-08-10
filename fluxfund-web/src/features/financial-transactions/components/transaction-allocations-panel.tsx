@@ -728,6 +728,12 @@ export function TransactionAllocationsPanel({
                   sourceType:
                     "ALLOCATION",
 
+                  defaultDirection:
+                    transaction.type ===
+                      "INCOME"
+                      ? "RECEIVED_BY_ORGANIZATION"
+                      : "PAID_BY_ORGANIZATION",
+
                   financialTransactionId:
                     transaction.id,
 
