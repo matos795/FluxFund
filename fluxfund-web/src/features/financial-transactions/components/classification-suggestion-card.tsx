@@ -14,6 +14,7 @@ import {
 import type {
     FinancialTransactionClassificationSuggestion,
 } from "../financial-transaction-types"
+import { fiscalDocumentPolicyLabels } from "../financial-transaction-labels"
 
 type Props = {
     suggestion:
@@ -170,7 +171,7 @@ export function ClassificationSuggestionCard({
                 </Badge>
             </div>
 
-            <div className="grid gap-3 text-sm sm:grid-cols-2">
+            <div className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-3">
                 <div className="rounded-lg border bg-background p-3">
                     <p className="text-xs text-muted-foreground">
                         Categoria
@@ -239,6 +240,47 @@ export function ClassificationSuggestionCard({
                         </p>
                     )}
                 </div>
+
+                {suggestion.type === "EXPENSE" &&
+                    suggestion.fiscalDocumentPolicy && (
+                        <div className="rounded-lg border bg-background p-3">
+                            <p className="text-xs text-muted-foreground">
+                                Documento fiscal
+                            </p>
+
+                            <p className="mt-1 font-medium">
+                                {
+                                    fiscalDocumentPolicyLabels[
+                                    suggestion.fiscalDocumentPolicy
+                                    ]
+                                }
+                            </p>
+
+                            {evidence.documentPolicyHistoryCount > 0 && (
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    {
+                                        evidence.documentPolicyMatchCount
+                                    }
+                                    /
+                                    {
+                                        evidence.documentPolicyHistoryCount
+                                    }{" "}
+                                    históricos ·{" "}
+                                    {
+                                        evidence.documentPolicyAgreementPercent
+                                    }
+                                    %
+                                </p>
+                            )}
+
+                            {suggestion.fiscalDocumentNote && (
+                                <p className="mt-2 text-xs text-muted-foreground">
+                                    Motivo:{" "}
+                                    {suggestion.fiscalDocumentNote}
+                                </p>
+                            )}
+                        </div>
+                    )}
             </div>
 
             {sourceNames.length >

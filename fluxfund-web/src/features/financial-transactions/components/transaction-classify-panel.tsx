@@ -815,6 +815,19 @@ export function TransactionClassifyPanel({
                     )
                 }
 
+                if (
+                    suggestion.type === "EXPENSE" &&
+                    suggestion.fiscalDocumentPolicy
+                ) {
+                    setFiscalDocumentPolicy(
+                        suggestion.fiscalDocumentPolicy,
+                    )
+
+                    setFiscalDocumentNote(
+                        suggestion.fiscalDocumentNote ?? "",
+                    )
+                }
+
                 const defaultReferenceMonth =
                     settlementDate
                         ? settlementDate.slice(

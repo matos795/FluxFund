@@ -229,6 +229,9 @@ export type ClassificationSuggestionEvidence = {
   allocationMatchCount: number
   allocationAgreementPercent: number
   historyDates: string[]
+  documentPolicyHistoryCount: number
+  documentPolicyMatchCount: number
+  documentPolicyAgreementPercent: number
 }
 
 export type FinancialTransactionClassificationSuggestion = {
@@ -238,6 +241,8 @@ export type FinancialTransactionClassificationSuggestion = {
   type: "INCOME" | "EXPENSE" | "TRANSFER" | null
   category: CategorySummary | null
   description: string | null
+  fiscalDocumentPolicy: FiscalDocumentPolicy | null
+  fiscalDocumentNote: string | null
   allocations: ClassificationSuggestionAllocation[]
   confidence: ClassificationSuggestionConfidence | null
   evidence: ClassificationSuggestionEvidence | null
