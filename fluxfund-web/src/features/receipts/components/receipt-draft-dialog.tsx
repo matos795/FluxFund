@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useState,
 } from "react"
 
 import {
@@ -13,6 +14,8 @@ import {
 } from "react-hook-form"
 
 import {
+  ChevronDown,
+  ChevronUp,
   FileSignature,
   Info,
 } from "lucide-react"
@@ -346,11 +349,17 @@ export function ReceiptDraftDialog({
   receipt,
   source,
 }: Props) {
+
   const {
     createMutation,
     updateMutation,
   } =
     useReceiptMutations()
+
+  const [
+    detailsOpen,
+    setDetailsOpen,
+  ] = useState(false)
 
   const {
     register,
@@ -564,7 +573,7 @@ export function ReceiptDraftDialog({
               "Rascunho atualizado.",
             )
 
-            onOpenChange(
+            handleOpenChange(
               false,
             )
           },
@@ -591,7 +600,7 @@ export function ReceiptDraftDialog({
             "Rascunho criado. Confira a prévia antes de emitir.",
           )
 
-          onOpenChange(
+          handleOpenChange(
             false,
           )
         },
@@ -608,11 +617,23 @@ export function ReceiptDraftDialog({
     )
   }
 
+  function handleOpenChange(
+    nextOpen: boolean,
+  ) {
+    if (!nextOpen) {
+      setDetailsOpen(false)
+    }
+
+    onOpenChange(
+      nextOpen,
+    )
+  }
+
   return (
     <Dialog
       open={open}
       onOpenChange={
-        onOpenChange
+        handleOpenChange
       }
     >
       <DialogContent className="max-h-[94vh] overflow-y-auto sm:max-w-5xl lg:max-w-6xl">
@@ -1170,58 +1191,81 @@ export function ReceiptDraftDialog({
             </Field>
           </section>
 
-          <section className="grid gap-4 md:grid-cols-2">
-            <Field label="Cidade">
-              <Input
-                {...register(
-                  "placeCity",
-                )}
-              />
-            </Field>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full justify-between"
+            onClick={() =>
+              setDetailsOpen(
+                current => !current,
+              )
+            }
+          >
+            <span className="text-left">
+              Detalhes adicionais
+            </span>
 
-            <Field label="Estado">
-              <Input
-                maxLength={
-                  2
-                }
-                placeholder="SP"
-                {...register(
-                  "placeState",
-                )}
-              />
-            </Field>
+            {detailsOpen ? (
+              <ChevronUp className="size-4" />
+            ) : (
+              <ChevronDown className="size-4" />
+            )}
+          </Button>
 
-            <Field label="Nome do assinante">
-              <Input
-                placeholder="Preenchido automaticamente quando possível"
-                {...register(
-                  "signatoryName",
-                )}
-              />
-            </Field>
+          {detailsOpen && (
+            <section className="grid gap-4 rounded-xl border bg-muted/20 p-4 md:grid-cols-2">
+              <Field label="Cidade">
+                <Input
+                  {...register(
+                    "placeCity",
+                  )}
+                />
+              </Field>
 
-            <Field label="Cargo ou identificação">
-              <Input
-                {...register(
-                  "signatoryTitle",
-                )}
-              />
-            </Field>
+              <Field label="Estado">
+                <Input
+                  maxLength={
+                    2
+                  }
+                  placeholder="SP"
+                  {...register(
+                    "placeState",
+                  )}
+                />
+              </Field>
 
-            <Field
-              label="Observações"
-              className="md:col-span-2"
-            >
-              <Textarea
-                rows={
-                  3
-                }
-                {...register(
-                  "notes",
-                )}
-              />
-            </Field>
-          </section>
+              <Field label="Nome do assinante">
+                <Input
+                  placeholder="Preenchido automaticamente quando possível"
+                  {...register(
+                    "signatoryName",
+                  )}
+                />
+              </Field>
+
+              <Field label="Cargo ou identificação">
+                <Input
+                  {...register(
+                    "signatoryTitle",
+                  )}
+                />
+              </Field>
+
+              <Field
+                label="Observações"
+                className="md:col-span-2"
+              >
+                <Textarea
+                  rows={
+                    3
+                  }
+                  {...register(
+                    "notes",
+                  )}
+                />
+              </Field>
+            </section>
+          )}
 
           <div className="flex gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">
             <Info className="mt-0.5 size-4 shrink-0" />
@@ -1236,7 +1280,7 @@ export function ReceiptDraftDialog({
               type="button"
               variant="outline"
               onClick={() =>
-                onOpenChange(
+                handleOpenChange(
                   false,
                 )
               }
