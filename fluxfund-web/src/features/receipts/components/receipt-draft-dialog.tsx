@@ -100,6 +100,9 @@ import {
 } from "../hooks/use-receipt-mutations"
 import { EntityCombobox } from "@/components/form/entity-combobox"
 import { formatCpfOrCnpj } from "@/utils/input-masks"
+import { useOrganizationProfile } from "@/features/organization-profile/hooks/use-organization-profile"
+import { useFinancialPartyOptions } from "@/features/financial-parties/hooks/use-financial-party-options"
+import { formatCurrency, formatDate } from "@/utils/formatters"
 
 type Props = {
   open: boolean
@@ -343,6 +346,23 @@ function buildDefaultValues({
   }
 }
 
+
+function appendDocument(
+  name: string,
+  document?: string | null,
+) {
+  const normalizedDocument =
+    document?.trim()
+
+  if (!normalizedDocument) {
+    return name
+  }
+
+  return `${name}, CPF/CNPJ ${formatCpfOrCnpj(
+    normalizedDocument,
+  )}`
+}
+
 export function ReceiptDraftDialog({
   open,
   onOpenChange,
@@ -430,9 +450,157 @@ export function ReceiptDraftDialog({
         "beneficiaryMode",
     })
 
+  const amount =
+    useWatch({
+      control,
+      name: "amount",
+    })
+
+  const paymentDate =
+    useWatch({
+      control,
+      name: "paymentDate",
+    })
+
+  const purposeDescription =
+    useWatch({
+      control,
+      name: "purposeDescription",
+    })
+
+  const counterpartyPartyId =
+    useWatch({
+      control,
+      name: "counterpartyPartyId",
+    })
+
+  const counterpartyName =
+    useWatch({
+      control,
+      name: "counterpartyName",
+    })
+
+  const counterpartyDocument =
+    useWatch({
+      control,
+      name: "counterpartyDocument",
+    })
+
+  const signatoryName =
+    useWatch({
+      control,
+      name: "signatoryName",
+    })
+
   const incoming =
     direction ===
     "RECEIVED_BY_ORGANIZATION"
+
+  const organizationProfileQuery =
+    useOrganizationProfile()
+
+  const counterpartyOptionsQuery =
+    useFinancialPartyOptions(
+      incoming
+        ? "INCOME_SOURCE"
+        : "PAYMENT_RECIPIENT",
+    )
+
+  const selectedCounterparty =
+    counterpartyOptionsQuery.data?.find(
+      party =>
+        party.id ===
+        counterpartyPartyId,
+    )
+
+  const previewCounterpartyName =
+    counterpartyMode === "REGISTERED"
+      ? selectedCounterparty?.label ?? ""
+      : counterpartyMode === "MANUAL"
+        ? counterpartyName?.trim() ?? ""
+        : ""
+
+  const previewCounterpartyDocument =
+    counterpartyMode === "REGISTERED"
+      ? selectedCounterparty?.document ?? ""
+      : counterpartyMode === "MANUAL"
+        ? counterpartyDocument?.trim() ?? ""
+        : ""
+
+  const organizationProfile =
+    organizationProfileQuery.data
+
+  const previewOrganizationName =
+    organizationProfile
+      ?.legalName
+      ?.trim() ||
+    organizationProfile
+      ?.name
+      ?.trim() ||
+    "organização"
+
+  const previewOrganizationDocument =
+    organizationProfile
+      ?.cnpj
+      ?.trim() ?? ""
+
+  const numericAmount =
+    Number(
+      amount ?? 0,
+    )
+
+  const previewAmount =
+    Number.isFinite(
+      numericAmount,
+    ) &&
+      numericAmount > 0
+      ? formatCurrency(
+        numericAmount,
+      )
+      : "[valor]"
+
+  const previewPaymentDate =
+    paymentDate
+      ? formatDate(
+        paymentDate,
+      )
+      : "[data]"
+
+  const previewPurpose =
+    purposeDescription
+      ?.trim() ||
+    "[finalidade]"
+
+  const previewCounterparty =
+    previewCounterpartyName ||
+    (
+      counterpartyMode ===
+        "INFERRED"
+        ? "[pessoa identificada pela alocação]"
+        : "[pessoa / empresa]"
+    )
+
+  const counterpartyText =
+    appendDocument(
+      previewCounterparty,
+      previewCounterpartyDocument,
+    )
+
+  const organizationText =
+    appendDocument(
+      previewOrganizationName,
+      previewOrganizationDocument,
+    )
+
+  const previewSignatoryName =
+    signatoryName
+      ?.trim() ||
+    previewCounterpartyName
+
+  const receiptPreviewText =
+    incoming
+      ? `Recebemos de ${counterpartyText} a importância de ${previewAmount}, referente a ${previewPurpose}, com pagamento realizado em ${previewPaymentDate}.`
+      : `Declaro ter recebido de ${organizationText} a importância de ${previewAmount}, referente a ${previewPurpose}, com pagamento realizado em ${previewPaymentDate}.`
 
   const availableReceiptTypes =
     incoming
@@ -1266,6 +1434,46 @@ export function ReceiptDraftDialog({
               </Field>
             </section>
           )}
+
+          <section className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <div>
+              <p className="text-sm font-medium">
+                Prévia do texto
+              </p>
+
+              <p className="mt-1 text-xs text-muted-foreground">
+                {incoming
+                  ? "Formato para valor recebido pela organização."
+                  : "Formato para valor pago pela organização."}
+              </p>
+            </div>
+
+            <div className="rounded-lg border bg-background p-4">
+              <p className="text-sm leading-7">
+                {receiptPreviewText}
+              </p>
+            </div>
+
+            {previewSignatoryName && (
+              <p className="text-xs text-muted-foreground">
+                Assinatura prevista:{" "}
+                <span className="font-medium text-foreground">
+                  {previewSignatoryName}
+                </span>
+              </p>
+            )}
+
+            {counterpartyMode ===
+              "INFERRED" && (
+                <p className="text-xs text-muted-foreground">
+                  A pessoa ou empresa será identificada pela alocação ao salvar o rascunho.
+                </p>
+              )}
+
+            <p className="text-xs text-muted-foreground">
+              O PDF final também apresentará o valor por extenso e a formatação oficial do recibo.
+            </p>
+          </section>
 
           <div className="flex gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">
             <Info className="mt-0.5 size-4 shrink-0" />
