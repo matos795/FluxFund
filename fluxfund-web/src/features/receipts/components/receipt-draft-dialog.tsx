@@ -103,6 +103,7 @@ import { formatCpfOrCnpj } from "@/utils/input-masks"
 import { useOrganizationProfile } from "@/features/organization-profile/hooks/use-organization-profile"
 import { useFinancialPartyOptions } from "@/features/financial-parties/hooks/use-financial-party-options"
 import { formatCurrency, formatDate } from "@/utils/formatters"
+import { useFundOptions } from "@/features/funds/hooks/use-fund-options"
 
 type Props = {
   open: boolean
@@ -492,6 +493,36 @@ export function ReceiptDraftDialog({
       name: "signatoryName",
     })
 
+  const beneficiaryPartyId =
+    useWatch({
+      control,
+      name: "beneficiaryPartyId",
+    })
+
+  const beneficiaryName =
+    useWatch({
+      control,
+      name: "beneficiaryName",
+    })
+
+  const beneficiaryDocument =
+    useWatch({
+      control,
+      name: "beneficiaryDocument",
+    })
+
+  const fundId =
+    useWatch({
+      control,
+      name: "fundId",
+    })
+
+  const fundName =
+    useWatch({
+      control,
+      name: "fundName",
+    })
+
   const incoming =
     direction ===
     "RECEIVED_BY_ORGANIZATION"
@@ -505,6 +536,64 @@ export function ReceiptDraftDialog({
         ? "INCOME_SOURCE"
         : "PAYMENT_RECIPIENT",
     )
+
+  const beneficiaryOptionsQuery =
+    useFinancialPartyOptions(
+      "PAYMENT_RECIPIENT",
+    )
+
+  const fundOptionsQuery =
+    useFundOptions()
+
+  const selectedBeneficiary =
+    beneficiaryOptionsQuery.data?.find(
+      party =>
+        party.id ===
+        beneficiaryPartyId,
+    )
+
+  const previewBeneficiaryName =
+    beneficiaryMode === "REGISTERED"
+      ? selectedBeneficiary?.label ?? ""
+      : beneficiaryMode === "MANUAL"
+        ? beneficiaryName?.trim() ?? ""
+        : ""
+
+  const previewBeneficiaryDocument =
+    beneficiaryMode === "REGISTERED"
+      ? selectedBeneficiary?.document ?? ""
+      : beneficiaryMode === "MANUAL"
+        ? beneficiaryDocument?.trim() ?? ""
+        : ""
+
+  const selectedFund =
+    fundOptionsQuery.data?.find(
+      fund =>
+        fund.id ===
+        fundId,
+    )
+
+  const previewFundName =
+    selectedFund?.label ??
+    fundName?.trim() ??
+    ""
+
+  const beneficiaryText =
+    previewBeneficiaryName
+      ? appendDocument(
+        previewBeneficiaryName,
+        previewBeneficiaryDocument,
+      )
+      : ""
+
+  const destinationPreviewText =
+    incoming &&
+      beneficiaryText
+      ? `Destinação informada: ${beneficiaryText}${previewFundName
+        ? `, fundo ${previewFundName}`
+        : ""
+      }.`
+      : ""
 
   const selectedCounterparty =
     counterpartyOptionsQuery.data?.find(
@@ -1448,10 +1537,31 @@ export function ReceiptDraftDialog({
               </p>
             </div>
 
+            <div className="rounded-lg bg-muted/50 p-3 text-xs leading-relaxed text-muted-foreground">
+              {incoming ? (
+                <p>
+                  Neste formato, a organização confirma que recebeu
+                  o valor da pessoa ou empresa informada.
+                </p>
+              ) : (
+                <p>
+                  Neste formato, quem recebeu o pagamento declara
+                  ter recebido o valor da organização. Por isso o
+                  texto começa com “Declaro ter recebido de...”.
+                </p>
+              )}
+            </div>
+
             <div className="rounded-lg border bg-background p-4">
               <p className="text-sm leading-7">
                 {receiptPreviewText}
               </p>
+
+              {destinationPreviewText && (
+                <p className="mt-3 text-sm leading-7">
+                  {destinationPreviewText}
+                </p>
+              )}
             </div>
 
             {previewSignatoryName && (

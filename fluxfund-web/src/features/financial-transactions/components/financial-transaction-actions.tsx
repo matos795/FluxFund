@@ -112,9 +112,7 @@ export function FinancialTransactionActions({
     currentTransaction.status ===
     "SETTLED" &&
     currentTransaction.type !==
-    "TRANSFER" &&
-    currentTransaction.allocations
-      .length === 0
+    "TRANSFER"
 
   function handleCancelTransaction() {
     cancelFinancialTransactionMutation.mutate(transaction.id, {
