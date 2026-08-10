@@ -6,6 +6,7 @@ import java.util.UUID;
 import com.fluxfund.api.domain.category.dto.CategorySummaryResponse;
 import com.fluxfund.api.domain.financialtransaction.ClassificationSuggestionConfidence;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
+import com.fluxfund.api.domain.financialtransaction.FiscalDocumentPolicy;
 
 public record FinancialTransactionClassificationSuggestionResponse(
         boolean available,
@@ -14,6 +15,8 @@ public record FinancialTransactionClassificationSuggestionResponse(
         FinancialTransactionType type,
         CategorySummaryResponse category,
         String description,
+        FiscalDocumentPolicy fiscalDocumentPolicy,
+        String fiscalDocumentNote,
         List<ClassificationSuggestionAllocationResponse> allocations,
         ClassificationSuggestionConfidence confidence,
         ClassificationSuggestionEvidenceResponse evidence
@@ -23,6 +26,8 @@ public record FinancialTransactionClassificationSuggestionResponse(
     public static FinancialTransactionClassificationSuggestionResponse unavailable() {
         return new FinancialTransactionClassificationSuggestionResponse(
                 false,
+                null,
+                null,
                 null,
                 null,
                 null,

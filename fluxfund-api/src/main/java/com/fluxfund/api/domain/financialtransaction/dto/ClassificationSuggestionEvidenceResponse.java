@@ -1,5 +1,8 @@
 package com.fluxfund.api.domain.financialtransaction.dto;
 
+import java.time.LocalDate;
+import java.util.List;
+
 public record ClassificationSuggestionEvidenceResponse(
 
         int historyCount,
@@ -12,7 +15,15 @@ public record ClassificationSuggestionEvidenceResponse(
 
         int allocationMatchCount,
 
-        int allocationAgreementPercent
+        int allocationAgreementPercent,
+
+        List<LocalDate> historyDates,
+
+        int documentPolicyHistoryCount,
+
+        int documentPolicyMatchCount,
+
+        int documentPolicyAgreementPercent
 
 ) {
 }

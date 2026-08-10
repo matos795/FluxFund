@@ -228,6 +228,7 @@ export type ClassificationSuggestionEvidence = {
   allocationHistoryCount: number
   allocationMatchCount: number
   allocationAgreementPercent: number
+  historyDates: string[]
 }
 
 export type FinancialTransactionClassificationSuggestion = {

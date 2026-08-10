@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -890,14 +891,18 @@ public interface FinancialTransactionRepository
 
               and t.rawDescription is not null
 
+              and t.settlementDate >=
+                :historyStartDate
+
             order by
                 t.settlementDate desc,
                 t.createdAt desc
             """)
-    List<FinancialTransaction> findClassificationSuggestionCandidatePool(
+    Slice<FinancialTransaction> findClassificationSuggestionCandidatePool(
             @Param("organizationId") UUID organizationId,
             @Param("transactionId") UUID transactionId,
             @Param("type") FinancialTransactionType type,
+            @Param("historyStartDate") LocalDate historyStartDate,
             Pageable pageable);
 
     @Query("""

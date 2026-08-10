@@ -204,6 +204,14 @@ export function TransactionClassifyPanel({
 
     const autoFillEnabled = settings?.autoFillClassificationSuggestions === true;
 
+    const [
+        appliedHistoricalSuggestionKey,
+        setAppliedHistoricalSuggestionKey,
+    ] =
+        useState<string | null>(
+            null,
+        )
+
     const classificationSuggestionQuery =
         useClassificationSuggestion(
             transaction.id,
@@ -275,6 +283,19 @@ export function TransactionClassifyPanel({
     const remainingAmount = fromCents(
         formatCents(amountNumber) - formatCents(totalAllocated),
     );
+
+    const historicalSuggestionKey =
+        classificationSuggestionQuery
+            .data
+            ?.basedOnTransactionId
+            ? `${transaction.id}:${classificationSuggestionQuery.data.basedOnTransactionId}`
+            : null
+
+    const historicalSuggestionApplied =
+        historicalSuggestionKey !==
+        null &&
+        appliedHistoricalSuggestionKey ===
+        historicalSuggestionKey
 
     function handleAddAllocation() {
         markAsManuallyEdited();
@@ -760,8 +781,15 @@ export function TransactionClassifyPanel({
                     return
                 }
 
-                appliedSuggestionKeyRef.current =
+                const suggestionKey =
                     `${transaction.id}:${suggestion.basedOnTransactionId}`
+
+                appliedSuggestionKeyRef.current =
+                    suggestionKey
+
+                setAppliedHistoricalSuggestionKey(
+                    suggestionKey,
+                )
 
                 setType(
                     suggestion.type,
@@ -935,6 +963,7 @@ export function TransactionClassifyPanel({
                 transaction.transferCounterpartyAccount?.id ?? "",
             );
             setSelectedTransferMatchId("");
+            setAppliedHistoricalSuggestionKey(null)
         };
 
         const timeoutId = window.setTimeout(resetForm, 0);
@@ -1091,9 +1120,10 @@ export function TransactionClassifyPanel({
                 </p>
             </div>
 
-            {classificationSuggestionQuery
-                .data
-                ?.available && (
+            {!historicalSuggestionApplied &&
+                classificationSuggestionQuery
+                    .data
+                    ?.available && (
                     <ClassificationSuggestionCard
                         suggestion={
                             classificationSuggestionQuery

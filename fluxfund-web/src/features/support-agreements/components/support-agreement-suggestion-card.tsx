@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { HandCoins } from "lucide-react"
 import { toast } from "sonner"
 
@@ -44,6 +44,21 @@ export function SupportAgreementSuggestionCard({
     ? `${effectiveReferenceMonth}-01`
     : undefined
 
+  const suggestionContextKey =
+    `${transactionType}:${beneficiaryId ?? ""}:${referenceDate ?? ""}`
+
+  const [
+    appliedContextKey,
+    setAppliedContextKey,
+  ] =
+    useState<string | null>(
+      null,
+    )
+
+  const suggestionAlreadyApplied =
+    appliedContextKey ===
+    suggestionContextKey
+
   const { data: suggestions = [], isLoading } = useSupportAgreementSuggestions(
     {
       beneficiaryId: beneficiaryId ?? "",
@@ -78,6 +93,26 @@ export function SupportAgreementSuggestionCard({
     [effectiveReferenceMonth, maxAmount],
   )
 
+  const applySuggestion = useCallback(
+    (
+      suggestion: {
+        fundId: string
+        beneficiaryId: string
+        referenceMonth: string
+        amount: number
+      },
+    ) => {
+      setAppliedContextKey(
+        suggestionContextKey,
+      )
+
+      onApply(
+        suggestion,
+      )
+    },
+    [suggestionContextKey, onApply],
+  )
+
   useEffect(() => {
     if (
       !autoApply ||
@@ -109,7 +144,9 @@ export function SupportAgreementSuggestionCard({
     autoAppliedKeyRef.current = autoApplyKey
 
     const timeoutId = window.setTimeout(() => {
-      onApply(suggestion)
+      applySuggestion(
+        suggestion,
+      )
 
       toast.info(
         "Compromisso ativo aplicado automaticamente. Revise antes de salvar.",
@@ -122,13 +159,20 @@ export function SupportAgreementSuggestionCard({
     beneficiaryId,
     buildSuggestion,
     isLoading,
-    onApply,
+    applySuggestion,
     referenceDate,
     shouldSearch,
     suggestions,
+    onApply
   ])
 
   if (!shouldSearch || isLoading || suggestions.length === 0) {
+    return null
+  }
+
+  if (
+    suggestionAlreadyApplied
+  ) {
     return null
   }
 
@@ -191,7 +235,11 @@ export function SupportAgreementSuggestionCard({
                     size="sm"
                     variant="outline"
                     disabled={cannotApplySuggestion}
-                    onClick={() => onApply(suggestion)}
+                    onClick={() =>
+                      applySuggestion(
+                        suggestion,
+                      )
+                    }
                   >
                     Usar compromisso
                   </Button>

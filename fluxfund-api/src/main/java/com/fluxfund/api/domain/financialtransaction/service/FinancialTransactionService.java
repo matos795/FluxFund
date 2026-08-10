@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -105,6 +106,10 @@ public class FinancialTransactionService {
         private final FundTransferRepository fundTransferRepository;
         private final FinancialTransactionDocumentPolicyService documentPolicyService;
         private final FinancialCommitmentRepository financialCommitmentRepository;
+
+        private static final int CLASSIFICATION_HISTORY_LIMIT = 10;
+        private static final int CLASSIFICATION_HISTORY_PAGE_SIZE = 250;
+        private static final int CLASSIFICATION_HISTORY_LOOKBACK_MONTHS = 12;
 
         public FinancialTransactionResponse create(UUID organizationId, CreateFinancialTransactionRequest request) {
                 organizationAccessService.requireFinanceWriteAccess(organizationId);
@@ -916,20 +921,10 @@ public class FinancialTransactionService {
                         return FinancialTransactionClassificationSuggestionResponse.unavailable();
                 }
 
-                List<FinancialTransaction> candidates = repository
-                                .findClassificationSuggestionCandidatePool(
-                                                organizationId,
-                                                currentTransaction.getId(),
-                                                currentTransaction.getType(),
-                                                PageRequest.of(
-                                                                0,
-                                                                250))
-                                .stream()
-
-                                .filter(candidate -> normalizedRawDescription
-                                                .equals(normalizeSuggestionText(candidate.getRawDescription())))
-                                .limit(10)
-                                .toList();
+                List<FinancialTransaction> candidates = findMatchingClassificationHistory(
+                                organizationId,
+                                currentTransaction,
+                                normalizedRawDescription);
 
                 if (candidates.isEmpty()) {
                         return FinancialTransactionClassificationSuggestionResponse.unavailable();
@@ -949,6 +944,50 @@ public class FinancialTransactionService {
                                                 .getId()
                                                 .equals(winningCategoryId))
                                 .toList();
+
+                FiscalDocumentPolicy suggestedFiscalDocumentPolicy = null;
+
+                String suggestedFiscalDocumentNote = null;
+
+                List<FinancialTransaction> documentPolicyMatches = List.of();
+
+                int documentPolicyAgreementPercent = 0;
+
+                if (currentTransaction.getType() == FinancialTransactionType.EXPENSE) {
+
+                        suggestedFiscalDocumentPolicy = findWinningFiscalDocumentPolicy(
+                                        categoryMatches);
+
+                        if (suggestedFiscalDocumentPolicy != null) {
+
+                                FiscalDocumentPolicy winningPolicy = suggestedFiscalDocumentPolicy;
+
+                                documentPolicyMatches = categoryMatches.stream()
+
+                                                .filter(transaction -> transaction
+                                                                .getFiscalDocumentPolicy() == winningPolicy)
+                                                .toList();
+
+                                documentPolicyAgreementPercent = calculateAgreementPercent(
+                                                documentPolicyMatches.size(),
+                                                categoryMatches.size());
+                        }
+                }
+
+                boolean documentPolicyRequiresNote = suggestedFiscalDocumentPolicy == FiscalDocumentPolicy.WAIVED
+                                || suggestedFiscalDocumentPolicy == FiscalDocumentPolicy.MISSING;
+
+                if (documentPolicyRequiresNote) {
+                        suggestedFiscalDocumentNote = resolveConsensusFiscalDocumentNote(
+                                        documentPolicyMatches);
+                }
+
+                int documentPolicyHistoryCount = currentTransaction.getType() == FinancialTransactionType.EXPENSE
+                                ? categoryMatches.size()
+                                : 0;
+
+                boolean documentNoteReliable = !documentPolicyRequiresNote
+                                || suggestedFiscalDocumentNote != null;
 
                 int categoryAgreementPercent = calculateAgreementPercent(
                                 categoryMatches.size(),
@@ -992,10 +1031,14 @@ public class FinancialTransactionService {
                                 allocationHistory.size());
 
                 ClassificationSuggestionConfidence confidence = resolveClassificationSuggestionConfidence(
+                                currentTransaction.getType(),
                                 candidates.size(),
                                 categoryAgreementPercent,
                                 allocationHistory.size(),
-                                allocationAgreementPercent);
+                                allocationAgreementPercent,
+                                documentPolicyHistoryCount,
+                                documentPolicyAgreementPercent,
+                                documentNoteReliable);
 
                 BigDecimal currentAmount = getSuggestionAmount(currentTransaction);
 
@@ -1011,7 +1054,13 @@ public class FinancialTransactionService {
                                 categoryAgreementPercent,
                                 allocationHistory.size(),
                                 allocationMatches.size(),
-                                allocationAgreementPercent);
+                                allocationAgreementPercent,
+                                candidates.stream().map(FinancialTransaction::getSettlementDate)
+                                                .filter(Objects::nonNull)
+                                                .toList(),
+                                documentPolicyHistoryCount,
+                                documentPolicyMatches.size(),
+                                documentPolicyAgreementPercent);
 
                 return new FinancialTransactionClassificationSuggestionResponse(
                                 true,
@@ -1020,6 +1069,8 @@ public class FinancialTransactionService {
                                 currentTransaction.getType(),
                                 CategoryMapper.toSummary(representativeTransaction.getCategory()),
                                 suggestedDescription,
+                                suggestedFiscalDocumentPolicy,
+                                suggestedFiscalDocumentNote,
                                 suggestedAllocations,
                                 confidence,
                                 evidence);
@@ -2586,10 +2637,14 @@ public class FinancialTransactionService {
         }
 
         private ClassificationSuggestionConfidence resolveClassificationSuggestionConfidence(
+                        FinancialTransactionType type,
                         int historyCount,
                         int categoryAgreementPercent,
                         int allocationHistoryCount,
-                        int allocationAgreementPercent) {
+                        int allocationAgreementPercent,
+                        int documentPolicyHistoryCount,
+                        int documentPolicyAgreementPercent,
+                        boolean documentNoteReliable) {
 
                 boolean categoryIsHighlyReliable = historyCount >= 3 && categoryAgreementPercent >= 80;
 
@@ -2597,14 +2652,197 @@ public class FinancialTransactionService {
                                 || (allocationHistoryCount >= 3
                                                 && allocationAgreementPercent >= 80);
 
-                if (categoryIsHighlyReliable && allocationIsHighlyReliable) {
+                boolean documentPolicyIsHighlyReliable = type != FinancialTransactionType.EXPENSE
+                                || (documentPolicyHistoryCount >= 3
+                                                && documentPolicyAgreementPercent >= 80
+                                                && documentNoteReliable);
+
+                if (categoryIsHighlyReliable
+                                && allocationIsHighlyReliable
+                                && documentPolicyIsHighlyReliable) {
+
                         return ClassificationSuggestionConfidence.HIGH;
                 }
 
-                if (historyCount >= 2 && categoryAgreementPercent >= 60) {
+                boolean documentPolicyIsReliableEnough = type != FinancialTransactionType.EXPENSE
+                                || (documentPolicyHistoryCount >= 2
+                                                && documentPolicyAgreementPercent >= 60
+                                                && documentNoteReliable);
+
+                if (historyCount >= 2
+                                && categoryAgreementPercent >= 60
+                                && documentPolicyIsReliableEnough) {
+
                         return ClassificationSuggestionConfidence.MEDIUM;
                 }
 
                 return ClassificationSuggestionConfidence.LOW;
+        }
+
+        private List<FinancialTransaction> findMatchingClassificationHistory(
+
+                        UUID organizationId,
+
+                        FinancialTransaction currentTransaction,
+
+                        String normalizedRawDescription) {
+
+                LocalDate settlementDate = currentTransaction.getSettlementDate();
+
+                if (settlementDate == null) {
+                        return List.of();
+                }
+
+                LocalDate historyStartDate = settlementDate.minusMonths(
+                                CLASSIFICATION_HISTORY_LOOKBACK_MONTHS);
+
+                List<FinancialTransaction> matches = new ArrayList<>();
+
+                int page = 0;
+
+                while (matches.size() < CLASSIFICATION_HISTORY_LIMIT) {
+
+                        Slice<FinancialTransaction> candidateSlice = repository
+                                        .findClassificationSuggestionCandidatePool(
+                                                        organizationId,
+                                                        currentTransaction.getId(),
+                                                        currentTransaction.getType(),
+                                                        historyStartDate,
+
+                                                        PageRequest.of(page, CLASSIFICATION_HISTORY_PAGE_SIZE));
+
+                        for (FinancialTransaction candidate : candidateSlice.getContent()) {
+
+                                String candidateKey = normalizeSuggestionText(
+                                                candidate.getRawDescription());
+
+                                if (!normalizedRawDescription.equals(candidateKey)) {
+                                        continue;
+                                }
+
+                                matches.add(candidate);
+
+                                if (matches.size() == CLASSIFICATION_HISTORY_LIMIT) {
+                                        break;
+                                }
+                        }
+
+                        if (matches.size() == CLASSIFICATION_HISTORY_LIMIT
+                                        || !candidateSlice.hasNext()) {
+                                break;
+                        }
+
+                        page++;
+                }
+
+                return matches;
+        }
+
+        private FiscalDocumentPolicy findWinningFiscalDocumentPolicy(
+
+                        List<FinancialTransaction> candidates) {
+
+                if (candidates.isEmpty()) {
+                        return null;
+                }
+
+                Map<FiscalDocumentPolicy, Long> counts = candidates.stream()
+
+                                .map(
+                                                FinancialTransaction::getFiscalDocumentPolicy)
+
+                                .filter(
+                                                Objects::nonNull)
+
+                                .collect(
+                                                Collectors.groupingBy(
+                                                                Function.identity(),
+                                                                Collectors.counting()));
+
+                long highestCount = counts.values()
+                                .stream()
+                                .mapToLong(
+                                                Long::longValue)
+                                .max()
+                                .orElse(0);
+
+                return candidates.stream()
+
+                                .map(
+                                                FinancialTransaction::getFiscalDocumentPolicy)
+
+                                .filter(
+                                                Objects::nonNull)
+
+                                .filter(
+                                                policy -> counts.getOrDefault(
+                                                                policy,
+                                                                0L) == highestCount)
+
+                                .findFirst()
+                                .orElse(null);
+        }
+
+        private String resolveConsensusFiscalDocumentNote(
+                        List<FinancialTransaction> candidates) {
+
+                Map<String, Long> noteCounts = candidates.stream()
+
+                                .map(
+                                                FinancialTransaction::getFiscalDocumentNote)
+
+                                .filter(
+                                                note -> note != null
+                                                                && !note.isBlank())
+
+                                .map(
+                                                String::trim)
+
+                                .collect(
+                                                Collectors.groupingBy(
+                                                                note -> note.toLowerCase(
+                                                                                Locale.ROOT),
+
+                                                                Collectors.counting()));
+
+                if (noteCounts.isEmpty()) {
+                        return null;
+                }
+
+                long highestCount = noteCounts.values()
+                                .stream()
+                                .mapToLong(
+                                                Long::longValue)
+                                .max()
+                                .orElse(0);
+
+                int agreement = calculateAgreementPercent(
+                                highestCount,
+                                candidates.size());
+
+                if (agreement < 60) {
+                        return null;
+                }
+
+                return candidates.stream()
+
+                                .map(
+                                                FinancialTransaction::getFiscalDocumentNote)
+
+                                .filter(
+                                                note -> note != null
+                                                                && !note.isBlank())
+
+                                .map(
+                                                String::trim)
+
+                                .filter(
+                                                note -> noteCounts.getOrDefault(
+                                                                note.toLowerCase(
+                                                                                Locale.ROOT),
+                                                                0L) == highestCount)
+
+                                .findFirst()
+                                .orElse(null);
         }
 }
