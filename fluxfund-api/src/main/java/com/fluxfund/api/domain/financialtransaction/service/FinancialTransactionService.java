@@ -2,6 +2,7 @@ package com.fluxfund.api.domain.financialtransaction.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
@@ -649,16 +650,6 @@ public class FinancialTransactionService {
                 allocation.setFinancialCommitment(
                                 commitment);
 
-                /*
-                 * Reutiliza todas as regras atuais:
-                 *
-                 * direção;
-                 * origem;
-                 * destinatário;
-                 * competência;
-                 * vigência;
-                 * compromisso ativo.
-                 */
                 validateBasicAllocationRules(
                                 allocation);
 
@@ -907,7 +898,7 @@ public class FinancialTransactionService {
                                 organizationId,
                                 id);
 
-                if (currentTransaction.getStatus() == FinancialTransactionStatus.CANCELED) {
+                if (currentTransaction.getStatus() != FinancialTransactionStatus.SETTLED) {
                         return FinancialTransactionClassificationSuggestionResponse.unavailable();
                 }
 
@@ -919,19 +910,26 @@ public class FinancialTransactionService {
                         return FinancialTransactionClassificationSuggestionResponse.unavailable();
                 }
 
-                String rawDescription = normalizeSuggestionText(
-                                currentTransaction.getRawDescription());
+                String normalizedRawDescription = normalizeSuggestionText(currentTransaction.getRawDescription());
 
-                if (rawDescription == null) {
+                if (normalizedRawDescription == null) {
                         return FinancialTransactionClassificationSuggestionResponse.unavailable();
                 }
 
-                List<FinancialTransaction> candidates = repository.findClassificationSuggestionCandidates(
-                                organizationId,
-                                currentTransaction.getId(),
-                                currentTransaction.getType(),
-                                rawDescription,
-                                PageRequest.of(0, 10));
+                List<FinancialTransaction> candidates = repository
+                                .findClassificationSuggestionCandidatePool(
+                                                organizationId,
+                                                currentTransaction.getId(),
+                                                currentTransaction.getType(),
+                                                PageRequest.of(
+                                                                0,
+                                                                250))
+                                .stream()
+
+                                .filter(candidate -> normalizedRawDescription
+                                                .equals(normalizeSuggestionText(candidate.getRawDescription())))
+                                .limit(10)
+                                .toList();
 
                 if (candidates.isEmpty()) {
                         return FinancialTransactionClassificationSuggestionResponse.unavailable();
@@ -1846,11 +1844,28 @@ public class FinancialTransactionService {
         }
 
         private String normalizeSuggestionText(String value) {
+
                 if (value == null || value.isBlank()) {
                         return null;
                 }
 
-                return value.trim();
+                String normalized = Normalizer.normalize(value, Normalizer.Form.NFD)
+
+                                .replaceAll("\\p{M}", "")
+
+                                .toLowerCase(Locale.ROOT)
+
+                                .replaceAll("\\b\\d{1,2}[./-]\\d{1,2}(?:[./-]\\d{2,4})?\\b", " ")
+
+                                .replaceAll("\\b\\d{1,2}:\\d{2}(?::\\d{2})?\\b", " ")
+
+                                .replaceAll("[^a-z0-9]+", " ")
+
+                                .replaceAll("\\s+", " ")
+
+                                .trim();
+
+                return normalized.isBlank() ? null : normalized;
         }
 
         private BigDecimal getSuggestionAmount(FinancialTransaction transaction) {
