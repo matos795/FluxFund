@@ -24,6 +24,10 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.dto.ImportOfxResponse;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
+import com.fluxfund.api.domain.importbatch.ImportBatch;
+import com.fluxfund.api.domain.importbatch.ImportBatchSourceType;
+import com.fluxfund.api.domain.importbatch.ImportBatchStatus;
+import com.fluxfund.api.domain.importbatch.repository.ImportBatchRepository;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.repository.OrganizationRepository;
 import com.fluxfund.api.security.OrganizationAccessService;
@@ -51,6 +55,7 @@ public class OfxImportService {
     private final OrganizationAccessService organizationAccessService;
     private final AuditLogService auditLogService;
     private final OfxTextNormalizer ofxTextNormalizer;
+    private final ImportBatchRepository importBatchRepository;
 
     public ImportOfxResponse importOfx(
             UUID organizationId,
@@ -64,6 +69,42 @@ public class OfxImportService {
 
         Account account = accountRepository.findByIdAndOrganizationIdAndActiveTrue(accountId, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
+
+        ImportBatch importBatch = new ImportBatch();
+
+        importBatch.setOrganization(
+                organization);
+
+        importBatch.setAccount(
+                account);
+
+        importBatch.setSourceType(
+                ImportBatchSourceType.OFX);
+
+        importBatch.setImportProfile(
+                null);
+
+        importBatch.setOriginalFilename(
+                resolveOriginalFilename(
+                        file));
+
+        importBatch.setStatus(
+                ImportBatchStatus.ACTIVE);
+
+        importBatch.setImportedCount(
+                0);
+
+        importBatch.setIgnoredDuplicatesCount(
+                0);
+
+        importBatch.setFailedCount(
+                0);
+
+        importBatch.setImportedAt(
+                LocalDateTime.now());
+
+        importBatch = importBatchRepository.save(
+                importBatch);
 
         int imported = 0;
         int ignoredDuplicates = 0;
@@ -114,16 +155,10 @@ public class OfxImportService {
                             ofxTransaction,
                             externalId);
 
+                    financialTransaction.setImportBatch(importBatch);
+
                     financialTransactionRepository.save(financialTransaction);
                     imported++;
-
-                    auditLogService.record(
-                            organizationId,
-                            AuditEntityType.OFX_IMPORT,
-                            accountId,
-                            AuditAction.IMPORT_OFX,
-                            "OFX imported for account %s: imported=%d, duplicates=%d, failed=%d"
-                                    .formatted(accountId, imported, ignoredDuplicates, failed));
 
                 } catch (Exception exception) {
                     failed++;
@@ -131,11 +166,30 @@ public class OfxImportService {
                 }
             }
 
+            importBatch.setImportedCount(imported);
+            importBatch.setIgnoredDuplicatesCount(ignoredDuplicates);
+            importBatch.setFailedCount(failed);
+            importBatchRepository.save(importBatch);
+
+            auditLogService.record(
+                    organizationId,
+                    AuditEntityType.OFX_IMPORT,
+                    accountId,
+                    AuditAction.IMPORT_OFX,
+                    "OFX batch %s imported for account %s: imported=%d, duplicates=%d, failed=%d"
+                            .formatted(
+                                    importBatch.getId(),
+                                    accountId,
+                                    imported,
+                                    ignoredDuplicates,
+                                    failed));
+
             return new ImportOfxResponse(
                     imported,
                     ignoredDuplicates,
                     failed,
-                    errors);
+                    errors,
+                    importBatch.getId());
         } catch (Exception exception) {
             throw new BusinessException("Could not import OFX file: " + exception.getMessage());
         }
@@ -241,5 +295,34 @@ public class OfxImportService {
         return ofxTextNormalizer
                 .normalize(value)
                 .trim();
+    }
+
+    private String resolveOriginalFilename(
+            MultipartFile file) {
+
+        String filename = file.getOriginalFilename();
+
+        if (filename == null
+                || filename.isBlank()) {
+
+            return "importacao.ofx";
+        }
+
+        String sanitized = filename
+                .replace("\\", "_")
+                .replace("/", "_")
+                .replace("\r", "_")
+                .replace("\n", "_")
+                .trim();
+
+        if (sanitized.length() <= 255) {
+            return sanitized;
+        }
+
+        return sanitized
+                .substring(
+                        0,
+                        251)
+                + ".ofx";
     }
 }

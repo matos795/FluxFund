@@ -171,6 +171,7 @@ export type ImportOfxResponse = {
   ignoredDuplicates: number
   failed: number
   errors: string[]
+  importBatchId: string | null
 }
 
 export type ClassifyFinancialTransactionRequest = {
