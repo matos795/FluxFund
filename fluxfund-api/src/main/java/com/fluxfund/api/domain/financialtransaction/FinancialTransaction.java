@@ -10,6 +10,7 @@ import java.util.UUID;
 import com.fluxfund.api.domain.account.Account;
 import com.fluxfund.api.domain.category.Category;
 import com.fluxfund.api.domain.creditcardstatement.CreditCardStatement;
+import com.fluxfund.api.domain.importbatch.ImportBatch;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
 import com.fluxfund.api.shared.BaseEntity;
@@ -106,6 +107,10 @@ public class FinancialTransaction extends BaseEntity {
 
     @Column(name = "imported_at")
     private LocalDateTime importedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "import_batch_id")
+    private ImportBatch importBatch;
 
     @Column(name = "classified_at")
     private LocalDateTime classifiedAt;
