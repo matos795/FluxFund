@@ -192,11 +192,13 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
 
                   from account a
                   left join financial_transaction t
-                    on t.account_id = a.id
-                   and t.organization_id = :organizationId
-                   and (
-                        a.initial_balance_date is null
-                        or t.settlement_date >= a.initial_balance_date
+                        on t.account_id = a.id
+                    and t.organization_id = :organizationId
+                    and t.credit_card_statement_id is null
+                    and t.source <> 'CREDIT_CARD'
+                    and (
+                            a.initial_balance_date is null
+                            or t.settlement_date >= a.initial_balance_date
                     )
                   where a.organization_id = :organizationId
                     and a.active = true

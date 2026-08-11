@@ -268,6 +268,9 @@ public interface FinancialTransactionRepository
                           and t.account.id = :accountId
                           and t.status =
                               com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+                              and t.creditCardStatement is null
+and t.source <>
+    com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource.CREDIT_CARD
                           and t.settlementDate < :startDate
                           and (
                 t.account.initialBalanceDate is null
@@ -289,6 +292,10 @@ public interface FinancialTransactionRepository
               and t.account.id = :accountId
               and t.status =
                   com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+                  and t.creditCardStatement is null
+
+and t.source <>
+    com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource.CREDIT_CARD
               and t.settlementDate between :startDate and :endDate
             order by t.settlementDate asc, t.createdAt asc, t.id asc
             """)
