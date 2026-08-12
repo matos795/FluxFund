@@ -238,67 +238,67 @@ public interface FinancialTransactionRepository
             @Param("endDate") LocalDate endDate);
 
     @Query("""
-                        select coalesce(sum(
-                            case
-                                when t.type =
-                                    com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.INCOME
-                                then abs(t.settledAmount)
+                                    select coalesce(sum(
+                                        case
+                                            when t.type =
+                                                com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.INCOME
+                                            then abs(t.settledAmount)
 
-                                when t.type =
-                                    com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.EXPENSE
-                                then -abs(t.settledAmount)
+                                            when t.type =
+                                                com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.EXPENSE
+                                            then -abs(t.settledAmount)
 
-                                when t.type =
-                                    com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
-                                    and t.transferDirection =
-                                        com.fluxfund.api.domain.financialtransaction.TransferDirection.IN
-                                then abs(t.settledAmount)
+                                            when t.type =
+                                                com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
+                                                and t.transferDirection =
+                                                    com.fluxfund.api.domain.financialtransaction.TransferDirection.IN
+                                            then abs(t.settledAmount)
 
-                                when t.type =
-                                    com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
-                                    and t.transferDirection =
-                                        com.fluxfund.api.domain.financialtransaction.TransferDirection.OUT
-                                then -abs(t.settledAmount)
+                                            when t.type =
+                                                com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
+                                                and t.transferDirection =
+                                                    com.fluxfund.api.domain.financialtransaction.TransferDirection.OUT
+                                            then -abs(t.settledAmount)
 
-                                else 0
-                            end
-                        ), 0)
-                        from FinancialTransaction t
-                        where t.organization.id = :organizationId
-                          and t.account.id = :accountId
-                          and t.status =
-                              com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
-                              and t.creditCardStatement is null
-and t.source <>
-    com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource.CREDIT_CARD
-                          and t.settlementDate < :startDate
-                          and (
-                t.account.initialBalanceDate is null
-                or t.settlementDate >= t.account.initialBalanceDate
-            )
-                        """)
+                                            else 0
+                                        end
+                                    ), 0)
+                                    from FinancialTransaction t
+                                    where t.organization.id = :organizationId
+                                      and t.account.id = :accountId
+                                      and t.status =
+                                          com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+                                          and t.creditCardStatement is null
+            and t.source <>
+                com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource.CREDIT_CARD
+                                      and t.settlementDate < :startDate
+                                      and (
+                            t.account.initialBalanceDate is null
+                            or t.settlementDate >= t.account.initialBalanceDate
+                        )
+                                    """)
     BigDecimal sumSignedSettledAccountMovementBeforeDate(
             @Param("organizationId") UUID organizationId,
             @Param("accountId") UUID accountId,
             @Param("startDate") LocalDate startDate);
 
     @Query("""
-            select t
-            from FinancialTransaction t
-            join fetch t.account account
-            left join fetch t.category category
-            left join fetch t.transferCounterpartyAccount counterpartyAccount
-            where t.organization.id = :organizationId
-              and t.account.id = :accountId
-              and t.status =
-                  com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
-                  and t.creditCardStatement is null
+                        select t
+                        from FinancialTransaction t
+                        join fetch t.account account
+                        left join fetch t.category category
+                        left join fetch t.transferCounterpartyAccount counterpartyAccount
+                        where t.organization.id = :organizationId
+                          and t.account.id = :accountId
+                          and t.status =
+                              com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+                              and t.creditCardStatement is null
 
-and t.source <>
-    com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource.CREDIT_CARD
-              and t.settlementDate between :startDate and :endDate
-            order by t.settlementDate asc, t.createdAt asc, t.id asc
-            """)
+            and t.source <>
+                com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource.CREDIT_CARD
+                          and t.settlementDate between :startDate and :endDate
+                        order by t.settlementDate asc, t.createdAt asc, t.id asc
+                        """)
     List<FinancialTransaction> findSettledAccountMovementReportTransactions(
             @Param("organizationId") UUID organizationId,
             @Param("accountId") UUID accountId,
@@ -1089,4 +1089,60 @@ and t.source <>
             @Param("amount") BigDecimal amount,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
+
+    long countByOrganizationIdAndImportBatchId(
+            UUID organizationId,
+            UUID importBatchId);
+
+    @Query("""
+            select count(transaction)
+            from FinancialTransaction transaction
+            where transaction.organization.id = :organizationId
+              and transaction.importBatch.id = :batchId
+              and transaction.updatedAt is not null
+            """)
+    long countModifiedByImportBatch(
+            @Param("organizationId") UUID organizationId,
+            @Param("batchId") UUID batchId);
+
+    @Query("""
+            select count(transaction)
+            from FinancialTransaction transaction
+            where transaction.organization.id = :organizationId
+              and transaction.importBatch.id = :batchId
+              and (
+                    transaction.category is not null
+                    or transaction.classifiedAt is not null
+                  )
+            """)
+    long countClassifiedByImportBatch(
+            @Param("organizationId") UUID organizationId,
+            @Param("batchId") UUID batchId);
+
+    @Query("""
+            select count(transaction)
+            from FinancialTransaction transaction
+            where transaction.organization.id = :organizationId
+              and transaction.importBatch.id = :batchId
+              and (
+                    transaction.type = com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
+                    or transaction.transferDirection is not null
+                    or transaction.transferCounterpartyAccount is not null
+                    or transaction.transferGroupId is not null
+                  )
+            """)
+    long countTransfersByImportBatch(
+            @Param("organizationId") UUID organizationId,
+            @Param("batchId") UUID batchId);
+
+    @Query("""
+            select count(transaction)
+            from FinancialTransaction transaction
+            where transaction.organization.id = :organizationId
+              and transaction.importBatch.id = :batchId
+              and transaction.creditCardStatement is not null
+            """)
+    long countCreditCardStatementLinksByImportBatch(
+            @Param("organizationId") UUID organizationId,
+            @Param("batchId") UUID batchId);
 }

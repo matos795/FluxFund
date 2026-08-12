@@ -1,0 +1,26 @@
+package com.fluxfund.api.domain.importbatch;
+
+public enum ImportBatchUndoBlocker {
+
+    ALREADY_UNDONE,
+
+    NO_IMPORTED_TRANSACTIONS,
+
+    TRANSACTION_COUNT_MISMATCH,
+
+    MODIFIED_TRANSACTIONS,
+
+    CLASSIFIED_TRANSACTIONS,
+
+    TRANSFER_TRANSACTIONS,
+
+    ALLOCATIONS,
+
+    ATTACHMENTS,
+
+    RECEIPTS,
+
+    CREDIT_CARD_PAYMENTS,
+
+    CREDIT_CARD_STATEMENT_LINKS
+}

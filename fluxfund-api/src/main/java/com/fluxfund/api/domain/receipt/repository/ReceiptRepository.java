@@ -245,4 +245,20 @@ public interface ReceiptRepository
     BigDecimal sumIssuedByFinancialParty(
             @Param("organizationId") UUID organizationId,
             @Param("partyId") UUID partyId);
+
+    @Query("""
+            select count(distinct receipt)
+            from Receipt receipt
+            left join receipt.financialTransaction transaction
+            left join receipt.transactionAllocation allocation
+            left join allocation.financialTransaction allocationTransaction
+            where receipt.organization.id = :organizationId
+              and (
+                    transaction.importBatch.id = :batchId
+                    or allocationTransaction.importBatch.id = :batchId
+                  )
+            """)
+    long countByImportBatch(
+            @Param("organizationId") UUID organizationId,
+            @Param("batchId") UUID batchId);
 }
