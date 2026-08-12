@@ -203,6 +203,7 @@ export type ImportCsvResponse = {
   ignoredDuplicates: number
   failed: number
   errors: string[]
+  importBatchId: string | null
 }
 
 export type ClassificationSuggestionAllocation = {

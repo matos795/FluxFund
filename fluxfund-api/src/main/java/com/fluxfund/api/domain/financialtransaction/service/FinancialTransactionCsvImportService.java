@@ -20,6 +20,10 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.dto.ImportOfxResponse;
 import com.fluxfund.api.domain.financialtransaction.importer.MercadoPagoAccountCsvParser;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
+import com.fluxfund.api.domain.importbatch.ImportBatch;
+import com.fluxfund.api.domain.importbatch.ImportBatchSourceType;
+import com.fluxfund.api.domain.importbatch.ImportBatchStatus;
+import com.fluxfund.api.domain.importbatch.repository.ImportBatchRepository;
 import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.repository.OrganizationRepository;
 import com.fluxfund.api.security.OrganizationAccessService;
@@ -40,6 +44,7 @@ public class FinancialTransactionCsvImportService {
     private final AccountRepository accountRepository;
     private final OrganizationAccessService organizationAccessService;
     private final MercadoPagoAccountCsvParser mercadoPagoParser;
+    private final ImportBatchRepository importBatchRepository;
 
     public ImportOfxResponse importCsv(
             UUID organizationId,
@@ -62,6 +67,42 @@ public class FinancialTransactionCsvImportService {
         if (account.getType() == AccountType.CREDIT_CARD) {
             throw new BusinessException("CSV bancário não pode ser importado em conta de cartão.");
         }
+
+        ImportBatch importBatch = new ImportBatch();
+
+        importBatch.setOrganization(
+                organization);
+
+        importBatch.setAccount(
+                account);
+
+        importBatch.setSourceType(
+                ImportBatchSourceType.CSV);
+
+        importBatch.setImportProfile(
+                profile.name());
+
+        importBatch.setOriginalFilename(
+                resolveOriginalFilename(
+                        file));
+
+        importBatch.setStatus(
+                ImportBatchStatus.ACTIVE);
+
+        importBatch.setImportedCount(
+                0);
+
+        importBatch.setIgnoredDuplicatesCount(
+                0);
+
+        importBatch.setFailedCount(
+                0);
+
+        importBatch.setImportedAt(
+                LocalDateTime.now());
+
+        importBatch = importBatchRepository.save(
+                importBatch);
 
         List<ImportedTransactionRow> rows = mercadoPagoParser.parse(file);
 
@@ -88,6 +129,8 @@ public class FinancialTransactionCsvImportService {
                         account,
                         row);
 
+                transaction.setImportBatch(importBatch);
+
                 financialTransactionRepository.save(transaction);
                 imported++;
             } catch (Exception exception) {
@@ -96,11 +139,20 @@ public class FinancialTransactionCsvImportService {
             }
         }
 
+        importBatch.setImportedCount(imported);
+
+        importBatch.setIgnoredDuplicatesCount(ignoredDuplicates);
+
+        importBatch.setFailedCount(failed);
+
+        importBatchRepository.save(importBatch);
+
         return new ImportOfxResponse(
                 imported,
                 ignoredDuplicates,
                 failed,
-                errors);
+                errors,
+                importBatch.getId());
     }
 
     private FinancialTransaction createBankTransaction(
@@ -147,5 +199,34 @@ public class FinancialTransactionCsvImportService {
         transaction.setClassifiedAt(null);
 
         return transaction;
+    }
+
+    private String resolveOriginalFilename(
+            MultipartFile file) {
+
+        String filename = file.getOriginalFilename();
+
+        if (filename == null
+                || filename.isBlank()) {
+
+            return "importacao.csv";
+        }
+
+        String sanitized = filename
+                .replace("\\", "_")
+                .replace("/", "_")
+                .replace("\r", "_")
+                .replace("\n", "_")
+                .trim();
+
+        if (sanitized.length() <= 255) {
+            return sanitized;
+        }
+
+        return sanitized
+                .substring(
+                        0,
+                        251)
+                + ".csv";
     }
 }
