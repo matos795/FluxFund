@@ -48,4 +48,6 @@ public enum AuditAction {
     CANCEL_RECEIPT,
 
     REISSUE_RECEIPT,
+
+    UNDO_IMPORT_BATCH,
 }

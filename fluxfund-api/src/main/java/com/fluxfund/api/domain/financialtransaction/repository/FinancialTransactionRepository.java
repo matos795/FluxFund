@@ -11,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -24,6 +25,8 @@ import com.fluxfund.api.domain.report.dto.category.CategoryResultItemResponse;
 import com.fluxfund.api.domain.report.dto.expense.SettledExpenseReportItemResponse;
 import com.fluxfund.api.domain.report.dto.income.SettledIncomeReportItemResponse;
 import com.fluxfund.api.domain.report.projection.PendingDocumentTransactionProjection;
+
+import jakarta.persistence.LockModeType;
 
 public interface FinancialTransactionRepository
         extends JpaRepository<FinancialTransaction, UUID>,
@@ -1143,6 +1146,17 @@ public interface FinancialTransactionRepository
               and transaction.creditCardStatement is not null
             """)
     long countCreditCardStatementLinksByImportBatch(
+            @Param("organizationId") UUID organizationId,
+            @Param("batchId") UUID batchId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select transaction
+            from FinancialTransaction transaction
+            where transaction.organization.id = :organizationId
+              and transaction.importBatch.id = :batchId
+            """)
+    List<FinancialTransaction> findAllByOrganizationIdAndImportBatchIdForUpdate(
             @Param("organizationId") UUID organizationId,
             @Param("batchId") UUID batchId);
 }

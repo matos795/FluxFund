@@ -18,4 +18,5 @@ public enum AuditEntityType {
     ORGANIZATION_USER,
     ORGANIZATION_USER_INVITATION,
     RECEIPT,
+    IMPORT_BATCH,
 }

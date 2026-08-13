@@ -9,12 +9,14 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fluxfund.api.domain.importbatch.dto.ImportBatchResponse;
 import com.fluxfund.api.domain.importbatch.dto.ImportBatchUndoCheckResponse;
+import com.fluxfund.api.domain.importbatch.dto.ImportBatchUndoResponse;
 import com.fluxfund.api.domain.importbatch.service.ImportBatchService;
 
 import lombok.RequiredArgsConstructor;
@@ -47,6 +49,18 @@ public class ImportBatchController {
 
         return ResponseEntity.ok(
                 service.checkUndo(
+                        organizationId,
+                        batchId));
+    }
+
+    @PostMapping("/{batchId}/undo")
+    public ResponseEntity<ImportBatchUndoResponse> undo(
+            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+
+            @PathVariable UUID batchId) {
+
+        return ResponseEntity.ok(
+                service.undo(
                         organizationId,
                         batchId));
     }
