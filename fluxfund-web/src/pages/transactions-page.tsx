@@ -6,7 +6,7 @@ import { FinancialTransactionsTable } from "@/features/financial-transactions/co
 import { useFinancialTransactions } from "@/features/financial-transactions/hooks/use-financial-transactions"
 import { CreateFinancialTransactionDialog } from "@/features/financial-transactions/components/create-financial-transaction-dialog"
 import { FinancialTransactionFilters } from "@/features/financial-transactions/components/financial-transaction-filters"
-import { useSearchParams } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 import { ExportSettledFinancialTransactionsDialog } from "@/features/financial-transactions/components/export-settled-financial-transactions-dialog"
 import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { useCategoryOptions } from "@/features/categories/hooks/use-category-options"
@@ -17,7 +17,7 @@ import { needsFinancialTransactionClassification } from "@/features/financial-tr
 import { TransactionWorkspaceDialog } from "@/features/financial-transactions/components/transaction-workspace-dialog"
 import { ImportFinancialTransactionsDialog } from "@/features/financial-transactions/components/import-financial-transactions-dialog"
 import type { DateRangeValue } from "@/components/filters/date-range-presets"
-import { ListChecks, Trash2, X } from "lucide-react"
+import { History, ListChecks, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useBulkCancelFinancialTransactions } from "@/features/financial-transactions/hooks/use-bulk-cancel-financial-transactions"
 import { getApiErrorMessage } from "@/utils/api-error"
@@ -319,12 +319,24 @@ export function TransactionsPage() {
         description="Acompanhe lançamentos financeiros, conciliações e movimentações oficiais."
       >
         <div className="flex flex-wrap gap-2">
+
+          <Button
+            asChild
+            variant="outline"
+          >
+            <Link to="/transactions/imports">
+              <History className="mr-2 size-4" />
+              Histórico de importações
+            </Link>
+          </Button>
+
           {canFinanceWrite && (
             <>
               <ImportFinancialTransactionsDialog />
               <CreateFinancialTransactionDialog />
             </>
           )}
+
           <ExportSettledFinancialTransactionsDialog />
         </div>
       </PageHeader>
@@ -636,19 +648,20 @@ export function TransactionsPage() {
       <TransactionClassificationQueueDialog
         open={classificationQueueOpen}
         transactions={classificationQueue}
-        onOpenChange={(open) => { setClassificationQueueOpen(open)
+        onOpenChange={(open) => {
+          setClassificationQueueOpen(open)
 
           if (!open) {
             setClassificationQueue([])
           }
         }}
-        onComplete={({classifiedCount, skippedCount}) => {
+        onComplete={({ classifiedCount, skippedCount }) => {
           clearSelection()
 
           if (skippedCount === 0) {
             toast.success(classifiedCount === 1
-                ? "Classificação concluída."
-                : `${classifiedCount} transações classificadas.`,
+              ? "Classificação concluída."
+              : `${classifiedCount} transações classificadas.`,
             )
 
             return

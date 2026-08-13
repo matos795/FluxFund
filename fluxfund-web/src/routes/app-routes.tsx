@@ -34,6 +34,7 @@ import { FinancialCommitmentsPayableReportPage, FinancialCommitmentsReceivableRe
 import { FinancialForecastReportPage } from "@/pages/results/financial-forecast-report-page"
 import { ReceiptsPage } from "@/pages/receipts-page"
 import { FinancialPartyOverviewPage } from "@/pages/financial-party-overview-page"
+import { ImportBatchesPage } from "@/pages/import-batches-page"
 
 export function AppRoutes() {
   return (
@@ -135,6 +136,14 @@ export function AppRoutes() {
               <ReceiptsPage />
             }
           />
+
+          <Route
+            path="/transactions/imports"
+            element={
+              <ImportBatchesPage />
+            }
+          />
+
           <Route path="/transactions" element={<TransactionsPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route
