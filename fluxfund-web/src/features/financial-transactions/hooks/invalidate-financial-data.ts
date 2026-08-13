@@ -111,5 +111,17 @@ export async function invalidateFinancialData(
         "financial-parties-360",
       ],
     }),
+
+    queryClient.invalidateQueries({
+      queryKey: [
+        "accounts",
+      ],
+    }),
+
+    queryClient.invalidateQueries({
+      queryKey: [
+        "account-cash-flow-report",
+      ],
+    }),
   ])
 }

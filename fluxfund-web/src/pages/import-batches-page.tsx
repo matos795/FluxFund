@@ -8,6 +8,7 @@ import {
     FileSpreadsheet,
     FileText,
     Landmark,
+    Undo2,
 } from "lucide-react"
 
 import {
@@ -42,6 +43,8 @@ import {
 import type {
     ImportBatch,
 } from "@/features/import-batches/import-batch-types"
+import { usePermissions } from "@/features/auth/hooks/use-permissions"
+import { ImportBatchUndoDialog } from "@/features/import-batches/components/import-batch-undo-dialog"
 
 function formatImportDateTime(
     value:
@@ -109,9 +112,17 @@ function getImportTypeLabel(
 
 function ImportBatchCard({
     batch,
+    canFinanceWrite,
+    onUndo,
 }: {
     batch:
     ImportBatch
+
+    canFinanceWrite:
+    boolean
+
+    onUndo:
+    () => void
 }) {
 
     const SourceIcon =
@@ -211,32 +222,52 @@ function ImportBatchCard({
                         </div>
                     </div>
 
-                    <div className="grid shrink-0 grid-cols-3 gap-2">
-                        <ImportResult
-                            label="Importadas"
-                            value={
-                                batch.importedCount
-                            }
-                        />
+                    <div className="shrink-0 space-y-3">
 
-                        <ImportResult
-                            label="Duplicadas"
-                            value={
-                                batch
-                                    .ignoredDuplicatesCount
-                            }
-                        />
+                        <div className="grid grid-cols-3 gap-2">
+                            <ImportResult
+                                label="Importadas"
+                                value={
+                                    batch.importedCount
+                                }
+                            />
 
-                        <ImportResult
-                            label="Falhas"
-                            value={
-                                batch.failedCount
-                            }
-                            destructive={
-                                batch.failedCount >
-                                0
-                            }
-                        />
+                            <ImportResult
+                                label="Duplicadas"
+                                value={
+                                    batch.ignoredDuplicatesCount
+                                }
+                            />
+
+                            <ImportResult
+                                label="Falhas"
+                                value={
+                                    batch.failedCount
+                                }
+                                destructive={
+                                    batch.failedCount >
+                                    0
+                                }
+                            />
+                        </div>
+
+                        {canFinanceWrite &&
+                            !undone &&
+                            batch.importedCount >
+                            0 && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full"
+                                    onClick={
+                                        onUndo
+                                    }
+                                >
+                                    <Undo2 className="mr-2 size-4" />
+                                    Desfazer importação
+                                </Button>
+                            )}
                     </div>
                 </div>
             </CardContent>
@@ -279,6 +310,21 @@ function ImportResult({
 }
 
 export function ImportBatchesPage() {
+
+    const {
+        canFinanceWrite,
+    } =
+        usePermissions()
+
+    const [
+        undoBatch,
+        setUndoBatch,
+    ] =
+        useState<
+            ImportBatch | null
+        >(
+            null,
+        )
 
     const [
         page,
@@ -408,6 +454,14 @@ export function ImportBatchesPage() {
                                         batch={
                                             batch
                                         }
+                                        canFinanceWrite={
+                                            canFinanceWrite
+                                        }
+                                        onUndo={() =>
+                                            setUndoBatch(
+                                                batch,
+                                            )
+                                        }
                                     />
                                 ),
                             )}
@@ -438,6 +492,26 @@ export function ImportBatchesPage() {
                         />
                     </>
                 )}
+
+            <ImportBatchUndoDialog
+                batch={
+                    undoBatch
+                }
+                open={
+                    undoBatch !==
+                    null
+                }
+                onOpenChange={(
+                    open,
+                ) => {
+
+                    if (!open) {
+                        setUndoBatch(
+                            null,
+                        )
+                    }
+                }}
+            />
         </div>
     )
 }
