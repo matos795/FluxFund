@@ -62,6 +62,8 @@ const auditActions: AuditAction[] = [
 
   "IMPORT_OFX",
 
+  "UNDO_IMPORT_BATCH",
+
   "UPLOAD_BANK_STATEMENT_DOCUMENT",
   "DELETE_BANK_STATEMENT_DOCUMENT",
 
@@ -91,6 +93,7 @@ const entityTypes: AuditEntityType[] = [
   "SUPPORT_AGREEMENT",
   "ORGANIZATION_SETTINGS",
   "OFX_IMPORT",
+  "IMPORT_BATCH",
   "FUND",
   "BANK_STATEMENT_DOCUMENT",
   "CREDIT_CARD_STATEMENT",

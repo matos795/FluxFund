@@ -20,6 +20,9 @@ export const auditActionLabels: Record<AuditAction, string> = {
 
   IMPORT_OFX: "Importação OFX",
 
+  UNDO_IMPORT_BATCH:
+    "Importação desfeita",
+
   UPLOAD_BANK_STATEMENT_DOCUMENT:
     "Extrato bancário enviado",
 
@@ -99,6 +102,9 @@ export const auditEntityTypeLabels: Record<
 
   OFX_IMPORT:
     "Importação OFX",
+
+  IMPORT_BATCH:
+    "Lote de importação",
 
   FUND:
     "Fundo",
