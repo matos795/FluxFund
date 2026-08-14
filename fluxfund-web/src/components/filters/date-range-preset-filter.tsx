@@ -40,7 +40,6 @@ type DateRangePresetFilterProps = {
   presetOptions?: Exclude<DateRangePreset, "all">[]
   includeAllPeriodOption?: boolean
   layout?: "full" | "compact"
-
   showSummary?: boolean
 }
 
@@ -333,10 +332,12 @@ export function DateRangePresetFilter({
       )}
 
       {isAllPeriod ? (
-        <div className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-          <CalendarRange className="size-4 shrink-0" />
-          Nenhuma restrição de data será aplicada.
-        </div>
+        showSummary ? (
+          <div className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+            <CalendarRange className="size-4 shrink-0" />
+            Nenhuma restrição de data será aplicada.
+          </div>
+        ) : null
       ) : isSpecificDay ? (
         <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
           <Label htmlFor={`${idPrefix}-specific-day`}>
@@ -427,7 +428,7 @@ export function DateRangePresetFilter({
             </p>
           )}
         </div>
-      ) : (
+      ) : showSummary ? (
         <div className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
           <CalendarRange className="size-4 shrink-0" />
 
@@ -436,7 +437,7 @@ export function DateRangePresetFilter({
             {formatDate(value.endDate)}
           </span>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }
