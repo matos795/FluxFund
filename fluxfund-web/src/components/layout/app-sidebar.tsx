@@ -5,6 +5,7 @@ import {
   ChartNoAxesCombined,
   ChevronsUpDown,
   CreditCard,
+  Files,
   FileSignature,
   FolderTree,
   HandCoins,
@@ -81,6 +82,16 @@ const navigationItems = [
 
     icon:
       FileSignature,
+  },
+  {
+    label:
+      "Documentos",
+
+    href:
+      "/documents",
+
+    icon:
+      Files,
   },
   {
     label: "Relatórios",

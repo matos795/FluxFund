@@ -1,3 +1,11 @@
+import type {
+  BankStatementDocument,
+} from "@/features/bank-statement-documents/bank-statement-document-types"
+
+export type {
+  BankStatementDocument,
+} from "@/features/bank-statement-documents/bank-statement-document-types"
+
 export type ClosingDossierIssueType =
   | "PAYMENT_PROOF_MISSING"
   | "FISCAL_DOCUMENT_REQUIRED_MISSING"
@@ -8,20 +16,6 @@ export type FiscalDocumentPolicy =
   | "REQUIRED"
   | "WAIVED"
   | "MISSING"
-
-export type BankStatementDocument = {
-  id: string
-  accountId: string
-  accountName: string
-  periodStartDate: string
-  periodEndDate: string
-  originalFilename: string
-  contentType: string
-  sizeBytes: number
-  uploadedAt: string
-  createdAt: string
-  updatedAt: string | null
-}
 
 export type ClosingDossierDocumentIssue = {
   transactionId: string

@@ -3,7 +3,7 @@ import { useMutation } from "@tanstack/react-query"
 import {
   deleteBankStatementDocument,
   uploadBankStatementDocument,
-} from "../closing-dossier-api"
+} from "@/features/bank-statement-documents/bank-statement-document-api"
 
 export function useUploadBankStatementDocument() {
   return useMutation({

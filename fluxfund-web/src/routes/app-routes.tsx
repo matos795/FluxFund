@@ -35,6 +35,7 @@ import { FinancialForecastReportPage } from "@/pages/results/financial-forecast-
 import { ReceiptsPage } from "@/pages/receipts-page"
 import { FinancialPartyOverviewPage } from "@/pages/financial-party-overview-page"
 import { ImportBatchesPage } from "@/pages/import-batches-page"
+import { DocumentsPage } from "@/pages/documents-page"
 
 export function AppRoutes() {
   return (
@@ -134,6 +135,13 @@ export function AppRoutes() {
             path="/receipts"
             element={
               <ReceiptsPage />
+            }
+          />
+
+          <Route
+            path="/documents"
+            element={
+              <DocumentsPage />
             }
           />
 

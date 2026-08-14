@@ -22,7 +22,7 @@ import { formatCurrency, formatDate } from "@/utils/formatters"
 import { downloadFile } from "@/utils/download-file"
 import {
   downloadBankStatementDocument,
-} from "../closing-dossier-api"
+} from "@/features/bank-statement-documents/bank-statement-document-api"
 import type {
   BankStatementDocument,
   ClosingDossierAccountPreview,
