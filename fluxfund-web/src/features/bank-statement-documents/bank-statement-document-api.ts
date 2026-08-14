@@ -10,8 +10,11 @@ import type { BankStatementDocument, GetBankStatementDocumentsLibraryParams } fr
 export async function getBankStatementDocumentsLibrary({
     page = 0,
     size = 12,
+    accountId,
+    periodStartDate,
+    periodEndDate,
+    filename,
 }: GetBankStatementDocumentsLibraryParams) {
-
     const response =
         await httpClient.get<
             PageResponse<BankStatementDocument>
@@ -21,8 +24,10 @@ export async function getBankStatementDocumentsLibrary({
                 params: {
                     page,
                     size,
-                    sort:
-                        "uploadedAt,desc",
+                    accountId,
+                    periodStartDate,
+                    periodEndDate,
+                    filename,
                 },
             },
         )

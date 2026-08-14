@@ -146,12 +146,32 @@ public class BankStatementDocumentService {
         }
 
         @Transactional(readOnly = true)
-        public Page<BankStatementDocumentResponse> findAll(UUID organizationId, Pageable pageable) {
+        public Page<BankStatementDocumentResponse> findAll(
+                        UUID organizationId,
+                        UUID accountId,
+                        LocalDate periodStartDate,
+                        LocalDate periodEndDate,
+                        String filename,
+                        Pageable pageable) {
 
                 organizationAccessService.requireReadAccess(organizationId);
 
+                if (periodStartDate != null && periodEndDate != null && periodStartDate.isAfter(periodEndDate)) {
+                        throw new BusinessException("Period start date cannot be after period end date");
+                }
+
+                String normalizedFilename = filename == null || filename.isBlank()
+                                ? null
+                                : filename.trim();
+
                 return bankStatementDocumentRepository
-                                .findAllByOrganizationId(organizationId, pageable)
+                                .findAllForLibrary(
+                                                organizationId,
+                                                accountId,
+                                                periodStartDate,
+                                                periodEndDate,
+                                                normalizedFilename,
+                                                pageable)
                                 .map(BankStatementDocumentMapper::toResponse);
         }
 

@@ -17,6 +17,13 @@ export type BankStatementDocument = {
 }
 
 export type GetBankStatementDocumentsLibraryParams = {
-    page?: number
-    size?: number
+  page?: number
+  size?: number
+
+  accountId?: string
+
+  periodStartDate?: string
+  periodEndDate?: string
+
+  filename?: string
 }

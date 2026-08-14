@@ -1,4 +1,5 @@
 import {
+    useEffect,
     useState,
 } from "react"
 
@@ -11,6 +12,8 @@ import {
     Landmark,
     Paperclip,
     ReceiptText,
+    Search,
+    X,
 } from "lucide-react"
 
 import {
@@ -64,6 +67,20 @@ import {
 import {
     formatDate,
 } from "@/utils/formatters"
+import type { DateRangeValue } from "@/components/filters/date-range-presets"
+import { useAccountOptions } from "@/features/accounts/hooks/use-account-options"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DateRangePresetFilter } from "@/components/filters/date-range-preset-filter"
+import { Input } from "@/components/ui/input"
+import { usePermissions } from "@/features/auth/hooks/use-permissions"
+import { getApiErrorMessage } from "@/utils/api-error"
+import { ConfirmActionDialog } from "@/components/layout/confirm-action-dialog"
+
+const ALL_PERIOD: DateRangeValue = {
+    preset: "all",
+    startDate: "",
+    endDate: "",
+}
 
 function formatFileSize(
     bytes:
@@ -129,7 +146,6 @@ function BankStatementDocumentCard({
     document:
     BankStatementDocument
 }) {
-
     const [
         isDownloading,
         setIsDownloading,
@@ -320,6 +336,10 @@ function FutureDocumentsTab({
 
 export function DocumentsPage() {
 
+    const {
+        canFinanceWrite,
+    } = usePermissions()
+
     const [
         page,
         setPage,
@@ -340,6 +360,139 @@ export function DocumentsPage() {
             page,
             size,
         })
+
+
+    const [
+        accountId,
+        setAccountId,
+    ] = useState("ALL")
+
+    const [
+        period,
+        setPeriod,
+    ] = useState<DateRangeValue>(
+        ALL_PERIOD,
+    )
+
+    const [
+        searchInput,
+        setSearchInput,
+    ] = useState("")
+
+    const [
+        filename,
+        setFilename,
+    ] = useState("")
+
+    const accountOptionsQuery =
+        useAccountOptions()
+
+    useEffect(() => {
+        const timeout =
+            window.setTimeout(() => {
+                setPage(0)
+                setFilename(
+                    searchInput.trim(),
+                )
+            }, 350)
+
+        return () =>
+            window.clearTimeout(
+                timeout,
+            )
+    }, [searchInput])
+
+    useBankStatementDocumentsLibrary({
+        page,
+        size,
+
+        accountId:
+            accountId === "ALL"
+                ? undefined
+                : accountId,
+
+        periodStartDate:
+            period.startDate ||
+            undefined,
+
+        periodEndDate:
+            period.endDate ||
+            undefined,
+
+        filename:
+            filename ||
+            undefined,
+    })
+
+    function getDocumentMonthKey(
+        document: BankStatementDocument,
+    ) {
+        return document.periodStartDate.slice(
+            0,
+            7,
+        )
+    }
+
+    function formatMonthYear(
+        monthKey: string,
+    ) {
+        const date =
+            new Date(
+                `${monthKey}-01T12:00:00Z`,
+            )
+
+        const value =
+            new Intl.DateTimeFormat(
+                "pt-BR",
+                {
+                    month: "long",
+                    year: "numeric",
+                    timeZone: "UTC",
+                },
+            ).format(date)
+
+        return (
+            value.charAt(0).toUpperCase() +
+            value.slice(1)
+        )
+    }
+
+    function groupDocumentsByMonth(
+        documents:
+            BankStatementDocument[],
+    ) {
+        const groups =
+            new Map<
+                string,
+                BankStatementDocument[]
+            >()
+
+        for (const document of documents) {
+            const key =
+                getDocumentMonthKey(
+                    document,
+                )
+
+            const current =
+                groups.get(key) ?? []
+
+            current.push(document)
+
+            groups.set(
+                key,
+                current,
+            )
+        }
+
+        return Array.from(
+            groups.entries(),
+        )
+    }
+
+    const documentGroups =
+        groupDocumentsByMonth(
+            data?.content ?? [],
+        )
 
     return (
         <div className="space-y-6">
@@ -374,11 +527,17 @@ export function DocumentsPage() {
                 className="space-y-5"
             >
 
-                <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-xl border bg-background p-2 lg:grid-cols-4">
+                <TabsList className="grid h-auto min-h-0 w-full grid-cols-2 items-stretch gap-2 rounded-xl border bg-muted/30 p-2 lg:grid-cols-4">
 
                     <TabsTrigger
                         value="bank-statements"
-                        className="gap-2 py-3"
+                        className="
+                            h-auto min-h-11 gap-2 rounded-lg px-3 py-2.5
+                            after:hidden
+                            data-active:bg-background
+                            data-active:text-foreground
+                            data-active:shadow-sm
+                            "
                     >
                         <Landmark className="size-4" />
                         Extratos
@@ -386,7 +545,13 @@ export function DocumentsPage() {
 
                     <TabsTrigger
                         value="attachments"
-                        className="gap-2 py-3"
+                        className="
+                            h-auto min-h-11 gap-2 rounded-lg px-3 py-2.5
+                            after:hidden
+                            data-active:bg-background
+                            data-active:text-foreground
+                            data-active:shadow-sm
+                            "
                     >
                         <Paperclip className="size-4" />
                         Anexos
@@ -394,7 +559,13 @@ export function DocumentsPage() {
 
                     <TabsTrigger
                         value="receipts"
-                        className="gap-2 py-3"
+                        className="
+                            h-auto min-h-11 gap-2 rounded-lg px-3 py-2.5
+                            after:hidden
+                            data-active:bg-background
+                            data-active:text-foreground
+                            data-active:shadow-sm
+                            "
                     >
                         <ReceiptText className="size-4" />
                         Recibos
@@ -402,7 +573,13 @@ export function DocumentsPage() {
 
                     <TabsTrigger
                         value="dossiers"
-                        className="gap-2 py-3"
+                        className="
+                            h-auto min-h-11 gap-2 rounded-lg px-3 py-2.5
+                            after:hidden
+                            data-active:bg-background
+                            data-active:text-foreground
+                            data-active:shadow-sm
+                            "
                     >
                         <Archive className="size-4" />
                         Dossiês
@@ -415,15 +592,114 @@ export function DocumentsPage() {
                     className="mt-0 space-y-4"
                 >
 
-                    <div className="flex flex-col gap-1">
-                        <h2 className="text-lg font-semibold">
-                            Extratos bancários
-                        </h2>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
 
-                        <p className="text-sm text-muted-foreground">
-                            PDFs oficiais armazenados por conta e período.
-                        </p>
+                        <div>
+                            <h2 className="text-lg font-semibold">
+                                Extratos bancários
+                            </h2>
+
+                            <p className="text-sm text-muted-foreground">
+                                PDFs oficiais armazenados por conta e período.
+                            </p>
+                        </div>
+
+                        {canFinanceWrite && (
+                            <BankStatementLibraryUploadDialog />
+                        )}
+
                     </div>
+
+                    <Card>
+                        <CardContent className="p-4">
+                            <div className="grid gap-4 lg:grid-cols-[1fr_240px_260px_auto] lg:items-end">
+
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">
+                                        Buscar arquivo
+                                    </label>
+
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+
+                                        <Input
+                                            value={searchInput}
+                                            onChange={(event) =>
+                                                setSearchInput(
+                                                    event.target.value,
+                                                )
+                                            }
+                                            placeholder="Nome do arquivo..."
+                                            className="pl-9"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">
+                                        Conta
+                                    </label>
+
+                                    <Select
+                                        value={accountId}
+                                        onValueChange={(value) => {
+                                            setPage(0)
+                                            setAccountId(value)
+                                        }}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+
+                                        <SelectContent>
+                                            <SelectItem value="ALL">
+                                                Todas as contas
+                                            </SelectItem>
+
+                                            {accountOptionsQuery.data?.map(
+                                                (account) => (
+                                                    <SelectItem
+                                                        key={account.id}
+                                                        value={account.id}
+                                                    >
+                                                        {account.label}
+                                                    </SelectItem>
+                                                ),
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <DateRangePresetFilter
+                                    value={period}
+                                    onChange={(value) => {
+                                        setPage(0)
+                                        setPeriod(value)
+                                    }}
+                                    idPrefix="document-library-period"
+                                    label="Período do extrato"
+                                    includeAllPeriodOption
+                                    layout="compact"
+                                />
+
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => {
+                                        setPage(0)
+                                        setAccountId("ALL")
+                                        setPeriod(ALL_PERIOD)
+                                        setSearchInput("")
+                                        setFilename("")
+                                    }}
+                                >
+                                    <X className="mr-2 size-4" />
+                                    Limpar
+                                </Button>
+
+                            </div>
+                        </CardContent>
+                    </Card>
 
                     {isLoading && (
                         <Card>
@@ -477,20 +753,51 @@ export function DocumentsPage() {
                             <>
                                 <div className="space-y-3">
                                     {
-                                        data.content.map(
-                                            (
-                                                document,
-                                            ) => (
-                                                <BankStatementDocumentCard
-                                                    key={
-                                                        document.id
-                                                    }
-                                                    document={
-                                                        document
-                                                    }
-                                                />
-                                            ),
-                                        )
+                                        <div className="space-y-6">
+                                            {documentGroups.map(
+                                                ([
+                                                    monthKey,
+                                                    documents,
+                                                ]) => (
+                                                    <section
+                                                        key={monthKey}
+                                                        className="space-y-3"
+                                                    >
+
+                                                        <div className="sticky top-16 z-10 -mx-1 bg-muted/40 px-1 py-2 backdrop-blur">
+                                                            <div className="flex items-center justify-between rounded-lg border bg-background/95 px-3 py-2 shadow-sm">
+
+                                                                <p className="font-semibold">
+                                                                    {formatMonthYear(
+                                                                        monthKey,
+                                                                    )}
+                                                                </p>
+
+                                                                <Badge variant="secondary">
+                                                                    {documents.length}{" "}
+                                                                    {documents.length === 1
+                                                                        ? "extrato"
+                                                                        : "extratos"}
+                                                                </Badge>
+
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="space-y-3">
+                                                            {documents.map(
+                                                                (document) => (
+                                                                    <BankStatementDocumentCard
+                                                                        key={document.id}
+                                                                        document={document}
+                                                                    />
+                                                                ),
+                                                            )}
+                                                        </div>
+
+                                                    </section>
+                                                ),
+                                            )}
+                                        </div>
                                     }
                                 </div>
 
@@ -562,6 +869,53 @@ export function DocumentsPage() {
                 </TabsContent>
 
             </Tabs>
+
+            <ConfirmActionDialog
+                open={
+                    documentToDelete !== null
+                }
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setDocumentToDelete(null)
+                    }
+                }}
+                title="Excluir extrato?"
+                description={
+                    documentToDelete
+                        ? `O arquivo "${documentToDelete.originalFilename}" será removido permanentemente.`
+                        : ""
+                }
+                confirmLabel="Excluir extrato"
+                pendingLabel="Excluindo..."
+                isPending={
+                    deleteMutation.isPending
+                }
+                isDestructive
+                onConfirm={async () => {
+                    if (!documentToDelete) {
+                        return
+                    }
+
+                    try {
+                        await deleteMutation.mutateAsync(
+                            documentToDelete.id,
+                        )
+
+                        toast.success(
+                            "Extrato removido com sucesso.",
+                        )
+
+                        setDocumentToDelete(null)
+                    } catch (error) {
+                        toast.error(
+                            getApiErrorMessage(
+                                error,
+                                "Não foi possível remover o extrato.",
+                            ),
+                        )
+                    }
+                }}
+            />
 
         </div>
     )

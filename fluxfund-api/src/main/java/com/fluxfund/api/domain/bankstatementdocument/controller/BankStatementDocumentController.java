@@ -75,9 +75,23 @@ public class BankStatementDocumentController {
         @GetMapping("/library")
         public Page<BankStatementDocumentResponse> findAll(
                         @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-                        @PageableDefault(size = 20, sort = "uploadedAt", direction = Sort.Direction.DESC) Pageable pageable) {
+                        @RequestParam(required = false) UUID accountId,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodStartDate,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodEndDate,
+                        @RequestParam(required = false) String filename,
 
-                return service.findAll(organizationId, pageable);
+                        @PageableDefault(size = 20, sort = {
+                                        "periodStartDate",
+                                        "uploadedAt"
+                        }, direction = Sort.Direction.DESC) Pageable pageable) {
+
+                return service.findAll(
+                                organizationId,
+                                accountId,
+                                periodStartDate,
+                                periodEndDate,
+                                filename,
+                                pageable);
         }
 
         @GetMapping("/{documentId}/download")
