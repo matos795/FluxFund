@@ -40,6 +40,8 @@ type DateRangePresetFilterProps = {
   presetOptions?: Exclude<DateRangePreset, "all">[]
   includeAllPeriodOption?: boolean
   layout?: "full" | "compact"
+
+  showSummary?: boolean
 }
 
 const DEFAULT_PRESET_OPTIONS: Exclude<DateRangePreset, "all">[] = [
@@ -86,6 +88,7 @@ export function DateRangePresetFilter({
   presetOptions,
   includeAllPeriodOption = false,
   layout = "full",
+  showSummary = true,
 }: DateRangePresetFilterProps) {
   const isAllPeriod = value.preset === "all"
   const isSpecificMonth = value.preset === "specific-month"

@@ -61,7 +61,14 @@ export function DocumentsPage() {
                 defaultValue="bank-statements"
                 className="space-y-5"
             >
-                <TabsList className="grid h-auto min-h-0 w-full grid-cols-2 items-stretch gap-2 rounded-xl border bg-muted/30 p-2 lg:grid-cols-4">
+                <TabsList
+                    className="
+                        grid w-full grid-cols-2 items-stretch gap-1
+                        rounded-xl bg-muted p-1
+                        group-data-horizontal/tabs:h-auto
+                        lg:grid-cols-4
+                    "
+                >
                     <DocumentTab
                         value="bank-statements"
                         icon={Landmark}
@@ -146,12 +153,12 @@ function DocumentTab({
         <TabsTrigger
             value={value}
             className="
-        h-auto min-h-11 gap-2 rounded-lg px-3 py-2.5
-        after:hidden
-        data-active:bg-background
-        data-active:text-foreground
-        data-active:shadow-sm
-      "
+  h-auto min-h-10 gap-2 rounded-lg px-3 py-2
+  after:hidden
+  data-active:bg-background
+  data-active:text-foreground
+  data-active:shadow-sm
+"
         >
             <Icon className="size-4" />
             {label}

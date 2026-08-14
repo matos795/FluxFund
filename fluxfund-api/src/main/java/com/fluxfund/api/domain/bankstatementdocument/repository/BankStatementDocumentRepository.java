@@ -53,44 +53,44 @@ public interface BankStatementDocumentRepository
       @Param("periodEndDate") LocalDate periodEndDate);
 
   @Query(value = """
-      select document
-      from BankStatementDocument document
-      join fetch document.account account
-      where document.organization.id = :organizationId
-        and (:accountId is null or account.id = :accountId)
-        and (
-              :periodStartDate is null
-              or document.periodEndDate >= :periodStartDate
-            )
-        and (
-              :periodEndDate is null
-              or document.periodStartDate <= :periodEndDate
-            )
-        and (
-              :filename is null
-              or lower(document.originalFilename)
-                  like lower(concat('%', :filename, '%'))
-            )
-      """, countQuery = """
-      select count(document)
-      from BankStatementDocument document
-      join document.account account
-      where document.organization.id = :organizationId
-        and (:accountId is null or account.id = :accountId)
-        and (
-              :periodStartDate is null
-              or document.periodEndDate >= :periodStartDate
-            )
-        and (
-              :periodEndDate is null
-              or document.periodStartDate <= :periodEndDate
-            )
-        and (
-              :filename is null
-              or lower(document.originalFilename)
-                  like lower(concat('%', :filename, '%'))
-            )
-      """)
+        select document
+        from BankStatementDocument document
+        join fetch document.account account
+        where document.organization.id = :organizationId
+          and (:accountId is null or account.id = :accountId)
+          and (
+                :periodStartDate is null
+                or document.periodEndDate >= :periodStartDate
+              )
+          and (
+                :periodEndDate is null
+                or document.periodStartDate <= :periodEndDate
+              )
+          and (
+        :filename = ''
+        or lower(document.originalFilename)
+            like concat('%', :filename, '%')
+      )
+        """, countQuery = """
+        select count(document)
+        from BankStatementDocument document
+        join document.account account
+        where document.organization.id = :organizationId
+          and (:accountId is null or account.id = :accountId)
+          and (
+                :periodStartDate is null
+                or document.periodEndDate >= :periodStartDate
+              )
+          and (
+                :periodEndDate is null
+                or document.periodStartDate <= :periodEndDate
+              )
+          and (
+        :filename = ''
+        or lower(document.originalFilename)
+            like concat('%', :filename, '%')
+      )
+        """)
   Page<BankStatementDocument> findAllForLibrary(
       @Param("organizationId") UUID organizationId,
       @Param("accountId") UUID accountId,

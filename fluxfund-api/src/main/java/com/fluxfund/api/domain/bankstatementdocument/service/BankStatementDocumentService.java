@@ -160,9 +160,9 @@ public class BankStatementDocumentService {
                         throw new BusinessException("Period start date cannot be after period end date");
                 }
 
-                String normalizedFilename = filename == null || filename.isBlank()
-                                ? null
-                                : filename.trim();
+                String normalizedFilename = filename == null
+                                ? ""
+                                : filename.trim().toLowerCase(Locale.ROOT);
 
                 return bankStatementDocumentRepository
                                 .findAllForLibrary(
