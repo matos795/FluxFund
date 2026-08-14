@@ -16,7 +16,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useUploadBankStatementDocument } from "../hooks/use-bank-statement-document-mutations"
-import { validateBankStatementPdf } from "../closing-dossier-validation"
+import {
+  validateBankStatementPdf,
+} from "@/features/bank-statement-documents/bank-statement-document-validation"
 
 type BankStatementUploadDialogProps = {
   accountId: string
@@ -100,7 +102,7 @@ export function BankStatementUploadDialog({
       if (axios.isAxiosError(error)) {
         toast.error(
           error.response?.data?.message ??
-            "Não foi possível enviar o extrato.",
+          "Não foi possível enviar o extrato.",
         )
         return
       }
