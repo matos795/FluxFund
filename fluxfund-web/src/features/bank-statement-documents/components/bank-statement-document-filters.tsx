@@ -72,7 +72,7 @@ export function BankStatementDocumentFilters({
     return (
         <Card>
             <CardContent className="p-4">
-                <div className="grid gap-4 lg:grid-cols-[1fr_260px_280px_auto] lg:items-end">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1.35fr)_minmax(220px,0.85fr)_minmax(240px,0.95fr)_auto] xl:items-end">
                     <div className="space-y-2">
                         <Label htmlFor="document-search">
                             Buscar arquivo
@@ -126,11 +126,13 @@ export function BankStatementDocumentFilters({
                         label="Período do extrato"
                         includeAllPeriodOption
                         layout="compact"
+                        showSummary={false}
                     />
 
                     <Button
                         type="button"
                         variant="outline"
+                        className="w-full md:w-auto"
                         onClick={onClear}
                     >
                         <X className="mr-2 size-4" />
