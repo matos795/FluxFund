@@ -5,6 +5,10 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -35,75 +39,74 @@ import static com.fluxfund.api.security.TenantHeaders.ORGANIZATION_ID;
 @RequiredArgsConstructor
 public class BankStatementDocumentController {
 
-    private final BankStatementDocumentService service;
+        private final BankStatementDocumentService service;
 
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @ResponseStatus(HttpStatus.CREATED)
-    public BankStatementDocumentResponse upload(
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @RequestParam UUID accountId,
-            @RequestParam
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate periodStartDate,
-            @RequestParam
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate periodEndDate,
-            @RequestParam MultipartFile file) {
+        @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+        @ResponseStatus(HttpStatus.CREATED)
+        public BankStatementDocumentResponse upload(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @RequestParam UUID accountId,
+                        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodStartDate,
+                        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodEndDate,
+                        @RequestParam MultipartFile file) {
 
-        return service.upload(
-                organizationId,
-                accountId,
-                periodStartDate,
-                periodEndDate,
-                file);
-    }
+                return service.upload(
+                                organizationId,
+                                accountId,
+                                periodStartDate,
+                                periodEndDate,
+                                file);
+        }
 
-    @GetMapping
-    public List<BankStatementDocumentResponse> findAllForAccountAndPeriod(
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @RequestParam UUID accountId,
-            @RequestParam
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate periodStartDate,
-            @RequestParam
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate periodEndDate) {
+        @GetMapping
+        public List<BankStatementDocumentResponse> findAllForAccountAndPeriod(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @RequestParam UUID accountId,
+                        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodStartDate,
+                        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodEndDate) {
 
-        return service.findAllForAccountAndPeriod(
-                organizationId,
-                accountId,
-                periodStartDate,
-                periodEndDate);
-    }
+                return service.findAllForAccountAndPeriod(
+                                organizationId,
+                                accountId,
+                                periodStartDate,
+                                periodEndDate);
+        }
 
-    @GetMapping("/{documentId}/download")
-    public ResponseEntity<byte[]> download(
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @PathVariable UUID documentId) {
+        @GetMapping("/library")
+        public Page<BankStatementDocumentResponse> findAll(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PageableDefault(size = 20, sort = "uploadedAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        BankStatementDocumentFile file =
-                service.download(organizationId, documentId);
+                return service.findAll(organizationId, pageable);
+        }
 
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(file.contentType()))
-                .header(
-                        HttpHeaders.CONTENT_DISPOSITION,
-                        ContentDisposition.attachment()
-                                .filename(
-                                        file.filename(),
-                                        StandardCharsets.UTF_8)
-                                .build()
-                                .toString())
-                .header("X-Content-Type-Options", "nosniff")
-                .body(file.content());
-    }
+        @GetMapping("/{documentId}/download")
+        public ResponseEntity<byte[]> download(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID documentId) {
 
-    @DeleteMapping("/{documentId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(
-            @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-            @PathVariable UUID documentId) {
+                BankStatementDocumentFile file = service.download(organizationId, documentId);
 
-        service.delete(organizationId, documentId);
-    }
+                return ResponseEntity.ok()
+                                .contentType(MediaType.parseMediaType(file.contentType()))
+                                .header(
+                                                HttpHeaders.CONTENT_DISPOSITION,
+                                                ContentDisposition.attachment()
+                                                                .filename(
+                                                                                file.filename(),
+                                                                                StandardCharsets.UTF_8)
+                                                                .build()
+                                                                .toString())
+                                .header("X-Content-Type-Options", "nosniff")
+                                .body(file.content());
+        }
+
+        @DeleteMapping("/{documentId}")
+        @ResponseStatus(HttpStatus.NO_CONTENT)
+        public void delete(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @PathVariable UUID documentId) {
+
+                service.delete(organizationId, documentId);
+        }
 }
