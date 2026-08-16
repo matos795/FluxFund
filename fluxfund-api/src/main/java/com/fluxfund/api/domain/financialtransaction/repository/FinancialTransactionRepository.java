@@ -314,7 +314,10 @@ public interface FinancialTransactionRepository
           to_char(
               date_trunc(
                   'month',
-                  t.settlement_date
+                  coalesce(
+                      t.purchase_date,
+                      t.settlement_date
+                  )
               ),
               'YYYY-MM'
           ) as month,
@@ -322,13 +325,7 @@ public interface FinancialTransactionRepository
           coalesce(sum(
               case
                   when t.type = 'INCOME'
-                  then abs(
-                      coalesce(
-                          t.settled_amount,
-                          0
-                      )
-                  )
-
+                  then abs(t.settled_amount)
                   else 0
               end
           ), 0) as income,
@@ -336,77 +333,37 @@ public interface FinancialTransactionRepository
           coalesce(sum(
               case
                   when t.type = 'EXPENSE'
-                  then abs(
-                      coalesce(
-                          t.settled_amount,
-                          0
-                      )
-                  )
-
-                  when t.type = 'TRANSFER'
-                   and t.transfer_direction = 'OUT'
-                   and counterparty.type = 'CREDIT_CARD'
-                  then abs(
-                      coalesce(
-                          t.settled_amount,
-                          0
-                      )
-                  )
-
+                  then abs(t.settled_amount)
                   else 0
               end
           ), 0) as expense
 
       from financial_transaction t
 
-      join account account
-        on account.id = t.account_id
+      where t.organization_id = :organizationId
+        and t.status = 'SETTLED'
+        and t.type in ('INCOME', 'EXPENSE')
 
-      left join account counterparty
-        on counterparty.id =
-           t.transfer_counterparty_account_id
+        and coalesce(
+              t.purchase_date,
+              t.settlement_date
+            ) between :startDate and :endDate
 
-      where t.organization_id =
-            :organizationId
-
-        and account.active = true
-
-        and account.type <>
-            'CREDIT_CARD'
-
-        and t.status =
-            'SETTLED'
-
-        and t.credit_card_statement_id
-            is null
-
-        and (
-              t.source is null
-              or t.source <> 'CREDIT_CARD'
-            )
-
-        and t.settlement_date
-            between :startDate and :endDate
-
-        and (
-              account.initial_balance_date
-                  is null
-
-              or t.settlement_date >=
-                 account.initial_balance_date
-            )
-
-      group by
-          date_trunc(
-              'month',
+      group by date_trunc(
+          'month',
+          coalesce(
+              t.purchase_date,
               t.settlement_date
           )
+      )
 
-      order by
-          date_trunc(
-              'month',
+      order by date_trunc(
+          'month',
+          coalesce(
+              t.purchase_date,
               t.settlement_date
           )
+      )
       """, nativeQuery = true)
   List<MonthlyCashFlowProjection> findMonthlyCashFlow(
       @Param("organizationId") UUID organizationId,
@@ -1210,7 +1167,6 @@ public interface FinancialTransactionRepository
               case
                   when t.type = 'INCOME'
                   then abs(coalesce(t.settled_amount, 0))
-
                   else 0
               end
           ), 0) as income,
@@ -1239,16 +1195,10 @@ public interface FinancialTransactionRepository
            t.transfer_counterparty_account_id
 
       where t.organization_id = :organizationId
-
-        and account.organization_id =
-            :organizationId
-
+        and account.organization_id = :organizationId
         and account.active = true
-
         and account.type <> 'CREDIT_CARD'
-
         and t.status = 'SETTLED'
-
         and t.credit_card_statement_id is null
 
         and (

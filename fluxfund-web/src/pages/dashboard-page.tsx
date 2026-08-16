@@ -272,7 +272,7 @@ export function DashboardPage() {
           : ("negative" as const),
     },
     {
-      title: "Transações no período",
+      title: "Lançamentos no período",
       value: String(summary.transactionCount ?? 0),
       description: "Lançamentos registrados no intervalo",
       icon: ListChecks,

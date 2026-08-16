@@ -101,7 +101,7 @@ export function MonthlyCashFlowChart({
             <div className="text-center">
               <p className="font-medium">Sem movimentações no período</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Quando houver receitas ou despesas, o gráfico aparecerá aqui.
+                Quando houver entradas ou saídas, o gráfico aparecerá aqui.
               </p>
             </div>
           </div>
