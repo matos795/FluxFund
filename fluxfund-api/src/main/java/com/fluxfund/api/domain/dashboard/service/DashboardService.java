@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fluxfund.api.domain.account.repository.AccountRepository;
 import com.fluxfund.api.domain.dashboard.dto.DashboardActionItemsResponse;
 import com.fluxfund.api.domain.dashboard.dto.DashboardAlertsResponse;
+import com.fluxfund.api.domain.dashboard.dto.DashboardCashFlowTotalsProjection;
 import com.fluxfund.api.domain.dashboard.dto.DashboardFundActionItemProjection;
 import com.fluxfund.api.domain.dashboard.dto.DashboardFundActionItemResponse;
 import com.fluxfund.api.domain.dashboard.dto.DashboardSummaryResponse;
@@ -73,19 +74,19 @@ public class DashboardService {
                         throw new BusinessException("End date cannot be before start date");
                 }
 
-                BigDecimal incomeTotal = financialTransactionRepository.sumSettledAmountByTypeAndPeriod(
-                                organizationId,
-                                FinancialTransactionStatus.SETTLED,
-                                FinancialTransactionType.INCOME,
-                                resolvedStartDate,
-                                resolvedEndDate);
+                DashboardCashFlowTotalsProjection cashFlowTotals = financialTransactionRepository
+                                .findDashboardRealCashFlowTotals(
+                                                organizationId,
+                                                resolvedStartDate,
+                                                resolvedEndDate);
 
-                BigDecimal expenseTotal = financialTransactionRepository.sumSettledAmountByTypeAndPeriod(
-                                organizationId,
-                                FinancialTransactionStatus.SETTLED,
-                                FinancialTransactionType.EXPENSE,
-                                resolvedStartDate,
-                                resolvedEndDate);
+                BigDecimal incomeTotal = cashFlowTotals.getIncome() != null
+                                ? cashFlowTotals.getIncome()
+                                : BigDecimal.ZERO;
+
+                BigDecimal expenseTotal = cashFlowTotals.getExpense() != null
+                                ? cashFlowTotals.getExpense()
+                                : BigDecimal.ZERO;
 
                 LocalDate balanceDate = LocalDate.now();
 

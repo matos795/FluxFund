@@ -100,7 +100,7 @@ export function ExpensesByCategoryChart({
       <CardHeader className="pb-2">
         <CardTitle>Despesas por categoria</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Principais categorias de despesa no período selecionado.
+          Visão econômica das despesas do período, incluindo compras realizadas no cartão.
         </p>
       </CardHeader>
 

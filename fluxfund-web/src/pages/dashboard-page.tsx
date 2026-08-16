@@ -236,25 +236,40 @@ export function DashboardPage() {
 
   const periodCards = [
     {
-      title: "Receitas do período",
-      value: formatCurrency(summary.incomeTotal ?? 0),
-      description: periodDescription,
+      title: "Entradas em contas",
+      value:
+        formatCurrency(
+          summary.incomeTotal ?? 0,
+        ),
+      description:
+        periodDescription,
       icon: TrendingUp,
       tone: "positive" as const,
     },
     {
-      title: "Despesas do período",
-      value: formatCurrency(summary.expenseTotal ?? 0),
-      description: periodDescription,
+      title: "Saídas de contas",
+      value:
+        formatCurrency(
+          summary.expenseTotal ?? 0,
+        ),
+      description:
+        "Pagamentos efetivos no período",
       icon: TrendingDown,
       tone: "negative" as const,
     },
     {
-      title: "Resultado do período",
-      value: formatCurrency(netTotal),
-      description: netTotal >= 0 ? "Resultado positivo" : "Resultado negativo",
+      title: "Variação de caixa",
+      value:
+        formatCurrency(netTotal),
+      description:
+        netTotal >= 0
+          ? "O caixa aumentou no período"
+          : "O caixa diminuiu no período",
       icon: ReceiptText,
-      tone: netTotal >= 0 ? ("positive" as const) : ("negative" as const),
+      tone:
+        netTotal >= 0
+          ? ("positive" as const)
+          : ("negative" as const),
     },
     {
       title: "Transações no período",

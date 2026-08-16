@@ -76,8 +76,8 @@ export function MonthlyCashFlowChart({
 }: MonthlyCashFlowChartProps) {
 
   if (isLoading) {
-  return <DashboardCardSkeleton />
-}
+    return <DashboardCardSkeleton />
+  }
 
   const hasData = data.some(
     (item) => item.income !== 0 || item.expense !== 0 || item.net !== 0,
@@ -86,9 +86,12 @@ export function MonthlyCashFlowChart({
   return (
     <Card className="col-span-full overflow-hidden xl:col-span-2">
       <CardHeader className="pb-2">
-        <CardTitle>Evolução mensal</CardTitle>
+        <CardTitle>
+          Evolução do caixa
+        </CardTitle>
+
         <p className="text-sm text-muted-foreground">
-          Receitas, despesas e resultado financeiro por mês.
+          Entradas, saídas e variação real das contas por mês.
         </p>
       </CardHeader>
 
@@ -164,7 +167,7 @@ export function MonthlyCashFlowChart({
 
                 <Bar
                   dataKey="income"
-                  name="Receitas"
+                  name="Entradas"
                   fill="hsl(var(--chart-1))"
                   fillOpacity={0.85}
                   radius={[6, 6, 0, 0]}
@@ -173,7 +176,7 @@ export function MonthlyCashFlowChart({
 
                 <Bar
                   dataKey="expense"
-                  name="Despesas"
+                  name="Saídas"
                   fill="hsl(var(--chart-2))"
                   fillOpacity={0.85}
                   radius={[6, 6, 0, 0]}
@@ -183,7 +186,7 @@ export function MonthlyCashFlowChart({
                 <Line
                   type="monotone"
                   dataKey="net"
-                  name="Resultado"
+                  name="Variação"
                   stroke="hsl(var(--chart-3))"
                   strokeWidth={3}
                   dot={{
