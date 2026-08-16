@@ -196,4 +196,72 @@ List<CreditCardStatement>
       @Param("organizationId") UUID organizationId,
       @Param("status") CreditCardStatementStatus status,
       @Param("paymentTransactionIds") List<UUID> paymentTransactionIds);
+
+      @Query(
+        value = """
+                select statement
+                from CreditCardStatement statement
+                join fetch statement.creditCardAccount account
+                where statement.organization.id = :organizationId
+
+                  and statement.statementPdfStorageKey is not null
+
+                  and (
+                        :accountId is null
+                        or account.id = :accountId
+                      )
+
+                  and (
+                        :periodStartDate is null
+                        or statement.dueDate >= :periodStartDate
+                      )
+
+                  and (
+                        :periodEndDate is null
+                        or statement.dueDate <= :periodEndDate
+                      )
+
+                  and (
+                        :filename = ''
+                        or lower(statement.statementPdfOriginalFilename)
+                            like concat('%', :filename, '%')
+                      )
+                """,
+        countQuery = """
+                select count(statement)
+                from CreditCardStatement statement
+                join statement.creditCardAccount account
+                where statement.organization.id = :organizationId
+
+                  and statement.statementPdfStorageKey is not null
+
+                  and (
+                        :accountId is null
+                        or account.id = :accountId
+                      )
+
+                  and (
+                        :periodStartDate is null
+                        or statement.dueDate >= :periodStartDate
+                      )
+
+                  and (
+                        :periodEndDate is null
+                        or statement.dueDate <= :periodEndDate
+                      )
+
+                  and (
+                        :filename = ''
+                        or lower(statement.statementPdfOriginalFilename)
+                            like concat('%', :filename, '%')
+                      )
+                """
+)
+Page<CreditCardStatement> findAllDocumentsForLibrary(
+        @Param("organizationId") UUID organizationId,
+        @Param("accountId") UUID accountId,
+        @Param("periodStartDate") LocalDate periodStartDate,
+        @Param("periodEndDate") LocalDate periodEndDate,
+        @Param("filename") String filename,
+        Pageable pageable);
 }

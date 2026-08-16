@@ -1,11 +1,15 @@
 package com.fluxfund.api.domain.creditcardstatement.controller;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -20,6 +24,7 @@ import com.fluxfund.api.domain.creditcardstatement.dto.CreateCreditCardStatement
 import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementDocumentFile;
 import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementDocumentResponse;
 import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementImportResponse;
+import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementLibraryResponse;
 import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementPaymentResponse;
 import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementResponse;
 import com.fluxfund.api.domain.creditcardstatement.dto.LinkCreditCardStatementPaymentRequest;
@@ -65,6 +70,28 @@ public class CreditCardStatementController {
 
                 return ResponseEntity.ok(
                                 service.findAll(organizationId, creditCardAccountId, status, pageable));
+        }
+
+        @GetMapping("/library")
+        public Page<CreditCardStatementLibraryResponse> findDocumentsForLibrary(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @RequestParam(required = false) UUID accountId,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodStartDate,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodEndDate,
+                        @RequestParam(required = false) String filename,
+
+                        @PageableDefault(size = 20, sort = {
+                                        "dueDate",
+                                        "statementPdfUploadedAt"
+                        }, direction = Sort.Direction.DESC) Pageable pageable) {
+
+                return documentService.findAllForLibrary(
+                                organizationId,
+                                accountId,
+                                periodStartDate,
+                                periodEndDate,
+                                filename,
+                                pageable);
         }
 
         @GetMapping("/{id}")

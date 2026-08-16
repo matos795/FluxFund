@@ -1,10 +1,13 @@
 package com.fluxfund.api.domain.creditcardstatement.service;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Locale;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -15,6 +18,7 @@ import com.fluxfund.api.domain.audit.service.AuditLogService;
 import com.fluxfund.api.domain.creditcardstatement.CreditCardStatement;
 import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementDocumentFile;
 import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementDocumentResponse;
+import com.fluxfund.api.domain.creditcardstatement.dto.CreditCardStatementLibraryResponse;
 import com.fluxfund.api.domain.creditcardstatement.repository.CreditCardStatementRepository;
 import com.fluxfund.api.security.OrganizationAccessService;
 import com.fluxfund.api.shared.exception.BusinessException;
@@ -52,12 +56,11 @@ public class CreditCardStatementDocumentService {
                 organizationId,
                 statementId);
 
-        String storageKey =
-                "organizations/%s/credit-card-statements/%s/official-statement/%s.pdf"
-                        .formatted(
-                                organizationId,
-                                statementId,
-                                UUID.randomUUID());
+        String storageKey = "organizations/%s/credit-card-statements/%s/official-statement/%s.pdf"
+                .formatted(
+                        organizationId,
+                        statementId,
+                        UUID.randomUUID());
 
         String previousStorageKey = statement.getStatementPdfStorageKey();
 
@@ -154,6 +157,52 @@ public class CreditCardStatementDocumentService {
                         + statementId);
 
         deleteFileQuietly(storageKey);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<CreditCardStatementLibraryResponse> findAllForLibrary(
+            UUID organizationId,
+            UUID accountId,
+            LocalDate periodStartDate,
+            LocalDate periodEndDate,
+            String filename,
+            Pageable pageable) {
+
+        organizationAccessService.requireReadAccess(
+                organizationId);
+
+        String normalizedFilename = filename == null
+                ? ""
+                : filename
+                        .trim()
+                        .toLowerCase(Locale.ROOT);
+
+        return statementRepository
+                .findAllDocumentsForLibrary(
+                        organizationId,
+                        accountId,
+                        periodStartDate,
+                        periodEndDate,
+                        normalizedFilename,
+                        pageable)
+                .map(this::toLibraryResponse);
+    }
+
+    private CreditCardStatementLibraryResponse toLibraryResponse(
+            CreditCardStatement statement) {
+
+        return new CreditCardStatementLibraryResponse(
+                statement.getId(),
+                statement.getCreditCardAccount().getId(),
+                statement.getCreditCardAccount().getName(),
+                statement.getName(),
+                statement.getClosingDate(),
+                statement.getDueDate(),
+                statement.getStatus(),
+                statement.getStatementPdfOriginalFilename(),
+                statement.getStatementPdfContentType(),
+                statement.getStatementPdfSizeBytes(),
+                statement.getStatementPdfUploadedAt());
     }
 
     private CreditCardStatement findStatement(
