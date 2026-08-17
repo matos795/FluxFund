@@ -1,5 +1,6 @@
 import {
     Archive,
+    CreditCard,
     FileArchive,
     FileText,
     Landmark,
@@ -30,6 +31,7 @@ import {
 import {
     BankStatementLibrarySection,
 } from "@/features/bank-statement-documents/components/bank-statement-library-section"
+import { CreditCardStatementLibrarySection } from "@/features/credit-card-statements/components/credit-card-statement-library-section"
 
 export function DocumentsPage() {
     return (
@@ -51,7 +53,7 @@ export function DocumentsPage() {
                         </p>
 
                         <p className="mt-1 text-sm text-muted-foreground">
-                            A biblioteca começa pelos extratos bancários e será ampliada gradualmente para anexos, recibos e documentos de fechamento.
+                            Acesse extratos bancários e faturas de cartão em um só lugar. A biblioteca será ampliada gradualmente para anexos, recibos e documentos de fechamento.
                         </p>
                     </div>
                 </CardContent>
@@ -66,13 +68,19 @@ export function DocumentsPage() {
                         grid w-full grid-cols-2 items-stretch gap-1
                         rounded-xl bg-muted p-1
                         group-data-horizontal/tabs:h-auto
-                        lg:grid-cols-4
+                        lg:grid-cols-5
                     "
                 >
                     <DocumentTab
                         value="bank-statements"
                         icon={Landmark}
                         label="Extratos"
+                    />
+
+                    <DocumentTab
+                        value="credit-card-statements"
+                        icon={CreditCard}
+                        label="Faturas"
                     />
 
                     <DocumentTab
@@ -99,6 +107,13 @@ export function DocumentsPage() {
                     className="mt-0"
                 >
                     <BankStatementLibrarySection />
+                </TabsContent>
+
+                <TabsContent
+                    value="credit-card-statements"
+                    className="mt-0"
+                >
+                    <CreditCardStatementLibrarySection />
                 </TabsContent>
 
                 <TabsContent

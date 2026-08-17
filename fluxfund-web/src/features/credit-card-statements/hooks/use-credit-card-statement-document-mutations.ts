@@ -15,6 +15,11 @@ export function useUploadCreditCardStatementDocument() {
       queryClient.invalidateQueries({
         queryKey: ["credit-card-statements"],
       })
+      queryClient.invalidateQueries({
+        queryKey: [
+          "credit-card-statement-document-library",
+        ],
+      })
     },
   })
 }
@@ -28,6 +33,11 @@ export function useDeleteCreditCardStatementDocument() {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["credit-card-statements"],
+      })
+      queryClient.invalidateQueries({
+        queryKey: [
+          "credit-card-statement-document-library",
+        ],
       })
     },
   })

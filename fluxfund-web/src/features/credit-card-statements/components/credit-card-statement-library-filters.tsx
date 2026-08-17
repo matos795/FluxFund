@@ -36,27 +36,24 @@ import {
     useAccounts,
 } from "@/features/accounts/hooks/use-accounts"
 
-type BankStatementDocumentFiltersProps = {
+type Props = {
     accountId: string
     period: DateRangeValue
     searchInput: string
 
-    onAccountIdChange: (
-        value: string,
-    ) => void
+    onAccountIdChange:
+    (value: string) => void
 
-    onPeriodChange: (
-        value: DateRangeValue,
-    ) => void
+    onPeriodChange:
+    (value: DateRangeValue) => void
 
-    onSearchInputChange: (
-        value: string,
-    ) => void
+    onSearchInputChange:
+    (value: string) => void
 
     onClear: () => void
 }
 
-export function BankStatementDocumentFilters({
+export function CreditCardStatementLibraryFilters({
     accountId,
     period,
     searchInput,
@@ -64,8 +61,7 @@ export function BankStatementDocumentFilters({
     onPeriodChange,
     onSearchInputChange,
     onClear,
-}: BankStatementDocumentFiltersProps) {
-
+}: Props) {
     const {
         data: accountsPage,
     } = useAccounts({
@@ -77,8 +73,8 @@ export function BankStatementDocumentFilters({
         accountsPage?.content.filter(
             (account) =>
                 account.active &&
-                account.type !== "CREDIT_CARD" &&
-                account.type !== "CASH",
+                account.type ===
+                "CREDIT_CARD",
         ) ?? []
 
     return (
@@ -86,7 +82,7 @@ export function BankStatementDocumentFilters({
             <CardContent className="p-4">
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1.35fr)_minmax(220px,0.85fr)_minmax(240px,0.95fr)_auto] xl:items-end">
                     <div className="space-y-2">
-                        <Label htmlFor="document-search">
+                        <Label htmlFor="statement-document-search">
                             Buscar arquivo
                         </Label>
 
@@ -94,7 +90,7 @@ export function BankStatementDocumentFilters({
                             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 
                             <Input
-                                id="document-search"
+                                id="statement-document-search"
                                 value={searchInput}
                                 placeholder="Nome do arquivo..."
                                 className="pl-9"
@@ -108,7 +104,7 @@ export function BankStatementDocumentFilters({
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Conta</Label>
+                        <Label>Cartão</Label>
 
                         <EntityCombobox
                             value={accountId}
@@ -121,22 +117,22 @@ export function BankStatementDocumentFilters({
                                         undefined,
                                 }),
                             )}
-                            placeholder="Todas as contas"
-                            searchPlaceholder="Buscar conta..."
-                            emptyMessage="Nenhuma conta encontrada."
+                            placeholder="Todos os cartões"
+                            searchPlaceholder="Buscar cartão..."
+                            emptyMessage="Nenhum cartão encontrado."
                             allowClear
-                            clearLabel="Todas as contas"
-                            onChange={onAccountIdChange}
+                            clearLabel="Todos os cartões"
+                            onChange={
+                                onAccountIdChange
+                            }
                         />
                     </div>
 
                     <DateRangePresetFilter
                         value={period}
-                        onChange={
-                            onPeriodChange
-                        }
-                        idPrefix="document-library-period"
-                        label="Período do extrato"
+                        onChange={onPeriodChange}
+                        idPrefix="credit-card-library-period"
+                        label="Vencimento"
                         includeAllPeriodOption
                         layout="compact"
                         showSummary={false}

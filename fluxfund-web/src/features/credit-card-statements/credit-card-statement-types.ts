@@ -114,3 +114,26 @@ export type CreditCardStatementImportResponse = {
   warnings: string[]
   errors: string[]
 }
+
+export type CreditCardStatementLibraryDocument = {
+  id: string
+  accountId: string
+  accountName: string
+  statementName: string
+  closingDate: string | null
+  dueDate: string
+  status: CreditCardStatementStatus
+  originalFilename: string
+  contentType: string
+  sizeBytes: number
+  uploadedAt: string
+}
+
+export type GetCreditCardStatementLibraryParams = {
+  page?: number
+  size?: number
+  accountId?: string
+  periodStartDate?: string
+  periodEndDate?: string
+  filename?: string
+}

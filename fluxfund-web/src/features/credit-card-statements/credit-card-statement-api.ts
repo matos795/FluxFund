@@ -10,6 +10,8 @@ import type {
   LinkCreditCardStatementPaymentRequest,
   CreditCardStatementStatus,
   PayCreditCardStatementRequest,
+  CreditCardStatementLibraryDocument,
+  GetCreditCardStatementLibraryParams,
 } from "./credit-card-statement-types"
 import type { FinancialTransaction } from "../financial-transactions/financial-transaction-types"
 import type { ImportProfile } from "@/utils/imports/import-profile"
@@ -217,6 +219,38 @@ export async function markCreditCardStatementPaymentAsOpeningBalance(
   const response = await httpClient.post<CreditCardStatementPayment>(
     `/api/v1/credit-card-statements/${statementId}/payments/${paymentId}/opening-balance`,
   )
+
+  return response.data
+}
+
+export async function getCreditCardStatementLibrary({
+  page = 0,
+  size = 20,
+  accountId,
+  periodStartDate,
+  periodEndDate,
+  filename,
+}: GetCreditCardStatementLibraryParams = {}) {
+  const response =
+    await httpClient.get<
+      PageResponse<CreditCardStatementLibraryDocument>
+    >(
+      "/api/v1/credit-card-statements/library",
+      {
+        params: {
+          page,
+          size,
+          accountId:
+            accountId || undefined,
+          periodStartDate:
+            periodStartDate || undefined,
+          periodEndDate:
+            periodEndDate || undefined,
+          filename:
+            filename || undefined,
+        },
+      },
+    )
 
   return response.data
 }
