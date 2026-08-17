@@ -30,6 +30,8 @@ import {
   type DateRangePreset,
   type DateRangeValue,
 } from "./date-range-presets"
+import { MonthYearPicker } from "./month-year-picker"
+import { DateRangeCompactDialog } from "./date-range-compact-dialog"
 
 type DateRangePresetFilterProps = {
   value: DateRangeValue
@@ -190,55 +192,14 @@ export function DateRangePresetFilter({
       <Label>{label}</Label>
 
       {layout === "compact" ? (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant={isAllPeriod ? "outline" : "secondary"}
-              className="h-9 w-full justify-between px-3"
-            >
-              <span className="flex min-w-0 items-center gap-2">
-                <CalendarRange className="size-4 shrink-0" />
-
-                <span className="truncate">
-                  {dateRangePresetLabels[value.preset]}
-                </span>
-              </span>
-
-              <ChevronDown className="size-4 shrink-0" />
-            </Button>
-          </DropdownMenuTrigger>
-
-          <DropdownMenuContent
-            side="bottom"
-            align="start"
-            sideOffset={6}
-            collisionPadding={12}
-            className="w-60"
-          >
-            <DropdownMenuLabel>
-              Selecionar período
-            </DropdownMenuLabel>
-
-            <DropdownMenuSeparator />
-
-            <DropdownMenuRadioGroup
-              value={value.preset}
-              onValueChange={(nextValue) =>
-                handlePresetChange(nextValue as DateRangePreset)
-              }
-            >
-              {selectablePresets.map((preset) => (
-                <DropdownMenuRadioItem
-                  key={preset}
-                  value={preset}
-                >
-                  {dateRangePresetLabels[preset]}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <DateRangeCompactDialog
+          value={value}
+          onChange={onChange}
+          idPrefix={idPrefix}
+          selectablePresets={
+            selectablePresets
+          }
+        />
       ) : (
         <div className="flex flex-wrap items-center gap-2">
           {quickPresets.map((preset) => {
@@ -338,7 +299,8 @@ export function DateRangePresetFilter({
             Nenhuma restrição de data será aplicada.
           </div>
         ) : null
-      ) : isSpecificDay ? (
+      ) : isSpecificDay &&
+        layout === "full" ? (
         <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
           <Label htmlFor={`${idPrefix}-specific-day`}>
             Dia
@@ -360,20 +322,27 @@ export function DateRangePresetFilter({
             O período considerará somente o dia selecionado.
           </p>
         </div>
-      ) : isSpecificMonth ? (
+      ) : isSpecificMonth &&
+        layout === "full" ? (
         <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
           <Label htmlFor={`${idPrefix}-month`}>
             Mês e ano
           </Label>
 
-          <Input
-            id={`${idPrefix}-month`}
-            type="month"
-            value={value.startDate.slice(0, 7)}
-            onChange={(event) => {
+          <MonthYearPicker
+            value={
+              value.startDate.slice(
+                0,
+                7,
+              )
+            }
+            onChange={(monthValue) => {
               onChange({
-                preset: "specific-month",
-                ...getMonthRange(event.target.value),
+                preset:
+                  "specific-month",
+                ...getMonthRange(
+                  monthValue,
+                ),
               })
             }}
           />
@@ -382,7 +351,8 @@ export function DateRangePresetFilter({
             O período considerará todo o mês selecionado.
           </p>
         </div>
-      ) : isCustom ? (
+      ) : isCustom &&
+        layout === "full" ? (
         <div className="rounded-lg border bg-muted/20 p-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
