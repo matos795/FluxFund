@@ -37,11 +37,10 @@ import {
     getApiErrorMessage,
 } from "@/utils/api-error"
 import type { CreditCardStatementLibraryDocument } from "../credit-card-statement-types"
-import { useDeleteBankStatementDocument } from "@/features/bank-statement-documents/hooks/use-bank-statement-document-mutations"
-import { BankStatementLibraryUploadDialog } from "@/features/bank-statement-documents/components/bank-statement-library-upload-dialog"
-import { BankStatementDocumentFilters } from "@/features/bank-statement-documents/components/bank-statement-document-filters"
-import { BankStatementMonthGroup } from "./credit-card-statement-month-group"
 import { useCreditCardStatementLibrary } from "../hooks/use-credit-card-statement-library"
+import { useDeleteCreditCardStatementDocument } from "../hooks/use-credit-card-statement-document-mutations"
+import { CreditCardStatementLibraryFilters } from "./credit-card-statement-library-filters"
+import { CreditCardStatementMonthGroup } from "./credit-card-statement-month-group"
 
 const ALL_PERIOD:
     DateRangeValue = {
@@ -124,8 +123,7 @@ export function CreditCardStatementLibrarySection() {
                 filename || undefined,
         })
 
-    const deleteMutation =
-        useDeleteBankStatementDocument()
+    const deleteMutation = useDeleteCreditCardStatementDocument()
 
     const groups =
         useMemo(
@@ -186,7 +184,7 @@ export function CreditCardStatementLibrarySection() {
             toast.error(
                 getApiErrorMessage(
                     error,
-                    "Não foi possível remover o extrato.",
+                    "Não foi possível remover o PDF da fatura.",
                 ),
             )
         }
@@ -205,42 +203,30 @@ export function CreditCardStatementLibrarySection() {
                             PDFs oficiais das faturas armazenadas por cartão e vencimento.
                         </p>
                     </div>
-
-                    {canFinanceWrite && (
-                        <BankStatementLibraryUploadDialog />
-                    )}
                 </div>
 
-                <BankStatementDocumentFilters
+                <CreditCardStatementLibraryFilters
                     accountId={accountId}
                     period={period}
-                    searchInput={
-                        searchInput
-                    }
-                    onAccountIdChange={(
-                        value,
-                    ) => {
+                    searchInput={searchInput}
+                    onAccountIdChange={(value) => {
                         setPage(0)
                         setAccountId(value)
                     }}
-                    onPeriodChange={(
-                        value,
-                    ) => {
+                    onPeriodChange={(value) => {
                         setPage(0)
                         setPeriod(value)
                     }}
                     onSearchInputChange={
                         setSearchInput
                     }
-                    onClear={
-                        handleClear
-                    }
+                    onClear={handleClear}
                 />
 
                 {isLoading && (
                     <Card>
                         <CardContent className="p-10 text-center text-sm text-muted-foreground">
-                            Carregando extratos...
+                            Carregando faturas...
                         </CardContent>
                     </Card>
                 )}
@@ -271,7 +257,7 @@ export function CreditCardStatementLibrarySection() {
                                 <div>
                                     <p className="font-semibold">
                                         {hasFilters
-                                            ? "Nenhum extrato encontrado"
+                                            ? "Nenhuma fatura encontrada"
                                             : "Nenhuma fatura armazenada"}
                                     </p>
 
@@ -295,7 +281,7 @@ export function CreditCardStatementLibrarySection() {
                                         monthKey,
                                         documents,
                                     ]) => (
-                                        <BankStatementMonthGroup
+                                        <CreditCardStatementMonthGroup
                                             key={
                                                 monthKey
                                             }

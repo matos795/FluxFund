@@ -13,7 +13,7 @@ import {
 import type { CreditCardStatementLibraryDocument } from "../credit-card-statement-types"
 import { CreditCardStatementLibraryCard } from "./credit-card-statement-library-card"
 
-type BankStatementMonthGroupProps = {
+type CreditCardStatementMonthGroupProps = {
     monthKey: string
     documents: CreditCardStatementLibraryDocument[]
     canManageDocuments: boolean
@@ -23,12 +23,12 @@ type BankStatementMonthGroupProps = {
     ) => void
 }
 
-export function BankStatementMonthGroup({
+export function CreditCardStatementMonthGroup({
     monthKey,
     documents,
     canManageDocuments,
     onDelete,
-}: BankStatementMonthGroupProps) {
+}: CreditCardStatementMonthGroupProps) {
     const [
         expanded,
         setExpanded,
@@ -76,6 +76,7 @@ export function BankStatementMonthGroup({
                     {documents.map(
                         (document) => (
                             <CreditCardStatementLibraryCard
+                                key={document.id}
                                 document={document}
                                 canManageDocuments={
                                     canManageDocuments
