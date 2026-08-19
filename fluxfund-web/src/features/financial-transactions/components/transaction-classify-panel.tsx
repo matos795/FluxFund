@@ -52,6 +52,7 @@ import type { FinancialCommitmentAllocationSuggestion } from "@/features/financi
 import { FinancialCommitmentAllocationCard } from "@/features/financial-commitments/components/financial-commitment-allocation-card";
 import { SupportAgreementSuggestionCard } from "@/features/support-agreements/components/support-agreement-suggestion-card";
 import { ClassificationSuggestionCard } from "./classification-suggestion-card";
+import { MonthYearPickerPopover } from "@/components/filters/month-year-picker-popover";
 
 type AllocationFormItem = {
     fundId: string;
@@ -1553,20 +1554,19 @@ export function TransactionClassifyPanel({
 
                                         <div className="space-y-2">
                                             <Label>Competência</Label>
-                                            <Input
-                                                type="month"
+                                            <MonthYearPickerPopover
                                                 value={
-                                                    allocation.referenceMonth
-                                                        ? allocation.referenceMonth
-                                                        : ""
+                                                    allocation.referenceMonth ??
+                                                    ""
                                                 }
-                                                onChange={(event) =>
+                                                onChange={(value) =>
                                                     handleChangeAllocation(
                                                         index,
                                                         "referenceMonth",
-                                                        event.target.value,
+                                                        value,
                                                     )
                                                 }
+                                                placeholder="Selecionar competência"
                                             />
                                             <p className="text-xs text-muted-foreground">
                                                 Padrão: mês da baixa. Altere somente se este repasse

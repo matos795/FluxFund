@@ -30,10 +30,6 @@ import {
 } from "@/components/ui/card"
 
 import {
-  Input,
-} from "@/components/ui/input"
-
-import {
   Label,
 } from "@/components/ui/label"
 
@@ -65,6 +61,7 @@ import {
   formatCurrency,
   formatReferenceMonth,
 } from "@/utils/formatters"
+import { MonthYearPickerPopover } from "@/components/filters/month-year-picker-popover"
 
 function getNextMonth() {
   const date =
@@ -174,16 +171,12 @@ export function FinancialForecastReportPage() {
               Mês inicial
             </Label>
 
-            <Input
-              type="month"
-              value={
-                startMonth
+            <MonthYearPickerPopover
+              value={startMonth}
+              onChange={
+                setStartMonth
               }
-              onChange={(event) =>
-                setStartMonth(
-                  event.target.value,
-                )
-              }
+              placeholder="Selecionar mês inicial"
             />
           </div>
 
@@ -363,8 +356,8 @@ export function FinancialForecastReportPage() {
 
                 {report.lowestCumulativeMonth
                   ? ` em ${formatReferenceMonth(
-                      report.lowestCumulativeMonth,
-                    )}`
+                    report.lowestCumulativeMonth,
+                  )}`
                   : ""}
               </p>
             </div>

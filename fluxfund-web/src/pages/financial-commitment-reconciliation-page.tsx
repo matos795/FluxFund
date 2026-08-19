@@ -32,10 +32,6 @@ import {
 } from "@/components/ui/card"
 
 import {
-  Input,
-} from "@/components/ui/input"
-
-import {
   Label,
 } from "@/components/ui/label"
 
@@ -66,6 +62,7 @@ import {
 import {
   getApiErrorMessage,
 } from "@/utils/api-error"
+import { MonthYearPickerPopover } from "@/components/filters/month-year-picker-popover"
 
 const PAGE_SIZE = 8
 
@@ -129,8 +126,7 @@ export function FinancialCommitmentReconciliationPage() {
   const linkMutation =
     useLinkFinancialCommitmentReconciliation()
 
-  const items =
-    query.data?.content ?? []
+  const items = query.data?.content ?? []
 
   const counts =
     useMemo(
@@ -223,17 +219,13 @@ export function FinancialCommitmentReconciliationPage() {
               Competência inicial
             </Label>
 
-            <Input
-              type="month"
-              value={
-                startMonth
-              }
-              onChange={(event) => {
-                setStartMonth(
-                  event.target.value,
-                )
+            <MonthYearPickerPopover
+              value={startMonth}
+              onChange={(value) => {
+                setStartMonth(value)
                 setPage(0)
               }}
+              placeholder="Competência inicial"
             />
           </div>
 
@@ -242,17 +234,13 @@ export function FinancialCommitmentReconciliationPage() {
               Competência final
             </Label>
 
-            <Input
-              type="month"
-              value={
-                endMonth
-              }
-              onChange={(event) => {
-                setEndMonth(
-                  event.target.value,
-                )
+            <MonthYearPickerPopover
+              value={endMonth}
+              onChange={(value) => {
+                setEndMonth(value)
                 setPage(0)
               }}
+              placeholder="Competência final"
             />
           </div>
 
@@ -271,8 +259,8 @@ export function FinancialCommitmentReconciliationPage() {
                   value === "ALL"
                     ? ""
                     : value as
-                      | "INCOME"
-                      | "EXPENSE",
+                    | "INCOME"
+                    | "EXPENSE",
                 )
 
                 setPage(0)
@@ -416,7 +404,7 @@ export function FinancialCommitmentReconciliationPage() {
                 linkMutation.isPending &&
                 linkMutation.variables
                   ?.allocationId ===
-                  item.allocationId
+                item.allocationId
               }
               onLink={(
                 financialCommitmentId,

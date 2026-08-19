@@ -29,6 +29,7 @@ import { normalizeFiscalDocumentNote } from "@/features/financial-transactions/f
 import { FiscalDocumentPolicyField } from "@/features/financial-transactions/components/fiscal-document-policy-field"
 import { AppDialogBody, AppDialogContent, AppDialogFooter, AppDialogHeader } from "@/components/layout/app-dialog"
 import { FinancialPartyCombobox } from "@/features/financial-parties/components/financial-party-combobox"
+import { MonthYearPickerPopover } from "@/components/filters/month-year-picker-popover"
 
 type AddCreditCardStatementItemDialogProps = {
   statement: CreditCardStatement
@@ -354,7 +355,21 @@ export function AddCreditCardStatementItemDialog({
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="referenceMonth">Competência</Label>
-                  <Input id="referenceMonth" type="month" {...register("referenceMonth")} />
+                  <Controller
+                    name="referenceMonth"
+                    control={control}
+                    render={({ field }) => (
+                      <MonthYearPickerPopover
+                        value={
+                          field.value ?? ""
+                        }
+                        onChange={
+                          field.onChange
+                        }
+                        placeholder="Selecionar competência"
+                      />
+                    )}
+                  />
                 </div>
 
                 <div className="space-y-2">

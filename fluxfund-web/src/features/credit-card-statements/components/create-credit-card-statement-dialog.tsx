@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useState } from "react"
-import { useForm, useWatch } from "react-hook-form"
+import { Controller, useForm, useWatch } from "react-hook-form"
 import { toast } from "sonner"
 
 import { EntityCombobox } from "@/components/form/entity-combobox"
@@ -21,6 +21,7 @@ import { useCreateCreditCardStatement } from "../hooks/use-create-credit-card-st
 import { buildCreditCardStatementName, getDefaultClosingDate, getDefaultDueDate } from "../credit-card-statement-date-utils"
 import { AppDialogBody, AppDialogContent, AppDialogHeader } from "@/components/layout/app-dialog"
 import { CalendarDays } from "lucide-react"
+import { MonthYearPickerPopover } from "@/components/filters/month-year-picker-popover"
 
 type CreateCreditCardStatementDialogProps = {
   open?: boolean
@@ -193,10 +194,20 @@ export function CreateCreditCardStatementDialog({
 
             <div className="space-y-2">
               <Label htmlFor="referenceMonth">Mês da fatura</Label>
-              <Input
-                id="referenceMonth"
-                type="month"
-                {...register("referenceMonth")}
+              <Controller
+                name="referenceMonth"
+                control={control}
+                render={({ field }) => (
+                  <MonthYearPickerPopover
+                    value={
+                      field.value ?? ""
+                    }
+                    onChange={
+                      field.onChange
+                    }
+                    placeholder="Selecionar mês da fatura"
+                  />
+                )}
               />
               <p className="text-xs text-muted-foreground">
                 Use o mês de referência da fatura. O sistema pode sugerir nome, fechamento e vencimento.

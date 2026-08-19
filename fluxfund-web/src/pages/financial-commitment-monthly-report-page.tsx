@@ -33,10 +33,6 @@ import {
 } from "@/components/ui/card"
 
 import {
-  Input,
-} from "@/components/ui/input"
-
-import {
   Label,
 } from "@/components/ui/label"
 
@@ -65,10 +61,11 @@ import {
   formatDate,
   formatReferenceMonth,
 } from "@/utils/formatters"
+import { MonthYearPickerPopover } from "@/components/filters/month-year-picker-popover"
 
 type Props = {
   direction:
-    FinancialCommitmentDirection
+  FinancialCommitmentDirection
 }
 
 const statusContent = {
@@ -166,7 +163,7 @@ export function FinancialCommitmentMonthlyReportPage({
 
       designatedRecipientId:
         receivable &&
-        designatedRecipientId
+          designatedRecipientId
           ? designatedRecipientId
           : undefined,
 
@@ -256,16 +253,12 @@ export function FinancialCommitmentMonthlyReportPage({
               Competência
             </Label>
 
-            <Input
-              type="month"
-              value={
-                referenceMonth
+            <MonthYearPickerPopover
+              value={referenceMonth}
+              onChange={
+                setReferenceMonth
               }
-              onChange={(event) =>
-                setReferenceMonth(
-                  event.target.value,
-                )
-              }
+              placeholder="Selecionar competência"
             />
           </div>
 
@@ -484,7 +477,7 @@ export function FinancialCommitmentMonthlyReportPage({
                 (item) => {
                   const status =
                     statusContent[
-                      item.status
+                    item.status
                     ]
 
                   return (
@@ -525,9 +518,9 @@ export function FinancialCommitmentMonthlyReportPage({
                             <p className="mt-1 text-sm text-muted-foreground">
                               {
                                 financialCommitmentTypeLabels[
-                                  item
-                                    .commitment
-                                    .commitmentType
+                                item
+                                  .commitment
+                                  .commitmentType
                                 ]
                               }
                               {" · "}
@@ -554,17 +547,17 @@ export function FinancialCommitmentMonthlyReportPage({
 
                         {item.commitment
                           .designatedRecipient && (
-                          <div className="rounded-lg border bg-muted/20 p-3 text-sm">
-                            Destinado a{" "}
-                            <strong>
-                              {
-                                item.commitment
-                                  .designatedRecipient
-                                  .name
-                              }
-                            </strong>
-                          </div>
-                        )}
+                            <div className="rounded-lg border bg-muted/20 p-3 text-sm">
+                              Destinado a{" "}
+                              <strong>
+                                {
+                                  item.commitment
+                                    .designatedRecipient
+                                    .name
+                                }
+                              </strong>
+                            </div>
+                          )}
 
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                           <AmountField
@@ -607,8 +600,8 @@ export function FinancialCommitmentMonthlyReportPage({
                             <p className="mt-1 font-medium">
                               {item.lastSettlementDate
                                 ? formatDate(
-                                    item.lastSettlementDate,
-                                  )
+                                  item.lastSettlementDate,
+                                )
                                 : "Nenhuma"}
                             </p>
 
@@ -638,7 +631,7 @@ function SummaryCard({
   label: string
   value: number
   icon:
-    typeof Clock3
+  typeof Clock3
 }) {
   return (
     <Card>

@@ -2587,9 +2587,7 @@ public class FinancialTransactionService {
                                 .map(FinancialTransaction::getDescription)
                                 .map(this::normalizeSuggestionText)
                                 .filter(Objects::nonNull)
-                                .collect(Collectors.groupingBy(description -> description.toLowerCase(
-                                                Locale.ROOT),
-                                                Collectors.counting()));
+                                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
 
                 if (descriptionCounts.isEmpty()) {
                         return null;
@@ -2605,7 +2603,6 @@ public class FinancialTransactionService {
                                 .map(FinancialTransaction::getDescription)
                                 .map(this::normalizeSuggestionText)
                                 .filter(Objects::nonNull)
-                                .map(description -> description.toLowerCase(Locale.ROOT))
                                 .filter(description -> descriptionCounts
                                                 .getOrDefault(
                                                                 description,
@@ -2627,11 +2624,10 @@ public class FinancialTransactionService {
 
                 return candidates.stream()
                                 .map(FinancialTransaction::getDescription)
-                                .map(this::normalizeSuggestionText)
                                 .filter(Objects::nonNull)
-                                .filter(description -> description
-                                                .toLowerCase(Locale.ROOT)
-                                                .equals(winningKey))
+                                .map(String::trim)
+                                .filter(description -> !description.isBlank())
+                                .filter(description -> winningKey.equals(normalizeSuggestionText(description)))
                                 .findFirst()
                                 .orElse(null);
         }

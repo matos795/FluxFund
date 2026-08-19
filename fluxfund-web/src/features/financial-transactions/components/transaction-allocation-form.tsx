@@ -2,7 +2,6 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm, useWatch } from "react-hook-form"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import {
@@ -22,6 +21,7 @@ import { FinancialPartyCombobox } from "@/features/financial-parties/components/
 import type { FinancialCommitmentAllocationSuggestion, FinancialCommitmentAllocationSummary } from "@/features/financial-commitments/financial-commitment-types"
 import { FinancialCommitmentAllocationCard } from "@/features/financial-commitments/components/financial-commitment-allocation-card"
 import { SupportAgreementSuggestionCard } from "@/features/support-agreements/components/support-agreement-suggestion-card"
+import { MonthYearPickerPopover } from "@/components/filters/month-year-picker-popover"
 
 type TransactionAllocationFormProps = {
   onCancel?: () => void
@@ -456,18 +456,20 @@ export function TransactionAllocationForm({
             Competência
           </Label>
 
-          <Input
-            id="referenceMonth"
-            type="month"
-            value={
-              referenceMonth ??
-              ""
-            }
-            onChange={(event) =>
-              handleReferenceMonthChange(
-                event.target.value,
-              )
-            }
+          <Controller
+            name="referenceMonth"
+            control={control}
+            render={({ field }) => (
+              <MonthYearPickerPopover
+                value={
+                  field.value ?? ""
+                }
+                onChange={
+                  handleReferenceMonthChange
+                }
+                placeholder="Selecionar competência"
+              />
+            )}
           />
 
           {errors.referenceMonth && (

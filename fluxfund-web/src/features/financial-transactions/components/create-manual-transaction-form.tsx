@@ -41,6 +41,7 @@ import { FinancialPartyCombobox } from "@/features/financial-parties/components/
 import { FinancialCommitmentAllocationCard } from "@/features/financial-commitments/components/financial-commitment-allocation-card"
 import type { FinancialCommitmentAllocationSuggestion } from "@/features/financial-commitments/financial-commitment-types"
 import { SupportAgreementSuggestionCard } from "@/features/support-agreements/components/support-agreement-suggestion-card"
+import { MonthYearPickerPopover } from "@/components/filters/month-year-picker-popover"
 
 type AllocationFormItem = {
   id: string
@@ -1213,16 +1214,18 @@ export function CreateManualTransactionForm({
                   <div className="space-y-2">
                     <Label>Competência</Label>
 
-                    <Input
-                      type="month"
-                      value={allocation.referenceMonth}
-                      onChange={(event) =>
+                    <MonthYearPickerPopover
+                      value={
+                        allocation.referenceMonth
+                      }
+                      onChange={(value) =>
                         handleChangeAllocation(
                           allocation.id,
                           "referenceMonth",
-                          event.target.value,
+                          value,
                         )
                       }
+                      placeholder="Selecionar competência"
                     />
                   </div>
 
