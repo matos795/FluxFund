@@ -2,9 +2,7 @@ import axios from "axios"
 import {
     ArrowLeft,
     ArrowRight,
-    CheckCircle2,
     CircleAlert,
-    FileOutput,
     FolderArchive,
     RefreshCw,
 } from "lucide-react"
@@ -12,7 +10,6 @@ import { useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import { toast } from "sonner"
 
-import { PageHeader } from "@/components/layout/page-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -28,7 +25,6 @@ import { usePermissions } from "@/features/auth/hooks/use-permissions"
 import { useAccounts } from "@/features/accounts/hooks/use-accounts"
 import type { Account } from "@/features/accounts/types"
 import { cn } from "@/lib/utils"
-import { ClosingDossierAccountCard } from "@/features/closing-dossier/components/closing-dossier-account-card"
 import { useClosingDossierPreview } from "@/features/closing-dossier/hooks/use-closing-dossier-preview"
 import type { ClosingDossierPreviewRequest } from "@/features/closing-dossier/closing-dossier-types"
 import { useExportClosingDossierPdf } from "@/features/closing-dossier/hooks/use-export-closing-dossier-pdf"
@@ -36,9 +32,10 @@ import { downloadFile } from "@/utils/download-file"
 import { getApiErrorMessage } from "@/utils/api-error"
 import { getDateRangeForPreset, type DateRangeValue } from "@/components/filters/date-range-presets"
 import { DateRangePresetFilter } from "@/components/filters/date-range-preset-filter"
-import { formatCurrency, formatDate } from "@/utils/formatters"
 import { ClosingDossierStepper, type ClosingDossierStep } from "@/features/closing-dossier/components/closing-dossier-stepper"
 import { ClosingDossierDocumentsStep } from "@/features/closing-dossier/components/closing-dossier-documents-step"
+import { ClosingDossierIssuesStep } from "@/features/closing-dossier/components/closing-dossier-issues-step"
+import { ClosingDossierReviewStep } from "@/features/closing-dossier/components/closing-dossier-review-step"
 
 const ACCOUNT_PAGE_SIZE = 100
 
@@ -48,13 +45,6 @@ const accountTypeLabels: Record<Account["type"], string> = {
     DIGITAL_WALLET: "Conta digital",
     CREDIT_CARD: "Cartão de crédito",
 }
-
-const creditCardStatementStatusLabels = {
-    OPEN: "Aberta",
-    CLOSED: "Fechada",
-    PAID: "Paga",
-    CANCELED: "Cancelada",
-} as const
 
 export function ClosingDossierReportPage() {
     const { canFinanceWrite, canExportReports } = usePermissions()
@@ -145,20 +135,6 @@ export function ClosingDossierReportPage() {
     const filtersChanged =
         Boolean(appliedPreviewSignature) &&
         appliedPreviewSignature !== currentPreviewSignature
-
-    const totalDossierIssues = preview
-        ? preview.accountsWithoutBankStatementCount +
-        preview.creditCardStatementsWithoutPdfCount +
-        preview.expensesWithoutPaymentProofCount +
-        preview.expensesWithoutFiscalDocumentCount
-        : 0
-
-    const canExportPdf =
-        Boolean(preview) &&
-        !filtersChanged &&
-        Boolean(currentRequest) &&
-        canExportReports &&
-        !exportPdfMutation.isPending
 
     function toggleAccount(accountId: string) {
         setSelectedAccountIds((current) =>
@@ -276,36 +252,6 @@ export function ClosingDossierReportPage() {
                                 </p>
                             </div>
                         </div>
-                    </div>
-
-                    <div className="flex flex-col items-start gap-2 lg:items-end">
-                        {preview && !filtersChanged && (
-                            <p className="max-w-xs text-left text-xs text-muted-foreground lg:text-right">
-                                {totalDossierIssues === 0
-                                    ? "Prévia sem pendências documentais."
-                                    : `O PDF será gerado com ${totalDossierIssues} pendência${totalDossierIssues > 1 ? "s" : ""} identificada${totalDossierIssues > 1 ? "s" : ""}.`}
-                            </p>
-                        )}
-
-                        <Button
-                            onClick={handleExportPdf}
-                            disabled={!canExportPdf}
-                            title={
-                                !canExportReports
-                                    ? "Seu perfil não possui permissão para exportar relatórios."
-                                    : filtersChanged
-                                        ? "Gere uma prévia atualizada antes de exportar."
-                                        : !preview
-                                            ? "Gere uma prévia antes de exportar."
-                                            : undefined
-                            }
-                        >
-                            <FileOutput className="mr-2 size-4" />
-
-                            {exportPdfMutation.isPending
-                                ? "Gerando PDF..."
-                                : "Gerar PDF do Dossiê"}
-                        </Button>
                     </div>
                 </div>
             </section>
@@ -559,36 +505,25 @@ export function ClosingDossierReportPage() {
             {activeStep ===
                 "issues" &&
                 preview && (
-                    <Card>
-                        <CardContent className="flex flex-col items-center p-10 text-center">
-                            <CircleAlert className="size-9 text-muted-foreground" />
-
-                            <h2 className="mt-4 text-lg font-semibold">
-                                Conferência de pendências
-                            </h2>
-
-                            <p className="mt-1 max-w-md text-sm text-muted-foreground">
-                                Os documentos estão preparados.
-                                Agora vamos conferir comprovantes,
-                                documentos fiscais e outras
-                                pendências do fechamento.
-                            </p>
-
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="mt-5"
-                                onClick={() =>
-                                    setActiveStep(
-                                        "documents",
-                                    )
-                                }
-                            >
-                                <ArrowLeft className="mr-2 size-4" />
-                                Voltar para documentos
-                            </Button>
-                        </CardContent>
-                    </Card>
+                    <ClosingDossierIssuesStep
+                        preview={preview}
+                        isRefreshing={
+                            previewMutation.isPending
+                        }
+                        onRefresh={() =>
+                            void handlePreview()
+                        }
+                        onBack={() =>
+                            setActiveStep(
+                                "documents",
+                            )
+                        }
+                        onContinue={() =>
+                            setActiveStep(
+                                "review",
+                            )
+                        }
+                    />
                 )}
 
             {filtersChanged && (
@@ -632,238 +567,23 @@ export function ClosingDossierReportPage() {
             {activeStep ===
                 "review" &&
                 preview && (
-                    <section className="space-y-5">
-                        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                            <PageHeader
-                                title="Prévia do fechamento"
-                                description={`Período analisado: ${preview.periodStartDate} até ${preview.periodEndDate}.`}
-                            />
-
-                            <div className="flex flex-wrap items-center gap-2">
-                                <Badge variant="secondary">
-                                    {preview.includedAccountCount} de {preview.selectedAccountCount} contas incluídas
-                                </Badge>
-
-                                {preview.includesSupportReport && (
-                                    <Badge variant="outline">
-                                        Sustento missionário incluído
-                                    </Badge>
-                                )}
-
-                                {preview.includesPayablesReport && (
-                                    <Badge variant="outline">
-                                        Despesas reconhecidas incluídas
-                                    </Badge>
-                                )}
-
-                                {preview.includesReceivablesReport && (
-                                    <Badge variant="outline">
-                                        Receitas liquidadas incluídas
-                                    </Badge>
-                                )}
-
-                                {preview.includesFundMovementReport && (
-                                    <Badge variant="outline">
-                                        Movimentação por fundos incluída
-                                    </Badge>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                            <PreviewMetric
-                                label="Movimentações"
-                                value={String(preview.totalTransactionCount)}
-                                description="Movimentações e itens incluídos"
-                                isHealthy
-                            />
-
-                            <PreviewMetric
-                                label="Faturas de cartão"
-                                value={String(
-                                    preview.creditCardStatementCount,
-                                )}
-                                description={`${preview.creditCardStatementItemCount} item(ns) incluído(s)`}
-                                isHealthy
-                            />
-
-                            <PreviewMetric
-                                label="PDFs de fatura pendentes"
-                                value={String(
-                                    preview.creditCardStatementsWithoutPdfCount,
-                                )}
-                                description="Faturas sem documento oficial"
-                                isHealthy={
-                                    preview.creditCardStatementsWithoutPdfCount === 0
-                                }
-                            />
-
-                            <PreviewMetric
-                                label="Extratos pendentes"
-                                value={String(preview.accountsWithoutBankStatementCount)}
-                                description="Contas que exigem PDF oficial"
-                                isHealthy={preview.accountsWithoutBankStatementCount === 0}
-                            />
-
-                            <PreviewMetric
-                                label="Sem comprovante"
-                                value={String(preview.expensesWithoutPaymentProofCount)}
-                                description="Despesas com pendência"
-                                isHealthy={preview.expensesWithoutPaymentProofCount === 0}
-                            />
-
-                            <PreviewMetric
-                                label="Sem documento fiscal"
-                                value={String(preview.expensesWithoutFiscalDocumentCount)}
-                                description="Notas, recibos ou declarações"
-                                isHealthy={preview.expensesWithoutFiscalDocumentCount === 0}
-                            />
-                        </div>
-
-                        {preview.accountsWithoutMovementCount > 0 && (
-                            <div className="flex gap-3 rounded-xl border bg-muted/30 p-4 text-sm">
-                                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-
-                                <p className="text-muted-foreground">
-                                    {preview.accountsWithoutMovementCount} conta
-                                    {preview.accountsWithoutMovementCount > 1 ? "s" : ""} sem
-                                    movimentação foram encontradas no período.
-                                </p>
-                            </div>
-                        )}
-
-                        <div className="space-y-4">
-                            {preview.creditCardStatements.length > 0 && (
-                                <section className="space-y-4">
-                                    <div>
-                                        <h2 className="text-lg font-semibold">
-                                            Faturas de cartão incluídas automaticamente
-                                        </h2>
-
-                                        <p className="mt-1 text-sm text-muted-foreground">
-                                            Faturas que possuem compras no período ou
-                                            pagamentos vinculados às contas selecionadas.
-                                        </p>
-                                    </div>
-
-                                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                        {preview.creditCardStatements.map(
-                                            (statement) => (
-                                                <Card key={statement.statementId}>
-                                                    <CardHeader>
-                                                        <div className="flex items-start justify-between gap-3">
-                                                            <div>
-                                                                <CardTitle className="text-base">
-                                                                    {statement.statementName}
-                                                                </CardTitle>
-
-                                                                <p className="mt-1 text-sm text-muted-foreground">
-                                                                    {statement.creditCardAccountName}
-                                                                </p>
-                                                            </div>
-
-                                                            <Badge variant="outline">
-                                                                {
-                                                                    creditCardStatementStatusLabels[
-                                                                    statement.status
-                                                                    ]
-                                                                }
-                                                            </Badge>
-                                                        </div>
-                                                    </CardHeader>
-
-                                                    <CardContent className="space-y-3 text-sm">
-                                                        <div className="grid grid-cols-2 gap-3">
-                                                            <div>
-                                                                <p className="text-xs text-muted-foreground">
-                                                                    Vencimento
-                                                                </p>
-
-                                                                <p className="font-medium">
-                                                                    {formatDate(statement.dueDate)}
-                                                                </p>
-                                                            </div>
-
-                                                            <div>
-                                                                <p className="text-xs text-muted-foreground">
-                                                                    Total
-                                                                </p>
-
-                                                                <p className="font-medium">
-                                                                    {formatCurrency(
-                                                                        statement.totalAmount,
-                                                                    )}
-                                                                </p>
-                                                            </div>
-
-                                                            <div>
-                                                                <p className="text-xs text-muted-foreground">
-                                                                    Itens
-                                                                </p>
-
-                                                                <p className="font-medium">
-                                                                    {statement.itemCount}
-                                                                </p>
-                                                            </div>
-
-                                                            <div>
-                                                                <p className="text-xs text-muted-foreground">
-                                                                    Sem categoria
-                                                                </p>
-
-                                                                <p className="font-medium">
-                                                                    {
-                                                                        statement.unclassifiedItemCount
-                                                                    }
-                                                                </p>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="flex flex-wrap gap-2 border-t pt-3">
-                                                            <Badge
-                                                                variant={
-                                                                    statement.hasOfficialPdf
-                                                                        ? "secondary"
-                                                                        : "destructive"
-                                                                }
-                                                            >
-                                                                {statement.hasOfficialPdf
-                                                                    ? "PDF oficial disponível"
-                                                                    : "PDF oficial pendente"}
-                                                            </Badge>
-
-                                                            {statement.fiscalDocumentIssues.length >
-                                                                0 && (
-                                                                    <Badge variant="destructive">
-                                                                        {
-                                                                            statement
-                                                                                .fiscalDocumentIssues
-                                                                                .length
-                                                                        }{" "}
-                                                                        pendência(s) fiscal(is)
-                                                                    </Badge>
-                                                                )}
-                                                        </div>
-                                                    </CardContent>
-                                                </Card>
-                                            ),
-                                        )}
-                                    </div>
-                                </section>
-                            )}
-
-                            {preview.accounts.map((account) => (
-                                <ClosingDossierAccountCard
-                                    key={account.accountId}
-                                    account={account}
-                                    periodStartDate={preview.periodStartDate}
-                                    periodEndDate={preview.periodEndDate}
-                                    canManageDocuments={canFinanceWrite}
-                                    onDocumentsChanged={handleDocumentsChanged}
-                                />
-                            ))}
-                        </div>
-                    </section>
+                    <ClosingDossierReviewStep
+                        preview={preview}
+                        canExportReports={
+                            canExportReports
+                        }
+                        isExporting={
+                            exportPdfMutation.isPending
+                        }
+                        onBack={() =>
+                            setActiveStep(
+                                "issues",
+                            )
+                        }
+                        onExport={
+                            handleExportPdf
+                        }
+                    />
                 )}
         </div>
     )
@@ -899,41 +619,6 @@ function DocumentTypeOption({
                 </span>
             </span>
         </label>
-    )
-}
-
-function PreviewMetric({
-    label,
-    value,
-    description,
-    isHealthy,
-}: {
-    label: string
-    value: string
-    description: string
-    isHealthy: boolean
-}) {
-    return (
-        <Card>
-            <CardContent className="pt-5">
-                <div className="flex items-start justify-between gap-3">
-                    <div>
-                        <p className="text-sm text-muted-foreground">{label}</p>
-                        <p className="mt-1 text-3xl font-semibold tracking-tight">
-                            {value}
-                        </p>
-                    </div>
-
-                    {isHealthy ? (
-                        <CheckCircle2 className="size-5 text-primary" />
-                    ) : (
-                        <CircleAlert className="size-5 text-destructive" />
-                    )}
-                </div>
-
-                <p className="mt-3 text-xs text-muted-foreground">{description}</p>
-            </CardContent>
-        </Card>
     )
 }
 

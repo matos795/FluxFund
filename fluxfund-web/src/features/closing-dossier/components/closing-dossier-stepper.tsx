@@ -18,6 +18,9 @@ export type ClosingDossierStep =
 
 type ClosingDossierStepperProps = {
     activeStep: ClosingDossierStep
+    onStepChange?: (
+        step: ClosingDossierStep,
+    ) => void
 }
 
 const steps = [
@@ -63,6 +66,7 @@ const steps = [
 
 export function ClosingDossierStepper({
     activeStep,
+    onStepChange,
 }: ClosingDossierStepperProps) {
     const activeIndex =
         steps.findIndex(
@@ -85,6 +89,11 @@ export function ClosingDossierStepper({
                             step.value ===
                             activeStep
 
+                        const canNavigate =
+                            index <= activeIndex &&
+                            !active &&
+                            Boolean(onStepChange)
+
                         return (
                             <div
                                 key={step.value}
@@ -99,13 +108,30 @@ export function ClosingDossierStepper({
                                     "bg-muted/20 text-muted-foreground",
                                 )}
                             >
-                                <div
+                                <button
+                                    key={step.value}
+                                    type="button"
+                                    disabled={!canNavigate}
+                                    onClick={() => {
+                                        if (canNavigate) {
+                                            onStepChange?.(
+                                                step.value,
+                                            )
+                                        }
+                                    }}
                                     className={cn(
-                                        "flex size-9 shrink-0 items-center justify-center rounded-xl border bg-background",
+                                        "relative flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors",
                                         active &&
-                                        "border-primary text-primary",
+                                        "border-primary bg-primary/5",
                                         completed &&
-                                        "border-primary bg-primary text-primary-foreground",
+                                        "border-primary/30 bg-primary/[0.03]",
+                                        !active &&
+                                        !completed &&
+                                        "bg-muted/20 text-muted-foreground",
+                                        canNavigate &&
+                                        "cursor-pointer hover:border-primary/50 hover:bg-primary/[0.04]",
+                                        !canNavigate &&
+                                        "cursor-default",
                                     )}
                                 >
                                     {completed ? (
@@ -113,7 +139,7 @@ export function ClosingDossierStepper({
                                     ) : (
                                         <Icon className="size-4" />
                                     )}
-                                </div>
+                                </button>
 
                                 <div className="min-w-0">
                                     <p
@@ -134,16 +160,18 @@ export function ClosingDossierStepper({
                                     </p>
                                 </div>
 
-                                {index <
+                                {
+                                    index <
                                     steps.length -
                                     1 && (
                                         <div className="absolute -right-2 top-1/2 hidden h-px w-4 bg-border md:block" />
-                                    )}
+                                    )
+                                }
                             </div>
                         )
                     },
                 )}
             </div>
-        </div>
+        </div >
     )
 }

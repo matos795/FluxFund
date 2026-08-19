@@ -267,13 +267,13 @@ export function ClosingDossierAccountCard({
 
           {showIssues && (
             <div className="grid gap-4 xl:grid-cols-2">
-              <IssueList
+              <ClosingDossierIssueList
                 title="Comprovantes de pagamento"
                 issues={account.paymentProofIssues}
                 emptyMessage="Nenhuma despesa pendente de comprovante."
               />
 
-              <IssueList
+              <ClosingDossierIssueList
                 title="Documentos fiscais"
                 issues={account.fiscalDocumentIssues}
                 emptyMessage="Nenhuma despesa pendente de documento fiscal."
@@ -328,7 +328,7 @@ function Metric({
   )
 }
 
-function IssueList({
+export function ClosingDossierIssueList({
   title,
   issues,
   emptyMessage,

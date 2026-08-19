@@ -2,8 +2,6 @@ import {
     ArrowLeft,
     ArrowRight,
     CreditCard,
-    FileCheck2,
-    FileWarning,
     Landmark,
 } from "lucide-react"
 
@@ -344,6 +342,7 @@ export function ClosingDossierDocumentsStep({
 }
 
 function StatusCard({
+    icon: Icon,
     label,
     value,
     description,
@@ -365,11 +364,7 @@ function StatusCard({
                             : "rounded-xl bg-destructive/10 p-3 text-destructive"
                     }
                 >
-                    {healthy ? (
-                        <FileCheck2 className="size-5" />
-                    ) : (
-                        <FileWarning className="size-5" />
-                    )}
+                    <Icon className="size-5" />
                 </div>
 
                 <div>
