@@ -37,6 +37,7 @@ type ClosingDossierAccountCardProps = {
   periodEndDate: string
   canManageDocuments: boolean
   onDocumentsChanged: () => void
+  showIssues?: boolean
 }
 
 const accountTypeLabels: Record<string, string> = {
@@ -53,6 +54,7 @@ export function ClosingDossierAccountCard({
   periodEndDate,
   canManageDocuments,
   onDocumentsChanged,
+  showIssues = true,
 }: ClosingDossierAccountCardProps) {
   const [documentToDelete, setDocumentToDelete] =
     useState<BankStatementDocument | null>(null)
@@ -142,11 +144,12 @@ export function ClosingDossierAccountCard({
                     : "Extrato pendente"}
               </Badge>
 
-              {totalIssues > 0 && (
-                <Badge variant="destructive">
-                  {totalIssues} pendência{totalIssues > 1 ? "s" : ""}
-                </Badge>
-              )}
+              {showIssues &&
+                totalIssues > 0 && (
+                  <Badge variant="destructive">
+                    {totalIssues} pendência{totalIssues > 1 ? "s" : ""}
+                  </Badge>
+                )}
             </div>
           </div>
         </CardHeader>
@@ -262,19 +265,21 @@ export function ClosingDossierAccountCard({
             )}
           </section>
 
-          <div className="grid gap-4 xl:grid-cols-2">
-            <IssueList
-              title="Comprovantes de pagamento"
-              issues={account.paymentProofIssues}
-              emptyMessage="Nenhuma despesa pendente de comprovante."
-            />
+          {showIssues && (
+            <div className="grid gap-4 xl:grid-cols-2">
+              <IssueList
+                title="Comprovantes de pagamento"
+                issues={account.paymentProofIssues}
+                emptyMessage="Nenhuma despesa pendente de comprovante."
+              />
 
-            <IssueList
-              title="Documentos fiscais"
-              issues={account.fiscalDocumentIssues}
-              emptyMessage="Nenhuma despesa pendente de documento fiscal."
-            />
-          </div>
+              <IssueList
+                title="Documentos fiscais"
+                issues={account.fiscalDocumentIssues}
+                emptyMessage="Nenhuma despesa pendente de documento fiscal."
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 

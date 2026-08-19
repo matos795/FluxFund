@@ -1,6 +1,7 @@
 import axios from "axios"
 import {
     ArrowLeft,
+    ArrowRight,
     CheckCircle2,
     CircleAlert,
     FileOutput,
@@ -33,10 +34,11 @@ import type { ClosingDossierPreviewRequest } from "@/features/closing-dossier/cl
 import { useExportClosingDossierPdf } from "@/features/closing-dossier/hooks/use-export-closing-dossier-pdf"
 import { downloadFile } from "@/utils/download-file"
 import { getApiErrorMessage } from "@/utils/api-error"
-import { ClosingDossierExtraDocumentsSection } from "@/features/closing-dossier/components/closing-dossier-extra-documents-section"
 import { getDateRangeForPreset, type DateRangeValue } from "@/components/filters/date-range-presets"
 import { DateRangePresetFilter } from "@/components/filters/date-range-preset-filter"
 import { formatCurrency, formatDate } from "@/utils/formatters"
+import { ClosingDossierStepper, type ClosingDossierStep } from "@/features/closing-dossier/components/closing-dossier-stepper"
+import { ClosingDossierDocumentsStep } from "@/features/closing-dossier/components/closing-dossier-documents-step"
 
 const ACCOUNT_PAGE_SIZE = 100
 
@@ -56,6 +58,8 @@ const creditCardStatementStatusLabels = {
 
 export function ClosingDossierReportPage() {
     const { canFinanceWrite, canExportReports } = usePermissions()
+
+    const [activeStep, setActiveStep,] = useState<ClosingDossierStep>("configuration")
 
     const [period, setPeriod] = useState<DateRangeValue>(() =>
         getDateRangeForPreset("current-month"),
@@ -175,33 +179,36 @@ export function ClosingDossierReportPage() {
     async function handlePreview() {
         if (!currentRequest) {
             toast.error("Selecione ao menos uma conta para gerar a prévia.")
-            return
+            return false
         }
 
         if (periodStartDate > periodEndDate) {
             toast.error("A data inicial não pode ser posterior à data final.")
-            return
+            return false
         }
 
         if (!includeIncomes && !includeExpenses && !includeTransfers) {
             toast.error("Selecione ao menos um tipo de transação.")
-            return
+            return false
         }
 
         try {
             await previewMutation.mutateAsync(currentRequest)
 
             setAppliedPreviewSignature(createPreviewSignature(currentRequest))
+            return true
+
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 toast.error(
                     error.response?.data?.message ??
                     "Não foi possível gerar a prévia do Dossiê.",
                 )
-                return
+                return false
             }
 
             toast.error("Não foi possível gerar a prévia do Dossiê.")
+            return false
         }
     }
 
@@ -226,6 +233,16 @@ export function ClosingDossierReportPage() {
             toast.success("Dossiê de Fechamento gerado com sucesso.")
         } catch (error) {
             toast.error(await getPdfExportErrorMessage(error))
+        }
+    }
+
+    async function handleContinueFromConfiguration() {
+        const success = await handlePreview()
+
+        if (success) {
+            setActiveStep(
+                "documents",
+            )
         }
     }
 
@@ -293,225 +310,286 @@ export function ClosingDossierReportPage() {
                 </div>
             </section>
 
-            <Card className="shadow-sm">
-                <CardHeader>
-                    <CardTitle>Configurar prévia</CardTitle>
+            <ClosingDossierStepper
+                activeStep={activeStep}
+            />
 
-                    <p className="text-sm text-muted-foreground">
-                        Escolha o período, as contas e os tipos de movimentação que devem
-                        entrar no Dossiê.
-                    </p>
-                </CardHeader>
+            {activeStep ===
+                "configuration" && (
+                    <Card className="shadow-sm">
+                        <CardHeader>
+                            <CardTitle>Configuração do fechamento</CardTitle>
 
-                <CardContent className="space-y-6">
-                    <div className="space-y-6">
-                        <DateRangePresetFilter
-                            value={period}
-                            onChange={setPeriod}
-                            idPrefix="closing-dossier-period"
-                            label="Período do Dossiê"
-                            layout="full"
-                        />
+                            <p className="text-sm text-muted-foreground">
+                                Defina o período, as contas e as
+                                informações que farão parte deste
+                                fechamento.
+                            </p>
+                        </CardHeader>
 
-                        <div className="flex flex-col gap-4 border-t pt-4 md:flex-row md:items-center md:justify-between">
-                            <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm">
-                                <Checkbox
-                                    checked={includeAccountsWithoutMovement}
-                                    onCheckedChange={(checked) =>
-                                        setIncludeAccountsWithoutMovement(Boolean(checked))
-                                    }
+                        <CardContent className="space-y-6">
+                            <div className="space-y-6">
+                                <DateRangePresetFilter
+                                    value={period}
+                                    onChange={setPeriod}
+                                    idPrefix="closing-dossier-period"
+                                    label="Período do Dossiê"
+                                    layout="compact"
+                                    showSummary={false}
                                 />
 
-                                <span>
-                                    <span className="block font-medium">
-                                        Incluir contas sem movimento
-                                    </span>
+                                <div className="flex flex-col gap-4 border-t pt-4 md:flex-row md:items-center md:justify-between">
+                                    <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm">
+                                        <Checkbox
+                                            checked={includeAccountsWithoutMovement}
+                                            onCheckedChange={(checked) =>
+                                                setIncludeAccountsWithoutMovement(Boolean(checked))
+                                            }
+                                        />
 
-                                    <span className="block text-xs text-muted-foreground">
-                                        Mostra contas vazias na pasta final.
-                                    </span>
-                                </span>
-                            </label>
+                                        <span>
+                                            <span className="block font-medium">
+                                                Incluir contas sem movimento
+                                            </span>
+
+                                            <span className="block text-xs text-muted-foreground">
+                                                Mostra contas vazias na pasta final.
+                                            </span>
+                                        </span>
+                                    </label>
+
+                                    <Button
+                                        className="w-full md:w-auto"
+                                        onClick={handleContinueFromConfiguration}
+                                        disabled={
+                                            previewMutation.isPending ||
+                                            accountsQuery.isLoading ||
+                                            selectableAccounts.length === 0
+                                        }
+                                    >
+                                        {previewMutation.isPending ? (
+                                            <RefreshCw className="mr-2 size-4 animate-spin" />
+                                        ) : (
+                                            <ArrowRight className="mr-2 size-4" />
+                                        )}
+
+                                        {previewMutation.isPending
+                                            ? "Analisando fechamento..."
+                                            : "Continuar para documentos"}
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3 border-t pt-5">
+                                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                    <div>
+                                        <Label>Contas incluídas</Label>
+
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Contas de cartão não são selecionadas aqui.
+                                            As faturas com compras no período são incluídas
+                                            automaticamente.
+                                        </p>
+                                    </div>
+
+                                    <div className="flex gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={selectAllAccounts}
+                                            disabled={selectableAccounts.length === 0}
+                                        >
+                                            Selecionar todas
+                                        </Button>
+
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={clearAccounts}
+                                            disabled={selectedAccountIds.length === 0}
+                                        >
+                                            Limpar
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                {accountsQuery.isLoading ? (
+                                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                        {Array.from({ length: 3 }).map((_, index) => (
+                                            <Skeleton key={index} className="h-20 rounded-xl" />
+                                        ))}
+                                    </div>
+                                ) : accountsQuery.isError ? (
+                                    <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+                                        Não foi possível carregar as contas disponíveis.
+                                    </div>
+                                ) : selectableAccounts.length === 0 ? (
+                                    <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                                        Nenhuma conta elegível foi encontrada.
+                                    </div>
+                                ) : (
+                                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                        {selectableAccounts.map((account) => {
+                                            const selected = selectedAccountIds.includes(account.id)
+
+                                            return (
+                                                <label
+                                                    key={account.id}
+                                                    className={cn(
+                                                        "flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors",
+                                                        selected
+                                                            ? "border-primary bg-primary/5"
+                                                            : "hover:bg-muted/40",
+                                                    )}
+                                                >
+                                                    <Checkbox
+                                                        checked={selected}
+                                                        onCheckedChange={() => toggleAccount(account.id)}
+                                                    />
+
+                                                    <span className="min-w-0">
+                                                        <span className="block truncate text-sm font-medium">
+                                                            {account.name}
+                                                        </span>
+
+                                                        <span className="mt-1 block text-xs text-muted-foreground">
+                                                            {accountTypeLabels[account.type]}
+                                                            {account.bankName ? ` · ${account.bankName}` : ""}
+                                                        </span>
+                                                    </span>
+                                                </label>
+                                            )
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="grid gap-3 border-t pt-5 md:grid-cols-3">
+                                <DocumentTypeOption
+                                    checked={includeIncomes}
+                                    label="Receitas"
+                                    description="Entradas e recebimentos."
+                                    onCheckedChange={setIncludeIncomes}
+                                />
+
+                                <DocumentTypeOption
+                                    checked={includeExpenses}
+                                    label="Despesas"
+                                    description="Pagamentos e documentos fiscais."
+                                    onCheckedChange={setIncludeExpenses}
+                                />
+
+                                <DocumentTypeOption
+                                    checked={includeTransfers}
+                                    label="Transferências"
+                                    description="Movimentações entre contas."
+                                    onCheckedChange={setIncludeTransfers}
+                                />
+                            </div>
+
+                            <div className="space-y-3 border-t pt-5">
+                                <div>
+                                    <Label>Relatórios automáticos</Label>
+
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        Seções calculadas pelo FluxFund e inseridas automaticamente no PDF.
+                                    </p>
+                                </div>
+
+                                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                                    <DocumentTypeOption
+                                        checked={includeSupportReport}
+                                        label="Sustento missionário"
+                                        description="Inclui compromissos, ofertas, repasses e o saldo final a repassar por favorecido."
+                                        onCheckedChange={setIncludeSupportReport}
+                                    />
+
+                                    <DocumentTypeOption
+                                        checked={includePayablesReport}
+                                        label="Despesas reconhecidas"
+                                        description="Inclui resumo por categoria e detalhamento das despesas reconhecidas no período, inclusive compras no cartão."
+                                        onCheckedChange={setIncludePayablesReport}
+                                    />
+
+                                    <DocumentTypeOption
+                                        checked={includeReceivablesReport}
+                                        label="Receitas liquidadas"
+                                        description="Inclui resumo por categoria e detalhamento dos recebimentos efetivamente realizados no período."
+                                        onCheckedChange={setIncludeReceivablesReport}
+                                    />
+
+                                    <DocumentTypeOption
+                                        checked={includeFundMovementReport}
+                                        label="Movimentação por fundos"
+                                        description="Inclui entradas destinadas, saídas utilizadas, transferências internas e variação de cada fundo no período."
+                                        onCheckedChange={setIncludeFundMovementReport}
+                                    />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+            {activeStep ===
+                "documents" &&
+                preview && (
+                    <ClosingDossierDocumentsStep
+                        preview={preview}
+                        canManageDocuments={
+                            canFinanceWrite
+                        }
+                        onDocumentsChanged={
+                            handleDocumentsChanged
+                        }
+                        onBack={() =>
+                            setActiveStep(
+                                "configuration",
+                            )
+                        }
+                        onContinue={() =>
+                            setActiveStep(
+                                "issues",
+                            )
+                        }
+                    />
+                )}
+
+            {activeStep ===
+                "issues" &&
+                preview && (
+                    <Card>
+                        <CardContent className="flex flex-col items-center p-10 text-center">
+                            <CircleAlert className="size-9 text-muted-foreground" />
+
+                            <h2 className="mt-4 text-lg font-semibold">
+                                Conferência de pendências
+                            </h2>
+
+                            <p className="mt-1 max-w-md text-sm text-muted-foreground">
+                                Os documentos estão preparados.
+                                Agora vamos conferir comprovantes,
+                                documentos fiscais e outras
+                                pendências do fechamento.
+                            </p>
 
                             <Button
-                                className="w-full md:w-auto"
-                                onClick={handlePreview}
-                                disabled={
-                                    previewMutation.isPending ||
-                                    accountsQuery.isLoading ||
-                                    selectableAccounts.length === 0
+                                type="button"
+                                variant="outline"
+                                className="mt-5"
+                                onClick={() =>
+                                    setActiveStep(
+                                        "documents",
+                                    )
                                 }
                             >
-                                <RefreshCw
-                                    className={cn(
-                                        "mr-2 size-4",
-                                        previewMutation.isPending && "animate-spin",
-                                    )}
-                                />
-
-                                {previewMutation.isPending
-                                    ? "Atualizando prévia..."
-                                    : "Gerar prévia"}
+                                <ArrowLeft className="mr-2 size-4" />
+                                Voltar para documentos
                             </Button>
-                        </div>
-                    </div>
-
-                    <div className="space-y-3 border-t pt-5">
-                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                            <div>
-                                <Label>Contas incluídas</Label>
-
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                    Contas de cartão não são selecionadas aqui.
-                                    As faturas com compras no período são incluídas
-                                    automaticamente.
-                                </p>
-                            </div>
-
-                            <div className="flex gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={selectAllAccounts}
-                                    disabled={selectableAccounts.length === 0}
-                                >
-                                    Selecionar todas
-                                </Button>
-
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={clearAccounts}
-                                    disabled={selectedAccountIds.length === 0}
-                                >
-                                    Limpar
-                                </Button>
-                            </div>
-                        </div>
-
-                        {accountsQuery.isLoading ? (
-                            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                                {Array.from({ length: 3 }).map((_, index) => (
-                                    <Skeleton key={index} className="h-20 rounded-xl" />
-                                ))}
-                            </div>
-                        ) : accountsQuery.isError ? (
-                            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-                                Não foi possível carregar as contas disponíveis.
-                            </div>
-                        ) : selectableAccounts.length === 0 ? (
-                            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                                Nenhuma conta elegível foi encontrada.
-                            </div>
-                        ) : (
-                            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                                {selectableAccounts.map((account) => {
-                                    const selected = selectedAccountIds.includes(account.id)
-
-                                    return (
-                                        <label
-                                            key={account.id}
-                                            className={cn(
-                                                "flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors",
-                                                selected
-                                                    ? "border-primary bg-primary/5"
-                                                    : "hover:bg-muted/40",
-                                            )}
-                                        >
-                                            <Checkbox
-                                                checked={selected}
-                                                onCheckedChange={() => toggleAccount(account.id)}
-                                            />
-
-                                            <span className="min-w-0">
-                                                <span className="block truncate text-sm font-medium">
-                                                    {account.name}
-                                                </span>
-
-                                                <span className="mt-1 block text-xs text-muted-foreground">
-                                                    {accountTypeLabels[account.type]}
-                                                    {account.bankName ? ` · ${account.bankName}` : ""}
-                                                </span>
-                                            </span>
-                                        </label>
-                                    )
-                                })}
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="grid gap-3 border-t pt-5 md:grid-cols-3">
-                        <DocumentTypeOption
-                            checked={includeIncomes}
-                            label="Receitas"
-                            description="Entradas e recebimentos."
-                            onCheckedChange={setIncludeIncomes}
-                        />
-
-                        <DocumentTypeOption
-                            checked={includeExpenses}
-                            label="Despesas"
-                            description="Pagamentos e documentos fiscais."
-                            onCheckedChange={setIncludeExpenses}
-                        />
-
-                        <DocumentTypeOption
-                            checked={includeTransfers}
-                            label="Transferências"
-                            description="Movimentações entre contas."
-                            onCheckedChange={setIncludeTransfers}
-                        />
-                    </div>
-
-                    <div className="space-y-3 border-t pt-5">
-                        <div>
-                            <Label>Relatórios automáticos</Label>
-
-                            <p className="mt-1 text-xs text-muted-foreground">
-                                Seções calculadas pelo FluxFund e inseridas automaticamente no PDF.
-                            </p>
-                        </div>
-
-                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                            <DocumentTypeOption
-                                checked={includeSupportReport}
-                                label="Sustento missionário"
-                                description="Inclui compromissos, ofertas, repasses e o saldo final a repassar por favorecido."
-                                onCheckedChange={setIncludeSupportReport}
-                            />
-
-                            <DocumentTypeOption
-                                checked={includePayablesReport}
-                                label="Despesas reconhecidas"
-                                description="Inclui resumo por categoria e detalhamento das despesas reconhecidas no período, inclusive compras no cartão."
-                                onCheckedChange={setIncludePayablesReport}
-                            />
-
-                            <DocumentTypeOption
-                                checked={includeReceivablesReport}
-                                label="Receitas liquidadas"
-                                description="Inclui resumo por categoria e detalhamento dos recebimentos efetivamente realizados no período."
-                                onCheckedChange={setIncludeReceivablesReport}
-                            />
-
-                            <DocumentTypeOption
-                                checked={includeFundMovementReport}
-                                label="Movimentação por fundos"
-                                description="Inclui entradas destinadas, saídas utilizadas, transferências internas e variação de cada fundo no período."
-                                onCheckedChange={setIncludeFundMovementReport}
-                            />
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <ClosingDossierExtraDocumentsSection
-                periodStartDate={periodStartDate}
-                periodEndDate={periodEndDate}
-                canManageDocuments={canFinanceWrite}
-            />
+                        </CardContent>
+                    </Card>
+                )}
 
             {filtersChanged && (
                 <div className="flex gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm">
@@ -532,255 +610,261 @@ export function ClosingDossierReportPage() {
                 </div>
             )}
 
-            {!preview && !previewMutation.isPending && !filtersChanged && (
-                <section className="rounded-2xl border border-dashed p-8 text-center">
-                    <FolderArchive className="mx-auto size-10 text-muted-foreground" />
+            {activeStep ===
+                "configuration" &&
+                !preview &&
+                !previewMutation.isPending &&
+                !filtersChanged && (
+                    <section className="rounded-2xl border border-dashed p-8 text-center">
+                        <FolderArchive className="mx-auto size-10 text-muted-foreground" />
 
-                    <h2 className="mt-4 text-lg font-semibold">
-                        Prepare seu fechamento financeiro
-                    </h2>
+                        <h2 className="mt-4 text-lg font-semibold">
+                            Prepare seu fechamento financeiro
+                        </h2>
 
-                    <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">
-                        Selecione as contas e gere a prévia para identificar extratos,
-                        comprovantes e documentos fiscais pendentes.
-                    </p>
-                </section>
-            )}
+                        <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">
+                            Selecione as contas e gere a prévia para identificar extratos,
+                            comprovantes e documentos fiscais pendentes.
+                        </p>
+                    </section>
+                )}
 
-            {preview && (
-                <section className="space-y-5">
-                    <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                        <PageHeader
-                            title="Prévia do fechamento"
-                            description={`Período analisado: ${preview.periodStartDate} até ${preview.periodEndDate}.`}
-                        />
+            {activeStep ===
+                "review" &&
+                preview && (
+                    <section className="space-y-5">
+                        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                            <PageHeader
+                                title="Prévia do fechamento"
+                                description={`Período analisado: ${preview.periodStartDate} até ${preview.periodEndDate}.`}
+                            />
 
-                        <div className="flex flex-wrap items-center gap-2">
-                            <Badge variant="secondary">
-                                {preview.includedAccountCount} de {preview.selectedAccountCount} contas incluídas
-                            </Badge>
-
-                            {preview.includesSupportReport && (
-                                <Badge variant="outline">
-                                    Sustento missionário incluído
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Badge variant="secondary">
+                                    {preview.includedAccountCount} de {preview.selectedAccountCount} contas incluídas
                                 </Badge>
-                            )}
 
-                            {preview.includesPayablesReport && (
-                                <Badge variant="outline">
-                                    Despesas reconhecidas incluídas
-                                </Badge>
-                            )}
+                                {preview.includesSupportReport && (
+                                    <Badge variant="outline">
+                                        Sustento missionário incluído
+                                    </Badge>
+                                )}
 
-                            {preview.includesReceivablesReport && (
-                                <Badge variant="outline">
-                                    Receitas liquidadas incluídas
-                                </Badge>
-                            )}
+                                {preview.includesPayablesReport && (
+                                    <Badge variant="outline">
+                                        Despesas reconhecidas incluídas
+                                    </Badge>
+                                )}
 
-                            {preview.includesFundMovementReport && (
-                                <Badge variant="outline">
-                                    Movimentação por fundos incluída
-                                </Badge>
-                            )}
+                                {preview.includesReceivablesReport && (
+                                    <Badge variant="outline">
+                                        Receitas liquidadas incluídas
+                                    </Badge>
+                                )}
+
+                                {preview.includesFundMovementReport && (
+                                    <Badge variant="outline">
+                                        Movimentação por fundos incluída
+                                    </Badge>
+                                )}
+                            </div>
                         </div>
-                    </div>
 
-                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                        <PreviewMetric
-                            label="Movimentações"
-                            value={String(preview.totalTransactionCount)}
-                            description="Movimentações e itens incluídos"
-                            isHealthy
-                        />
+                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                            <PreviewMetric
+                                label="Movimentações"
+                                value={String(preview.totalTransactionCount)}
+                                description="Movimentações e itens incluídos"
+                                isHealthy
+                            />
 
-                        <PreviewMetric
-                            label="Faturas de cartão"
-                            value={String(
-                                preview.creditCardStatementCount,
-                            )}
-                            description={`${preview.creditCardStatementItemCount} item(ns) incluído(s)`}
-                            isHealthy
-                        />
+                            <PreviewMetric
+                                label="Faturas de cartão"
+                                value={String(
+                                    preview.creditCardStatementCount,
+                                )}
+                                description={`${preview.creditCardStatementItemCount} item(ns) incluído(s)`}
+                                isHealthy
+                            />
 
-                        <PreviewMetric
-                            label="PDFs de fatura pendentes"
-                            value={String(
-                                preview.creditCardStatementsWithoutPdfCount,
-                            )}
-                            description="Faturas sem documento oficial"
-                            isHealthy={
-                                preview.creditCardStatementsWithoutPdfCount === 0
-                            }
-                        />
+                            <PreviewMetric
+                                label="PDFs de fatura pendentes"
+                                value={String(
+                                    preview.creditCardStatementsWithoutPdfCount,
+                                )}
+                                description="Faturas sem documento oficial"
+                                isHealthy={
+                                    preview.creditCardStatementsWithoutPdfCount === 0
+                                }
+                            />
 
-                        <PreviewMetric
-                            label="Extratos pendentes"
-                            value={String(preview.accountsWithoutBankStatementCount)}
-                            description="Contas que exigem PDF oficial"
-                            isHealthy={preview.accountsWithoutBankStatementCount === 0}
-                        />
+                            <PreviewMetric
+                                label="Extratos pendentes"
+                                value={String(preview.accountsWithoutBankStatementCount)}
+                                description="Contas que exigem PDF oficial"
+                                isHealthy={preview.accountsWithoutBankStatementCount === 0}
+                            />
 
-                        <PreviewMetric
-                            label="Sem comprovante"
-                            value={String(preview.expensesWithoutPaymentProofCount)}
-                            description="Despesas com pendência"
-                            isHealthy={preview.expensesWithoutPaymentProofCount === 0}
-                        />
+                            <PreviewMetric
+                                label="Sem comprovante"
+                                value={String(preview.expensesWithoutPaymentProofCount)}
+                                description="Despesas com pendência"
+                                isHealthy={preview.expensesWithoutPaymentProofCount === 0}
+                            />
 
-                        <PreviewMetric
-                            label="Sem documento fiscal"
-                            value={String(preview.expensesWithoutFiscalDocumentCount)}
-                            description="Notas, recibos ou declarações"
-                            isHealthy={preview.expensesWithoutFiscalDocumentCount === 0}
-                        />
-                    </div>
-
-                    {preview.accountsWithoutMovementCount > 0 && (
-                        <div className="flex gap-3 rounded-xl border bg-muted/30 p-4 text-sm">
-                            <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-
-                            <p className="text-muted-foreground">
-                                {preview.accountsWithoutMovementCount} conta
-                                {preview.accountsWithoutMovementCount > 1 ? "s" : ""} sem
-                                movimentação foram encontradas no período.
-                            </p>
+                            <PreviewMetric
+                                label="Sem documento fiscal"
+                                value={String(preview.expensesWithoutFiscalDocumentCount)}
+                                description="Notas, recibos ou declarações"
+                                isHealthy={preview.expensesWithoutFiscalDocumentCount === 0}
+                            />
                         </div>
-                    )}
 
-                    <div className="space-y-4">
-                        {preview.creditCardStatements.length > 0 && (
-                            <section className="space-y-4">
-                                <div>
-                                    <h2 className="text-lg font-semibold">
-                                        Faturas de cartão incluídas automaticamente
-                                    </h2>
+                        {preview.accountsWithoutMovementCount > 0 && (
+                            <div className="flex gap-3 rounded-xl border bg-muted/30 p-4 text-sm">
+                                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
 
-                                    <p className="mt-1 text-sm text-muted-foreground">
-                                        Faturas que possuem compras no período ou
-                                        pagamentos vinculados às contas selecionadas.
-                                    </p>
-                                </div>
-
-                                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                    {preview.creditCardStatements.map(
-                                        (statement) => (
-                                            <Card key={statement.statementId}>
-                                                <CardHeader>
-                                                    <div className="flex items-start justify-between gap-3">
-                                                        <div>
-                                                            <CardTitle className="text-base">
-                                                                {statement.statementName}
-                                                            </CardTitle>
-
-                                                            <p className="mt-1 text-sm text-muted-foreground">
-                                                                {statement.creditCardAccountName}
-                                                            </p>
-                                                        </div>
-
-                                                        <Badge variant="outline">
-                                                            {
-                                                                creditCardStatementStatusLabels[
-                                                                statement.status
-                                                                ]
-                                                            }
-                                                        </Badge>
-                                                    </div>
-                                                </CardHeader>
-
-                                                <CardContent className="space-y-3 text-sm">
-                                                    <div className="grid grid-cols-2 gap-3">
-                                                        <div>
-                                                            <p className="text-xs text-muted-foreground">
-                                                                Vencimento
-                                                            </p>
-
-                                                            <p className="font-medium">
-                                                                {formatDate(statement.dueDate)}
-                                                            </p>
-                                                        </div>
-
-                                                        <div>
-                                                            <p className="text-xs text-muted-foreground">
-                                                                Total
-                                                            </p>
-
-                                                            <p className="font-medium">
-                                                                {formatCurrency(
-                                                                    statement.totalAmount,
-                                                                )}
-                                                            </p>
-                                                        </div>
-
-                                                        <div>
-                                                            <p className="text-xs text-muted-foreground">
-                                                                Itens
-                                                            </p>
-
-                                                            <p className="font-medium">
-                                                                {statement.itemCount}
-                                                            </p>
-                                                        </div>
-
-                                                        <div>
-                                                            <p className="text-xs text-muted-foreground">
-                                                                Sem categoria
-                                                            </p>
-
-                                                            <p className="font-medium">
-                                                                {
-                                                                    statement.unclassifiedItemCount
-                                                                }
-                                                            </p>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex flex-wrap gap-2 border-t pt-3">
-                                                        <Badge
-                                                            variant={
-                                                                statement.hasOfficialPdf
-                                                                    ? "secondary"
-                                                                    : "destructive"
-                                                            }
-                                                        >
-                                                            {statement.hasOfficialPdf
-                                                                ? "PDF oficial disponível"
-                                                                : "PDF oficial pendente"}
-                                                        </Badge>
-
-                                                        {statement.fiscalDocumentIssues.length >
-                                                            0 && (
-                                                                <Badge variant="destructive">
-                                                                    {
-                                                                        statement
-                                                                            .fiscalDocumentIssues
-                                                                            .length
-                                                                    }{" "}
-                                                                    pendência(s) fiscal(is)
-                                                                </Badge>
-                                                            )}
-                                                    </div>
-                                                </CardContent>
-                                            </Card>
-                                        ),
-                                    )}
-                                </div>
-                            </section>
+                                <p className="text-muted-foreground">
+                                    {preview.accountsWithoutMovementCount} conta
+                                    {preview.accountsWithoutMovementCount > 1 ? "s" : ""} sem
+                                    movimentação foram encontradas no período.
+                                </p>
+                            </div>
                         )}
 
-                        {preview.accounts.map((account) => (
-                            <ClosingDossierAccountCard
-                                key={account.accountId}
-                                account={account}
-                                periodStartDate={preview.periodStartDate}
-                                periodEndDate={preview.periodEndDate}
-                                canManageDocuments={canFinanceWrite}
-                                onDocumentsChanged={handleDocumentsChanged}
-                            />
-                        ))}
-                    </div>
-                </section>
-            )}
+                        <div className="space-y-4">
+                            {preview.creditCardStatements.length > 0 && (
+                                <section className="space-y-4">
+                                    <div>
+                                        <h2 className="text-lg font-semibold">
+                                            Faturas de cartão incluídas automaticamente
+                                        </h2>
+
+                                        <p className="mt-1 text-sm text-muted-foreground">
+                                            Faturas que possuem compras no período ou
+                                            pagamentos vinculados às contas selecionadas.
+                                        </p>
+                                    </div>
+
+                                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                        {preview.creditCardStatements.map(
+                                            (statement) => (
+                                                <Card key={statement.statementId}>
+                                                    <CardHeader>
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <div>
+                                                                <CardTitle className="text-base">
+                                                                    {statement.statementName}
+                                                                </CardTitle>
+
+                                                                <p className="mt-1 text-sm text-muted-foreground">
+                                                                    {statement.creditCardAccountName}
+                                                                </p>
+                                                            </div>
+
+                                                            <Badge variant="outline">
+                                                                {
+                                                                    creditCardStatementStatusLabels[
+                                                                    statement.status
+                                                                    ]
+                                                                }
+                                                            </Badge>
+                                                        </div>
+                                                    </CardHeader>
+
+                                                    <CardContent className="space-y-3 text-sm">
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <div>
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    Vencimento
+                                                                </p>
+
+                                                                <p className="font-medium">
+                                                                    {formatDate(statement.dueDate)}
+                                                                </p>
+                                                            </div>
+
+                                                            <div>
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    Total
+                                                                </p>
+
+                                                                <p className="font-medium">
+                                                                    {formatCurrency(
+                                                                        statement.totalAmount,
+                                                                    )}
+                                                                </p>
+                                                            </div>
+
+                                                            <div>
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    Itens
+                                                                </p>
+
+                                                                <p className="font-medium">
+                                                                    {statement.itemCount}
+                                                                </p>
+                                                            </div>
+
+                                                            <div>
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    Sem categoria
+                                                                </p>
+
+                                                                <p className="font-medium">
+                                                                    {
+                                                                        statement.unclassifiedItemCount
+                                                                    }
+                                                                </p>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex flex-wrap gap-2 border-t pt-3">
+                                                            <Badge
+                                                                variant={
+                                                                    statement.hasOfficialPdf
+                                                                        ? "secondary"
+                                                                        : "destructive"
+                                                                }
+                                                            >
+                                                                {statement.hasOfficialPdf
+                                                                    ? "PDF oficial disponível"
+                                                                    : "PDF oficial pendente"}
+                                                            </Badge>
+
+                                                            {statement.fiscalDocumentIssues.length >
+                                                                0 && (
+                                                                    <Badge variant="destructive">
+                                                                        {
+                                                                            statement
+                                                                                .fiscalDocumentIssues
+                                                                                .length
+                                                                        }{" "}
+                                                                        pendência(s) fiscal(is)
+                                                                    </Badge>
+                                                                )}
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+                                            ),
+                                        )}
+                                    </div>
+                                </section>
+                            )}
+
+                            {preview.accounts.map((account) => (
+                                <ClosingDossierAccountCard
+                                    key={account.accountId}
+                                    account={account}
+                                    periodStartDate={preview.periodStartDate}
+                                    periodEndDate={preview.periodEndDate}
+                                    canManageDocuments={canFinanceWrite}
+                                    onDocumentsChanged={handleDocumentsChanged}
+                                />
+                            ))}
+                        </div>
+                    </section>
+                )}
         </div>
     )
 }
