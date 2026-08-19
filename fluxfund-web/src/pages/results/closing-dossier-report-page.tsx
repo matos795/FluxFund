@@ -6,7 +6,7 @@ import {
     FolderArchive,
     RefreshCw,
 } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import { toast } from "sonner"
 
@@ -50,6 +50,13 @@ export function ClosingDossierReportPage() {
     const { canFinanceWrite, canExportReports } = usePermissions()
 
     const [activeStep, setActiveStep,] = useState<ClosingDossierStep>("configuration")
+
+    useEffect(() => {
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth",
+        })
+    }, [activeStep])
 
     const [period, setPeriod] = useState<DateRangeValue>(() =>
         getDateRangeForPreset("current-month"),
