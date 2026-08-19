@@ -3,6 +3,7 @@ import {
     ArrowRight,
     CreditCard,
     Landmark,
+    RefreshCw,
 } from "lucide-react"
 
 import {
@@ -44,7 +45,9 @@ import {
 type ClosingDossierDocumentsStepProps = {
     preview: ClosingDossierPreview
     canManageDocuments: boolean
+    isRefreshing: boolean
     onDocumentsChanged: () => void
+    onRefresh: () => void
     onBack: () => void
     onContinue: () => void
 }
@@ -59,7 +62,9 @@ const statementStatusLabels = {
 export function ClosingDossierDocumentsStep({
     preview,
     canManageDocuments,
+    isRefreshing,
     onDocumentsChanged,
+    onRefresh,
     onBack,
     onContinue,
 }: ClosingDossierDocumentsStepProps) {
@@ -71,16 +76,38 @@ export function ClosingDossierDocumentsStep({
 
     return (
         <div className="space-y-6">
-            <section>
-                <h2 className="text-xl font-semibold">
-                    Documentos do fechamento
-                </h2>
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div>
+                    <h2 className="text-xl font-semibold">
+                        Documentos do fechamento
+                    </h2>
 
-                <p className="mt-1 text-sm text-muted-foreground">
-                    Confira os documentos oficiais que acompanharão
-                    o Dossiê antes de analisar as pendências.
-                </p>
-            </section>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Confira os documentos oficiais
+                        que acompanharão o Dossiê antes
+                        de analisar as pendências.
+                    </p>
+                </div>
+
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={onRefresh}
+                    disabled={isRefreshing}
+                >
+                    <RefreshCw
+                        className={
+                            isRefreshing
+                                ? "mr-2 size-4 animate-spin"
+                                : "mr-2 size-4"
+                        }
+                    />
+
+                    {isRefreshing
+                        ? "Atualizando..."
+                        : "Atualizar documentos"}
+                </Button>
+            </div>
 
             <div className="grid gap-4 md:grid-cols-2">
                 <StatusCard
@@ -157,6 +184,7 @@ export function ClosingDossierDocumentsStep({
                                     onDocumentsChanged
                                 }
                                 showIssues={false}
+                                showMetrics={false}
                             />
                         ),
                     )}

@@ -258,6 +258,9 @@ export function ClosingDossierReportPage() {
 
             <ClosingDossierStepper
                 activeStep={activeStep}
+                onStepChange={
+                    setActiveStep
+                }
             />
 
             {activeStep ===
@@ -284,45 +287,35 @@ export function ClosingDossierReportPage() {
                                     showSummary={false}
                                 />
 
-                                <div className="flex flex-col gap-4 border-t pt-4 md:flex-row md:items-center md:justify-between">
-                                    <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm">
+                                <div className="border-t pt-4">
+                                    <label className="flex max-w-xl cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm">
                                         <Checkbox
-                                            checked={includeAccountsWithoutMovement}
-                                            onCheckedChange={(checked) =>
-                                                setIncludeAccountsWithoutMovement(Boolean(checked))
+                                            checked={
+                                                includeAccountsWithoutMovement
+                                            }
+                                            onCheckedChange={(
+                                                checked,
+                                            ) =>
+                                                setIncludeAccountsWithoutMovement(
+                                                    Boolean(
+                                                        checked,
+                                                    ),
+                                                )
                                             }
                                         />
 
                                         <span>
                                             <span className="block font-medium">
-                                                Incluir contas sem movimento
+                                                Incluir contas sem
+                                                movimento
                                             </span>
 
                                             <span className="block text-xs text-muted-foreground">
-                                                Mostra contas vazias na pasta final.
+                                                Mostra contas vazias
+                                                na pasta final.
                                             </span>
                                         </span>
                                     </label>
-
-                                    <Button
-                                        className="w-full md:w-auto"
-                                        onClick={handleContinueFromConfiguration}
-                                        disabled={
-                                            previewMutation.isPending ||
-                                            accountsQuery.isLoading ||
-                                            selectableAccounts.length === 0
-                                        }
-                                    >
-                                        {previewMutation.isPending ? (
-                                            <RefreshCw className="mr-2 size-4 animate-spin" />
-                                        ) : (
-                                            <ArrowRight className="mr-2 size-4" />
-                                        )}
-
-                                        {previewMutation.isPending
-                                            ? "Analisando fechamento..."
-                                            : "Continuar para documentos"}
-                                    </Button>
                                 </div>
                             </div>
 
@@ -474,6 +467,33 @@ export function ClosingDossierReportPage() {
                                     />
                                 </div>
                             </div>
+
+                            <div className="flex justify-end border-t pt-5">
+                                <Button
+                                    className="w-full sm:w-auto"
+                                    onClick={
+                                        handleContinueFromConfiguration
+                                    }
+                                    disabled={
+                                        previewMutation.isPending ||
+                                        accountsQuery.isLoading ||
+                                        selectableAccounts.length ===
+                                        0 ||
+                                        selectedAccountIds.length ===
+                                        0
+                                    }
+                                >
+                                    {previewMutation.isPending ? (
+                                        <RefreshCw className="mr-2 size-4 animate-spin" />
+                                    ) : (
+                                        <ArrowRight className="mr-2 size-4" />
+                                    )}
+
+                                    {previewMutation.isPending
+                                        ? "Analisando fechamento..."
+                                        : "Continuar para documentos"}
+                                </Button>
+                            </div>
                         </CardContent>
                     </Card>
                 )}
@@ -486,8 +506,14 @@ export function ClosingDossierReportPage() {
                         canManageDocuments={
                             canFinanceWrite
                         }
+                        isRefreshing={
+                            previewMutation.isPending
+                        }
                         onDocumentsChanged={
                             handleDocumentsChanged
+                        }
+                        onRefresh={() =>
+                            void handlePreview()
                         }
                         onBack={() =>
                             setActiveStep(

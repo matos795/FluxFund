@@ -1,11 +1,13 @@
 import {
     ArrowLeft,
+    CalendarRange,
     CheckCircle2,
     CircleAlert,
     FileOutput,
     FolderArchive,
     Landmark,
     ListChecks,
+    Loader2,
 } from "lucide-react"
 
 import {
@@ -92,15 +94,15 @@ export function ClosingDossierReviewStep({
             </section>
 
             {hasIssues ? (
-                <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-                    <CircleAlert className="mt-0.5 size-5 shrink-0" />
+                <div className="flex gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
+                    <CircleAlert className="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400" />
 
                     <div>
                         <p className="font-medium">
                             O fechamento ainda possui pendências
                         </p>
 
-                        <p className="mt-1">
+                        <p className="mt-1 text-muted-foreground">
                             Você ainda pode gerar o Dossiê, mas
                             revise as pendências identificadas antes
                             de considerar o fechamento concluído.
@@ -132,14 +134,14 @@ export function ClosingDossierReviewStep({
                     )} até ${formatDate(
                         preview.periodEndDate,
                     )}`}
-                    icon={ListChecks}
+                    icon={CalendarRange}
                 />
 
                 <SummaryCard
                     label="Contas"
                     value={`${preview.includedAccountCount} incluída${preview.includedAccountCount === 1
-                            ? ""
-                            : "s"
+                        ? ""
+                        : "s"
                         }`}
                     icon={Landmark}
                 />
@@ -377,7 +379,11 @@ export function ClosingDossierReviewStep({
                             isExporting
                         }
                     >
-                        <FileOutput className="mr-2 size-4" />
+                        {isExporting ? (
+                            <Loader2 className="mr-2 size-4 animate-spin" />
+                        ) : (
+                            <FileOutput className="mr-2 size-4" />
+                        )}
 
                         {isExporting
                             ? "Gerando PDF..."

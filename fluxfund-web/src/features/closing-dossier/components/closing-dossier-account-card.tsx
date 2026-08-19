@@ -38,6 +38,7 @@ type ClosingDossierAccountCardProps = {
   canManageDocuments: boolean
   onDocumentsChanged: () => void
   showIssues?: boolean
+  showMetrics?: boolean
 }
 
 const accountTypeLabels: Record<string, string> = {
@@ -55,6 +56,7 @@ export function ClosingDossierAccountCard({
   canManageDocuments,
   onDocumentsChanged,
   showIssues = true,
+  showMetrics = true,
 }: ClosingDossierAccountCardProps) {
   const [documentToDelete, setDocumentToDelete] =
     useState<BankStatementDocument | null>(null)
@@ -155,15 +157,17 @@ export function ClosingDossierAccountCard({
         </CardHeader>
 
         <CardContent className="space-y-5 pt-5">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Metric label="Receitas" value={formatCurrency(account.incomeTotal)} />
-            <Metric label="Despesas" value={formatCurrency(account.expenseTotal)} />
-            <Metric
-              label="Transferências"
-              value={formatCurrency(account.transferTotal)}
-            />
-            <Metric label="Transações" value={String(account.transactionCount)} />
-          </div>
+          {showMetrics && (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <Metric label="Receitas" value={formatCurrency(account.incomeTotal)} />
+              <Metric label="Despesas" value={formatCurrency(account.expenseTotal)} />
+              <Metric
+                label="Transferências"
+                value={formatCurrency(account.transferTotal)}
+              />
+              <Metric label="Transações" value={String(account.transactionCount)} />
+            </div>
+          )}
 
           <section className="rounded-xl border bg-muted/20 p-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
