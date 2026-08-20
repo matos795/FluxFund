@@ -4,20 +4,20 @@ import {
 import type { FinancialRelationshipReport } from "./financial-relationship-report-types"
 
 type GetFinancialRelationshipReportParams = {
-  startDate?: string
-  endDate?: string
+    startDate?: string
+    endDate?: string
 }
 
 export async function getFinancialRelationshipReport(
-  params: GetFinancialRelationshipReportParams,
+    params: GetFinancialRelationshipReportParams,
 ) {
-  const response =
-    await httpClient.get<FinancialRelationshipReport>(
-      "/reports/financial-relationships",
-      {
-        params,
-      },
-    )
+    const response =
+        await httpClient.get<FinancialRelationshipReport>(
+            "/api/v1/reports/financial-relationships",
+            {
+                params,
+            },
+        )
 
-  return response.data
+    return response.data
 }
