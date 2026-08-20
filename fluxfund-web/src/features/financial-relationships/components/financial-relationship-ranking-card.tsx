@@ -12,12 +12,14 @@ import {
     formatDate,
 } from "@/utils/formatters"
 import type { FinancialRelationshipPartySummary } from "../financial-relationship-report-types"
+import { useState } from "react"
 
 type FinancialRelationshipRankingCardProps = {
     title: string
     description: string
     items: FinancialRelationshipPartySummary[]
     emptyMessage: string
+    monthCount: number
     onViewParty?: (partyId: string) => void
 }
 
@@ -26,10 +28,13 @@ export function FinancialRelationshipRankingCard({
     description,
     items,
     emptyMessage,
+    monthCount,
     onViewParty,
 }: FinancialRelationshipRankingCardProps) {
-    const topItems =
-        items.slice(0, 8)
+
+    const [showAll, setShowAll] = useState(false)
+
+    const visibleItems = showAll ? items : items.slice(0, 8)
 
     return (
         <Card className="shadow-sm">
@@ -42,13 +47,13 @@ export function FinancialRelationshipRankingCard({
             </CardHeader>
 
             <CardContent>
-                {topItems.length === 0 ? (
+                {visibleItems.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                         {emptyMessage}
                     </p>
                 ) : (
                     <div className="space-y-4">
-                        {topItems.map((item) => (
+                        {visibleItems.map((item) => (
                             <div
                                 key={item.partyId}
                                 className="space-y-2 rounded-xl border p-3"
@@ -60,8 +65,7 @@ export function FinancialRelationshipRankingCard({
                                         </p>
 
                                         <p className="text-xs text-muted-foreground">
-                                            {item.activeMonthCount} de {""}
-                                            meses ativos • última movimentação{" "}
+                                            {item.activeMonthCount} de {monthCount} meses ativos • última movimentação{" "}
                                             {item.lastSettlementDate
                                                 ? formatDate(
                                                     item.lastSettlementDate,
@@ -117,6 +121,23 @@ export function FinancialRelationshipRankingCard({
                             </div>
                         ))}
                     </div>
+                )}
+
+                {items.length > 8 && (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-4 w-full"
+                        onClick={() =>
+                            setShowAll(
+                                (current) => !current,
+                            )
+                        }
+                    >
+                        {showAll
+                            ? "Mostrar principais"
+                            : `Ver todos (${items.length})`}
+                    </Button>
                 )}
             </CardContent>
         </Card>

@@ -11,6 +11,7 @@ import {
   ListChecks,
   ShieldCheck,
   TrendingUp,
+  UsersRound,
 } from "lucide-react"
 
 import {
@@ -100,6 +101,26 @@ const reportGroups = [
 
         to:
           "/reports/funds",
+
+        available:
+          true,
+      },
+
+      {
+        title:
+          "Relacionamentos financeiros",
+
+        question:
+          "De quem vêm e para quem vão os recursos?",
+
+        description:
+          "Analise fontes de receita, destinatários, concentração, recorrência e cumprimento histórico.",
+
+        icon:
+          UsersRound,
+
+        to:
+          "/reports/financial-relationships",
 
         available:
           true,
@@ -311,6 +332,14 @@ const quickQuestions = [
 
   {
     label:
+      "De quem vêm e para quem vão os recursos?",
+
+    to:
+      "/reports/financial-relationships",
+  },
+
+  {
+    label:
       "O que falta documentar?",
 
     to:
@@ -342,7 +371,7 @@ export function ReportsPage() {
 
           <div>
             <Badge variant="secondary">
-              10 relatórios organizados
+              11 relatórios organizados
             </Badge>
 
             <h2 className="mt-3 text-xl font-semibold">

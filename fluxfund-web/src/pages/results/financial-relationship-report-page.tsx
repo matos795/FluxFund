@@ -2,11 +2,12 @@ import {
     ArrowUpCircle,
     ArrowDownCircle,
     Link2,
-    PieChart,
+    ClipboardCheck,
+    TrendingUp,
 } from "lucide-react"
 
-import { useMemo } from "react"
-import { useNavigate } from "react-router-dom"
+import { useMemo, useState } from "react"
+import { Link, useNavigate } from "react-router-dom"
 
 import { DateRangePresetFilter } from "@/components/filters/date-range-preset-filter"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -21,17 +22,24 @@ import { FinancialRelationshipEvolutionChart } from "@/features/financial-relati
 import { FinancialRelationshipRankingCard } from "@/features/financial-relationships/components/financial-relationship-ranking-card"
 import { FinancialRelationshipCommitmentCard } from "@/features/financial-relationships/components/financial-relationship-commitment-card"
 import { useFinancialRelationshipReport } from "@/features/financial-relationships/hooks/use-financial-relationship-report"
-import { getDateRangeForPreset } from "@/components/filters/date-range-presets"
+import { getDateRangeForPreset, type DateRangeValue } from "@/components/filters/date-range-presets"
+import { FinancialRelationshipConcentrationCard } from "@/features/financial-relationships/components/financial-relationship-concentration-card"
+import { Button } from "@/components/ui/button"
 
 export function FinancialRelationshipReportPage() {
     const navigate = useNavigate()
 
+    const [period, setPeriod] =
+        useState<DateRangeValue>(() =>
+            getDateRangeForPreset(
+                "last-12-months",
+            ),
+        )
+
     const {
-        value: period,
-        setValue: setPeriod,
         startDate,
         endDate,
-    } = getDateRangeForPreset("last-12-months")
+    } = period
 
     const reportQuery =
         useFinancialRelationshipReport({
@@ -64,7 +72,17 @@ export function FinancialRelationshipReportPage() {
             <PageHeader
                 title="Relacionamentos Financeiros"
                 description="Entenda de quem vêm os recursos, para quem são destinados e como a carteira financeira da organização evolui."
-            />
+            >
+                <Button
+                    asChild
+                    variant="outline"
+                >
+                    <Link to="/reports/financial-forecast">
+                        <TrendingUp className="mr-2 size-4" />
+                        Ver previsão financeira
+                    </Link>
+                </Button>
+            </PageHeader>
 
             <DateRangePresetFilter
                 value={period}
@@ -122,18 +140,29 @@ export function FinancialRelationshipReportPage() {
                         />
 
                         <FinancialRelationshipSummaryCard
-                            title="Concentração Top 5"
-                            value={`${report.topFiveIncomeConcentrationPercentage.toFixed(2)}%`}
-                            description="Participação das 5 maiores fontes nas receitas relacionadas"
+                            title="Cumprimento dos compromissos"
+                            value={`${report.commitmentReliability.fulfillmentPercentage.toFixed(2)}%`}
+                            description={`${report.commitmentReliability.dueOccurrenceCount} ocorrências históricas avaliadas`}
                             icon={
-                                <PieChart className="size-5" />
+                                <ClipboardCheck className="size-5" />
                             }
                         />
                     </div>
 
-                    <FinancialRelationshipEvolutionChart
-                        months={report.months}
-                    />
+                    <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+                        <FinancialRelationshipEvolutionChart
+                            months={report.months}
+                        />
+
+                        <FinancialRelationshipConcentrationCard
+                            incomePercentage={
+                                report.topFiveIncomeConcentrationPercentage
+                            }
+                            paymentPercentage={
+                                report.topFivePaymentConcentrationPercentage
+                            }
+                        />
+                    </div>
 
                     <div className="grid gap-6 xl:grid-cols-2">
                         <FinancialRelationshipRankingCard
@@ -143,6 +172,7 @@ export function FinancialRelationshipReportPage() {
                                 report.incomeSources
                             }
                             emptyMessage="Nenhuma fonte de receita identificada no período."
+                            monthCount={report.monthCount}
                             onViewParty={
                                 handleViewParty
                             }
@@ -155,6 +185,7 @@ export function FinancialRelationshipReportPage() {
                                 report.paymentRecipients
                             }
                             emptyMessage="Nenhum destinatário de pagamento identificado no período."
+                            monthCount={report.monthCount}
                             onViewParty={
                                 handleViewParty
                             }
