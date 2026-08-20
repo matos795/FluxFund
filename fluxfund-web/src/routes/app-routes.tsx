@@ -36,6 +36,7 @@ import { ReceiptsPage } from "@/pages/receipts-page"
 import { FinancialPartyOverviewPage } from "@/pages/financial-party-overview-page"
 import { ImportBatchesPage } from "@/pages/import-batches-page"
 import { DocumentsPage } from "@/pages/documents-page"
+import { FinancialRelationshipReportPage } from "@/pages/results/financial-relationship-report-page"
 
 export function AppRoutes() {
   return (
@@ -170,6 +171,12 @@ export function AppRoutes() {
           <Route
             path="/reports/account-cash-flow"
             element={<AccountCashFlowReportPage />}
+          />
+          <Route
+            path="/reports/financial-relationships"
+            element={
+              <FinancialRelationshipReportPage />
+            }
           />
           <Route
             path="/reports/audit-logs"
