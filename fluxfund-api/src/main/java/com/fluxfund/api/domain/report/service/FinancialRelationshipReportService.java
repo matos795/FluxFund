@@ -14,6 +14,10 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection;
+import com.fluxfund.api.domain.report.dto.financialcommitment.FinancialCommitmentMonthlyItemResponse;
+import com.fluxfund.api.domain.report.dto.financialcommitment.FinancialCommitmentMonthlyReportResponse;
+import com.fluxfund.api.domain.report.dto.financialrelationship.FinancialRelationshipCommitmentSummaryResponse;
 import com.fluxfund.api.domain.report.dto.financialrelationship.FinancialRelationshipMonthResponse;
 import com.fluxfund.api.domain.report.dto.financialrelationship.FinancialRelationshipMonthlyPartyProjection;
 import com.fluxfund.api.domain.report.dto.financialrelationship.FinancialRelationshipPartyProjection;
@@ -32,6 +36,7 @@ public class FinancialRelationshipReportService {
 
     private final TransactionAllocationRepository allocationRepository;
     private final OrganizationAccessService organizationAccessService;
+    private final FinancialCommitmentReportService financialCommitmentReportService;
 
     public FinancialRelationshipReportResponse getReport(
             UUID organizationId,
@@ -50,6 +55,11 @@ public class FinancialRelationshipReportService {
         if (resolvedStartDate.isAfter(resolvedEndDate)) {
             throw new BusinessException("Start date cannot be after end date");
         }
+
+        FinancialRelationshipCommitmentSummaryResponse commitmentReliability = buildCommitmentReliability(
+                organizationId,
+                resolvedStartDate,
+                resolvedEndDate);
 
         List<FinancialRelationshipPartyProjection> incomeSourceProjections = allocationRepository
                 .findFinancialRelationshipIncomeSources(
@@ -126,6 +136,7 @@ public class FinancialRelationshipReportService {
                 uniqueRelationshipCount,
                 topFiveIncomeConcentrationPercentage,
                 topFivePaymentConcentrationPercentage,
+                commitmentReliability,
                 months,
                 incomeSources,
                 paymentRecipients);
@@ -297,5 +308,118 @@ public class FinancialRelationshipReportService {
         }
 
         return totals;
+    }
+
+    private FinancialRelationshipCommitmentSummaryResponse buildCommitmentReliability(
+            UUID organizationId,
+            LocalDate startDate,
+            LocalDate endDate) {
+
+        LocalDate today = LocalDate.now();
+
+        LocalDate reliabilityEndDate = endDate.isBefore(today) ? endDate : today;
+
+        if (startDate.isAfter(reliabilityEndDate)) {
+            return emptyCommitmentReliability();
+        }
+
+        BigDecimal expectedDueAmount = BigDecimal.ZERO;
+        BigDecimal realizedAmount = BigDecimal.ZERO;
+        BigDecimal coveredExpectedAmount = BigDecimal.ZERO;
+        BigDecimal pendingAmount = BigDecimal.ZERO;
+        BigDecimal exceededAmount = BigDecimal.ZERO;
+        long dueOccurrenceCount = 0;
+        long fulfilledOccurrenceCount = 0;
+        long partialOccurrenceCount = 0;
+        long pendingOccurrenceCount = 0;
+        long exceededOccurrenceCount = 0;
+
+        YearMonth currentMonth = YearMonth.from(startDate);
+
+        YearMonth endMonth = YearMonth.from(reliabilityEndDate);
+
+        while (!currentMonth.isAfter(endMonth)) {
+
+            FinancialCommitmentMonthlyReportResponse monthlyReport = financialCommitmentReportService
+                    .getMonthlyReport(
+                            organizationId,
+                            currentMonth.atDay(1),
+                            FinancialCommitmentDirection.RECEIVABLE,
+                            null,
+                            null,
+                            null);
+
+            for (FinancialCommitmentMonthlyItemResponse item : monthlyReport.items()) {
+
+                if (item.dueDate().isBefore(startDate) || item.dueDate().isAfter(reliabilityEndDate)) {
+                    continue;
+                }
+
+                BigDecimal expected = item.expectedAmount();
+
+                BigDecimal realized = item.realizedAmount();
+
+                expectedDueAmount = expectedDueAmount.add(expected);
+
+                realizedAmount = realizedAmount.add(realized);
+
+                coveredExpectedAmount = coveredExpectedAmount.add(expected.min(realized));
+
+                pendingAmount = pendingAmount.add(item.pendingAmount());
+
+                exceededAmount = exceededAmount.add(item.exceededAmount());
+
+                dueOccurrenceCount++;
+
+                switch (item.status()) {
+
+                    case FULFILLED -> fulfilledOccurrenceCount++;
+
+                    case PARTIAL -> partialOccurrenceCount++;
+
+                    case PENDING -> pendingOccurrenceCount++;
+
+                    case EXCEEDED -> exceededOccurrenceCount++;
+
+                    case NOT_DUE -> {
+                    }
+                }
+            }
+
+            currentMonth = currentMonth.plusMonths(1);
+        }
+
+        BigDecimal fulfillmentPercentage = calculatePercentage(
+                coveredExpectedAmount,
+                expectedDueAmount);
+
+        return new FinancialRelationshipCommitmentSummaryResponse(
+                expectedDueAmount,
+                realizedAmount,
+                coveredExpectedAmount,
+                pendingAmount,
+                exceededAmount,
+                fulfillmentPercentage,
+                dueOccurrenceCount,
+                fulfilledOccurrenceCount,
+                partialOccurrenceCount,
+                pendingOccurrenceCount,
+                exceededOccurrenceCount);
+    }
+
+    private FinancialRelationshipCommitmentSummaryResponse emptyCommitmentReliability() {
+
+        return new FinancialRelationshipCommitmentSummaryResponse(
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                0L,
+                0L,
+                0L,
+                0L,
+                0L);
     }
 }

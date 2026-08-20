@@ -16,6 +16,7 @@ public record FinancialRelationshipReportResponse(
         int uniqueRelationshipCount,
         BigDecimal topFiveIncomeConcentrationPercentage,
         BigDecimal topFivePaymentConcentrationPercentage,
+        FinancialRelationshipCommitmentSummaryResponse commitmentReliability,
         List<FinancialRelationshipMonthResponse> months,
         List<FinancialRelationshipPartySummaryResponse> incomeSources,
         List<FinancialRelationshipPartySummaryResponse> paymentRecipients

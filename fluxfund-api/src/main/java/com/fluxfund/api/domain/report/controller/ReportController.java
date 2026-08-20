@@ -22,6 +22,7 @@ import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportRes
 import com.fluxfund.api.domain.report.dto.accountcashflow.AccountCashFlowReportResponse;
 import com.fluxfund.api.domain.report.dto.category.CategoryResultReportResponse;
 import com.fluxfund.api.domain.report.dto.financialcommitment.FinancialCommitmentMonthlyReportResponse;
+import com.fluxfund.api.domain.report.dto.financialrelationship.FinancialRelationshipReportResponse;
 import com.fluxfund.api.domain.report.dto.forecast.FinancialForecastReportResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundReportResponse;
 import com.fluxfund.api.domain.report.dto.pending.PendingItemsReportResponse;
@@ -33,6 +34,7 @@ import com.fluxfund.api.domain.report.export.FundMovementPdfExportService;
 import com.fluxfund.api.domain.report.export.SettledFinancialReportPdfExportService;
 import com.fluxfund.api.domain.report.service.FinancialCommitmentReportService;
 import com.fluxfund.api.domain.report.service.FinancialForecastReportService;
+import com.fluxfund.api.domain.report.service.FinancialRelationshipReportService;
 import com.fluxfund.api.domain.report.service.ReportService;
 
 import lombok.RequiredArgsConstructor;
@@ -53,6 +55,7 @@ public class ReportController {
         private final CreditCardStatementPdfExportService creditCardStatementPdfExportService;
         private final FinancialCommitmentReportService financialCommitmentReportService;
         private final FinancialForecastReportService financialForecastReportService;
+        private final FinancialRelationshipReportService financialRelationshipReportService;
 
         @GetMapping("/category-result")
         public ResponseEntity<CategoryResultReportResponse> getCategoryResultReport(
@@ -379,31 +382,28 @@ public class ReportController {
 
         @GetMapping("/financial-forecast")
         public ResponseEntity<FinancialForecastReportResponse> getFinancialForecast(
-
                         @RequestHeader(ORGANIZATION_ID) UUID organizationId,
-
                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startMonth,
-
                         @RequestParam(required = false, defaultValue = "6") Integer months,
-
                         @RequestParam(required = false) UUID fundId,
-
                         @RequestParam(required = false, defaultValue = "true") Boolean includeSupport) {
 
-                return ResponseEntity.ok(
+                return ResponseEntity.ok(financialForecastReportService
+                                .getForecast(
+                                                organizationId,
+                                                startMonth,
+                                                months,
+                                                fundId,
+                                                Boolean.TRUE.equals(includeSupport)));
+        }
 
-                                financialForecastReportService
-                                                .getForecast(
+        @GetMapping("/financial-relationships")
+        public ResponseEntity<FinancialRelationshipReportResponse> getFinancialRelationshipReport(
+                        @RequestHeader(ORGANIZATION_ID) UUID organizationId,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
 
-                                                                organizationId,
-
-                                                                startMonth,
-
-                                                                months,
-
-                                                                fundId,
-
-                                                                Boolean.TRUE.equals(
-                                                                                includeSupport)));
+                return ResponseEntity.ok(financialRelationshipReportService
+                                .getReport(organizationId, startDate, endDate));
         }
 }
