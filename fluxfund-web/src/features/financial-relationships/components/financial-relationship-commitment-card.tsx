@@ -89,10 +89,9 @@ export function FinancialRelationshipCommitmentCard({
                             </p>
 
                             <p className="text-3xl font-semibold">
-                                {fulfillmentPercentage.toFixed(
-                                    2,
-                                )}
-                                %
+                                {dueOccurrenceCount > 0
+                                    ? `${fulfillmentPercentage.toFixed(2)}%`
+                                    : "—"}
                             </p>
                         </div>
 
@@ -105,10 +104,10 @@ export function FinancialRelationshipCommitmentCard({
                         <div
                             className="h-full rounded-full bg-primary"
                             style={{
-                                width: `${Math.min(
-                                    fulfillmentPercentage,
-                                    100,
-                                )}%`,
+                                width: `${dueOccurrenceCount > 0
+                                        ? Math.min(fulfillmentPercentage, 100)
+                                        : 0
+                                    }%`,
                             }}
                         />
                     </div>

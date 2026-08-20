@@ -141,8 +141,16 @@ export function FinancialRelationshipReportPage() {
 
                         <FinancialRelationshipSummaryCard
                             title="Cumprimento dos compromissos"
-                            value={`${report.commitmentReliability.fulfillmentPercentage.toFixed(2)}%`}
-                            description={`${report.commitmentReliability.dueOccurrenceCount} ocorrências históricas avaliadas`}
+                            value={
+                                report.commitmentReliability.dueOccurrenceCount > 0
+                                    ? `${report.commitmentReliability.fulfillmentPercentage.toFixed(2)}%`
+                                    : "—"
+                            }
+                            description={
+                                report.commitmentReliability.dueOccurrenceCount > 0
+                                    ? `${report.commitmentReliability.dueOccurrenceCount} ocorrências históricas avaliadas`
+                                    : "Nenhum compromisso avaliável no período"
+                            }
                             icon={
                                 <ClipboardCheck className="size-5" />
                             }
@@ -199,14 +207,25 @@ export function FinancialRelationshipReportPage() {
                     />
                 </>
             ) : (
-                <div className="rounded-2xl border border-dashed p-8 text-center">
-                    <h2 className="text-lg font-semibold">
-                        Nenhum dado encontrado
-                    </h2>
-
-                    <p className="mt-2 text-sm text-muted-foreground">
-                        Ajuste o período e tente novamente.
+                <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-6">
+                    <p className="font-medium text-destructive">
+                        Não foi possível carregar os relacionamentos financeiros.
                     </p>
+
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Ocorreu um erro ao consultar os dados do relatório.
+                    </p>
+
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-4"
+                        onClick={() =>
+                            void reportQuery.refetch()
+                        }
+                    >
+                        Tentar novamente
+                    </Button>
                 </div>
             )}
         </div>
