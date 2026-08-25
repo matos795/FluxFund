@@ -19,6 +19,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import com.fluxfund.api.domain.account.Account;
 import com.fluxfund.api.domain.account.AccountType;
+import com.fluxfund.api.domain.creditcardstatement.CreditCardStatement;
+import com.fluxfund.api.domain.creditcardstatement.CreditCardStatementStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
@@ -115,6 +117,100 @@ class AccountRepositoryIntegrationTest {
         assertThat(organizationTransferNet).isEqualByComparingTo("0.00");
     }
 
+    @Test
+    void shouldOnlyMoveBankCashWhenCreditCardStatementIsPaid() {
+
+        // ARRANGE
+        Organization organization = createOrganization(
+                "Organização Teste");
+
+        Account bankAccount = createAccount(
+                organization,
+                "Bradesco",
+                "1000.00");
+
+        Account creditCardAccount = createCreditCardAccount(
+                organization,
+                "Cartão Bradesco");
+
+        CreditCardStatement statement = createCreditCardStatement(
+                organization,
+                creditCardAccount);
+
+        createCreditCardPurchase(
+                organization,
+                creditCardAccount,
+                statement,
+                new BigDecimal("600.00"),
+                LocalDate.of(2026, 8, 5));
+
+        /*
+         * Pagamento da fatura:
+         *
+         * banco -> cartão
+         *
+         * No modelo atual isso é apenas a
+         * perna OUT da conta bancária.
+         */
+        createTransfer(
+                organization,
+                bankAccount,
+                creditCardAccount,
+                UUID.randomUUID(),
+                TransferDirection.OUT,
+                new BigDecimal("600.00"),
+                LocalDate.of(2026, 8, 20));
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // ACT
+        var result = repository.findAccountCashFlowReport(
+                organization.getId(),
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 31));
+
+        // ASSERT
+        assertThat(result)
+                .hasSize(1);
+
+        var bankResult = result.getFirst();
+
+        assertThat(
+                bankResult.getAccountId())
+                .isEqualTo(
+                        bankAccount.getId());
+
+        assertThat(
+                bankResult.getIncomeAmount())
+                .isEqualByComparingTo(
+                        "0.00");
+
+        assertThat(
+                bankResult.getExpenseAmount())
+                .isEqualByComparingTo(
+                        "0.00");
+
+        assertThat(
+                bankResult.getTransferInAmount())
+                .isEqualByComparingTo(
+                        "0.00");
+
+        assertThat(
+                bankResult.getTransferOutAmount())
+                .isEqualByComparingTo(
+                        "600.00");
+
+        assertThat(
+                bankResult.getTransferNetAmount())
+                .isEqualByComparingTo(
+                        "-600.00");
+
+        assertThat(
+                bankResult.getTransactionCount())
+                .isEqualTo(1L);
+    }
+
     private Organization createOrganization(String name) {
 
         Organization organization = new Organization();
@@ -164,5 +260,125 @@ class AccountRepositoryIntegrationTest {
         transaction.setDescription("Transferência de teste");
 
         entityManager.persist(transaction);
+    }
+
+    private Account createCreditCardAccount(
+            Organization organization,
+            String name) {
+
+        Account account = new Account();
+
+        account.setOrganization(
+                organization);
+
+        account.setName(
+                name);
+
+        account.setType(
+                AccountType.CREDIT_CARD);
+
+        account.setInitialBalance(
+                BigDecimal.ZERO);
+
+        account.setActive(true);
+
+        entityManager.persist(
+                account);
+
+        return account;
+    }
+
+    private CreditCardStatement createCreditCardStatement(
+            Organization organization,
+            Account creditCardAccount) {
+
+        CreditCardStatement statement = new CreditCardStatement();
+
+        statement.setOrganization(
+                organization);
+
+        statement.setCreditCardAccount(
+                creditCardAccount);
+
+        statement.setName(
+                "Fatura Agosto 2026");
+
+        statement.setClosingDate(
+                LocalDate.of(
+                        2026,
+                        8,
+                        15));
+
+        statement.setDueDate(
+                LocalDate.of(
+                        2026,
+                        8,
+                        20));
+
+        statement.setStatus(
+                CreditCardStatementStatus.CLOSED);
+
+        statement.setPreviousBalanceAmount(
+                BigDecimal.ZERO);
+
+        entityManager.persist(
+                statement);
+
+        return statement;
+    }
+
+    private void createCreditCardPurchase(
+            Organization organization,
+            Account creditCardAccount,
+            CreditCardStatement statement,
+            BigDecimal amount,
+            LocalDate purchaseDate) {
+
+        FinancialTransaction transaction = new FinancialTransaction();
+
+        transaction.setOrganization(
+                organization);
+
+        transaction.setAccount(
+                creditCardAccount);
+
+        transaction.setCreditCardStatement(
+                statement);
+
+        transaction.setSource(
+                FinancialTransactionSource.CREDIT_CARD);
+
+        transaction.setStatus(
+                FinancialTransactionStatus.SETTLED);
+
+        transaction.setType(
+                FinancialTransactionType.EXPENSE);
+
+        transaction.setPurchaseDate(
+                purchaseDate);
+
+        transaction.setSettlementDate(
+                purchaseDate);
+
+        transaction.setDueDate(
+                statement.getDueDate());
+
+        transaction.setExpectedAmount(
+                amount);
+
+        transaction.setSettledAmount(
+                amount);
+
+        transaction.setInterestAmount(
+                BigDecimal.ZERO);
+
+        transaction.setDiscountAmount(
+                BigDecimal.ZERO);
+
+        transaction.setDescription(
+                "Compra no cartão");
+
+        entityManager.persist(
+                transaction);
     }
 }
