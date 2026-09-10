@@ -35,6 +35,7 @@ export type CreditCardStatement = {
   paymentStatus: CreditCardStatementPaymentStatus
   statementDocument: CreditCardStatementDocument | null
   previousBalanceAmount: number
+  previousCreditAmount: number
   totalAmount: number
   paidAmount: number
   outstandingAmount: number
@@ -53,6 +54,8 @@ export type CreditCardStatementPayment = {
   statementExternalId: string | null
   paymentDate: string
   amount: number
+  appliedAmount: number
+  advanceCreditAmount: number
   description: string | null
   linked: boolean
   openingBalance: boolean

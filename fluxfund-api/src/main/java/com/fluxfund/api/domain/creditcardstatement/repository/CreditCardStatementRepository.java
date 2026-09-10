@@ -62,7 +62,7 @@ public interface CreditCardStatementRepository extends JpaRepository<CreditCardS
           a.name as accountName,
           s.status as status,
           s.due_date as dueDate,
-          (
+          greatest(
                 coalesce(s.previous_balance_amount, 0)
                 +
                 coalesce((
@@ -80,6 +80,9 @@ public interface CreditCardStatementRepository extends JpaRepository<CreditCardS
                     and item.organization_id = :organizationId
                     and item.status <> 'CANCELED'
                 ), 0)
+                -
+                coalesce(s.previous_credit_amount, 0),
+                0
             ) as totalAmount,
           (
               select count(*)
@@ -264,4 +267,24 @@ Page<CreditCardStatement> findAllDocumentsForLibrary(
         @Param("periodEndDate") LocalDate periodEndDate,
         @Param("filename") String filename,
         Pageable pageable);
+
+        Optional<CreditCardStatement>
+        findFirstByOrganizationIdAndCreditCardAccountIdAndDueDateBeforeAndStatusNotOrderByDueDateDesc(
+                UUID organizationId,
+                UUID creditCardAccountId,
+                LocalDate dueDate,
+                CreditCardStatementStatus status);
+
+        List<CreditCardStatement>
+        findAllByOrganizationIdAndCreditCardAccountIdAndDueDateAfterAndStatusNotOrderByDueDateAsc(
+                UUID organizationId,
+                UUID creditCardAccountId,
+                LocalDate dueDate,
+                CreditCardStatementStatus status);
+
+        List<CreditCardStatement>
+        findAllByOrganizationIdAndCreditCardAccountIdAndStatusNotOrderByDueDateAsc(
+                UUID organizationId,
+                UUID creditCardAccountId,
+                CreditCardStatementStatus status);
 }

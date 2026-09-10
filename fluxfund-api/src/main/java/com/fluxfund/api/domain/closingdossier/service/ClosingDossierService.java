@@ -472,7 +472,14 @@ public class ClosingDossierService {
 
                                                         : BigDecimal.ZERO;
 
-                                        BigDecimal totalAmount = previousBalance.add(itemTotal);
+                                        BigDecimal previousCredit = statement.getPreviousCreditAmount() != null
+                                                        ? statement.getPreviousCreditAmount()
+                                                        : BigDecimal.ZERO;
+
+                                        BigDecimal totalAmount = previousBalance
+                                                        .add(itemTotal)
+                                                        .subtract(previousCredit)
+                                                        .max(BigDecimal.ZERO);
 
                                         long unclassifiedItemCount = items.stream()
                                                         .filter(item -> item.getCategory() == null)

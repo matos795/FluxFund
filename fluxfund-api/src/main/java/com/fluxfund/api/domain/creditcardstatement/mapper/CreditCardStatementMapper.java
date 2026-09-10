@@ -67,6 +67,10 @@ public class CreditCardStatementMapper {
                                                 ? statement.getPreviousBalanceAmount()
                                                 : BigDecimal.ZERO,
 
+                                statement.getPreviousCreditAmount() != null
+                                                ? statement.getPreviousCreditAmount()
+                                                : BigDecimal.ZERO,
+
                                 totalAmount != null
                                                 ? totalAmount
                                                 : BigDecimal.ZERO,

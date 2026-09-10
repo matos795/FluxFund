@@ -669,7 +669,14 @@ public class ReportService {
                                         classified));
                 }
 
-                BigDecimal totalAmount = itemTotal.add(previousBalanceAmount);
+                BigDecimal previousCreditAmount = statement.getPreviousCreditAmount() != null
+                                ? statement.getPreviousCreditAmount()
+                                : BigDecimal.ZERO;
+
+                BigDecimal totalAmount = itemTotal
+                                .add(previousBalanceAmount)
+                                .subtract(previousCreditAmount)
+                                .max(BigDecimal.ZERO);
 
                 List<CreditCardStatementCategorySummaryResponse> categoryItems = categoryTotals.entrySet()
                                 .stream()

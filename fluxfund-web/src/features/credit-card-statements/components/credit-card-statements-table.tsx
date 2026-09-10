@@ -232,6 +232,13 @@ export function CreditCardStatementsTable({
                         </div>
                       )}
 
+                      {statement.previousCreditAmount > 0 && (
+                        <div className="text-xs text-muted-foreground">
+                          Crédito anterior:{" "}
+                          -{formatCurrency(statement.previousCreditAmount)}
+                        </div>
+                      )}
+
                       {statement.paymentCount > 0 && (
                         <div className="text-xs text-muted-foreground">
                           Pago:{" "}
