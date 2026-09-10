@@ -93,15 +93,13 @@ public class CreditCardStatementCreditService {
 
         for (CreditCardStatement futureStatement : futureStatements) {
 
-            futureStatement.setPreviousCreditAmount(
-                    availableCredit);
+            futureStatement.setPreviousCreditAmount(availableCredit);
 
-            statementRepository.save(
-                    futureStatement);
+            statementRepository.save(futureStatement);
 
-            availableCredit = calculateAvailableCredit(
-                    organizationId,
-                    futureStatement);
+            recalculatePaymentBreakdown(organizationId, futureStatement);
+
+            availableCredit = calculateAvailableCredit(organizationId, futureStatement);
         }
     }
 
@@ -109,38 +107,9 @@ public class CreditCardStatementCreditService {
             UUID organizationId,
             CreditCardStatement statement) {
 
-        BigDecimal remainingOutstanding = calculateStatementTotal(
+        recalculatePaymentBreakdown(
                 organizationId,
                 statement);
-
-        List<CreditCardStatementPayment> payments = paymentRepository
-                .findAllByOrganizationIdAndStatementIdOrderByPaymentDateAscCreatedAtAsc(
-                        organizationId,
-                        statement.getId());
-
-        for (CreditCardStatementPayment payment : payments) {
-
-            BigDecimal amount = payment.getAmount();
-
-            BigDecimal appliedAmount = amount.min(
-                    remainingOutstanding);
-
-            BigDecimal advanceCreditAmount = amount.subtract(
-                    appliedAmount);
-
-            payment.setAppliedAmount(
-                    appliedAmount);
-
-            payment.setAdvanceCreditAmount(
-                    advanceCreditAmount);
-
-            remainingOutstanding = remainingOutstanding
-                    .subtract(appliedAmount)
-                    .max(BigDecimal.ZERO);
-        }
-
-        paymentRepository.saveAll(
-                payments);
 
         recalculateFutureStatementCredits(
                 organizationId,
@@ -161,15 +130,13 @@ public class CreditCardStatementCreditService {
 
         for (CreditCardStatement statement : statements) {
 
-            statement.setPreviousCreditAmount(
-                    availableCredit);
+            statement.setPreviousCreditAmount(availableCredit);
 
-            statementRepository.save(
-                    statement);
+            statementRepository.save(statement);
 
-            availableCredit = calculateAvailableCredit(
-                    organizationId,
-                    statement);
+            recalculatePaymentBreakdown(organizationId, statement);
+
+            availableCredit = calculateAvailableCredit(organizationId, statement);
         }
     }
 
@@ -211,5 +178,43 @@ public class CreditCardStatementCreditService {
                 .add(paidAmount)
                 .subtract(grossAmount)
                 .max(BigDecimal.ZERO);
+    }
+
+    private void recalculatePaymentBreakdown(
+            UUID organizationId,
+            CreditCardStatement statement) {
+
+        BigDecimal remainingOutstanding = calculateStatementTotal(
+                organizationId,
+                statement);
+
+        List<CreditCardStatementPayment> payments = paymentRepository
+                .findAllByOrganizationIdAndStatementIdOrderByPaymentDateAscCreatedAtAsc(
+                        organizationId,
+                        statement.getId());
+
+        for (CreditCardStatementPayment payment : payments) {
+
+            BigDecimal amount = payment.getAmount();
+
+            BigDecimal appliedAmount = amount.min(
+                    remainingOutstanding);
+
+            BigDecimal advanceCreditAmount = amount.subtract(
+                    appliedAmount);
+
+            payment.setAppliedAmount(
+                    appliedAmount);
+
+            payment.setAdvanceCreditAmount(
+                    advanceCreditAmount);
+
+            remainingOutstanding = remainingOutstanding
+                    .subtract(appliedAmount)
+                    .max(BigDecimal.ZERO);
+        }
+
+        paymentRepository.saveAll(
+                payments);
     }
 }

@@ -41,6 +41,8 @@ import com.fluxfund.api.domain.beneficiary.repository.BeneficiaryRepository;
 import com.fluxfund.api.domain.category.Category;
 import com.fluxfund.api.domain.category.mapper.CategoryMapper;
 import com.fluxfund.api.domain.category.repository.CategoryRepository;
+import com.fluxfund.api.domain.creditcardstatement.CreditCardStatement;
+import com.fluxfund.api.domain.creditcardstatement.CreditCardStatementStatus;
 import com.fluxfund.api.domain.creditcardstatement.service.CreditCardStatementCreditService;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitment;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection;
@@ -259,6 +261,8 @@ public class FinancialTransactionService {
 
                 validateSettlementRemovalAllowed(financialTransaction, request);
 
+                validateCreditCardStatementAllowsChanges(financialTransaction);
+
                 FinancialTransactionMapper.updateEntity(financialTransaction, request, type, category);
 
                 normalizeTransactionStatusAndAmounts(financialTransaction);
@@ -315,6 +319,8 @@ public class FinancialTransactionService {
         }
 
         private void validateCancellationAllowed(FinancialTransaction financialTransaction) {
+
+                validateCreditCardStatementAllowsChanges(financialTransaction);
 
                 if (financialTransaction.getStatus() == FinancialTransactionStatus.CANCELED) {
                         throw new BusinessException("Transaction already canceled");
@@ -382,6 +388,8 @@ public class FinancialTransactionService {
                 }
 
                 validateCategoryMatchesTransactionType(request.type(), category);
+
+                validateCreditCardStatementAllowsChanges(financialTransaction);
 
                 financialTransaction.setType(request.type());
                 financialTransaction.setCategory(category);
@@ -2860,5 +2868,27 @@ public class FinancialTransactionService {
 
                 creditCardStatementCreditService
                                 .recalculateCreditState(organizationId, financialTransaction.getCreditCardStatement());
+        }
+
+        private void validateCreditCardStatementAllowsChanges(
+                        FinancialTransaction transaction) {
+
+                CreditCardStatement statement = transaction.getCreditCardStatement();
+
+                if (statement == null) {
+                        return;
+                }
+
+                if (statement.getStatus() == CreditCardStatementStatus.PAID) {
+
+                        throw new BusinessException(
+                                        "Items from paid credit card statements cannot be changed");
+                }
+
+                if (statement.getStatus() == CreditCardStatementStatus.CANCELED) {
+
+                        throw new BusinessException(
+                                        "Items from canceled credit card statements cannot be changed");
+                }
         }
 }
