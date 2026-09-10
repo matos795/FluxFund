@@ -77,4 +77,7 @@ public class CreditCardStatement extends BaseEntity {
 
     @Column(name = "previous_balance_amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal previousBalanceAmount = BigDecimal.ZERO;
+
+    @Column(name = "previous_credit_amount", nullable = false, precision = 15, scale = 2)
+    private BigDecimal previousCreditAmount = BigDecimal.ZERO;
 }

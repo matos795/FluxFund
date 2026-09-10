@@ -48,6 +48,12 @@ public class CreditCardStatementPayment extends BaseEntity {
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal amount;
 
+    @Column(name = "applied_amount", nullable = false, precision = 15, scale = 2)
+    private BigDecimal appliedAmount = BigDecimal.ZERO;
+
+    @Column(name = "advance_credit_amount", nullable = false, precision = 15, scale = 2)
+    private BigDecimal advanceCreditAmount = BigDecimal.ZERO;
+
     @Column(name = "statement_external_id")
     private String statementExternalId;
 

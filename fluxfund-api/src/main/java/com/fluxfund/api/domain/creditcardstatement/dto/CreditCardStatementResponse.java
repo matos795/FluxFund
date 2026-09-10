@@ -12,46 +12,31 @@ import com.fluxfund.api.domain.creditcardstatement.CreditCardStatementStatus;
 public record CreditCardStatementResponse(
 
         UUID id,
-
         AccountSummaryResponse creditCardAccount,
-
         AccountSummaryResponse paymentAccount,
-
         UUID paymentTransactionId,
-
         String name,
 
         LocalDate closingDate,
-
         LocalDate dueDate,
-
         LocalDate paymentDate,
 
         CreditCardStatementStatus status,
-
         CreditCardStatementPaymentStatus paymentStatus,
-
         CreditCardStatementDocumentResponse statementDocument,
 
         BigDecimal previousBalanceAmount,
-
+        BigDecimal previousCreditAmount,
         BigDecimal totalAmount,
-
         BigDecimal paidAmount,
-
         BigDecimal outstandingAmount,
 
         long itemCount,
-
         long paymentCount,
-
         long unlinkedPaymentCount,
 
         LocalDate lastPaymentDate,
-
         OffsetDateTime createdAt,
-
         OffsetDateTime updatedAt
-
 ) {
 }

@@ -39,13 +39,11 @@ import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 import com.fluxfund.api.shared.ofx.OfxTextNormalizer;
 import com.webcohesion.ofx4j.domain.data.MessageSetType;
 import com.webcohesion.ofx4j.domain.data.ResponseEnvelope;
-import com.webcohesion.ofx4j.domain.data.banking.BankStatementResponse;
 import com.webcohesion.ofx4j.domain.data.banking.BankStatementResponseTransaction;
 import com.webcohesion.ofx4j.domain.data.banking.BankingResponseMessageSet;
 import com.webcohesion.ofx4j.domain.data.common.StatementResponse;
 import com.webcohesion.ofx4j.domain.data.common.Transaction;
 import com.webcohesion.ofx4j.domain.data.creditcard.CreditCardResponseMessageSet;
-import com.webcohesion.ofx4j.domain.data.creditcard.CreditCardStatementResponse;
 import com.webcohesion.ofx4j.domain.data.creditcard.CreditCardStatementResponseTransaction;
 import com.webcohesion.ofx4j.io.AggregateUnmarshaller;
 
@@ -64,6 +62,7 @@ public class CreditCardStatementOfxImportService {
         private final OfxTextNormalizer ofxTextNormalizer;
         private final CreditCardStatementPaymentRepository paymentRepository;
         private final CreditCardOfxEntryClassifier entryClassifier;
+        private final CreditCardStatementService creditCardStatementService;
 
         public CreditCardStatementImportResponse importOfx(
                         UUID organizationId,
@@ -277,6 +276,8 @@ public class CreditCardStatementOfxImportService {
                                                                         + exception.getMessage());
                                 }
                         }
+
+                        creditCardStatementService.recalculateCreditState(organizationId, creditCardStatement);
 
                         return new CreditCardStatementImportResponse(
                                         imported,
@@ -748,6 +749,10 @@ public class CreditCardStatementOfxImportService {
                 payment.setPaymentDate(paymentDate);
 
                 payment.setAmount(amount);
+
+                payment.setAppliedAmount(amount);
+
+                payment.setAdvanceCreditAmount(BigDecimal.ZERO);
 
                 fillStatementImportData(
                                 payment,

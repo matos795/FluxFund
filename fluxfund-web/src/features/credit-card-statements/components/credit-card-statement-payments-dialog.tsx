@@ -298,6 +298,16 @@ export function CreditCardStatementPaymentsDialog({
                         </Badge>
                       </div>
 
+                      {payment.advanceCreditAmount > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          Aplicado nesta fatura:{" "}
+                          {formatCurrency(payment.appliedAmount)}
+                          {" · "}
+                          Crédito gerado:{" "}
+                          {formatCurrency(payment.advanceCreditAmount)}
+                        </p>
+                      )}
+
                       <p className="text-sm text-muted-foreground">
                         {description}
                       </p>
