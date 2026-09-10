@@ -281,4 +281,10 @@ Page<CreditCardStatement> findAllDocumentsForLibrary(
                 UUID creditCardAccountId,
                 LocalDate dueDate,
                 CreditCardStatementStatus status);
+
+        List<CreditCardStatement>
+        findAllByOrganizationIdAndCreditCardAccountIdAndStatusNotOrderByDueDateAsc(
+                UUID organizationId,
+                UUID creditCardAccountId,
+                CreditCardStatementStatus status);
 }

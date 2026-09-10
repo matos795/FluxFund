@@ -41,6 +41,7 @@ import com.fluxfund.api.domain.beneficiary.repository.BeneficiaryRepository;
 import com.fluxfund.api.domain.category.Category;
 import com.fluxfund.api.domain.category.mapper.CategoryMapper;
 import com.fluxfund.api.domain.category.repository.CategoryRepository;
+import com.fluxfund.api.domain.creditcardstatement.service.CreditCardStatementCreditService;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitment;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentDirection;
 import com.fluxfund.api.domain.financialcommitment.FinancialCommitmentRecurrence;
@@ -106,6 +107,7 @@ public class FinancialTransactionService {
         private final FundTransferRepository fundTransferRepository;
         private final FinancialTransactionDocumentPolicyService documentPolicyService;
         private final FinancialCommitmentRepository financialCommitmentRepository;
+        private final CreditCardStatementCreditService creditCardStatementCreditService;
 
         private static final int CLASSIFICATION_HISTORY_LIMIT = 10;
         private static final int CLASSIFICATION_HISTORY_PAGE_SIZE = 250;
@@ -267,6 +269,8 @@ public class FinancialTransactionService {
 
                 repository.save(financialTransaction);
 
+                recalculateCreditCardStatementIfNeeded(organizationId, financialTransaction);
+
                 auditLogService.record(
                                 organizationId,
                                 AuditEntityType.FINANCIAL_TRANSACTION,
@@ -327,6 +331,8 @@ public class FinancialTransactionService {
                 financialTransaction.setStatus(FinancialTransactionStatus.CANCELED);
 
                 repository.save(financialTransaction);
+
+                recalculateCreditCardStatementIfNeeded(organizationId, financialTransaction);
 
                 auditLogService.record(
                                 organizationId,
@@ -428,6 +434,8 @@ public class FinancialTransactionService {
                                 toImpactByFund(financialTransaction.getAllocations()));
 
                 repository.save(financialTransaction);
+
+                recalculateCreditCardStatementIfNeeded(organizationId, financialTransaction);
 
                 auditLogService.record(
                                 organizationId,
@@ -2840,5 +2848,17 @@ public class FinancialTransactionService {
 
                                 .findFirst()
                                 .orElse(null);
+        }
+
+        private void recalculateCreditCardStatementIfNeeded(
+                        UUID organizationId,
+                        FinancialTransaction financialTransaction) {
+
+                if (financialTransaction.getCreditCardStatement() == null) {
+                        return;
+                }
+
+                creditCardStatementCreditService
+                                .recalculateCreditState(organizationId, financialTransaction.getCreditCardStatement());
         }
 }

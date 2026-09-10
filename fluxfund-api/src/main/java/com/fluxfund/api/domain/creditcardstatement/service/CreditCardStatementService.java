@@ -65,6 +65,7 @@ public class CreditCardStatementService {
         private final OrganizationAccessService organizationAccessService;
         private final FinancialTransactionDocumentPolicyService documentPolicyService;
         private final CreditCardStatementPaymentRepository paymentRepository;
+        private final CreditCardStatementCreditService creditService;
 
         public CreditCardStatementResponse create(UUID organizationId, CreateCreditCardStatementRequest request) {
 
@@ -87,7 +88,7 @@ public class CreditCardStatementService {
                 statement.setDueDate(request.dueDate());
                 statement.setStatus(CreditCardStatementStatus.OPEN);
 
-                applyPreviousAvailableCredit(organizationId, statement);
+                creditService.applyPreviousAvailableCredit(organizationId, statement);
 
                 CreditCardStatement savedStatement = statementRepository.save(statement);
 
@@ -153,6 +154,8 @@ public class CreditCardStatementService {
 
                 CreditCardStatement statement = findStatement(organizationId, id);
 
+                LocalDate previousDueDate = statement.getDueDate();
+
                 if (statement.getStatus() == CreditCardStatementStatus.PAID) {
                         throw new BusinessException("Paid credit card statements cannot be edited");
                 }
@@ -170,6 +173,10 @@ public class CreditCardStatementService {
                 }
 
                 CreditCardStatement savedStatement = statementRepository.save(statement);
+
+                if (request.dueDate() != null && !request.dueDate().equals(previousDueDate)) {
+                        creditService.recalculateEntireChain(organizationId, statement.getCreditCardAccount().getId());
+                }
 
                 return toResponse(organizationId, savedStatement);
         }
@@ -236,7 +243,7 @@ public class CreditCardStatementService {
                         }
                 }
 
-                recalculateFutureStatementCredits(organizationId, statement);
+                creditService.recalculateCreditState(organizationId, statement);
 
                 FinancialTransaction reloadedTransaction = financialTransactionRepository
                                 .findByIdAndOrganizationId(savedTransaction.getId(), organizationId)
@@ -270,13 +277,11 @@ public class CreditCardStatementService {
                                         "Canceled credit card statements cannot receive payments");
                 }
 
-                BigDecimal totalAmount = calculateStatementTotal(
+                BigDecimal totalAmount = creditService.calculateStatementTotal(
                                 organizationId,
                                 statement);
 
-                if (totalAmount.compareTo(
-                                BigDecimal.ZERO) <= 0) {
-
+                if (totalAmount.compareTo(BigDecimal.ZERO) <= 0) {
                         throw new BusinessException(
                                         "Credit card statement has no amount to pay");
                 }
@@ -286,8 +291,14 @@ public class CreditCardStatementService {
                                                 organizationId,
                                                 statementId);
 
-                BigDecimal outstandingBefore = totalAmount.subtract(
-                                paidBefore);
+                BigDecimal outstandingBefore = totalAmount
+                                .subtract(paidBefore)
+                                .max(BigDecimal.ZERO);
+
+                if (outstandingBefore.compareTo(BigDecimal.ZERO) <= 0) {
+                        throw new BusinessException(
+                                        "Credit card statement has no outstanding amount to pay");
+                }
 
                 BigDecimal paymentAmount = request.amount();
 
@@ -338,7 +349,7 @@ public class CreditCardStatementService {
 
                 paymentRepository.save(payment);
 
-                recalculateFutureStatementCredits(organizationId, statement, advanceCreditAmount);
+                creditService.recalculateFutureStatementCredits(organizationId, statement, advanceCreditAmount);
 
                 refreshStatementPaymentState(organizationId, statement);
 
@@ -467,6 +478,8 @@ public class CreditCardStatementService {
 
                 financialTransactionRepository.saveAll(items);
                 statementRepository.save(statement);
+
+                creditService.recalculateEntireChain(organizationId, statement.getCreditCardAccount().getId());
         }
 
         @Transactional(readOnly = true)
@@ -565,81 +578,38 @@ public class CreditCardStatementService {
         }
 
         private CreditCardStatementResponse toResponse(
-
                         UUID organizationId,
-
                         CreditCardStatement statement) {
 
-                BigDecimal totalAmount = calculateStatementTotal(
+                BigDecimal totalAmount = creditService.calculateStatementTotal(
                                 organizationId,
                                 statement);
 
-                long itemCount =
+                long itemCount = financialTransactionRepository
+                                .countCreditCardStatementItems(organizationId, statement.getId());
 
-                                financialTransactionRepository
+                BigDecimal paidAmount = paymentRepository
+                                .sumAmountByStatement(organizationId, statement.getId());
 
-                                                .countCreditCardStatementItems(
-
-                                                                organizationId,
-
-                                                                statement.getId());
-
-                BigDecimal paidAmount =
-
-                                paymentRepository
-
-                                                .sumAmountByStatement(
-
-                                                                organizationId,
-
-                                                                statement.getId());
-
-                long paymentCount =
-
-                                paymentRepository
-
-                                                .countByOrganizationIdAndStatementId(
-
-                                                                organizationId,
-
-                                                                statement.getId());
+                long paymentCount = paymentRepository
+                                .countByOrganizationIdAndStatementId(organizationId, statement.getId());
 
                 long unlinkedPaymentCount = paymentRepository
                                 .countByOrganizationIdAndStatementIdAndPaymentTransactionIsNullAndOpeningBalanceFalse(
                                                 organizationId,
                                                 statement.getId());
 
-                java.time.LocalDate lastPaymentDate =
+                java.time.LocalDate lastPaymentDate = paymentRepository
+                                .findFirstByOrganizationIdAndStatementIdOrderByPaymentDateDescCreatedAtDesc(
+                                                organizationId,
+                                                statement.getId())
 
-                                paymentRepository
+                                .map(CreditCardStatementPayment::getPaymentDate)
+                                .orElse(null);
 
-                                                .findFirstByOrganizationIdAndStatementIdOrderByPaymentDateDescCreatedAtDesc(
-
-                                                                organizationId,
-
-                                                                statement.getId())
-
-                                                .map(
-                                                                CreditCardStatementPayment::getPaymentDate)
-
-                                                .orElse(
-                                                                null);
-
-                /*
-                 * Compatibilidade com faturas antigas.
-                 *
-                 * As faturas pagas antes da criação da
-                 * tabela de pagamentos não possuem registros
-                 * em credit_card_statement_payment.
-                 */
-                if (paymentCount == 0
-
-                                && statement.getStatus() == CreditCardStatementStatus.PAID) {
-
+                if (paymentCount == 0 && statement.getStatus() == CreditCardStatementStatus.PAID) {
                         paidAmount = totalAmount;
-
                         paymentCount = 1;
-
                         lastPaymentDate = statement.getPaymentDate();
                 }
 
@@ -675,41 +645,6 @@ public class CreditCardStatementService {
                                 .stream()
                                 .map(FinancialTransactionMapper::toResponse)
                                 .toList();
-        }
-
-        public void recalculateCreditState(
-                        UUID organizationId,
-                        CreditCardStatement statement) {
-
-                BigDecimal remainingOutstanding = calculateStatementTotal(
-                                organizationId,
-                                statement);
-
-                List<CreditCardStatementPayment> payments = paymentRepository
-                                .findAllByOrganizationIdAndStatementIdOrderByPaymentDateAscCreatedAtAsc(
-                                                organizationId,
-                                                statement.getId());
-
-                for (CreditCardStatementPayment payment : payments) {
-
-                        BigDecimal amount = payment.getAmount();
-
-                        BigDecimal appliedAmount = amount.min(remainingOutstanding);
-
-                        BigDecimal advanceCreditAmount = amount.subtract(appliedAmount);
-
-                        payment.setAppliedAmount(appliedAmount);
-
-                        payment.setAdvanceCreditAmount(advanceCreditAmount);
-
-                        remainingOutstanding = remainingOutstanding
-                                        .subtract(appliedAmount)
-                                        .max(BigDecimal.ZERO);
-                }
-
-                paymentRepository.saveAll(payments);
-
-                recalculateFutureStatementCredits(organizationId, statement);
         }
 
         private FinancialTransaction resolvePaymentTransaction(
@@ -1040,16 +975,11 @@ public class CreditCardStatementService {
                  * Fecha automaticamente uma fatura cujo
                  * ciclo já terminou.
                  */
-                if (statement.getStatus() == CreditCardStatementStatus.OPEN
-                                && cycleEnded) {
-
-                        statement.setStatus(
-                                        CreditCardStatementStatus.CLOSED);
+                if (statement.getStatus() == CreditCardStatementStatus.OPEN && cycleEnded) {
+                        statement.setStatus(CreditCardStatementStatus.CLOSED);
                 }
 
-                BigDecimal totalAmount = calculateStatementTotal(
-                                organizationId,
-                                statement);
+                BigDecimal totalAmount = creditService.calculateStatementTotal(organizationId, statement);
 
                 BigDecimal paidAmount = paymentRepository
                                 .sumAmountByStatement(
@@ -1110,23 +1040,6 @@ public class CreditCardStatementService {
                 statementRepository.save(statement);
         }
 
-        private BigDecimal calculateStatementTotal(
-                        UUID organizationId,
-                        CreditCardStatement statement) {
-
-                BigDecimal grossAmount = calculateStatementGrossAmount(
-                                organizationId,
-                                statement);
-
-                BigDecimal previousCredit = statement.getPreviousCreditAmount() != null
-                                ? statement.getPreviousCreditAmount()
-                                : BigDecimal.ZERO;
-
-                return grossAmount
-                                .subtract(previousCredit)
-                                .max(BigDecimal.ZERO);
-        }
-
         private boolean hasStatementCycleEnded(
                         CreditCardStatement statement,
                         LocalDate referenceDate) {
@@ -1137,103 +1050,5 @@ public class CreditCardStatementService {
 
                 return cycleEndDate != null
                                 && cycleEndDate.isBefore(referenceDate);
-        }
-
-        private BigDecimal calculateStatementGrossAmount(
-                        UUID organizationId,
-                        CreditCardStatement statement) {
-
-                BigDecimal itemTotal = financialTransactionRepository
-                                .sumCreditCardStatementTotal(
-                                                organizationId,
-                                                statement.getId());
-
-                BigDecimal previousBalance = statement.getPreviousBalanceAmount() != null
-                                ? statement.getPreviousBalanceAmount()
-                                : BigDecimal.ZERO;
-
-                return itemTotal.add(previousBalance);
-        }
-
-        private BigDecimal calculateAvailableCredit(
-                        UUID organizationId,
-                        CreditCardStatement statement) {
-
-                BigDecimal grossAmount = calculateStatementGrossAmount(
-                                organizationId,
-                                statement);
-
-                BigDecimal previousCredit = statement.getPreviousCreditAmount() != null
-                                ? statement.getPreviousCreditAmount()
-                                : BigDecimal.ZERO;
-
-                BigDecimal paidAmount = paymentRepository
-                                .sumAmountByStatement(
-                                                organizationId,
-                                                statement.getId());
-
-                return previousCredit
-                                .add(paidAmount)
-                                .subtract(grossAmount)
-                                .max(BigDecimal.ZERO);
-        }
-
-        private void applyPreviousAvailableCredit(
-                        UUID organizationId,
-                        CreditCardStatement statement) {
-
-                statementRepository
-                                .findFirstByOrganizationIdAndCreditCardAccountIdAndDueDateBeforeAndStatusNotOrderByDueDateDesc(
-                                                organizationId,
-                                                statement
-                                                                .getCreditCardAccount()
-                                                                .getId(),
-                                                statement.getDueDate(),
-                                                CreditCardStatementStatus.CANCELED)
-                                .ifPresent(previousStatement -> {
-
-                                        BigDecimal availableCredit = calculateAvailableCredit(
-                                                        organizationId,
-                                                        previousStatement);
-
-                                        statement.setPreviousCreditAmount(
-                                                        availableCredit);
-                                });
-        }
-
-        private void recalculateFutureStatementCredits(
-                        UUID organizationId,
-                        CreditCardStatement currentStatement) {
-
-                BigDecimal availableCredit = calculateAvailableCredit(
-                                organizationId,
-                                currentStatement);
-
-                recalculateFutureStatementCredits(
-                                organizationId,
-                                currentStatement,
-                                availableCredit);
-        }
-
-        private void recalculateFutureStatementCredits(
-                        UUID organizationId,
-                        CreditCardStatement currentStatement,
-                        BigDecimal availableCredit) {
-
-                List<CreditCardStatement> futureStatements = statementRepository
-                                .findAllByOrganizationIdAndCreditCardAccountIdAndDueDateAfterAndStatusNotOrderByDueDateAsc(
-                                                organizationId,
-                                                currentStatement
-                                                                .getCreditCardAccount()
-                                                                .getId(),
-                                                currentStatement.getDueDate(),
-                                                CreditCardStatementStatus.CANCELED);
-
-                for (CreditCardStatement futureStatement : futureStatements) {
-
-                        futureStatement.setPreviousCreditAmount(availableCredit);
-                        statementRepository.save(futureStatement);
-                        availableCredit = calculateAvailableCredit(organizationId, futureStatement);
-                }
         }
 }

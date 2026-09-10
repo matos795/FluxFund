@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -74,8 +75,30 @@ class CreditCardStatementServiceTest {
         @Mock
         private CreditCardStatementPaymentRepository paymentRepository;
 
-        @InjectMocks
         private CreditCardStatementService service;
+
+        private CreditCardStatementCreditService creditService;
+
+        @BeforeEach
+        void setUp() {
+
+                creditService = new CreditCardStatementCreditService(
+                                statementRepository,
+                                financialTransactionRepository,
+                                paymentRepository);
+
+                service = new CreditCardStatementService(
+                                statementRepository,
+                                financialTransactionRepository,
+                                financialTransactionService,
+                                organizationRepository,
+                                accountRepository,
+                                categoryRepository,
+                                organizationAccessService,
+                                documentPolicyService,
+                                paymentRepository,
+                                creditService);
+        }
 
         @Test
         void shouldAllowPaymentGreaterThanOutstandingAmount() {

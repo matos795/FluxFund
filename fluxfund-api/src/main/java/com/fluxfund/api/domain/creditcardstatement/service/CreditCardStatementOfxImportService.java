@@ -62,7 +62,7 @@ public class CreditCardStatementOfxImportService {
         private final OfxTextNormalizer ofxTextNormalizer;
         private final CreditCardStatementPaymentRepository paymentRepository;
         private final CreditCardOfxEntryClassifier entryClassifier;
-        private final CreditCardStatementService creditCardStatementService;
+        private final CreditCardStatementCreditService creditService;
 
         public CreditCardStatementImportResponse importOfx(
                         UUID organizationId,
@@ -256,9 +256,7 @@ public class CreditCardStatementOfxImportService {
                                                 }
 
                                                 case REVIEW_REQUIRED -> {
-
                                                         reviewRequired++;
-
                                                         warnings.add(
                                                                         "Crédito da fatura precisa de revisão: "
                                                                                         + description
@@ -268,16 +266,12 @@ public class CreditCardStatementOfxImportService {
                                         }
 
                                 } catch (BusinessException exception) {
-
                                         failed++;
-
-                                        errors.add(
-                                                        "Erro ao importar transação: "
-                                                                        + exception.getMessage());
+                                        errors.add("Erro ao importar transação: " + exception.getMessage());
                                 }
                         }
 
-                        creditCardStatementService.recalculateCreditState(organizationId, creditCardStatement);
+                        creditService.recalculateCreditState(organizationId, creditCardStatement);
 
                         return new CreditCardStatementImportResponse(
                                         imported,
