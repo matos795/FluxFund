@@ -118,11 +118,16 @@ public class CreditCardStatementOfxImportService {
                                         ofxStatement,
                                         transactions);
 
-                        creditCardStatement.setPreviousBalanceAmount(
-                                        paymentAnalysis.previousBalanceAmount());
+                        if (paymentAnalysis.reliable()) {
 
-                        statementRepository.save(
-                                        creditCardStatement);
+                                creditCardStatement.setPreviousBalanceAmount(
+                                                paymentAnalysis.previousBalanceAmount());
+
+                                creditCardStatement.setPreviousCreditAmount(
+                                                paymentAnalysis.previousCreditAmount());
+
+                                statementRepository.save(creditCardStatement);
+                        }
 
                         for (Transaction ofxTransaction : transactions) {
                                 try {
@@ -370,33 +375,20 @@ public class CreditCardStatementOfxImportService {
                                 .getBigDecimalAmount();
 
                 BigDecimal netMovement = transactions.stream()
-
                                 .map(Transaction::getBigDecimalAmount)
-
                                 .filter(Objects::nonNull)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                                .reduce(
-                                                BigDecimal.ZERO,
-                                                BigDecimal::add);
+                BigDecimal openingBalance = closingBalance.subtract(netMovement);
 
-                /*
-                 * saldo final = saldo inicial + movimentações
-                 *
-                 * portanto:
-                 *
-                 * saldo inicial = saldo final - movimentações
-                 */
-                BigDecimal openingBalance = closingBalance.subtract(
-                                netMovement);
+                BigDecimal previousCreditAmount = resolvePreviousCreditAmount(openingBalance);
 
                 /*
                  * No OFX do cartão Nubank, dívida aparece negativa.
                  */
                 BigDecimal remainingPreviousBalance = openingBalance.compareTo(
                                 BigDecimal.ZERO) < 0
-
                                                 ? openingBalance.abs()
-
                                                 : BigDecimal.ZERO;
 
                 Set<String> previousStatementPayments = new HashSet<>();
@@ -481,27 +473,29 @@ public class CreditCardStatementOfxImportService {
                 }
 
                 return new PaymentPeriodAnalysis(
-
                                 previousStatementPayments,
-
                                 reviewRequiredPayments,
-
                                 remainingPreviousBalance
-                                                .setScale(
-                                                                2,
-                                                                RoundingMode.HALF_UP),
-
+                                                .setScale(2, RoundingMode.HALF_UP),
+                                previousCreditAmount
+                                                .setScale(2, RoundingMode.HALF_UP),
                                 true);
         }
 
+        static BigDecimal resolvePreviousCreditAmount(BigDecimal openingBalance) {
+
+                if (openingBalance == null || openingBalance.compareTo(BigDecimal.ZERO) <= 0) {
+                        return BigDecimal.ZERO;
+                }
+
+                return openingBalance;
+        }
+
         private record PaymentPeriodAnalysis(
-
                         Set<String> previousStatementPaymentExternalIds,
-
                         Set<String> reviewRequiredPaymentExternalIds,
-
                         BigDecimal previousBalanceAmount,
-
+                        BigDecimal previousCreditAmount,
                         boolean reliable) {
 
                 private static PaymentPeriodAnalysis unavailable() {
@@ -509,6 +503,7 @@ public class CreditCardStatementOfxImportService {
                         return new PaymentPeriodAnalysis(
                                         Set.of(),
                                         Set.of(),
+                                        BigDecimal.ZERO,
                                         BigDecimal.ZERO,
                                         false);
                 }
