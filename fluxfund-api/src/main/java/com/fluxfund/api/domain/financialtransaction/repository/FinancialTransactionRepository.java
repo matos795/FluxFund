@@ -146,13 +146,9 @@ public interface FinancialTransactionRepository
             left join category.parent parent
 
             where transaction.organization.id = :organizationId
-
-              and transaction.status =
-                  com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
-
-              and transaction.type <>
-                  com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
-
+              and transaction.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+              and transaction.technicalMovement = false
+              and transaction.type <> com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
               and coalesce(
                     transaction.purchaseDate,
                     transaction.settlementDate
@@ -190,6 +186,7 @@ public interface FinancialTransactionRepository
                   com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.INCOME,
                   com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.EXPENSE
               )
+              and t.technicalMovement = false
               and t.settlementDate between :startDate and :endDate
             order by t.settlementDate asc, t.createdAt asc
             """)
@@ -213,6 +210,7 @@ public interface FinancialTransactionRepository
               and t.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
               and t.type = com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.EXPENSE
               and t.settlementDate between :startDate and :endDate
+              and t.technicalMovement = false
             order by t.settlementDate asc, t.createdAt asc
             """)
     List<SettledExpenseReportItemResponse> findSettledExpenseReport(
@@ -234,6 +232,7 @@ public interface FinancialTransactionRepository
             where t.organization.id = :organizationId
               and t.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
               and t.type = com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.INCOME
+              and t.technicalMovement = false
               and t.settlementDate between :startDate and :endDate
             order by t.settlementDate asc, t.createdAt asc
             """)
@@ -359,66 +358,27 @@ public interface FinancialTransactionRepository
             ), 0) as expense
 
         from financial_transaction t
+        join account account on account.id = t.account_id
+        left join account counterparty on counterparty.id = t.transfer_counterparty_account_id
 
-        join account account
-          on account.id = t.account_id
-
-        left join account counterparty
-          on counterparty.id =
-             t.transfer_counterparty_account_id
-
-        where t.organization_id =
-              :organizationId
-
+        where t.organization_id = :organizationId
           and account.active = true
+          and account.type <> 'CREDIT_CARD'
+          and t.status = 'SETTLED'
+          and t.technical_movement = false
+          and t.credit_card_statement_id is null
+          and (t.source is null or t.source <> 'CREDIT_CARD')
+          and t.settlement_date between :startDate and :endDate
+          and (account.initial_balance_date is null or t.settlement_date >= account.initial_balance_date)
 
-          and account.type <>
-              'CREDIT_CARD'
-
-          and t.status =
-              'SETTLED'
-
-          and t.credit_card_statement_id
-              is null
-
-          and (
-                t.source is null
-                or t.source <> 'CREDIT_CARD'
-              )
-
-          and t.settlement_date
-              between :startDate and :endDate
-
-          and (
-                account.initial_balance_date
-                    is null
-
-                or t.settlement_date >=
-                   account.initial_balance_date
-              )
-
-        group by
-            date_trunc(
-                'month',
-                t.settlement_date
-            )
-
-        order by
-            date_trunc(
-                'month',
-                t.settlement_date
-            )
+        group by date_trunc('month', t.settlement_date)
+        order by date_trunc('month', t.settlement_date)
         """, nativeQuery = true)
 List<MonthlyCashFlowProjection>
 findMonthlyCashFlow(
-        @Param("organizationId")
-        UUID organizationId,
-
-        @Param("startDate")
-        LocalDate startDate,
-
-        @Param("endDate")
-        LocalDate endDate);
+        @Param("organizationId") UUID organizationId,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate);
 
     @Query(value = """
             select
@@ -430,6 +390,7 @@ findMonthlyCashFlow(
             where t.organization_id = :organizationId
               and t.status = 'SETTLED'
               and t.type = 'EXPENSE'
+              and t.technical_movement = false
               and t.category_id is not null
               and coalesce(
                     t.purchase_date,
@@ -456,6 +417,7 @@ findMonthlyCashFlow(
             where t.organization_id = :organizationId
               and t.status = 'SETTLED'
               and t.type = 'EXPENSE'
+              and t.technical_movement = false
               and t.settlement_date between :startDate and :endDate
               and (
                   t.fiscal_document_policy = 'REQUIRED'
@@ -492,6 +454,7 @@ findMonthlyCashFlow(
                 where t.organization_id = :organizationId
             and t.status != 'CANCELED'
             and t.type != 'TRANSFER'
+            and t.technical_movement = false
             and t.category_id is null
                 order by coalesce(t.settlement_date, t.due_date) desc, t.created_at desc
                 limit :limit
@@ -516,6 +479,7 @@ findMonthlyCashFlow(
               and t.status = 'SETTLED'
               and t.category_id is not null
               and t.type != 'TRANSFER'
+              and t.technical_movement = false
               and abs(t.settled_amount) > coalesce((
                   select sum(abs(ta.amount))
                   from transaction_allocation ta
@@ -549,6 +513,7 @@ findMonthlyCashFlow(
             where t.organization_id = :organizationId
               and t.status = 'SETTLED'
               and t.type = 'EXPENSE'
+              and t.technical_movement = false
               and t.settlement_date between :startDate and :endDate
               and (
                   t.fiscal_document_policy = 'REQUIRED'
@@ -663,6 +628,7 @@ findMonthlyCashFlow(
             where t.organization_id = :organizationId
               and t.status = 'SETTLED'
               and t.type = 'EXPENSE'
+              and t.technical_movement = false
               and t.settlement_date between :startDate and :endDate
               and t.fiscal_document_policy = 'MISSING'
               and not exists (
@@ -696,6 +662,7 @@ findMonthlyCashFlow(
             where t.organization_id = :organizationId
               and t.status = 'SETTLED'
               and t.type = 'EXPENSE'
+              and t.technical_movement = false
               and t.settlement_date between :startDate and :endDate
               and t.fiscal_document_policy = 'MISSING'
               and not exists (
@@ -789,6 +756,7 @@ findMonthlyCashFlow(
             where t.organization_id = :organizationId
               and t.status = 'SETTLED'
               and t.type in ('INCOME', 'EXPENSE')
+              and t.technical_movement = false
               and t.category_id is not null
               and (
                     (
@@ -867,6 +835,7 @@ findMonthlyCashFlow(
               and t.status = 'SETTLED'
               and t.type in ('INCOME', 'EXPENSE')
               and t.category_id is not null
+              and t.technical_movement = false
               and (
                     (
                         t.type = 'EXPENSE'
@@ -933,27 +902,15 @@ findMonthlyCashFlow(
             select t
             from FinancialTransaction t
 
-            where t.organization.id =
-                :organizationId
-
-              and t.id <>
-                :transactionId
-
-              and t.type =
-                :type
-
-              and t.status =
-                com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
-
-              and t.type <>
-                com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
-
+            where t.organization.id = :organizationId
+              and t.id <> :transactionId
+              and t.type = :type
+              and t.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+              and t.technicalMovement = false
+              and t.type <> com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
               and t.category is not null
-
               and t.rawDescription is not null
-
-              and t.settlementDate >=
-                :historyStartDate
+              and t.settlementDate >= :historyStartDate
 
             order by
                 t.settlementDate desc,
@@ -1058,32 +1015,19 @@ findMonthlyCashFlow(
     @Query("""
             select candidate
             from FinancialTransaction candidate
-
             join fetch candidate.account account
 
-            where candidate.organization.id =
-                :organizationId
-
+            where candidate.organization.id = :organizationId
               and candidate.id <> :transactionId
-
               and account.id <> :accountId
-
-              and account.type <>
-                com.fluxfund.api.domain.account.AccountType.CREDIT_CARD
-
-              and candidate.status =
-                com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
-
+              and account.type <> com.fluxfund.api.domain.account.AccountType.CREDIT_CARD
+              and candidate.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+              and candidate.technicalMovement = false
               and candidate.type = :oppositeType
-
               and candidate.category is null
-
               and candidate.allocations is empty
-
               and candidate.transferGroupId is null
-
-              and candidate.settlementDate
-                between :startDate and :endDate
+              and candidate.settlementDate between :startDate and :endDate
 
               and abs(
                     coalesce(
@@ -1104,30 +1048,18 @@ findMonthlyCashFlow(
     @Query("""
             select candidate
             from FinancialTransaction candidate
-
             join fetch candidate.account account
 
-            where candidate.organization.id =
-                :organizationId
-
+            where candidate.organization.id = :organizationId
               and account.id <> :accountId
-
-              and account.type <>
-                com.fluxfund.api.domain.account.AccountType.CREDIT_CARD
-
-              and candidate.status =
-                com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
-
+              and account.type <> com.fluxfund.api.domain.account.AccountType.CREDIT_CARD
+              and candidate.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+              and candidate.technicalMovement = false
               and candidate.type = :oppositeType
-
               and candidate.category is null
-
               and candidate.allocations is empty
-
               and candidate.transferGroupId is null
-
-              and candidate.settlementDate
-                between :startDate and :endDate
+              and candidate.settlementDate between :startDate and :endDate
 
               and abs(
                     coalesce(
@@ -1249,16 +1181,10 @@ findMonthlyCashFlow(
           and account.active = true
           and account.type <> 'CREDIT_CARD'
           and t.status = 'SETTLED'
+          and t.technical_movement = false
           and t.credit_card_statement_id is null
-
-          and (
-                t.source is null
-                or t.source <> 'CREDIT_CARD'
-              )
-
-          and t.settlement_date
-              between :startDate and :endDate
-
+          and (t.source is null or t.source <> 'CREDIT_CARD')
+          and t.settlement_date between :startDate and :endDate
           and (
                 account.initial_balance_date is null
                 or t.settlement_date >=

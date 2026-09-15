@@ -47,6 +47,7 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
                           case
                               when t.status = 'SETTLED'
                                and t.type = 'INCOME'
+                               and t.technical_movement = false
                                and t.settlement_date < :startDate
                               then abs(coalesce(t.settled_amount, 0))
                               else 0
@@ -57,6 +58,7 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
                           case
                               when t.status = 'SETTLED'
                                and t.type = 'EXPENSE'
+                               and t.technical_movement = false
                                and t.settlement_date < :startDate
                               then abs(coalesce(t.settled_amount, 0))
                               else 0
@@ -85,6 +87,7 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
                           case
                               when t.status = 'SETTLED'
                                and t.type = 'INCOME'
+                               and t.technical_movement = false
                                and t.settlement_date between :startDate and :endDate
                               then abs(coalesce(t.settled_amount, 0))
                               else 0
@@ -95,6 +98,7 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
                           case
                               when t.status = 'SETTLED'
                                and t.type = 'EXPENSE'
+                               and t.technical_movement = false
                                and t.settlement_date between :startDate and :endDate
                               then abs(coalesce(t.settled_amount, 0))
                               else 0
@@ -147,6 +151,7 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
                 case
                     when t.status = 'SETTLED'
                      and t.type = 'INCOME'
+                     and t.technical_movement = false
                      and t.settlement_date <= current_date
                     then abs(coalesce(t.settled_amount, 0))
                     else 0
@@ -157,6 +162,7 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
                 case
                     when t.status = 'SETTLED'
                      and t.type = 'EXPENSE'
+                     and t.technical_movement = false
                      and t.settlement_date <= current_date
                     then abs(coalesce(t.settled_amount, 0))
                     else 0
@@ -184,6 +190,7 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
                       cast(coalesce(sum(
                           case
                               when t.status = 'SETTLED'
+                               and t.technical_movement = false
                                and t.settlement_date between :startDate and :endDate
                               then 1
                               else 0
