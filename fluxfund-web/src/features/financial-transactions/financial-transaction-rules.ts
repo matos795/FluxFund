@@ -4,6 +4,7 @@ export function needsFinancialTransactionClassification(
   transaction: FinancialTransaction,
 ) {
   return (
+    !transaction.technicalMovement &&
     transaction.status === "SETTLED" &&
     transaction.type !== "TRANSFER" &&
     !transaction.category &&

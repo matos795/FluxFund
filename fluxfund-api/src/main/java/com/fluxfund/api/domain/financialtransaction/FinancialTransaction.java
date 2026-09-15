@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import com.fluxfund.api.domain.account.Account;
@@ -66,6 +67,14 @@ public class FinancialTransaction extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private FinancialTransactionType type;
+
+    @Column(name = "technical_movement", nullable = false)
+    @Builder.Default
+    private boolean technicalMovement = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "technical_movement_type", length = 60)
+    private TechnicalMovementType technicalMovementType;
 
     @Column(name = "purchase_date")
     private LocalDate purchaseDate;
@@ -148,5 +157,15 @@ public class FinancialTransaction extends BaseEntity {
     public void removeAllocation(TransactionAllocation allocation) {
         allocations.remove(allocation);
         allocation.setFinancialTransaction(null);
+    }
+
+    public void markAsTechnicalMovement(
+            TechnicalMovementType technicalMovementType) {
+
+        this.technicalMovementType = Objects.requireNonNull(
+                technicalMovementType,
+                "Technical movement type is required");
+
+        this.technicalMovement = true;
     }
 }

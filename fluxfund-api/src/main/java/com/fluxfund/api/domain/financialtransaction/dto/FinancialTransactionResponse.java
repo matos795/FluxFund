@@ -13,56 +13,58 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.FiscalDocumentPolicy;
+import com.fluxfund.api.domain.financialtransaction.TechnicalMovementType;
 import com.fluxfund.api.domain.financialtransaction.TransferDirection;
 import com.fluxfund.api.domain.transactionallocation.dto.TransactionAllocationResponse;
 
 public record FinancialTransactionResponse(
-        UUID id,
+                UUID id,
 
-        AccountSummaryResponse account,
-        CategorySummaryResponse category,
+                AccountSummaryResponse account,
+                CategorySummaryResponse category,
 
-        FinancialTransactionType type,
-        FinancialTransactionSource source,
-        FinancialTransactionStatus status,
+                FinancialTransactionType type,
+                FinancialTransactionSource source,
+                FinancialTransactionStatus status,
 
-        String externalId,
+                String externalId,
+                boolean technicalMovement,
+                TechnicalMovementType technicalMovementType,
 
-        UUID creditCardStatementId,
-        Integer installmentNumber,
-        Integer installmentCount,
+                UUID creditCardStatementId,
+                Integer installmentNumber,
+                Integer installmentCount,
 
-        LocalDate purchaseDate,
-        LocalDate dueDate,
-        LocalDate settlementDate,
+                LocalDate purchaseDate,
+                LocalDate dueDate,
+                LocalDate settlementDate,
 
-        BigDecimal expectedAmount,
-        BigDecimal settledAmount,
+                BigDecimal expectedAmount,
+                BigDecimal settledAmount,
 
-        BigDecimal interestAmount,
-        BigDecimal discountAmount,
+                BigDecimal interestAmount,
+                BigDecimal discountAmount,
 
-        String description,
-        String rawDescription,
-        String documentNumber,
+                String description,
+                String rawDescription,
+                String documentNumber,
 
-        FiscalDocumentPolicy fiscalDocumentPolicy,
-        String fiscalDocumentNote,
+                FiscalDocumentPolicy fiscalDocumentPolicy,
+                String fiscalDocumentNote,
 
-        List<TransactionAllocationResponse> allocations,
+                List<TransactionAllocationResponse> allocations,
 
-        LocalDateTime importedAt,
-        LocalDateTime classifiedAt,
+                LocalDateTime importedAt,
+                LocalDateTime classifiedAt,
 
-        OffsetDateTime createdAt,
-        OffsetDateTime updatedAt,
+                OffsetDateTime createdAt,
+                OffsetDateTime updatedAt,
 
-        long attachmentCount,
-        long paymentProofAttachmentCount,
-        long fiscalAttachmentCount,
+                long attachmentCount,
+                long paymentProofAttachmentCount,
+                long fiscalAttachmentCount,
 
-        TransferDirection transferDirection,
-        UUID transferGroupId,
-        AccountSummaryResponse transferCounterpartyAccount) {
-
+                TransferDirection transferDirection,
+                UUID transferGroupId,
+                AccountSummaryResponse transferCounterpartyAccount) {
 }

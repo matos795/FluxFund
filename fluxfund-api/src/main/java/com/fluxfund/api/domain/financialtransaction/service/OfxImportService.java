@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
+import com.fluxfund.api.domain.financialtransaction.TechnicalMovementType;
 import com.fluxfund.api.domain.financialtransaction.dto.ImportOfxResponse;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
 import com.fluxfund.api.domain.importbatch.ImportBatch;
@@ -49,280 +51,269 @@ import lombok.RequiredArgsConstructor;
 @Transactional
 public class OfxImportService {
 
-    private final FinancialTransactionRepository financialTransactionRepository;
-    private final OrganizationRepository organizationRepository;
-    private final AccountRepository accountRepository;
-    private final OrganizationAccessService organizationAccessService;
-    private final AuditLogService auditLogService;
-    private final OfxTextNormalizer ofxTextNormalizer;
-    private final ImportBatchRepository importBatchRepository;
+        private final FinancialTransactionRepository financialTransactionRepository;
+        private final OrganizationRepository organizationRepository;
+        private final AccountRepository accountRepository;
+        private final OrganizationAccessService organizationAccessService;
+        private final AuditLogService auditLogService;
+        private final OfxTextNormalizer ofxTextNormalizer;
+        private final ImportBatchRepository importBatchRepository;
+        private final NubankPixCreditBridgeDetector technicalMovementDetector;
 
-    public ImportOfxResponse importOfx(
-            UUID organizationId,
-            UUID accountId,
-            MultipartFile file) {
-        organizationAccessService.requireFinanceWriteAccess(organizationId);
-        validateFile(file);
+        public ImportOfxResponse importOfx(
+                        UUID organizationId,
+                        UUID accountId,
+                        MultipartFile file) {
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
+                validateFile(file);
 
-        Organization organization = organizationRepository.findByIdAndActiveTrue(organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+                Organization organization = organizationRepository.findByIdAndActiveTrue(organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
-        Account account = accountRepository.findByIdAndOrganizationIdAndActiveTrue(accountId, organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
+                Account account = accountRepository.findByIdAndOrganizationIdAndActiveTrue(accountId, organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
 
-        ImportBatch importBatch = new ImportBatch();
+                ImportBatch importBatch = new ImportBatch();
+                importBatch.setOrganization(organization);
+                importBatch.setAccount(account);
+                importBatch.setSourceType(ImportBatchSourceType.OFX);
+                importBatch.setImportProfile(null);
+                importBatch.setOriginalFilename(resolveOriginalFilename(file));
+                importBatch.setStatus(ImportBatchStatus.ACTIVE);
+                importBatch.setImportedCount(0);
+                importBatch.setIgnoredDuplicatesCount(0);
+                importBatch.setFailedCount(0);
+                importBatch.setImportedAt(LocalDateTime.now());
+                importBatch = importBatchRepository.save(importBatch);
 
-        importBatch.setOrganization(
-                organization);
+                int imported = 0;
+                int ignoredDuplicates = 0;
+                int failed = 0;
+                List<String> errors = new ArrayList<>();
 
-        importBatch.setAccount(
-                account);
+                try (InputStream inputStream = file.getInputStream()) {
+                        AggregateUnmarshaller<ResponseEnvelope> unmarshaller = new AggregateUnmarshaller<>(
+                                        ResponseEnvelope.class);
+                        ResponseEnvelope envelope = unmarshaller.unmarshal(inputStream);
 
-        importBatch.setSourceType(
-                ImportBatchSourceType.OFX);
+                        BankingResponseMessageSet bankResponse = (BankingResponseMessageSet) envelope
+                                        .getMessageSet(MessageSetType.banking);
 
-        importBatch.setImportProfile(
-                null);
+                        if (bankResponse == null || bankResponse.getStatementResponses() == null
+                                        || bankResponse.getStatementResponses().isEmpty()) {
+                                throw new BusinessException("OFX file não contém resposta de extrato bancário.");
+                        }
 
-        importBatch.setOriginalFilename(
-                resolveOriginalFilename(
-                        file));
+                        BankStatementResponseTransaction statementTransaction = bankResponse.getStatementResponses()
+                                        .get(0);
+                        BankStatementResponse statement = statementTransaction.getMessage();
 
-        importBatch.setStatus(
-                ImportBatchStatus.ACTIVE);
+                        List<Transaction> transactions = statement.getTransactionList().getTransactions();
 
-        importBatch.setImportedCount(
-                0);
+                        Map<String, TechnicalMovementType> technicalMovements = technicalMovementDetector
+                                        .detect(transactions);
 
-        importBatch.setIgnoredDuplicatesCount(
-                0);
+                        for (Transaction ofxTransaction : transactions) {
+                                try {
+                                        String externalId = normalizeExternalId(ofxTransaction);
 
-        importBatch.setFailedCount(
-                0);
+                                        if (externalId == null || externalId.isBlank()) {
+                                                failed++;
+                                                errors.add("Transação sem FITID ignorada.");
+                                                continue;
+                                        }
 
-        importBatch.setImportedAt(
-                LocalDateTime.now());
+                                        boolean alreadyExists = financialTransactionRepository
+                                                        .existsByOrganizationIdAndAccountIdAndExternalId(
+                                                                        organizationId,
+                                                                        accountId,
+                                                                        externalId);
 
-        importBatch = importBatchRepository.save(
-                importBatch);
+                                        if (alreadyExists) {
+                                                ignoredDuplicates++;
+                                                continue;
+                                        }
 
-        int imported = 0;
-        int ignoredDuplicates = 0;
-        int failed = 0;
-        List<String> errors = new ArrayList<>();
+                                        FinancialTransaction financialTransaction = createFinancialTransactionFromOfx(
+                                                        organization,
+                                                        account,
+                                                        ofxTransaction,
+                                                        externalId);
 
-        try (InputStream inputStream = file.getInputStream()) {
-            AggregateUnmarshaller<ResponseEnvelope> unmarshaller = new AggregateUnmarshaller<>(ResponseEnvelope.class);
-            ResponseEnvelope envelope = unmarshaller.unmarshal(inputStream);
+                                        TechnicalMovementType technicalMovementType = technicalMovements.get(externalId);
 
-            BankingResponseMessageSet bankResponse = (BankingResponseMessageSet) envelope
-                    .getMessageSet(MessageSetType.banking);
+                                        if (technicalMovementType != null) {
+                                                financialTransaction.markAsTechnicalMovement(technicalMovementType);
+                                        }
 
-            if (bankResponse == null || bankResponse.getStatementResponses() == null
-                    || bankResponse.getStatementResponses().isEmpty()) {
-                throw new BusinessException("OFX file não contém resposta de extrato bancário.");
-            }
+                                        financialTransaction.setImportBatch(importBatch);
 
-            BankStatementResponseTransaction statementTransaction = bankResponse.getStatementResponses().get(0);
-            BankStatementResponse statement = statementTransaction.getMessage();
+                                        financialTransactionRepository.save(financialTransaction);
+                                        imported++;
 
-            List<Transaction> transactions = statement.getTransactionList().getTransactions();
+                                } catch (Exception exception) {
+                                        failed++;
+                                        errors.add("Erro ao importar transação: " + exception.getMessage());
+                                }
+                        }
 
-            for (Transaction ofxTransaction : transactions) {
-                try {
-                    String externalId = normalizeExternalId(ofxTransaction);
+                        importBatch.setImportedCount(imported);
+                        importBatch.setIgnoredDuplicatesCount(ignoredDuplicates);
+                        importBatch.setFailedCount(failed);
+                        importBatchRepository.save(importBatch);
 
-                    if (externalId == null || externalId.isBlank()) {
-                        failed++;
-                        errors.add("Transação sem FITID ignorada.");
-                        continue;
-                    }
+                        auditLogService.record(
+                                        organizationId,
+                                        AuditEntityType.OFX_IMPORT,
+                                        accountId,
+                                        AuditAction.IMPORT_OFX,
+                                        "OFX batch %s imported for account %s: imported=%d, duplicates=%d, failed=%d"
+                                                        .formatted(
+                                                                        importBatch.getId(),
+                                                                        accountId,
+                                                                        imported,
+                                                                        ignoredDuplicates,
+                                                                        failed));
 
-                    boolean alreadyExists = financialTransactionRepository
-                            .existsByOrganizationIdAndAccountIdAndExternalId(
-                                    organizationId,
-                                    accountId,
-                                    externalId);
-
-                    if (alreadyExists) {
-                        ignoredDuplicates++;
-                        continue;
-                    }
-
-                    FinancialTransaction financialTransaction = createFinancialTransactionFromOfx(
-                            organization,
-                            account,
-                            ofxTransaction,
-                            externalId);
-
-                    financialTransaction.setImportBatch(importBatch);
-
-                    financialTransactionRepository.save(financialTransaction);
-                    imported++;
-
+                        return new ImportOfxResponse(
+                                        imported,
+                                        ignoredDuplicates,
+                                        failed,
+                                        errors,
+                                        importBatch.getId());
                 } catch (Exception exception) {
-                    failed++;
-                    errors.add("Erro ao importar transação: " + exception.getMessage());
+                        throw new BusinessException("Could not import OFX file: " + exception.getMessage());
                 }
-            }
-
-            importBatch.setImportedCount(imported);
-            importBatch.setIgnoredDuplicatesCount(ignoredDuplicates);
-            importBatch.setFailedCount(failed);
-            importBatchRepository.save(importBatch);
-
-            auditLogService.record(
-                    organizationId,
-                    AuditEntityType.OFX_IMPORT,
-                    accountId,
-                    AuditAction.IMPORT_OFX,
-                    "OFX batch %s imported for account %s: imported=%d, duplicates=%d, failed=%d"
-                            .formatted(
-                                    importBatch.getId(),
-                                    accountId,
-                                    imported,
-                                    ignoredDuplicates,
-                                    failed));
-
-            return new ImportOfxResponse(
-                    imported,
-                    ignoredDuplicates,
-                    failed,
-                    errors,
-                    importBatch.getId());
-        } catch (Exception exception) {
-            throw new BusinessException("Could not import OFX file: " + exception.getMessage());
-        }
-    }
-
-    private void validateFile(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new BusinessException("OFX file is required");
         }
 
-        String filename = file.getOriginalFilename();
+        private void validateFile(MultipartFile file) {
+                if (file == null || file.isEmpty()) {
+                        throw new BusinessException("OFX file is required");
+                }
 
-        if (filename == null || !filename.toLowerCase().endsWith(".ofx")) {
-            throw new BusinessException("File must be an OFX file");
-        }
-    }
+                String filename = file.getOriginalFilename();
 
-    private FinancialTransaction createFinancialTransactionFromOfx(
-            Organization organization,
-            Account account,
-            Transaction ofxTransaction,
-            String externalId) {
-        Double amountDouble = ofxTransaction.getAmount();
-
-        if (amountDouble == null) {
-            throw new BusinessException("Transaction amount must be provided");
+                if (filename == null || !filename.toLowerCase().endsWith(".ofx")) {
+                        throw new BusinessException("File must be an OFX file");
+                }
         }
 
-        BigDecimal amount = BigDecimal.valueOf(amountDouble);
+        private FinancialTransaction createFinancialTransactionFromOfx(
+                        Organization organization,
+                        Account account,
+                        Transaction ofxTransaction,
+                        String externalId) {
+                Double amountDouble = ofxTransaction.getAmount();
 
-        if (amount.compareTo(BigDecimal.ZERO) == 0) {
-            throw new BusinessException("Transaction amount must be different from zero");
+                if (amountDouble == null) {
+                        throw new BusinessException("Transaction amount must be provided");
+                }
+
+                BigDecimal amount = BigDecimal.valueOf(amountDouble);
+
+                if (amount.compareTo(BigDecimal.ZERO) == 0) {
+                        throw new BusinessException("Transaction amount must be different from zero");
+                }
+
+                FinancialTransactionType type = amount.compareTo(BigDecimal.ZERO) > 0
+                                ? FinancialTransactionType.INCOME
+                                : FinancialTransactionType.EXPENSE;
+
+                BigDecimal absoluteAmount = amount.abs();
+
+                LocalDate settlementDate = ofxTransaction.getDatePosted()
+                                .toInstant()
+                                .atZone(ZoneId.systemDefault())
+                                .toLocalDate();
+
+                String rawDescription = buildDescription(ofxTransaction);
+
+                FinancialTransaction financialTransaction = new FinancialTransaction();
+
+                financialTransaction.setOrganization(organization);
+                financialTransaction.setAccount(account);
+                financialTransaction.setCategory(null);
+                financialTransaction.setType(type);
+                financialTransaction.setSource(FinancialTransactionSource.OFX);
+                financialTransaction.setStatus(FinancialTransactionStatus.SETTLED);
+                financialTransaction.setDueDate(settlementDate);
+                financialTransaction.setSettlementDate(settlementDate);
+                financialTransaction.setExpectedAmount(absoluteAmount);
+                financialTransaction.setSettledAmount(absoluteAmount);
+                financialTransaction.setInterestAmount(BigDecimal.ZERO);
+                financialTransaction.setDiscountAmount(BigDecimal.ZERO);
+                financialTransaction.setRawDescription(rawDescription);
+                financialTransaction.setDescription("");
+                financialTransaction.setImportedAt(LocalDateTime.now());
+                financialTransaction.setDocumentNumber(ofxTransaction.getCheckNumber());
+                financialTransaction.setExternalId(externalId);
+                financialTransaction.setClassifiedAt(null);
+
+                return financialTransaction;
         }
 
-        FinancialTransactionType type = amount.compareTo(BigDecimal.ZERO) > 0
-                ? FinancialTransactionType.INCOME
-                : FinancialTransactionType.EXPENSE;
+        private String normalizeExternalId(Transaction transaction) {
+                if (transaction.getId() == null) {
+                        return null;
+                }
 
-        BigDecimal absoluteAmount = amount.abs();
-
-        LocalDate settlementDate = ofxTransaction.getDatePosted()
-                .toInstant()
-                .atZone(ZoneId.systemDefault())
-                .toLocalDate();
-
-        String rawDescription = buildDescription(ofxTransaction);
-
-        FinancialTransaction financialTransaction = new FinancialTransaction();
-
-        financialTransaction.setOrganization(organization);
-        financialTransaction.setAccount(account);
-        financialTransaction.setCategory(null);
-        financialTransaction.setType(type);
-        financialTransaction.setSource(FinancialTransactionSource.OFX);
-        financialTransaction.setStatus(FinancialTransactionStatus.SETTLED);
-        financialTransaction.setDueDate(settlementDate);
-        financialTransaction.setSettlementDate(settlementDate);
-        financialTransaction.setExpectedAmount(absoluteAmount);
-        financialTransaction.setSettledAmount(absoluteAmount);
-        financialTransaction.setInterestAmount(BigDecimal.ZERO);
-        financialTransaction.setDiscountAmount(BigDecimal.ZERO);
-        financialTransaction.setRawDescription(rawDescription);
-        financialTransaction.setDescription("");
-        financialTransaction.setImportedAt(LocalDateTime.now());
-        financialTransaction.setDocumentNumber(ofxTransaction.getCheckNumber());
-        financialTransaction.setExternalId(externalId);
-        financialTransaction.setClassifiedAt(null);
-
-        return financialTransaction;
-    }
-
-    private String normalizeExternalId(Transaction transaction) {
-        if (transaction.getId() == null) {
-            return null;
+                return transaction.getId().trim();
         }
 
-        return transaction.getId().trim();
-    }
+        private String buildDescription(
+                        Transaction transaction) {
 
-    private String buildDescription(
-            Transaction transaction) {
+                if (transaction.getMemo() != null
+                                && !transaction.getMemo().isBlank()) {
 
-        if (transaction.getMemo() != null
-                && !transaction.getMemo().isBlank()) {
+                        return normalizeDescription(
+                                        transaction.getMemo());
+                }
 
-            return normalizeDescription(
-                    transaction.getMemo());
+                if (transaction.getName() != null
+                                && !transaction.getName().isBlank()) {
+
+                        return normalizeDescription(
+                                        transaction.getName());
+                }
+
+                return "Transação importada via OFX";
         }
 
-        if (transaction.getName() != null
-                && !transaction.getName().isBlank()) {
+        private String normalizeDescription(
+                        String value) {
 
-            return normalizeDescription(
-                    transaction.getName());
+                return ofxTextNormalizer
+                                .normalize(value)
+                                .trim();
         }
 
-        return "Transação importada via OFX";
-    }
+        private String resolveOriginalFilename(
+                        MultipartFile file) {
 
-    private String normalizeDescription(
-            String value) {
+                String filename = file.getOriginalFilename();
 
-        return ofxTextNormalizer
-                .normalize(value)
-                .trim();
-    }
+                if (filename == null
+                                || filename.isBlank()) {
 
-    private String resolveOriginalFilename(
-            MultipartFile file) {
+                        return "importacao.ofx";
+                }
 
-        String filename = file.getOriginalFilename();
+                String sanitized = filename
+                                .replace("\\", "_")
+                                .replace("/", "_")
+                                .replace("\r", "_")
+                                .replace("\n", "_")
+                                .trim();
 
-        if (filename == null
-                || filename.isBlank()) {
+                if (sanitized.length() <= 255) {
+                        return sanitized;
+                }
 
-            return "importacao.ofx";
+                return sanitized
+                                .substring(
+                                                0,
+                                                251)
+                                + ".ofx";
         }
-
-        String sanitized = filename
-                .replace("\\", "_")
-                .replace("/", "_")
-                .replace("\r", "_")
-                .replace("\n", "_")
-                .trim();
-
-        if (sanitized.length() <= 255) {
-            return sanitized;
-        }
-
-        return sanitized
-                .substring(
-                        0,
-                        251)
-                + ".ofx";
-    }
 }

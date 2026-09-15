@@ -77,6 +77,10 @@ public class AttachmentService {
                                 .findByIdAndOrganizationId(transactionId, organizationId)
                                 .orElseThrow(() -> new ResourceNotFoundException("Financial transaction not found"));
 
+                if (transaction.isTechnicalMovement()) {
+                        throw new BusinessException("Technical movements are managed automatically");
+                }
+
                 String originalFileName = file.getOriginalFilename() != null
                                 ? sanitizeFilename(file.getOriginalFilename())
                                 : "file";

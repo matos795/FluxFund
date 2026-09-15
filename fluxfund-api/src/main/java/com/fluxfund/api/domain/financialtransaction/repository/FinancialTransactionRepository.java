@@ -52,6 +52,7 @@ public interface FinancialTransactionRepository
                     where t.organization.id = :organizationId
                       and t.status = :status
                       and t.type = :type
+                      and t.technicalMovement = false
                       and coalesce(
                     t.purchaseDate,
                     t.settlementDate
@@ -70,6 +71,7 @@ public interface FinancialTransactionRepository
             where t.organization.id = :organizationId
               and t.status = :status
               and t.type = :type
+              and t.technicalMovement = false
             """)
     BigDecimal sumSettledAmountByType(
             @Param("organizationId") UUID organizationId,
@@ -80,12 +82,9 @@ public interface FinancialTransactionRepository
             select count(transaction)
             from FinancialTransaction transaction
 
-            where transaction.organization.id =
-                :organizationId
-
-              and transaction.status <>
-                :canceledStatus
-
+            where transaction.organization.id = :organizationId
+              and transaction.status <> :canceledStatus
+              and transaction.technicalMovement = false
               and coalesce(
                     transaction.purchaseDate,
                     transaction.settlementDate
@@ -104,6 +103,7 @@ public interface FinancialTransactionRepository
             where t.organization.id = :organizationId
               and t.status <> :canceledStatus
               and t.type <> :transferType
+              and t.technicalMovement = false
               and t.category is null
             """)
     long countUnclassifiedByOrganizationId(
@@ -117,6 +117,7 @@ public interface FinancialTransactionRepository
             where t.organization.id = :organizationId
               and t.status = :settledStatus
               and t.type <> :transferType
+              and t.technicalMovement = false
               and t.category is not null
               and abs(t.settledAmount) > (
                   select coalesce(sum(abs(a.amount)), 0)

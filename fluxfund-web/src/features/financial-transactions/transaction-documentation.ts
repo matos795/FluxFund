@@ -30,6 +30,7 @@ export function getTransactionDocumentationStatus(
     const paymentProofCount = transaction.paymentProofAttachmentCount ?? 0
 
     if (
+        transaction.technicalMovement ||
         transaction.status === "CANCELED" ||
         transaction.type === "TRANSFER" ||
         transaction.status !== "SETTLED"

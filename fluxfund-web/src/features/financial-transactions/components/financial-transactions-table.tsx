@@ -314,10 +314,17 @@ export function FinancialTransactionsTable({
                             />
                           </TableCell>
                         )}
-                        
+
                         <TableCell>
                           <div className="flex flex-col gap-1">
-                            {needsFinancialTransactionClassification(transaction) ? (
+                            {transaction.technicalMovement ? (
+                              <Badge
+                                variant="secondary"
+                                className="w-fit"
+                              >
+                                Movimento técnico
+                              </Badge>
+                            ) : needsFinancialTransactionClassification(transaction) ? (
                               <Badge className="w-fit bg-orange-100 text-orange-700 hover:bg-orange-100">
                                 <AlertCircle className="mr-1 size-3" />
                                 Classificar
@@ -482,6 +489,7 @@ export function FinancialTransactionsTable({
           onTabChange={setWorkspaceTab}
           canEdit={
             canFinanceWrite &&
+            !workspaceTransaction.technicalMovement &&
             workspaceTransaction.status !== "CANCELED" &&
             workspaceTransaction.status !== "IMPORTED" &&
             workspaceTransaction.type !== "TRANSFER" &&
@@ -489,20 +497,21 @@ export function FinancialTransactionsTable({
           }
           canManageAllocations={
             canFinanceWrite &&
+            !workspaceTransaction.technicalMovement &&
             workspaceTransaction.status === "SETTLED" &&
             workspaceTransaction.type !== "TRANSFER" &&
             !needsFinancialTransactionClassification(workspaceTransaction)
           }
           canManageAttachments={
             canFinanceWrite &&
+            !workspaceTransaction.technicalMovement &&
             workspaceTransaction.status !== "CANCELED" &&
             workspaceTransaction.status !== "IMPORTED" &&
             workspaceTransaction.type !== "TRANSFER" &&
             !needsFinancialTransactionClassification(workspaceTransaction)
           }
           canClassify={
-            canFinanceWrite &&
-            needsFinancialTransactionClassification(workspaceTransaction)
+            canFinanceWrite && needsFinancialTransactionClassification(workspaceTransaction)
           }
         />
       )}
@@ -513,7 +522,8 @@ export function FinancialTransactionsTable({
 type AllocationStatus = "NOT_APPLICABLE" | "FULL" | "PARTIAL" | "NONE"
 
 function getAllocationStatus(transaction: FinancialTransaction): AllocationStatus {
-  if (transaction.type === "TRANSFER") {
+
+  if (transaction.technicalMovement ||  transaction.type === "TRANSFER") {
     return "NOT_APPLICABLE"
   }
 
