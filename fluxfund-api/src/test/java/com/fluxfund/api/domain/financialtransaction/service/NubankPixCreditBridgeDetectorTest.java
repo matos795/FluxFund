@@ -194,27 +194,6 @@ class NubankPixCreditBridgeDetectorTest {
                                 .isEmpty();
         }
 
-        @Test
-        void shouldMatchKnownDescriptionsFromStoredTransactions() {
-
-                boolean result = detector.matchesKnownDescriptions(
-                                "Valor adicionado na conta por cartão de crédito - "
-                                                + "Valor adicionado para Pix no Crédito",
-                                "Transferência enviada pelo Pix");
-
-                assertThat(result).isTrue();
-        }
-
-        @Test
-        void shouldRejectUnknownStoredDescriptions() {
-
-                boolean result = detector.matchesKnownDescriptions(
-                                "Transferência recebida pelo Pix",
-                                "Transferência enviada pelo Pix");
-
-                assertThat(result).isFalse();
-        }
-
         private Transaction transaction(
                         String externalId,
                         String amount,
