@@ -116,10 +116,10 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
                 on a.fund = f
                 and a.organization.id = :organizationId
                 and a.financialTransaction.status = FinancialTransactionStatus.SETTLED
+                and a.financialTransaction.technicalMovement = false
             left join a.financialTransaction ft
             where f.organization.id = :organizationId
               and f.active = true
-              and ft.technicalMovement = false
             group by f.id, f.name, f.initialBalance
             order by f.name asc
             """)
@@ -266,6 +266,7 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             where a.organization.id = :organizationId
               and a.fund.active = true
               and a.financialTransaction.status = FinancialTransactionStatus.SETTLED
+              and a.financialTransaction.technicalMovement = false
             """)
     BigDecimal sumSettledActiveFundAllocationsByOrganizationId(
             @Param("organizationId") UUID organizationId);
@@ -402,6 +403,7 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
                                       and allocation.financialCommitment is null
                                       and allocation.referenceMonth is not null
                                       and financialTransaction.status = FinancialTransactionStatus.SETTLED
+                                      and financialTransaction.technicalMovement = false
                                       and financialTransaction.type <> FinancialTransactionType.TRANSFER
                                       and allocation.referenceMonth between :startMonth and :endMonth
                                       and (

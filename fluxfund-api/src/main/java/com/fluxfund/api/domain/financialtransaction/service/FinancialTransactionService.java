@@ -623,13 +623,9 @@ public class FinancialTransactionService {
         }
 
         public TransactionAllocationResponse linkFinancialCommitment(
-
                         UUID organizationId,
-
                         UUID transactionId,
-
                         UUID allocationId,
-
                         UUID financialCommitmentId) {
 
                 organizationAccessService
@@ -637,10 +633,10 @@ public class FinancialTransactionService {
                                                 organizationId);
 
                 FinancialTransaction transaction = findFinancialTransactionById(
-
                                 organizationId,
-
                                 transactionId);
+
+                validateUserManagedTransaction(transaction);
 
                 TransactionAllocation allocation = transaction
                                 .getAllocations()
@@ -710,6 +706,8 @@ public class FinancialTransactionService {
                 organizationAccessService.requireFinanceWriteAccess(organizationId);
 
                 FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
+
+                validateUserManagedTransaction(financialTransaction);
 
                 TransactionAllocation allocation = financialTransaction.getAllocations().stream()
                                 .filter(a -> a.getId().equals(allocationId))
@@ -2066,11 +2064,13 @@ public class FinancialTransactionService {
                 return suggestions;
         }
 
-        private boolean isEligibleForTransferMatching(
-                        FinancialTransaction transaction) {
+        private boolean isEligibleForTransferMatching(FinancialTransaction transaction) {
+
+                if (transaction.isTechnicalMovement()) {
+                        return false;
+                }
 
                 if (transaction.getStatus() != FinancialTransactionStatus.SETTLED) {
-
                         return false;
                 }
 

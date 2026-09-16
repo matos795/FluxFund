@@ -175,6 +175,10 @@ public class FinancialTransactionSpecification {
                                 predicates = cb.and(
                                                 predicates,
                                                 cb.notEqual(root.get("type"), FinancialTransactionType.TRANSFER));
+
+                                predicates = cb.and(
+                                                predicates,
+                                                cb.isFalse(root.get("technicalMovement")));
                         }
 
                         if (Boolean.TRUE.equals(onlyUnallocated)) {
@@ -189,6 +193,10 @@ public class FinancialTransactionSpecification {
                                 predicates = cb.and(
                                                 predicates,
                                                 cb.isNotNull(root.get("category")));
+
+                                predicates = cb.and(
+                                                predicates,
+                                                cb.isFalse(root.get("technicalMovement")));
 
                                 Subquery<BigDecimal> allocationSum = query.subquery(BigDecimal.class);
                                 Root<TransactionAllocation> allocationRoot = allocationSum
