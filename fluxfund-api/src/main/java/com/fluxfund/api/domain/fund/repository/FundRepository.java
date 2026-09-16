@@ -60,6 +60,7 @@ public interface FundRepository extends JpaRepository<Fund, UUID> {
                     where a.fund_id = f.id
                       and a.organization_id = :organizationId
                       and t.status = 'SETTLED'
+                      and t.technical_movement = false
                 ), 0)
                 +
                 coalesce((
@@ -89,6 +90,7 @@ public interface FundRepository extends JpaRepository<Fund, UUID> {
                                                     and t.status = 'SETTLED'
                                                     and t.type = 'INCOME'
                                                     and t.settlement_date between :startDate and :endDate
+                                                    and t.technical_movement = false
                                               ), 0) as incomeAllocated,
 
                                               coalesce((
@@ -100,6 +102,7 @@ public interface FundRepository extends JpaRepository<Fund, UUID> {
                                                     and t.status = 'SETTLED'
                                                     and t.type = 'EXPENSE'
                                                     and t.settlement_date between :startDate and :endDate
+                                                    and t.technical_movement = false
                                               ), 0) as expenseAllocated
 
                                           from fund f
@@ -115,6 +118,7 @@ public interface FundRepository extends JpaRepository<Fund, UUID> {
               where a.fund_id = f.id
                 and a.organization_id = :organizationId
                 and t.status = 'SETTLED'
+                and t.technical_movement = false
           ), 0)
           +
           coalesce((
@@ -157,6 +161,7 @@ public interface FundRepository extends JpaRepository<Fund, UUID> {
                 where a.fund_id = f.id
                   and a.organization_id = :organizationId
                   and t.status = 'SETTLED'
+                  and t.technical_movement = false
             ), 0)
             +
             coalesce((
@@ -193,6 +198,7 @@ public interface FundRepository extends JpaRepository<Fund, UUID> {
                   where a.fund_id = f.id
                     and a.organization_id = :organizationId
                     and t.status = 'SETTLED'
+                    and t.technical_movement = false
               ), 0)
               +
               coalesce((
@@ -225,6 +231,7 @@ public interface FundRepository extends JpaRepository<Fund, UUID> {
                 where a.fund_id = f.id
                   and a.organization_id = :organizationId
                   and t.status = 'SETTLED'
+                  and t.technical_movement = false
             ), 0)
             +
             coalesce((
