@@ -1381,19 +1381,23 @@ public class ClosingDossierPdfGenerator {
 
                 List<FinancialTransaction> cashTransactions = getCashTransactions(accountData);
 
+                List<FinancialTransaction> economicTransactions = cashTransactions.stream()
+                                .filter(transaction -> !transaction.isTechnicalMovement())
+                                .toList();
+
                 BigDecimal incomeTotal = sumTransactionsByType(
-                                cashTransactions,
+                                economicTransactions,
                                 FinancialTransactionType.INCOME);
 
                 BigDecimal expenseTotal = sumTransactionsByType(
-                                cashTransactions,
+                                economicTransactions,
                                 FinancialTransactionType.EXPENSE);
 
                 BigDecimal transferTotal = sumTransactionsByType(
-                                cashTransactions,
+                                economicTransactions,
                                 FinancialTransactionType.TRANSFER);
 
-                long paidCreditCardStatements = cashTransactions.stream()
+                long paidCreditCardStatements = economicTransactions.stream()
                                 .filter(transaction -> accountData.findCreditCardStatementForPayment(transaction)
                                                 .isPresent())
                                 .count();
@@ -1426,6 +1430,11 @@ public class ClosingDossierPdfGenerator {
                 writeTransactionList(writer, accountData);
 
                 for (FinancialTransaction transaction : cashTransactions) {
+
+                        if (transaction.isTechnicalMovement()) {
+                                continue;
+                        }
+
                         var creditCardStatement = accountData.findCreditCardStatementForPayment(transaction);
 
                         if (creditCardStatement.isPresent()) {
@@ -1504,7 +1513,7 @@ public class ClosingDossierPdfGenerator {
                         writer.writeSmallLine(
                                         formatDate(transaction.getSettlementDate())
                                                         + " | "
-                                                        + getTransactionTypeLabel(transaction.getType())
+                                                        + getDossierMovementLabel(transaction)
                                                         + " | "
                                                         + formatCurrency(
                                                                         getTransactionAmount(transaction)));
@@ -1527,6 +1536,24 @@ public class ClosingDossierPdfGenerator {
                 }
 
                 writer.closeCurrentPage();
+        }
+
+        private String getDossierMovementLabel(
+                        FinancialTransaction transaction) {
+
+                if (!transaction.isTechnicalMovement()) {
+                        return getTransactionTypeLabel(
+                                        transaction.getType());
+                }
+
+                return switch (transaction.getType()) {
+
+                        case INCOME -> "Movimento técnico · entrada";
+
+                        case EXPENSE -> "Movimento técnico · saída";
+
+                        default -> "Movimento técnico";
+                };
         }
 
         private PDPage writeCreditCardStatementSection(

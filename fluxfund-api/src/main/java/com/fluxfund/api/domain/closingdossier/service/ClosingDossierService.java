@@ -224,8 +224,11 @@ public class ClosingDossierService {
                                         List.of());
 
                         List<FinancialTransaction> accountMovementTransactions = accountTransactions.stream()
-                                        .filter(transaction -> !creditCardStatementItemIds.contains(
-                                                        transaction.getId()))
+                                        .filter(transaction -> !creditCardStatementItemIds.contains(transaction.getId()))
+                                        .toList();
+
+                        List<FinancialTransaction> economicTransactions = accountMovementTransactions.stream()
+                                        .filter(transaction -> !transaction.isTechnicalMovement())
                                         .toList();
 
                         List<BankStatementDocumentResponse> statementDocuments = statementsByAccountId.getOrDefault(
@@ -252,7 +255,7 @@ public class ClosingDossierService {
 
                         List<ClosingDossierDocumentIssueResponse> fiscalDocumentIssues = new ArrayList<>();
 
-                        for (FinancialTransaction transaction : accountMovementTransactions) {
+                        for (FinancialTransaction transaction : economicTransactions) {
                                 if (transaction.getType() != FinancialTransactionType.EXPENSE) {
                                         continue;
                                 }
@@ -298,11 +301,11 @@ public class ClosingDossierService {
 
                                         accountMovementTransactions.size(),
 
-                                        sumByType(accountMovementTransactions, FinancialTransactionType.INCOME),
+                                        sumByType(economicTransactions, FinancialTransactionType.INCOME),
 
-                                        sumByType(accountMovementTransactions, FinancialTransactionType.EXPENSE),
+                                        sumByType(economicTransactions, FinancialTransactionType.EXPENSE),
 
-                                        sumByType(accountMovementTransactions, FinancialTransactionType.TRANSFER),
+                                        sumByType(economicTransactions, FinancialTransactionType.TRANSFER),
 
                                         paymentProofIssues,
                                         fiscalDocumentIssues));

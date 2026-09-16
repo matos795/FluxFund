@@ -165,7 +165,7 @@ export function ClosingDossierAccountCard({
                 label="Transferências"
                 value={formatCurrency(account.transferTotal)}
               />
-              <Metric label="Transações" value={String(account.transactionCount)} />
+              <Metric label="Movimentações" value={String(account.transactionCount)} />
             </div>
           )}
 

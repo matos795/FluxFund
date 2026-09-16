@@ -36,8 +36,7 @@ import com.fluxfund.api.domain.transactionallocation.TransactionAllocation;
 class TransactionAllocationRepositoryIntegrationTest {
 
         @Container
-        static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(
-                        "postgres:17-alpine");
+        static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17-alpine");
 
         @DynamicPropertySource
         static void configureDatabase(DynamicPropertyRegistry registry) {
@@ -471,10 +470,7 @@ class TransactionAllocationRepositoryIntegrationTest {
 
                 Fund fund = createFund(organization);
 
-                Beneficiary joao = createParty(
-                                organization,
-                                "João",
-                                BeneficiaryType.DONOR);
+                Beneficiary joao = createParty(organization, "João", BeneficiaryType.DONOR);
 
                 createIncomeAllocation(
                                 organization,
@@ -525,15 +521,10 @@ class TransactionAllocationRepositoryIntegrationTest {
                                                 LocalDate.of(2026, 8, 31));
 
                 assertThat(ranking).hasSize(1);
-
                 assertThat(ranking.getFirst().getTotalAmount()).isEqualByComparingTo("1000.00");
-
                 assertThat(ranking.getFirst().getAllocationCount()).isEqualTo(1L);
-
                 assertThat(monthly).hasSize(1);
-
-                assertThat(monthly.getFirst().getTotalAmount())
-                                .isEqualByComparingTo("1000.00");
+                assertThat(monthly.getFirst().getTotalAmount()).isEqualByComparingTo("1000.00");
         }
 
         private Organization createOrganization(String name) {
