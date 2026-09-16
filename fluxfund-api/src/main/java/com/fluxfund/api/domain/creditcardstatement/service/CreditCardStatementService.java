@@ -834,24 +834,19 @@ public class CreditCardStatementService {
         }
 
         private void validateAndPreparePaymentTransaction(
-
                         UUID organizationId,
-
                         CreditCardStatement statement,
-
                         Account paymentAccount,
-
                         FinancialTransaction transaction,
-
                         BigDecimal expectedAmount) {
 
-                if (paymentRepository
-                                .existsByOrganizationIdAndPaymentTransactionId(
-                                                organizationId,
-                                                transaction.getId())) {
+                if (transaction.isTechnicalMovement()) {
+                        throw new BusinessException("Technical movements cannot be used as credit card payments");
+                }
 
-                        throw new BusinessException(
-                                        "Payment transaction is already linked");
+                if (paymentRepository.existsByOrganizationIdAndPaymentTransactionId(
+                                organizationId, transaction.getId())) {
+                        throw new BusinessException("Payment transaction is already linked");
                 }
 
                 if (!transaction
@@ -859,14 +854,11 @@ public class CreditCardStatementService {
                                 .getId()
                                 .equals(paymentAccount.getId())) {
 
-                        throw new BusinessException(
-                                        "Payment transaction belongs to another account");
+                        throw new BusinessException("Payment transaction belongs to another account");
                 }
 
                 if (transaction.getStatus() != FinancialTransactionStatus.SETTLED) {
-
-                        throw new BusinessException(
-                                        "Payment transaction must be settled");
+                        throw new BusinessException("Payment transaction must be settled");
                 }
 
                 BigDecimal transactionAmount = transaction.getSettledAmount() != null

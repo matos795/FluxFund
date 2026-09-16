@@ -28,6 +28,9 @@ export type FiscalDocumentPolicy =
   | "WAIVED"
   | "MISSING"
 
+export type TechnicalMovementType =
+  | "NUBANK_PIX_CREDIT_BRIDGE"
+
 export type TransferDirection = "IN" | "OUT"
 
 export type TransactionAllocation = {
@@ -59,6 +62,8 @@ export type FinancialTransaction = {
   status: FinancialTransactionStatus
 
   externalId: string | null
+  technicalMovement: boolean
+  technicalMovementType: TechnicalMovementType | null
 
   creditCardStatementId: string | null
   installmentNumber: number | null

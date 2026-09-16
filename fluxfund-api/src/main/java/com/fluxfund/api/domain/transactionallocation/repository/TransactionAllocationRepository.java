@@ -13,6 +13,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
+import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityByAccountProjection;
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityOpeningBalanceProjection;
 import com.fluxfund.api.domain.report.dto.accountability.AccountabilityReportProjection;
@@ -44,6 +45,7 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             where a.fund.id = :fundId
               and a.organization.id = :organizationId
               and a.financialTransaction.status = 'SETTLED'
+              and a.financialTransaction.technicalMovement = false
             """)
     BigDecimal sumAmountByFundId(
             @Param("organizationId") UUID organizationId,
@@ -55,6 +57,7 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             where a.fund.id = :fundId
               and a.organization.id = :organizationId
               and a.financialTransaction.status = 'SETTLED'
+              and a.financialTransaction.technicalMovement = false
               and a.financialTransaction.id <> :excludedTransactionId
             """)
     BigDecimal sumAmountByFundIdExcludingTransaction(
@@ -68,6 +71,7 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             where a.organization.id = :organizationId
               and a.fund.active = true
               and a.financialTransaction.status <> :canceledStatus
+              and a.financialTransaction.technicalMovement = false
             """)
     BigDecimal sumActiveFundAllocationsByOrganizationId(
             @Param("organizationId") UUID organizationId,
@@ -111,7 +115,8 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             left join TransactionAllocation a
                 on a.fund = f
                 and a.organization.id = :organizationId
-                and a.financialTransaction.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+                and a.financialTransaction.status = FinancialTransactionStatus.SETTLED
+                and a.financialTransaction.technicalMovement = false
             left join a.financialTransaction ft
             where f.organization.id = :organizationId
               and f.active = true
@@ -153,7 +158,8 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             join a.fund f
             join a.beneficiary b
             where a.organization.id = :organizationId
-              and ft.status <> com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.CANCELED
+              and ft.status <> FinancialTransactionStatus.CANCELED
+              and ft.technicalMovement = false
             group by b.id, b.name, f.id, f.name
             order by b.name asc, f.name asc
             """)
@@ -192,7 +198,8 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
                         join a.fund f
                         join a.beneficiary b
                         where a.organization.id = :organizationId
-              and ft.status <> com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.CANCELED
+              and ft.status <> FinancialTransactionStatus.CANCELED
+              and ft.technicalMovement = false
               and coalesce(
                 a.referenceMonth,
                 ft.settlementDate
@@ -239,7 +246,8 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
                         join a.fund f
                         join a.beneficiary b
                         where a.organization.id = :organizationId
-              and ft.status <> com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.CANCELED
+              and ft.status <> FinancialTransactionStatus.CANCELED
+              and ft.technicalMovement = false
               and coalesce(
                     a.referenceMonth,
                     ft.settlementDate
@@ -257,7 +265,8 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             from TransactionAllocation a
             where a.organization.id = :organizationId
               and a.fund.active = true
-              and a.financialTransaction.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+              and a.financialTransaction.status = FinancialTransactionStatus.SETTLED
+              and a.financialTransaction.technicalMovement = false
             """)
     BigDecimal sumSettledActiveFundAllocationsByOrganizationId(
             @Param("organizationId") UUID organizationId);
@@ -286,7 +295,8 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             join a.financialTransaction ft
             join a.fund f
             where a.organization.id = :organizationId
-              and ft.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+              and ft.status = FinancialTransactionStatus.SETTLED
+              and ft.technicalMovement = false
               and ft.settlementDate between :startDate and :endDate
             group by f.id
             """)
@@ -303,18 +313,11 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
 
             from TransactionAllocation allocation
 
-            where allocation.organization.id =
-                :organizationId
-
-              and allocation.financialCommitment.id =
-                :financialCommitmentId
-
-              and allocation.referenceMonth =
-                :referenceMonth
-
-              and allocation.financialTransaction.status =
-                com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
-
+            where allocation.organization.id = :organizationId
+              and allocation.financialCommitment.id = :financialCommitmentId
+              and allocation.referenceMonth = :referenceMonth
+              and allocation.financialTransaction.status = FinancialTransactionStatus.SETTLED
+              and allocation.financialTransaction.technicalMovement = false
               and (
                     :excludedAllocationId is null
                     or allocation.id <>
@@ -328,46 +331,22 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             @Param("excludedAllocationId") UUID excludedAllocationId);
 
     @Query("""
-            select
-                allocation.financialCommitment.id
-                    as commitmentId,
+            select allocation.financialCommitment.id as commitmentId,
 
-                coalesce(
-                    sum(
-                        abs(
-                            allocation.amount
-                        )
-                    ),
-                    0
-                ) as realizedAmount,
-
-                count(
-                    allocation.id
-                ) as allocationCount,
-
-                max(
-                    transaction.settlementDate
-                ) as lastSettlementDate
+                coalesce(sum(abs(allocation.amount)), 0) as realizedAmount,
+                count(allocation.id) as allocationCount,
+                max(transaction.settlementDate) as lastSettlementDate
 
             from TransactionAllocation allocation
+            join allocation.financialTransaction transaction
 
-            join allocation.financialTransaction
-                transaction
+            where allocation.organization.id = :organizationId
+              and allocation.financialCommitment is not null
+              and allocation.referenceMonth = :referenceMonth
+              and transaction.status = FinancialTransactionStatus.SETTLED
+              and allocation.financialTransaction.technicalMovement = false
 
-            where allocation.organization.id =
-                :organizationId
-
-              and allocation.financialCommitment
-                is not null
-
-              and allocation.referenceMonth =
-                :referenceMonth
-
-              and transaction.status =
-                com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
-
-            group by
-                allocation.financialCommitment.id
+            group by allocation.financialCommitment.id
             """)
     List<FinancialCommitmentRealizationProjection> findFinancialCommitmentRealizations(
             @Param("organizationId") UUID organizationId,
@@ -378,65 +357,32 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
 
                     from TransactionAllocation allocation
 
-                    join fetch
-                        allocation.financialTransaction
-                        financialTransaction
+                    join fetch allocation.financialTransaction financialTransaction
+                    join fetch financialTransaction.account account
+                    join fetch allocation.fund fund
+                    left join fetch allocation.sourceParty sourceParty
+                    left join fetch allocation.beneficiary recipientParty
 
-                    join fetch
-                        financialTransaction.account
-                        account
-
-                    join fetch
-                        allocation.fund
-                        fund
-
-                    left join fetch
-                        allocation.sourceParty
-                        sourceParty
-
-                    left join fetch
-            allocation.beneficiary
-            recipientParty
-
-                    where allocation.organization.id =
-                        :organizationId
-
-                      and allocation.financialCommitment
-                        is null
-
-                      and allocation.referenceMonth
-                        is not null
-
-                      and financialTransaction.status =
-                        com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
-
-                      and financialTransaction.type <>
-                        com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
-
-                      and allocation.referenceMonth
-                        between :startMonth
-                        and :endMonth
-
+                    where allocation.organization.id = :organizationId
+                      and allocation.financialCommitment is null
+                      and allocation.referenceMonth is not null
+                      and financialTransaction.status = FinancialTransactionStatus.SETTLED
+                      and financialTransaction.technicalMovement = false
+                      and financialTransaction.type <> FinancialTransactionType.TRANSFER
+                      and allocation.referenceMonth between :startMonth and :endMonth
                       and (
                         :transactionType is null
-                        or financialTransaction.type =
-                            :transactionType
+                        or financialTransaction.type = :transactionType
                       )
 
                       and (
                         (
-                          financialTransaction.type =
-                            com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.INCOME
-
+                          financialTransaction.type = FinancialTransactionType.INCOME
                           and sourceParty is not null
                         )
-
                         or
-
                         (
-                          financialTransaction.type =
-                            com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.EXPENSE
-
+                          financialTransaction.type = FinancialTransactionType.EXPENSE
                           and recipientParty is not null
                         )
                       )
@@ -451,52 +397,28 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
                                     select count(allocation)
 
                                     from TransactionAllocation allocation
+                                    join allocation.financialTransaction financialTransaction
 
-                                    join allocation.financialTransaction
-                                        financialTransaction
-
-                                    where allocation.organization.id =
-                                        :organizationId
-
-                                      and allocation.financialCommitment
-                                        is null
-
-                                      and allocation.referenceMonth
-                                        is not null
-
-                                      and financialTransaction.status =
-                                        com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
-
-                                      and financialTransaction.type <>
-                                        com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
-
-                                      and allocation.referenceMonth
-                                        between :startMonth
-                                        and :endMonth
-
+                                    where allocation.organization.id = :organizationId
+                                      and allocation.financialCommitment is null
+                                      and allocation.referenceMonth is not null
+                                      and financialTransaction.status = FinancialTransactionStatus.SETTLED
+                                      and financialTransaction.technicalMovement = false
+                                      and financialTransaction.type <> FinancialTransactionType.TRANSFER
+                                      and allocation.referenceMonth between :startMonth and :endMonth
                                       and (
                                         :transactionType is null
-                                        or financialTransaction.type =
-                                            :transactionType
+                                        or financialTransaction.type = :transactionType
                                       )
-
                                       and (
                                         (
-                                          financialTransaction.type =
-                                            com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.INCOME
-
-                                          and allocation.sourceParty
-                                            is not null
+                                          financialTransaction.type = FinancialTransactionType.INCOME
+                                          and allocation.sourceParty is not null
                                         )
-
                                         or
-
                                         (
-                                          financialTransaction.type =
-                                            com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.EXPENSE
-
-                                          and allocation.beneficiary
-                    is not null
+                                          financialTransaction.type = FinancialTransactionType.EXPENSE
+                                          and allocation.beneficiary is not null
                                         )
                                       )
                                     """)
@@ -504,7 +426,7 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             @Param("organizationId") UUID organizationId,
             @Param("startMonth") LocalDate startMonth,
             @Param("endMonth") LocalDate endMonth,
-            @Param("transactionType") com.fluxfund.api.domain.financialtransaction.FinancialTransactionType transactionType,
+            @Param("transactionType") FinancialTransactionType transactionType,
             Pageable pageable);
 
     @Query("""
@@ -514,26 +436,16 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             )
 
             from TransactionAllocation allocation
+            join allocation.financialTransaction transaction
 
-            join allocation.financialTransaction
-                transaction
-
-            where allocation.organization.id =
-                :organizationId
-
-              and transaction.status =
-                com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
-
-              and transaction.type =
-                com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.INCOME
-
-              and allocation.sourceParty.id =
-                :partyId
+            where allocation.organization.id = :organizationId
+              and transaction.status = FinancialTransactionStatus.SETTLED
+              and transaction.technicalMovement = false
+              and transaction.type = FinancialTransactionType.INCOME
+              and allocation.sourceParty.id = :partyId
             """)
     BigDecimal sumSettledIncomeFromParty(
-
             @Param("organizationId") UUID organizationId,
-
             @Param("partyId") UUID partyId);
 
     @Query("""
@@ -543,26 +455,16 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             )
 
             from TransactionAllocation allocation
+            join allocation.financialTransaction transaction
 
-            join allocation.financialTransaction
-                transaction
-
-            where allocation.organization.id =
-                :organizationId
-
-              and transaction.status =
-                com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
-
-              and transaction.type =
-                com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.INCOME
-
-              and allocation.beneficiary.id =
-                :partyId
+            where allocation.organization.id = :organizationId
+              and transaction.status = FinancialTransactionStatus.SETTLED
+              and transaction.technicalMovement = false
+              and transaction.type = FinancialTransactionType.INCOME
+              and allocation.beneficiary.id = :partyId
             """)
     BigDecimal sumSettledIncomeDestinedToParty(
-
             @Param("organizationId") UUID organizationId,
-
             @Param("partyId") UUID partyId);
 
     @Query("""
@@ -572,26 +474,17 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             )
 
             from TransactionAllocation allocation
+            join allocation.financialTransaction transaction
 
-            join allocation.financialTransaction
-                transaction
+            where allocation.organization.id = :organizationId
+              and transaction.status = FinancialTransactionStatus.SETTLED
+              and transaction.technicalMovement = false
+              and transaction.type = FinancialTransactionType.EXPENSE
 
-            where allocation.organization.id =
-                :organizationId
-
-              and transaction.status =
-                com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
-
-              and transaction.type =
-                com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.EXPENSE
-
-              and allocation.beneficiary.id =
-                :partyId
+              and allocation.beneficiary.id = :partyId
             """)
     BigDecimal sumSettledExpensePaidToParty(
-
             @Param("organizationId") UUID organizationId,
-
             @Param("partyId") UUID partyId);
 
     @Query("""
@@ -600,71 +493,40 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             )
 
             from TransactionAllocation allocation
+            join allocation.financialTransaction transaction
 
-            join allocation.financialTransaction
-                transaction
-
-            where allocation.organization.id =
-                :organizationId
-
-              and transaction.status =
-                com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
-
-              and transaction.type <>
-                com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
+            where allocation.organization.id = :organizationId
+              and transaction.status = FinancialTransactionStatus.SETTLED
+              and transaction.technicalMovement = false
+              and transaction.type <> FinancialTransactionType.TRANSFER
 
               and (
-                    allocation.sourceParty.id =
-                        :partyId
-
-                    or allocation.beneficiary.id =
-                        :partyId
+                    allocation.sourceParty.id = :partyId
+                    or allocation.beneficiary.id = :partyId
                   )
             """)
     long countSettledTransactionsByParty(
-
             @Param("organizationId") UUID organizationId,
-
             @Param("partyId") UUID partyId);
 
     @Query("""
             select distinct allocation
-
             from TransactionAllocation allocation
 
-            join fetch allocation.financialTransaction
-                transaction
+            join fetch allocation.financialTransaction transaction
+            join fetch transaction.account account
+            join fetch allocation.fund fund
+            left join fetch allocation.sourceParty sourceParty
+            left join fetch allocation.beneficiary recipientParty
+            left join fetch allocation.financialCommitment commitment
 
-            join fetch transaction.account
-                account
-
-            join fetch allocation.fund
-                fund
-
-            left join fetch allocation.sourceParty
-                sourceParty
-
-            left join fetch allocation.beneficiary
-                recipientParty
-
-            left join fetch allocation.financialCommitment
-                commitment
-
-            where allocation.organization.id =
-                :organizationId
-
-              and transaction.status =
-                com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
-
-              and transaction.type <>
-                com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.TRANSFER
-
+            where allocation.organization.id = :organizationId
+              and transaction.status = FinancialTransactionStatus.SETTLED
+              and transaction.technicalMovement = false
+              and transaction.type <> FinancialTransactionType.TRANSFER
               and (
-                    sourceParty.id =
-                        :partyId
-
-                    or recipientParty.id =
-                        :partyId
+                    sourceParty.id = :partyId
+                    or recipientParty.id = :partyId
                   )
 
             order by
@@ -700,8 +562,9 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             join allocation.sourceParty sourceParty
 
             where allocation.organization.id = :organizationId
-              and transaction.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
-              and transaction.type = com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.INCOME
+              and transaction.status = FinancialTransactionStatus.SETTLED
+              and transaction.type = FinancialTransactionType.INCOME
+              and transaction.technicalMovement = false
               and transaction.settlementDate between :startDate and :endDate
 
             group by sourceParty.id, sourceParty.name
@@ -727,8 +590,9 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             join allocation.beneficiary recipientParty
 
             where allocation.organization.id = :organizationId
-              and transaction.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
-              and transaction.type = com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.EXPENSE
+              and transaction.status = FinancialTransactionStatus.SETTLED
+              and transaction.type = FinancialTransactionType.EXPENSE
+              and transaction.technicalMovement = false
               and transaction.settlementDate between :startDate and :endDate
 
             group by recipientParty.id, recipientParty.name
@@ -755,8 +619,9 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             join allocation.sourceParty sourceParty
 
             where allocation.organization.id = :organizationId
-              and transaction.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
-              and transaction.type = com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.INCOME
+              and transaction.status = FinancialTransactionStatus.SETTLED
+              and transaction.type = FinancialTransactionType.INCOME
+              and transaction.technicalMovement = false
               and transaction.settlementDate between :startDate and :endDate
 
             group by
@@ -788,8 +653,9 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             join allocation.beneficiary recipientParty
 
             where allocation.organization.id = :organizationId
-              and transaction.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
-              and transaction.type = com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.EXPENSE
+              and transaction.status = FinancialTransactionStatus.SETTLED
+              and transaction.type = FinancialTransactionType.EXPENSE
+              and transaction.technicalMovement = false
               and transaction.settlementDate between :startDate and :endDate
 
             group by

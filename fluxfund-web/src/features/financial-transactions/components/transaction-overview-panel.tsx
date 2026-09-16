@@ -47,6 +47,23 @@ export function TransactionOverviewPanel({
 
   return (
     <div className="space-y-5">
+
+      {transaction.technicalMovement && (
+        <div className="rounded-lg border bg-muted/40 p-4">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">
+              Movimento técnico identificado automaticamente
+            </p>
+
+            <p className="text-sm text-muted-foreground">
+              Esta movimentação representa uma etapa interna da
+              operação bancária e não exige classificação,
+              alocação, recibo ou documentação.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-3 md:grid-cols-4">
         <AppDialogStatCard
           label="Valor previsto"
@@ -64,12 +81,20 @@ export function TransactionOverviewPanel({
 
         <AppDialogStatCard
           label="Total alocado"
-          value={formatCurrency(totalAllocated)}
+          value={
+            transaction.technicalMovement
+              ? "-"
+              : formatCurrency(totalAllocated)
+          }
         />
 
         <AppDialogStatCard
           label="Restante"
-          value={formatCurrency(remainingAmount)}
+          value={
+            transaction.technicalMovement
+              ? "-"
+              : formatCurrency(remainingAmount)
+          }
         />
       </div>
 
@@ -106,7 +131,14 @@ export function TransactionOverviewPanel({
             value={financialTransactionSourceLabels[transaction.source]}
           />
 
-          <DetailItem label="Categoria" value={categoryLabel} />
+          <DetailItem
+            label="Categoria"
+            value={
+              transaction.technicalMovement
+                ? "Não se aplica"
+                : categoryLabel
+            }
+          />
         </div>
       </AppDialogSection>
 

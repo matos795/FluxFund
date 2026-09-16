@@ -245,6 +245,8 @@ public class FinancialTransactionService {
 
                 FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
+                validateUserManagedTransaction(financialTransaction);
+
                 FinancialTransactionType type = Objects.requireNonNullElse(request.type(),
                                 financialTransaction.getType());
                 Category category = financialTransaction.getCategory();
@@ -320,6 +322,8 @@ public class FinancialTransactionService {
 
         private void validateCancellationAllowed(FinancialTransaction financialTransaction) {
 
+                validateUserManagedTransaction(financialTransaction);
+
                 validateCreditCardStatementAllowsChanges(financialTransaction);
 
                 if (financialTransaction.getStatus() == FinancialTransactionStatus.CANCELED) {
@@ -362,6 +366,8 @@ public class FinancialTransactionService {
                 organizationAccessService.requireFinanceWriteAccess(organizationId);
 
                 FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
+
+                validateUserManagedTransaction(financialTransaction);
 
                 if (financialTransaction.getStatus() == FinancialTransactionStatus.CANCELED) {
                         throw new BusinessException("Canceled transactions cannot be classified");
@@ -462,6 +468,8 @@ public class FinancialTransactionService {
 
                 FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
 
+                validateUserManagedTransaction(financialTransaction);
+
                 TransactionAllocation allocation = buildAllocation(
                                 organizationId,
                                 financialTransaction,
@@ -497,6 +505,8 @@ public class FinancialTransactionService {
                 organizationAccessService.requireFinanceWriteAccess(organizationId);
 
                 FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
+
+                validateUserManagedTransaction(financialTransaction);
 
                 List<TransactionAllocation> allocations = requests.stream()
                                 .map(request -> buildAllocation(
@@ -540,6 +550,8 @@ public class FinancialTransactionService {
                 organizationAccessService.requireFinanceWriteAccess(organizationId);
 
                 FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
+
+                validateUserManagedTransaction(financialTransaction);
 
                 TransactionAllocation allocation = financialTransaction.getAllocations().stream()
                                 .filter(a -> a.getId().equals(allocationId))
@@ -611,13 +623,9 @@ public class FinancialTransactionService {
         }
 
         public TransactionAllocationResponse linkFinancialCommitment(
-
                         UUID organizationId,
-
                         UUID transactionId,
-
                         UUID allocationId,
-
                         UUID financialCommitmentId) {
 
                 organizationAccessService
@@ -625,10 +633,10 @@ public class FinancialTransactionService {
                                                 organizationId);
 
                 FinancialTransaction transaction = findFinancialTransactionById(
-
                                 organizationId,
-
                                 transactionId);
+
+                validateUserManagedTransaction(transaction);
 
                 TransactionAllocation allocation = transaction
                                 .getAllocations()
@@ -698,6 +706,8 @@ public class FinancialTransactionService {
                 organizationAccessService.requireFinanceWriteAccess(organizationId);
 
                 FinancialTransaction financialTransaction = findFinancialTransactionById(organizationId, id);
+
+                validateUserManagedTransaction(financialTransaction);
 
                 TransactionAllocation allocation = financialTransaction.getAllocations().stream()
                                 .filter(a -> a.getId().equals(allocationId))
@@ -2054,11 +2064,13 @@ public class FinancialTransactionService {
                 return suggestions;
         }
 
-        private boolean isEligibleForTransferMatching(
-                        FinancialTransaction transaction) {
+        private boolean isEligibleForTransferMatching(FinancialTransaction transaction) {
+
+                if (transaction.isTechnicalMovement()) {
+                        return false;
+                }
 
                 if (transaction.getStatus() != FinancialTransactionStatus.SETTLED) {
-
                         return false;
                 }
 
@@ -2889,6 +2901,14 @@ public class FinancialTransactionService {
 
                         throw new BusinessException(
                                         "Items from canceled credit card statements cannot be changed");
+                }
+        }
+
+        private void validateUserManagedTransaction(
+                        FinancialTransaction financialTransaction) {
+
+                if (financialTransaction.isTechnicalMovement()) {
+                        throw new BusinessException("Technical movements are managed automatically");
                 }
         }
 }

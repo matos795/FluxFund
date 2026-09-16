@@ -60,6 +60,8 @@ public class FinancialTransactionMapper {
                 financialTransaction.getSource(),
                 financialTransaction.getStatus(),
                 financialTransaction.getExternalId(),
+                financialTransaction.isTechnicalMovement(),
+                financialTransaction.getTechnicalMovementType(),
                 financialTransaction.getCreditCardStatement() != null
                         ? financialTransaction.getCreditCardStatement().getId()
                         : null,

@@ -71,32 +71,36 @@ export function FinancialTransactionActions({
 
   const cancelFinancialTransactionMutation = useCancelFinancialTransaction()
 
-  const needsClassification =
-    needsFinancialTransactionClassification(
-      currentTransaction,
-    )
+  const needsClassification = needsFinancialTransactionClassification(currentTransaction)
+
+  const isTechnicalMovement = currentTransaction.technicalMovement
 
   const canEdit =
+    !isTechnicalMovement &&
     currentTransaction.status !== "CANCELED" &&
     currentTransaction.status !== "IMPORTED" &&
     currentTransaction.type !== "TRANSFER" &&
     !needsClassification
 
   const canManageAllocations =
+  !isTechnicalMovement &&
     currentTransaction.status === "SETTLED" &&
     currentTransaction.type !== "TRANSFER" &&
     !needsClassification
 
   const canManageAttachments =
+  !isTechnicalMovement &&
     currentTransaction.status !== "CANCELED" &&
     currentTransaction.status !== "IMPORTED" &&
     currentTransaction.type !== "TRANSFER" &&
     !needsClassification
 
   const canCancel =
+  !isTechnicalMovement &&
     currentTransaction.status !== "CANCELED" && currentTransaction.type !== "TRANSFER"
 
   const canLinkCreditCardPayment =
+  !isTechnicalMovement &&
     (currentTransaction.source === "OFX" || currentTransaction.source === "CSV") &&
     currentTransaction.status === "SETTLED" &&
     currentTransaction.type === "EXPENSE" &&
@@ -109,6 +113,7 @@ export function FinancialTransactionActions({
     Boolean(currentTransaction.transferGroupId)
 
   const canCreateTransactionReceipt =
+    !isTechnicalMovement &&
     currentTransaction.status ===
     "SETTLED" &&
     currentTransaction.type !==

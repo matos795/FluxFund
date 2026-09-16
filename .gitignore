@@ -13,6 +13,7 @@ target/
 storage-backup
 storage-*/
 **/application-local.properties
+*.log
 
 ### STS ###
 .apt_generated

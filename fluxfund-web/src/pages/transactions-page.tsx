@@ -184,10 +184,9 @@ export function TransactionsPage() {
   const hasNonCancelableSelection =
     selectedTransactions.some(
       (transaction) =>
-        transaction.status ===
-        "CANCELED" ||
-        transaction.type ===
-        "TRANSFER",
+        transaction.technicalMovement ||
+        transaction.status === "CANCELED" ||
+        transaction.type === "TRANSFER",
     )
 
   useEffect(() => {
@@ -576,6 +575,7 @@ export function TransactionsPage() {
           onTabChange={setDirectWorkspaceTabState}
           canEdit={
             canFinanceWrite &&
+            !directTransaction.technicalMovement &&
             directTransaction.status !== "CANCELED" &&
             directTransaction.status !== "IMPORTED" &&
             directTransaction.type !== "TRANSFER" &&
@@ -583,12 +583,14 @@ export function TransactionsPage() {
           }
           canManageAllocations={
             canFinanceWrite &&
+            !directTransaction.technicalMovement &&
             directTransaction.status === "SETTLED" &&
             directTransaction.type !== "TRANSFER" &&
             !needsFinancialTransactionClassification(directTransaction)
           }
           canManageAttachments={
             canFinanceWrite &&
+            !directTransaction.technicalMovement &&
             directTransaction.status !== "CANCELED" &&
             directTransaction.status !== "IMPORTED" &&
             directTransaction.type !== "TRANSFER" &&

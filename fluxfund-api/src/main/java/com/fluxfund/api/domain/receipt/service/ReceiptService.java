@@ -29,7 +29,6 @@ import com.fluxfund.api.domain.organization.Organization;
 import com.fluxfund.api.domain.organization.repository.OrganizationRepository;
 import com.fluxfund.api.domain.receipt.Receipt;
 import com.fluxfund.api.domain.receipt.ReceiptDirection;
-import com.fluxfund.api.domain.receipt.ReceiptSourceType;
 import com.fluxfund.api.domain.receipt.ReceiptStatus;
 import com.fluxfund.api.domain.receipt.dto.CreateReceiptDraftRequest;
 import com.fluxfund.api.domain.receipt.dto.ReceiptResponse;
@@ -48,1136 +47,993 @@ import lombok.RequiredArgsConstructor;
 @Transactional
 public class ReceiptService {
 
-    private final ReceiptRepository receiptRepository;
+        private final ReceiptRepository receiptRepository;
 
-    private final OrganizationRepository organizationRepository;
+        private final OrganizationRepository organizationRepository;
 
-    private final BeneficiaryRepository beneficiaryRepository;
+        private final BeneficiaryRepository beneficiaryRepository;
 
-    private final FundRepository fundRepository;
+        private final FundRepository fundRepository;
 
-    private final FinancialTransactionRepository transactionRepository;
+        private final FinancialTransactionRepository transactionRepository;
 
-    private final TransactionAllocationRepository allocationRepository;
+        private final TransactionAllocationRepository allocationRepository;
 
-    private final OrganizationAccessService organizationAccessService;
+        private final OrganizationAccessService organizationAccessService;
 
-    private final AuditLogService auditLogService;
+        private final AuditLogService auditLogService;
 
-    public ReceiptResponse createDraft(
+        public ReceiptResponse createDraft(UUID organizationId, CreateReceiptDraftRequest request) {
 
-            UUID organizationId,
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
-            CreateReceiptDraftRequest request) {
+                Organization organization = organizationRepository
+                                .findById(organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
 
-        organizationAccessService
-                .requireFinanceWriteAccess(
-                        organizationId);
+                ReceiptSourceContext source = resolveSource(organizationId, request);
 
-        Organization organization = organizationRepository
-                .findById(
-                        organizationId)
+                Receipt receipt = new Receipt();
+                receipt.setOrganization(organization);
+                receipt.setStatus(ReceiptStatus.DRAFT);
 
-                .orElseThrow(
-                        () -> new ResourceNotFoundException(
-                                "Organization not found"));
+                applyDraftData(
+                                receipt,
+                                organization,
+                                organizationId,
+                                request,
+                                source);
 
-        ReceiptSourceContext source = resolveSource(
+                Receipt saved = receiptRepository.saveAndFlush(receipt);
 
-                organizationId,
+                auditLogService.record(
+                                organizationId,
+                                AuditEntityType.RECEIPT,
+                                saved.getId(),
+                                AuditAction.CREATE,
+                                "Receipt draft created");
 
-                request);
+                return ReceiptMapper.toResponse(saved);
+        }
 
-        Receipt receipt = new Receipt();
+        public ReceiptResponse updateDraft(
+                        UUID organizationId,
+                        UUID receiptId,
+                        CreateReceiptDraftRequest request) {
 
-        receipt.setOrganization(
-                organization);
+                organizationAccessService.requireFinanceWriteAccess(organizationId);
 
-        receipt.setStatus(
-                ReceiptStatus.DRAFT);
+                Receipt receipt = findEntity(organizationId, receiptId);
 
-        applyDraftData(
+                requireDraft(receipt);
 
-                receipt,
+                ReceiptSourceContext source = resolveSource(organizationId, request);
 
-                organization,
+                applyDraftData(
+                                receipt,
+                                receipt.getOrganization(),
+                                organizationId,
+                                request,
+                                source);
 
-                organizationId,
+                Receipt saved = receiptRepository.saveAndFlush(receipt);
 
-                request,
+                auditLogService.record(
+                                organizationId,
+                                AuditEntityType.RECEIPT,
+                                saved.getId(),
+                                AuditAction.UPDATE,
+                                "Receipt draft updated");
 
-                source);
+                return ReceiptMapper.toResponse(saved);
+        }
 
-        Receipt saved = receiptRepository
-                .saveAndFlush(
-                        receipt);
+        @Transactional(readOnly = true)
+        public ReceiptResponse findById(
+                        UUID organizationId,
+                        UUID receiptId) {
 
-        auditLogService.record(
+                organizationAccessService
+                                .requireReadAccess(
+                                                organizationId);
 
-                organizationId,
+                return ReceiptMapper
+                                .toResponse(
 
-                AuditEntityType.RECEIPT,
+                                                findEntity(
 
-                saved.getId(),
+                                                                organizationId,
 
-                AuditAction.CREATE,
+                                                                receiptId));
+        }
 
-                "Receipt draft created");
+        @Transactional(readOnly = true)
+        public Page<ReceiptResponse> findAll(
 
-        return ReceiptMapper
-                .toResponse(
-                        saved);
-    }
+                        UUID organizationId,
 
-    public ReceiptResponse updateDraft(
+                        ReceiptStatus status,
 
-            UUID organizationId,
+                        com.fluxfund.api.domain.receipt.ReceiptType receiptType,
 
-            UUID receiptId,
+                        Pageable pageable) {
 
-            CreateReceiptDraftRequest request) {
+                organizationAccessService
+                                .requireReadAccess(
+                                                organizationId);
 
-        organizationAccessService
-                .requireFinanceWriteAccess(
-                        organizationId);
+                Pageable resolvedPageable = pageable
+                                .getSort()
+                                .isSorted()
 
-        Receipt receipt = findEntity(
+                                                ? pageable
 
-                organizationId,
+                                                : PageRequest.of(
 
-                receiptId);
+                                                                pageable.getPageNumber(),
 
-        requireDraft(
-                receipt);
+                                                                pageable.getPageSize(),
 
-        ReceiptSourceContext source = resolveSource(
+                                                                Sort.by(
+                                                                                Sort.Direction.DESC,
+                                                                                "createdAt"));
 
-                organizationId,
+                return receiptRepository
+                                .findAllByFilters(
 
-                request);
+                                                organizationId,
 
-        applyDraftData(
+                                                status,
 
-                receipt,
+                                                receiptType,
 
-                receipt.getOrganization(),
+                                                resolvedPageable)
 
-                organizationId,
+                                .map(
+                                                ReceiptMapper::toResponse);
+        }
 
-                request,
+        public void deleteDraft(
 
-                source);
+                        UUID organizationId,
 
-        Receipt saved = receiptRepository
-                .saveAndFlush(
-                        receipt);
+                        UUID receiptId) {
 
-        auditLogService.record(
+                organizationAccessService
+                                .requireFinanceWriteAccess(
+                                                organizationId);
 
-                organizationId,
-
-                AuditEntityType.RECEIPT,
-
-                saved.getId(),
-
-                AuditAction.UPDATE,
-
-                "Receipt draft updated");
-
-        return ReceiptMapper
-                .toResponse(
-                        saved);
-    }
-
-    @Transactional(readOnly = true)
-    public ReceiptResponse findById(
-
-            UUID organizationId,
-
-            UUID receiptId) {
-
-        organizationAccessService
-                .requireReadAccess(
-                        organizationId);
-
-        return ReceiptMapper
-                .toResponse(
-
-                        findEntity(
+                Receipt receipt = findEntity(
 
                                 organizationId,
 
-                                receiptId));
-    }
+                                receiptId);
 
-    @Transactional(readOnly = true)
-    public Page<ReceiptResponse> findAll(
+                requireDraft(
+                                receipt);
 
-            UUID organizationId,
+                receiptRepository.delete(
+                                receipt);
 
-            ReceiptStatus status,
+                auditLogService.record(
 
-            com.fluxfund.api.domain.receipt.ReceiptType receiptType,
+                                organizationId,
 
-            Pageable pageable) {
+                                AuditEntityType.RECEIPT,
 
-        organizationAccessService
-                .requireReadAccess(
-                        organizationId);
+                                receiptId,
 
-        Pageable resolvedPageable = pageable
-                .getSort()
-                .isSorted()
+                                AuditAction.DELETE_RECEIPT_DRAFT,
 
-                        ? pageable
+                                "Receipt draft deleted");
+        }
 
-                        : PageRequest.of(
+        private void applyDraftData(
 
-                                pageable.getPageNumber(),
+                        Receipt receipt,
 
-                                pageable.getPageSize(),
+                        Organization organization,
 
-                                Sort.by(
-                                        Sort.Direction.DESC,
-                                        "createdAt"));
+                        UUID organizationId,
 
-        return receiptRepository
-                .findAllByFilters(
+                        CreateReceiptDraftRequest request,
 
-                        organizationId,
+                        ReceiptSourceContext source) {
 
-                        status,
+                validateReceiptDirection(
 
-                        receiptType,
+                                request,
 
-                        resolvedPageable)
+                                source.transaction());
 
-                .map(
-                        ReceiptMapper::toResponse);
-    }
+                BigDecimal amount = resolveAmount(
 
-    public void deleteDraft(
+                                request,
 
-            UUID organizationId,
+                                source);
 
-            UUID receiptId) {
+                LocalDate paymentDate = resolvePaymentDate(
 
-        organizationAccessService
-                .requireFinanceWriteAccess(
-                        organizationId);
+                                request,
 
-        Receipt receipt = findEntity(
+                                source.transaction());
 
-                organizationId,
+                PartySnapshot counterparty = resolveCounterparty(
 
-                receiptId);
+                                organizationId,
 
-        requireDraft(
-                receipt);
+                                request,
 
-        receiptRepository.delete(
-                receipt);
+                                source);
 
-        auditLogService.record(
+                PartySnapshot beneficiary = resolveBeneficiary(
 
-                organizationId,
+                                organizationId,
 
-                AuditEntityType.RECEIPT,
+                                request,
 
-                receiptId,
+                                source);
 
-                AuditAction.DELETE_RECEIPT_DRAFT,
+                FundSnapshot fund = resolveFund(
 
-                "Receipt draft deleted");
-    }
+                                organizationId,
 
-    private void applyDraftData(
+                                request,
 
-            Receipt receipt,
+                                source);
 
-            Organization organization,
+                String purpose = resolvePurpose(
 
-            UUID organizationId,
+                                request,
 
-            CreateReceiptDraftRequest request,
+                                source.transaction());
 
-            ReceiptSourceContext source) {
+                receipt.setSourceType(
+                                request.sourceType());
 
-        validateReceiptDirection(
+                receipt.setFinancialTransaction(
+                                source.transaction());
 
-                request,
+                receipt.setTransactionAllocation(
+                                source.allocation());
 
-                source.transaction());
+                receipt.setReceiptType(
+                                request.receiptType());
 
-        BigDecimal amount = resolveAmount(
+                receipt.setAmount(
+                                amount);
 
-                request,
+                receipt.setPaymentDate(
+                                paymentDate);
 
-                source);
+                receipt.setCounterpartyParty(
+                                counterparty.party());
 
-        LocalDate paymentDate = resolvePaymentDate(
+                receipt.setCounterpartyName(
+                                counterparty.name());
 
-                request,
+                receipt.setCounterpartyDocument(
+                                counterparty.document());
 
-                source.transaction());
+                receipt.setCounterpartyAddress(
+                                counterparty.address());
 
-        PartySnapshot counterparty = resolveCounterparty(
+                receipt.setBeneficiaryParty(
 
-                organizationId,
+                                beneficiary != null
 
-                request,
+                                                ? beneficiary.party()
 
-                source);
+                                                : null);
 
-        PartySnapshot beneficiary = resolveBeneficiary(
+                receipt.setBeneficiaryName(
 
-                organizationId,
+                                beneficiary != null
 
-                request,
+                                                ? beneficiary.name()
 
-                source);
+                                                : null);
 
-        FundSnapshot fund = resolveFund(
+                receipt.setBeneficiaryDocument(
 
-                organizationId,
+                                beneficiary != null
 
-                request,
+                                                ? beneficiary.document()
 
-                source);
+                                                : null);
 
-        String purpose = resolvePurpose(
+                receipt.setFund(
+                                fund.fund());
 
-                request,
+                receipt.setFundName(
+                                fund.name());
 
-                source.transaction());
+                receipt.setPurposeDescription(
+                                purpose);
 
-        receipt.setSourceType(
-                request.sourceType());
+                receipt.setPlaceCity(
 
-        receipt.setFinancialTransaction(
-                source.transaction());
+                                firstText(
 
-        receipt.setTransactionAllocation(
-                source.allocation());
+                                                request.placeCity(),
 
-        receipt.setReceiptType(
-                request.receiptType());
+                                                organization.getCity()));
 
-        receipt.setAmount(
-                amount);
+                receipt.setPlaceState(
 
-        receipt.setPaymentDate(
-                paymentDate);
+                                firstText(
 
-        receipt.setCounterpartyParty(
-                counterparty.party());
+                                                request.placeState(),
 
-        receipt.setCounterpartyName(
-                counterparty.name());
+                                                organization.getState()));
 
-        receipt.setCounterpartyDocument(
-                counterparty.document());
+                receipt.setSignatoryName(
 
-        receipt.setCounterpartyAddress(
-                counterparty.address());
+                                resolveSignatoryName(
 
-        receipt.setBeneficiaryParty(
+                                                request,
 
-                beneficiary != null
+                                                organization,
 
-                        ? beneficiary.party()
+                                                counterparty));
 
-                        : null);
+                receipt.setSignatoryTitle(
 
-        receipt.setBeneficiaryName(
+                                resolveSignatoryTitle(
 
-                beneficiary != null
+                                                request,
 
-                        ? beneficiary.name()
+                                                organization));
 
-                        : null);
+                receipt.setNotes(
+                                normalize(
+                                                request.notes()));
+        }
 
-        receipt.setBeneficiaryDocument(
+        private ReceiptSourceContext resolveSource(
 
-                beneficiary != null
+                        UUID organizationId,
 
-                        ? beneficiary.document()
+                        CreateReceiptDraftRequest request) {
 
-                        : null);
+                return switch (request.sourceType()) {
 
-        receipt.setFund(
-                fund.fund());
+                        case MANUAL -> {
 
-        receipt.setFundName(
-                fund.name());
+                                if (request.financialTransactionId() != null
 
-        receipt.setPurposeDescription(
-                purpose);
+                                                || request.transactionAllocationId() != null) {
 
-        receipt.setPlaceCity(
+                                        throw new BusinessException(
+                                                        "Manual receipt cannot contain a transaction or allocation");
+                                }
 
-                firstText(
+                                yield new ReceiptSourceContext(
+                                                null,
+                                                null);
+                        }
 
-                        request.placeCity(),
+                        case TRANSACTION -> {
 
-                        organization.getCity()));
+                                if (request.financialTransactionId() == null) {
 
-        receipt.setPlaceState(
+                                        throw new BusinessException(
+                                                        "Transaction is required for a transaction receipt");
+                                }
 
-                firstText(
+                                if (request.transactionAllocationId() != null) {
 
-                        request.placeState(),
+                                        throw new BusinessException(
+                                                        "Transaction receipt cannot contain an allocation");
+                                }
 
-                        organization.getState()));
+                                FinancialTransaction transaction = findTransaction(
 
-        receipt.setSignatoryName(
+                                                organizationId,
 
-                resolveSignatoryName(
+                                                request.financialTransactionId());
 
-                        request,
+                                validateTransaction(
+                                                transaction);
 
-                        organization,
+                                yield new ReceiptSourceContext(
+                                                transaction,
+                                                null);
+                        }
 
-                        counterparty));
+                        case ALLOCATION -> {
 
-        receipt.setSignatoryTitle(
+                                if (request.transactionAllocationId() == null) {
 
-                resolveSignatoryTitle(
+                                        throw new BusinessException(
+                                                        "Allocation is required for an allocation receipt");
+                                }
 
-                        request,
+                                TransactionAllocation allocation = allocationRepository
+                                                .findByIdAndOrganizationId(
 
-                        organization));
+                                                                request.transactionAllocationId(),
 
-        receipt.setNotes(
-                normalize(
-                        request.notes()));
-    }
+                                                                organizationId)
 
-    private ReceiptSourceContext resolveSource(
+                                                .orElseThrow(
+                                                                () -> new ResourceNotFoundException(
+                                                                                "Transaction allocation not found"));
 
-            UUID organizationId,
+                                FinancialTransaction transaction = allocation
+                                                .getFinancialTransaction();
 
-            CreateReceiptDraftRequest request) {
+                                if (request.financialTransactionId() != null
 
-        return switch (request.sourceType()) {
+                                                && !request
+                                                                .financialTransactionId()
+                                                                .equals(
+                                                                                transaction.getId())) {
 
-            case MANUAL -> {
+                                        throw new BusinessException(
+                                                        "Allocation does not belong to the informed transaction");
+                                }
 
-                if (request.financialTransactionId() != null
+                                validateTransaction(
+                                                transaction);
 
-                        || request.transactionAllocationId() != null) {
+                                yield new ReceiptSourceContext(
 
-                    throw new BusinessException(
-                            "Manual receipt cannot contain a transaction or allocation");
+                                                transaction,
+
+                                                allocation);
+                        }
+                };
+        }
+
+        private void validateReceiptDirection(
+
+                        CreateReceiptDraftRequest request,
+
+                        FinancialTransaction transaction) {
+
+                if (transaction == null) {
+                        return;
                 }
 
-                yield new ReceiptSourceContext(
-                        null,
-                        null);
-            }
+                ReceiptDirection direction = request
+                                .receiptType()
+                                .getDirection();
 
-            case TRANSACTION -> {
+                if (direction == ReceiptDirection.RECEIVED_BY_ORGANIZATION
 
-                if (request.financialTransactionId() == null) {
+                                && transaction.getType() != FinancialTransactionType.INCOME) {
 
-                    throw new BusinessException(
-                            "Transaction is required for a transaction receipt");
+                        throw new BusinessException(
+                                        "Incoming receipt requires an income transaction");
                 }
 
-                if (request.transactionAllocationId() != null) {
+                if (direction == ReceiptDirection.PAID_BY_ORGANIZATION
 
-                    throw new BusinessException(
-                            "Transaction receipt cannot contain an allocation");
+                                && transaction.getType() != FinancialTransactionType.EXPENSE) {
+
+                        throw new BusinessException(
+                                        "Payment receipt requires an expense transaction");
+                }
+        }
+
+        private BigDecimal resolveAmount(
+
+                        CreateReceiptDraftRequest request,
+
+                        ReceiptSourceContext source) {
+
+                BigDecimal sourceAmount = null;
+
+                if (source.allocation() != null) {
+
+                        sourceAmount = source
+                                        .allocation()
+                                        .getAmount()
+                                        .abs();
+
+                } else if (source.transaction() != null) {
+
+                        BigDecimal transactionAmount = source
+                                        .transaction()
+                                        .getSettledAmount() != null
+
+                                                        ? source
+                                                                        .transaction()
+                                                                        .getSettledAmount()
+
+                                                        : source
+                                                                        .transaction()
+                                                                        .getExpectedAmount();
+
+                        sourceAmount = transactionAmount != null
+
+                                        ? transactionAmount.abs()
+
+                                        : null;
                 }
 
-                FinancialTransaction transaction = findTransaction(
+                BigDecimal resolved = request.amount() != null
 
-                        organizationId,
+                                ? request.amount()
 
-                        request.financialTransactionId());
+                                : sourceAmount;
 
-                validateTransaction(
-                        transaction);
+                if (resolved == null
+                                || resolved.compareTo(
+                                                BigDecimal.ZERO) <= 0) {
 
-                yield new ReceiptSourceContext(
-                        transaction,
-                        null);
-            }
-
-            case ALLOCATION -> {
-
-                if (request.transactionAllocationId() == null) {
-
-                    throw new BusinessException(
-                            "Allocation is required for an allocation receipt");
+                        throw new BusinessException(
+                                        "Receipt amount must be greater than zero");
                 }
 
-                TransactionAllocation allocation = allocationRepository
-                        .findByIdAndOrganizationId(
+                if (sourceAmount != null
+                                && resolved.compareTo(
+                                                sourceAmount) > 0) {
 
-                                request.transactionAllocationId(),
-
-                                organizationId)
-
-                        .orElseThrow(
-                                () -> new ResourceNotFoundException(
-                                        "Transaction allocation not found"));
-
-                FinancialTransaction transaction = allocation
-                        .getFinancialTransaction();
-
-                if (request.financialTransactionId() != null
-
-                        && !request
-                                .financialTransactionId()
-                                .equals(
-                                        transaction.getId())) {
-
-                    throw new BusinessException(
-                            "Allocation does not belong to the informed transaction");
+                        throw new BusinessException(
+                                        "Receipt amount cannot exceed the source amount");
                 }
 
-                validateTransaction(
-                        transaction);
-
-                yield new ReceiptSourceContext(
-
-                        transaction,
-
-                        allocation);
-            }
-        };
-    }
-
-    private void validateReceiptDirection(
-
-            CreateReceiptDraftRequest request,
-
-            FinancialTransaction transaction) {
-
-        if (transaction == null) {
-            return;
+                return resolved;
         }
 
-        ReceiptDirection direction = request
-                .receiptType()
-                .getDirection();
+        private LocalDate resolvePaymentDate(
 
-        if (direction == ReceiptDirection.RECEIVED_BY_ORGANIZATION
+                        CreateReceiptDraftRequest request,
 
-                && transaction.getType() != FinancialTransactionType.INCOME) {
+                        FinancialTransaction transaction) {
 
-            throw new BusinessException(
-                    "Incoming receipt requires an income transaction");
+                LocalDate resolved = request.paymentDate() != null
+
+                                ? request.paymentDate()
+
+                                : transaction != null
+
+                                                ? transaction.getSettlementDate()
+
+                                                : null;
+
+                if (resolved == null) {
+
+                        throw new BusinessException(
+                                        "Payment date is required");
+                }
+
+                return resolved;
         }
 
-        if (direction == ReceiptDirection.PAID_BY_ORGANIZATION
+        private PartySnapshot resolveCounterparty(
 
-                && transaction.getType() != FinancialTransactionType.EXPENSE) {
+                        UUID organizationId,
 
-            throw new BusinessException(
-                    "Payment receipt requires an expense transaction");
-        }
-    }
+                        CreateReceiptDraftRequest request,
 
-    private BigDecimal resolveAmount(
+                        ReceiptSourceContext source) {
 
-            CreateReceiptDraftRequest request,
+                Beneficiary party = request.counterpartyPartyId() != null
 
-            ReceiptSourceContext source) {
+                                ? findParty(
 
-        BigDecimal sourceAmount = null;
+                                                organizationId,
 
-        if (source.allocation() != null) {
+                                                request.counterpartyPartyId())
 
-            sourceAmount = source
-                    .allocation()
-                    .getAmount()
-                    .abs();
+                                : inferCounterparty(
 
-        } else if (source.transaction() != null) {
+                                                request,
 
-            BigDecimal transactionAmount = source
-                    .transaction()
-                    .getSettledAmount() != null
+                                                source);
 
-                            ? source
-                                    .transaction()
-                                    .getSettledAmount()
+                if (party != null) {
 
-                            : source
-                                    .transaction()
-                                    .getExpectedAmount();
+                        return snapshot(
+                                        party);
+                }
 
-            sourceAmount = transactionAmount != null
+                String manualName = normalize(
+                                request.counterpartyName());
 
-                    ? transactionAmount.abs()
+                if (!StringUtils.hasText(
+                                manualName)) {
 
-                    : null;
-        }
+                        throw new BusinessException(
+                                        "Counterparty name is required");
+                }
 
-        BigDecimal resolved = request.amount() != null
+                return new PartySnapshot(
 
-                ? request.amount()
+                                null,
 
-                : sourceAmount;
+                                manualName,
 
-        if (resolved == null
-                || resolved.compareTo(
-                        BigDecimal.ZERO) <= 0) {
+                                normalize(
+                                                request.counterpartyDocument()),
 
-            throw new BusinessException(
-                    "Receipt amount must be greater than zero");
+                                normalize(
+                                                request.counterpartyAddress()));
         }
 
-        if (sourceAmount != null
-                && resolved.compareTo(
-                        sourceAmount) > 0) {
+        private Beneficiary inferCounterparty(
 
-            throw new BusinessException(
-                    "Receipt amount cannot exceed the source amount");
-        }
+                        CreateReceiptDraftRequest request,
 
-        return resolved;
-    }
+                        ReceiptSourceContext source) {
 
-    private LocalDate resolvePaymentDate(
+                if (source.allocation() == null) {
+                        return null;
+                }
 
-            CreateReceiptDraftRequest request,
+                if (request
+                                .receiptType()
+                                .isReceivedByOrganization()) {
 
-            FinancialTransaction transaction) {
+                        return source
+                                        .allocation()
+                                        .getSourceParty();
+                }
 
-        LocalDate resolved = request.paymentDate() != null
-
-                ? request.paymentDate()
-
-                : transaction != null
-
-                        ? transaction.getSettlementDate()
-
-                        : null;
-
-        if (resolved == null) {
-
-            throw new BusinessException(
-                    "Payment date is required");
-        }
-
-        return resolved;
-    }
-
-    private PartySnapshot resolveCounterparty(
-
-            UUID organizationId,
-
-            CreateReceiptDraftRequest request,
-
-            ReceiptSourceContext source) {
-
-        Beneficiary party = request.counterpartyPartyId() != null
-
-                ? findParty(
-
-                        organizationId,
-
-                        request.counterpartyPartyId())
-
-                : inferCounterparty(
-
-                        request,
-
-                        source);
-
-        if (party != null) {
-
-            return snapshot(
-                    party);
-        }
-
-        String manualName = normalize(
-                request.counterpartyName());
-
-        if (!StringUtils.hasText(
-                manualName)) {
-
-            throw new BusinessException(
-                    "Counterparty name is required");
-        }
-
-        return new PartySnapshot(
-
-                null,
-
-                manualName,
-
-                normalize(
-                        request.counterpartyDocument()),
-
-                normalize(
-                        request.counterpartyAddress()));
-    }
-
-    private Beneficiary inferCounterparty(
-
-            CreateReceiptDraftRequest request,
-
-            ReceiptSourceContext source) {
-
-        if (source.allocation() == null) {
-            return null;
-        }
-
-        if (request
-                .receiptType()
-                .isReceivedByOrganization()) {
-
-            return source
-                    .allocation()
-                    .getSourceParty();
-        }
-
-        return source
-                .allocation()
-                .getRecipientParty();
-    }
-
-    private PartySnapshot resolveBeneficiary(
-
-            UUID organizationId,
-
-            CreateReceiptDraftRequest request,
-
-            ReceiptSourceContext source) {
-
-        boolean hasBeneficiaryInput = request.beneficiaryPartyId() != null
-
-                || StringUtils.hasText(
-                        request.beneficiaryName())
-
-                || StringUtils.hasText(
-                        request.beneficiaryDocument());
-
-        if (request
-                .receiptType()
-                .isPaidByOrganization()) {
-
-            if (hasBeneficiaryInput) {
-
-                throw new BusinessException(
-                        "Payment receipts use the counterparty as the recipient");
-            }
-
-            return null;
-        }
-
-        Beneficiary party = request.beneficiaryPartyId() != null
-
-                ? findParty(
-
-                        organizationId,
-
-                        request.beneficiaryPartyId())
-
-                : source.allocation() != null
-
-                        ? source
+                return source
                                 .allocation()
-                                .getRecipientParty()
-
-                        : null;
-
-        if (party != null) {
-
-            return snapshot(
-                    party);
+                                .getRecipientParty();
         }
 
-        String manualName = normalize(
-                request.beneficiaryName());
+        private PartySnapshot resolveBeneficiary(
 
-        if (!StringUtils.hasText(
-                manualName)) {
+                        UUID organizationId,
 
-            return null;
+                        CreateReceiptDraftRequest request,
+
+                        ReceiptSourceContext source) {
+
+                boolean hasBeneficiaryInput = request.beneficiaryPartyId() != null
+
+                                || StringUtils.hasText(
+                                                request.beneficiaryName())
+
+                                || StringUtils.hasText(
+                                                request.beneficiaryDocument());
+
+                if (request
+                                .receiptType()
+                                .isPaidByOrganization()) {
+
+                        if (hasBeneficiaryInput) {
+
+                                throw new BusinessException(
+                                                "Payment receipts use the counterparty as the recipient");
+                        }
+
+                        return null;
+                }
+
+                Beneficiary party = request.beneficiaryPartyId() != null
+
+                                ? findParty(
+
+                                                organizationId,
+
+                                                request.beneficiaryPartyId())
+
+                                : source.allocation() != null
+
+                                                ? source
+                                                                .allocation()
+                                                                .getRecipientParty()
+
+                                                : null;
+
+                if (party != null) {
+
+                        return snapshot(
+                                        party);
+                }
+
+                String manualName = normalize(
+                                request.beneficiaryName());
+
+                if (!StringUtils.hasText(
+                                manualName)) {
+
+                        return null;
+                }
+
+                return new PartySnapshot(
+
+                                null,
+
+                                manualName,
+
+                                normalize(
+                                                request.beneficiaryDocument()),
+
+                                null);
         }
 
-        return new PartySnapshot(
+        private FundSnapshot resolveFund(
 
-                null,
+                        UUID organizationId,
 
-                manualName,
+                        CreateReceiptDraftRequest request,
 
-                normalize(
-                        request.beneficiaryDocument()),
+                        ReceiptSourceContext source) {
 
-                null);
-    }
+                Fund fund = request.fundId() != null
 
-    private FundSnapshot resolveFund(
+                                ? fundRepository
+                                                .findByIdAndOrganizationIdAndActiveTrue(
 
-            UUID organizationId,
+                                                                request.fundId(),
 
-            CreateReceiptDraftRequest request,
+                                                                organizationId)
 
-            ReceiptSourceContext source) {
+                                                .orElseThrow(
+                                                                () -> new ResourceNotFoundException(
+                                                                                "Fund not found"))
 
-        Fund fund = request.fundId() != null
+                                : source.allocation() != null
 
-                ? fundRepository
-                        .findByIdAndOrganizationIdAndActiveTrue(
+                                                ? source
+                                                                .allocation()
+                                                                .getFund()
 
-                                request.fundId(),
+                                                : null;
 
-                                organizationId)
+                if (fund != null) {
 
-                        .orElseThrow(
-                                () -> new ResourceNotFoundException(
-                                        "Fund not found"))
+                        return new FundSnapshot(
 
-                : source.allocation() != null
+                                        fund,
 
-                        ? source
-                                .allocation()
-                                .getFund()
+                                        fund.getName());
+                }
 
-                        : null;
+                return new FundSnapshot(
 
-        if (fund != null) {
+                                null,
 
-            return new FundSnapshot(
-
-                    fund,
-
-                    fund.getName());
+                                normalize(
+                                                request.fundName()));
         }
 
-        return new FundSnapshot(
+        private String resolvePurpose(
 
-                null,
+                        CreateReceiptDraftRequest request,
 
-                normalize(
-                        request.fundName()));
-    }
+                        FinancialTransaction transaction) {
 
-    private String resolvePurpose(
+                String requested = normalize(
+                                request.purposeDescription());
 
-            CreateReceiptDraftRequest request,
+                if (StringUtils.hasText(
+                                requested)) {
 
-            FinancialTransaction transaction) {
+                        return requested;
+                }
 
-        String requested = normalize(
-                request.purposeDescription());
+                if (transaction != null) {
 
-        if (StringUtils.hasText(
-                requested)) {
+                        String transactionDescription = firstText(
 
-            return requested;
+                                        transaction.getDescription(),
+
+                                        transaction.getRawDescription());
+
+                        if (StringUtils.hasText(
+                                        transactionDescription)) {
+
+                                return transactionDescription;
+                        }
+                }
+
+                return request
+                                .receiptType()
+                                .getDefaultDescription();
         }
 
-        if (transaction != null) {
+        private String resolveSignatoryName(
 
-            String transactionDescription = firstText(
+                        CreateReceiptDraftRequest request,
 
-                    transaction.getDescription(),
+                        Organization organization,
 
-                    transaction.getRawDescription());
+                        PartySnapshot counterparty) {
 
-            if (StringUtils.hasText(
-                    transactionDescription)) {
+                String requested = normalize(
+                                request.signatoryName());
 
-                return transactionDescription;
-            }
+                if (StringUtils.hasText(
+                                requested)) {
+
+                        return requested;
+                }
+
+                if (request
+                                .receiptType()
+                                .isPaidByOrganization()) {
+
+                        return counterparty.name();
+                }
+
+                return firstText(
+
+                                organization.getApproverName(),
+
+                                organization.getReviewerName());
         }
 
-        return request
-                .receiptType()
-                .getDefaultDescription();
-    }
+        private String resolveSignatoryTitle(
 
-    private String resolveSignatoryName(
+                        CreateReceiptDraftRequest request,
 
-            CreateReceiptDraftRequest request,
+                        Organization organization) {
 
-            Organization organization,
+                String requested = normalize(
+                                request.signatoryTitle());
 
-            PartySnapshot counterparty) {
+                if (StringUtils.hasText(
+                                requested)) {
 
-        String requested = normalize(
-                request.signatoryName());
+                        return requested;
+                }
 
-        if (StringUtils.hasText(
-                requested)) {
+                if (request
+                                .receiptType()
+                                .isPaidByOrganization()) {
 
-            return requested;
+                        return null;
+                }
+
+                return firstText(
+
+                                organization.getApproverTitle(),
+
+                                organization.getReviewerTitle());
         }
 
-        if (request
-                .receiptType()
-                .isPaidByOrganization()) {
+        private void validateTransaction(FinancialTransaction transaction) {
 
-            return counterparty.name();
+                if (transaction.isTechnicalMovement()) {
+                        throw new BusinessException("Technical movements are managed automatically");
+                }
+
+                if (transaction.getStatus() != FinancialTransactionStatus.SETTLED) {
+                        throw new BusinessException("Receipt can only use a settled transaction");
+                }
+
+                if (transaction.getType() == FinancialTransactionType.TRANSFER) {
+                        throw new BusinessException("Transfers cannot generate receipts");
+                }
         }
 
-        return firstText(
+        private FinancialTransaction findTransaction(
+                        UUID organizationId,
+                        UUID transactionId) {
 
-                organization.getApproverName(),
-
-                organization.getReviewerName());
-    }
-
-    private String resolveSignatoryTitle(
-
-            CreateReceiptDraftRequest request,
-
-            Organization organization) {
-
-        String requested = normalize(
-                request.signatoryTitle());
-
-        if (StringUtils.hasText(
-                requested)) {
-
-            return requested;
+                return transactionRepository
+                                .findByIdAndOrganizationId(transactionId, organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Financial transaction not found"));
         }
 
-        if (request
-                .receiptType()
-                .isPaidByOrganization()) {
+        private Beneficiary findParty(
+                        UUID organizationId,
+                        UUID partyId) {
 
-            return null;
+                return beneficiaryRepository
+                                .findByIdAndOrganizationIdAndActiveTrue(partyId, organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Financial party not found"));
         }
 
-        return firstText(
+        private PartySnapshot snapshot(Beneficiary party) {
 
-                organization.getApproverTitle(),
+                String name = firstText(party.getLegalName(), party.getName());
 
-                organization.getReviewerTitle());
-    }
-
-    private void validateTransaction(
-            FinancialTransaction transaction) {
-
-        if (transaction.getStatus() != FinancialTransactionStatus.SETTLED) {
-
-            throw new BusinessException(
-                    "Receipt can only use a settled transaction");
+                return new PartySnapshot(
+                                party,
+                                name,
+                                normalize(party.getDocument()),
+                                formatAddress(party));
         }
 
-        if (transaction.getType() == FinancialTransactionType.TRANSFER) {
+        private String formatAddress(Beneficiary party) {
 
-            throw new BusinessException(
-                    "Transfers cannot generate receipts");
-        }
-    }
+                List<String> parts = new ArrayList<>();
+                addPart(parts, party.getAddressLine());
+                addPart(parts, party.getAddressNumber());
+                addPart(parts, party.getAddressComplement());
+                addPart(parts, party.getNeighborhood());
 
-    private FinancialTransaction findTransaction(
+                String cityAndState = StringUtils.hasText(
+                                party.getCity()) ? party.getCity()
+                                                + (StringUtils.hasText(party.getState()) ? "/" + party.getState() : "")
+                                                : party.getState();
+                addPart(parts, cityAndState);
 
-            UUID organizationId,
+                if (parts.isEmpty()) {
+                        return null;
+                }
 
-            UUID transactionId) {
-
-        return transactionRepository
-                .findByIdAndOrganizationId(
-
-                        transactionId,
-
-                        organizationId)
-
-                .orElseThrow(
-                        () -> new ResourceNotFoundException(
-                                "Financial transaction not found"));
-    }
-
-    private Beneficiary findParty(
-
-            UUID organizationId,
-
-            UUID partyId) {
-
-        return beneficiaryRepository
-                .findByIdAndOrganizationIdAndActiveTrue(
-
-                        partyId,
-
-                        organizationId)
-
-                .orElseThrow(
-                        () -> new ResourceNotFoundException(
-                                "Financial party not found"));
-    }
-
-    private PartySnapshot snapshot(
-            Beneficiary party) {
-
-        String name = firstText(
-
-                party.getLegalName(),
-
-                party.getName());
-
-        return new PartySnapshot(
-
-                party,
-
-                name,
-
-                normalize(
-                        party.getDocument()),
-
-                formatAddress(
-                        party));
-    }
-
-    private String formatAddress(
-            Beneficiary party) {
-
-        List<String> parts = new ArrayList<>();
-
-        addPart(
-                parts,
-
-                party.getAddressLine());
-
-        addPart(
-                parts,
-
-                party.getAddressNumber());
-
-        addPart(
-                parts,
-
-                party.getAddressComplement());
-
-        addPart(
-                parts,
-
-                party.getNeighborhood());
-
-        String cityAndState = StringUtils.hasText(
-                party.getCity())
-
-                        ? party.getCity()
-                                + (StringUtils.hasText(
-                                        party.getState())
-
-                                                ? "/"
-                                                        + party.getState()
-
-                                                : "")
-
-                        : party.getState();
-
-        addPart(
-                parts,
-
-                cityAndState);
-
-        if (parts.isEmpty()) {
-            return null;
+                return String.join(", ", parts);
         }
 
-        return String.join(
-                ", ",
-                parts);
-    }
+        private void addPart(List<String> parts, String value) {
 
-    private void addPart(
+                String normalized = normalize(value);
 
-            List<String> parts,
-
-            String value) {
-
-        String normalized = normalize(
-                value);
-
-        if (StringUtils.hasText(
-                normalized)) {
-
-            parts.add(
-                    normalized);
-        }
-    }
-
-    private Receipt findEntity(
-
-            UUID organizationId,
-
-            UUID receiptId) {
-
-        return receiptRepository
-                .findByIdAndOrganizationId(
-
-                        receiptId,
-
-                        organizationId)
-
-                .orElseThrow(
-                        () -> new ResourceNotFoundException(
-                                "Receipt not found"));
-    }
-
-    private void requireDraft(
-            Receipt receipt) {
-
-        if (receipt.getStatus() != ReceiptStatus.DRAFT) {
-
-            throw new BusinessException(
-                    "Only receipt drafts can be edited or deleted");
-        }
-    }
-
-    private String firstText(
-            String... values) {
-
-        for (String value : values) {
-
-            String normalized = normalize(
-                    value);
-
-            if (StringUtils.hasText(
-                    normalized)) {
-
-                return normalized;
-            }
+                if (StringUtils.hasText(normalized)) {
+                        parts.add(normalized);
+                }
         }
 
-        return null;
-    }
+        private Receipt findEntity(UUID organizationId, UUID receiptId) {
 
-    private String normalize(
-            String value) {
-
-        if (!StringUtils.hasText(
-                value)) {
-
-            return null;
+                return receiptRepository
+                                .findByIdAndOrganizationId(receiptId, organizationId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Receipt not found"));
         }
 
-        return value.trim();
-    }
+        private void requireDraft(
+                        Receipt receipt) {
 
-    private record ReceiptSourceContext(
+                if (receipt.getStatus() != ReceiptStatus.DRAFT) {
 
-            FinancialTransaction transaction,
+                        throw new BusinessException(
+                                        "Only receipt drafts can be edited or deleted");
+                }
+        }
 
-            TransactionAllocation allocation) {
-    }
+        private String firstText(
+                        String... values) {
 
-    private record PartySnapshot(
+                for (String value : values) {
 
-            Beneficiary party,
+                        String normalized = normalize(
+                                        value);
 
-            String name,
+                        if (StringUtils.hasText(
+                                        normalized)) {
 
-            String document,
+                                return normalized;
+                        }
+                }
 
-            String address) {
-    }
+                return null;
+        }
 
-    private record FundSnapshot(
+        private String normalize(
+                        String value) {
 
-            Fund fund,
+                if (!StringUtils.hasText(
+                                value)) {
 
-            String name) {
-    }
+                        return null;
+                }
+
+                return value.trim();
+        }
+
+        private record ReceiptSourceContext(
+
+                        FinancialTransaction transaction,
+
+                        TransactionAllocation allocation) {
+        }
+
+        private record PartySnapshot(
+
+                        Beneficiary party,
+
+                        String name,
+
+                        String document,
+
+                        String address) {
+        }
+
+        private record FundSnapshot(
+
+                        Fund fund,
+
+                        String name) {
+        }
 }
