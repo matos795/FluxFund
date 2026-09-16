@@ -44,6 +44,7 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             where a.fund.id = :fundId
               and a.organization.id = :organizationId
               and a.financialTransaction.status = 'SETTLED'
+              and a.financialTransaction.technicalMovement = false
             """)
     BigDecimal sumAmountByFundId(
             @Param("organizationId") UUID organizationId,
@@ -55,6 +56,7 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             where a.fund.id = :fundId
               and a.organization.id = :organizationId
               and a.financialTransaction.status = 'SETTLED'
+              and a.financialTransaction.technicalMovement = false
               and a.financialTransaction.id <> :excludedTransactionId
             """)
     BigDecimal sumAmountByFundIdExcludingTransaction(
@@ -68,6 +70,7 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             where a.organization.id = :organizationId
               and a.fund.active = true
               and a.financialTransaction.status <> :canceledStatus
+              and a.financialTransaction.technicalMovement = false
             """)
     BigDecimal sumActiveFundAllocationsByOrganizationId(
             @Param("organizationId") UUID organizationId,
@@ -115,6 +118,7 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             left join a.financialTransaction ft
             where f.organization.id = :organizationId
               and f.active = true
+              and ft.technicalMovement = false
             group by f.id, f.name, f.initialBalance
             order by f.name asc
             """)
@@ -154,6 +158,7 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             join a.beneficiary b
             where a.organization.id = :organizationId
               and ft.status <> com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.CANCELED
+              and ft.technicalMovement = false
             group by b.id, b.name, f.id, f.name
             order by b.name asc, f.name asc
             """)
@@ -193,6 +198,7 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
                         join a.beneficiary b
                         where a.organization.id = :organizationId
               and ft.status <> com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.CANCELED
+              and ft.technicalMovement = false
               and coalesce(
                 a.referenceMonth,
                 ft.settlementDate
@@ -240,6 +246,7 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
                         join a.beneficiary b
                         where a.organization.id = :organizationId
               and ft.status <> com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.CANCELED
+              and ft.technicalMovement = false
               and coalesce(
                     a.referenceMonth,
                     ft.settlementDate
@@ -287,6 +294,7 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             join a.fund f
             where a.organization.id = :organizationId
               and ft.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
+              and ft.technicalMovement = false
               and ft.settlementDate between :startDate and :endDate
             group by f.id
             """)
@@ -702,6 +710,7 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             where allocation.organization.id = :organizationId
               and transaction.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
               and transaction.type = com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.INCOME
+              and transaction.technicalMovement = false
               and transaction.settlementDate between :startDate and :endDate
 
             group by sourceParty.id, sourceParty.name
@@ -729,6 +738,7 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             where allocation.organization.id = :organizationId
               and transaction.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
               and transaction.type = com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.EXPENSE
+              and transaction.technicalMovement = false
               and transaction.settlementDate between :startDate and :endDate
 
             group by recipientParty.id, recipientParty.name
@@ -757,6 +767,7 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             where allocation.organization.id = :organizationId
               and transaction.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
               and transaction.type = com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.INCOME
+              and transaction.technicalMovement = false
               and transaction.settlementDate between :startDate and :endDate
 
             group by
@@ -790,6 +801,7 @@ public interface TransactionAllocationRepository extends JpaRepository<Transacti
             where allocation.organization.id = :organizationId
               and transaction.status = com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.SETTLED
               and transaction.type = com.fluxfund.api.domain.financialtransaction.FinancialTransactionType.EXPENSE
+              and transaction.technicalMovement = false
               and transaction.settlementDate between :startDate and :endDate
 
             group by
