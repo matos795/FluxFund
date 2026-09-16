@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -527,6 +528,117 @@ class TransactionAllocationRepositoryIntegrationTest {
                 assertThat(monthly.getFirst().getTotalAmount()).isEqualByComparingTo("1000.00");
         }
 
+        @Test
+        void shouldIgnoreTechnicalMovementsInFinancialPartyOverviewQueries() {
+
+                Organization organization = createOrganization("Organização Teste");
+
+                Account account = createAccount(organization);
+
+                Fund fund = createFund(organization);
+
+                Beneficiary party = createParty(organization, "Pessoa Teste", BeneficiaryType.OTHER);
+
+                createPartyAllocation(
+                                organization,
+                                account,
+                                fund,
+                                FinancialTransactionType.INCOME,
+                                party,
+                                null,
+                                new BigDecimal("100.00"),
+                                false);
+
+                // Receita técnica antiga cuja origem era a pessoa.
+                createPartyAllocation(
+                                organization,
+                                account,
+                                fund,
+                                FinancialTransactionType.INCOME,
+                                party,
+                                null,
+                                new BigDecimal("5000.00"),
+                                true);
+
+                // Receita real destinada à pessoa.
+                createPartyAllocation(
+                                organization,
+                                account,
+                                fund,
+                                FinancialTransactionType.INCOME,
+                                null,
+                                party,
+                                new BigDecimal("200.00"),
+                                false);
+
+                // Receita técnica antiga destinada à pessoa.
+                createPartyAllocation(
+                                organization,
+                                account,
+                                fund,
+                                FinancialTransactionType.INCOME,
+                                null,
+                                party,
+                                new BigDecimal("6000.00"),
+                                true);
+
+                // Despesa real paga à pessoa.
+                createPartyAllocation(
+                                organization,
+                                account,
+                                fund,
+                                FinancialTransactionType.EXPENSE,
+                                null,
+                                party,
+                                new BigDecimal("300.00"),
+                                false);
+
+                // Despesa técnica antiga atribuída à pessoa.
+                createPartyAllocation(
+                                organization,
+                                account,
+                                fund,
+                                FinancialTransactionType.EXPENSE,
+                                null,
+                                party,
+                                new BigDecimal("7000.00"),
+                                true);
+
+                entityManager.flush();
+                entityManager.clear();
+
+                BigDecimal incomeFromParty = repository.sumSettledIncomeFromParty(
+                                organization.getId(),
+                                party.getId());
+
+                BigDecimal incomeDestinedToParty = repository.sumSettledIncomeDestinedToParty(
+                                organization.getId(),
+                                party.getId());
+
+                BigDecimal expensePaidToParty = repository.sumSettledExpensePaidToParty(
+                                organization.getId(),
+                                party.getId());
+
+                long transactionCount = repository.countSettledTransactionsByParty(
+                                organization.getId(),
+                                party.getId());
+
+                var recentActivities = repository.findRecentSettledByFinancialParty(
+                                organization.getId(),
+                                party.getId(),
+                                PageRequest.of(0, 20));
+
+                assertThat(incomeFromParty).isEqualByComparingTo("100.00");
+                assertThat(incomeDestinedToParty).isEqualByComparingTo("200.00");
+                assertThat(expensePaidToParty).isEqualByComparingTo("300.00");
+                assertThat(transactionCount).isEqualTo(3L);
+                assertThat(recentActivities).hasSize(3);
+                assertThat(recentActivities)
+                                .allMatch(allocation -> !allocation
+                                                .getFinancialTransaction()
+                                                .isTechnicalMovement());
+        }
+
         private Organization createOrganization(String name) {
 
                 Organization organization = new Organization();
@@ -731,5 +843,45 @@ class TransactionAllocationRepositoryIntegrationTest {
 
                 entityManager.persist(
                                 allocation);
+        }
+
+        private void createPartyAllocation(
+                        Organization organization,
+                        Account account,
+                        Fund fund,
+                        FinancialTransactionType type,
+                        Beneficiary sourceParty,
+                        Beneficiary recipientParty,
+                        BigDecimal amount,
+                        boolean technical) {
+
+                FinancialTransaction transaction = new FinancialTransaction();
+                transaction.setOrganization(organization);
+                transaction.setAccount(account);
+                transaction.setSource(FinancialTransactionSource.MANUAL);
+                transaction.setStatus(FinancialTransactionStatus.SETTLED);
+                transaction.setType(type);
+                transaction.setSettlementDate(LocalDate.of(2026, 8, 18));
+                transaction.setExpectedAmount(amount);
+                transaction.setSettledAmount(amount);
+                transaction.setInterestAmount(BigDecimal.ZERO);
+                transaction.setDiscountAmount(BigDecimal.ZERO);
+                transaction.setDescription(technical ? "Movimento técnico legado" : "Movimento econômico");
+
+                if (technical) {
+                        transaction.markAsTechnicalMovement(TechnicalMovementType.NUBANK_PIX_CREDIT_BRIDGE);
+                }
+
+                entityManager.persist(transaction);
+
+                TransactionAllocation allocation = new TransactionAllocation();
+                allocation.setOrganization(organization);
+                allocation.setFinancialTransaction(transaction);
+                allocation.setFund(fund);
+                allocation.setSourceParty(sourceParty);
+                allocation.setBeneficiary(recipientParty);
+                allocation.setAmount(type == FinancialTransactionType.EXPENSE ? amount.negate() : amount);
+
+                entityManager.persist(allocation);
         }
 }
