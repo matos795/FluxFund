@@ -1195,4 +1195,100 @@ DashboardCashFlowTotalsProjection findDashboardRealCashFlowTotals(
         @Param("organizationId") UUID organizationId,
         @Param("startDate") LocalDate startDate,
         @Param("endDate") LocalDate endDate);
+
+        @Query(value = """
+                select
+                    funding.id as fundingTransactionId,
+                    reversal.id as reversalTransactionId,
+
+                    funding.organization_id as organizationId,
+                    funding.account_id as accountId,
+
+                    funding.external_id as fundingExternalId,
+                    reversal.external_id as reversalExternalId,
+
+                    funding.settlement_date as settlementDate,
+
+                    abs(
+                        coalesce(
+                            funding.settled_amount,
+                            funding.expected_amount
+                        )
+                    ) as amount,
+
+                    funding.raw_description as fundingRawDescription,
+                    reversal.raw_description as reversalRawDescription,
+
+                    funding.technical_movement as fundingTechnicalMovement,
+                    funding.technical_movement_type as fundingTechnicalMovementType,
+
+                    reversal.technical_movement as reversalTechnicalMovement,
+                    reversal.technical_movement_type as reversalTechnicalMovementType
+
+                from financial_transaction funding
+
+                join financial_transaction reversal
+                on reversal.organization_id =
+                        funding.organization_id
+
+                and reversal.account_id =
+                        funding.account_id
+
+                and reversal.external_id =
+                        funding.external_id || ':reversal'
+
+                and reversal.settlement_date =
+                        funding.settlement_date
+
+                and abs(
+                        coalesce(
+                            reversal.settled_amount,
+                            reversal.expected_amount
+                        )
+                    ) =
+                    abs(
+                        coalesce(
+                            funding.settled_amount,
+                            funding.expected_amount
+                        )
+                    )
+
+                where funding.organization_id =
+                        :organizationId
+
+                and funding.source = 'OFX'
+                and reversal.source = 'OFX'
+
+                and funding.status = 'SETTLED'
+                and reversal.status = 'SETTLED'
+
+                and funding.type = 'INCOME'
+                and reversal.type = 'EXPENSE'
+
+                and funding.external_id is not null
+
+                and (
+                        funding.technical_movement = false
+                        or reversal.technical_movement = false
+                    )
+
+                and (
+                        funding.technical_movement = false
+                        or funding.technical_movement_type =
+                            'NUBANK_PIX_CREDIT_BRIDGE'
+                    )
+
+                and (
+                        reversal.technical_movement = false
+                        or reversal.technical_movement_type =
+                            'NUBANK_PIX_CREDIT_BRIDGE'
+                    )
+
+                order by
+                    funding.settlement_date asc,
+                    funding.id asc
+                """,
+                nativeQuery = true)
+        List<TechnicalMovementBackfillPairProjection>
+        findNubankPixCreditBridgeBackfillCandidates(@Param("organizationId") UUID organizationId);
 }
