@@ -74,6 +74,14 @@ public class NubankPixCreditBridgeDetector {
         return Map.copyOf(detected);
     }
 
+    public boolean matchesKnownDescriptions(
+            String fundingDescription,
+            String reversalDescription) {
+
+        return normalizedText(fundingDescription).contains(FUNDING_DESCRIPTION)
+                && normalizedText(reversalDescription).contains(PIX_OUT_DESCRIPTION);
+    }
+
     private boolean isNubankPixCreditFundingEntry(Transaction transaction) {
 
         BigDecimal amount = transaction.getBigDecimalAmount();
@@ -148,16 +156,24 @@ public class NubankPixCreditBridgeDetector {
             rawDescription = transaction.getName();
         }
 
+        return normalizedText(rawDescription);
+    }
+
+    private String normalizedText(String rawDescription) {
+
         if (rawDescription == null || rawDescription.isBlank()) {
             return "";
         }
 
-        String repaired = ofxTextNormalizer.normalize(rawDescription);
+        String repaired = ofxTextNormalizer.normalize(
+                rawDescription);
 
         String withoutAccents = Normalizer.normalize(
                 repaired,
                 Normalizer.Form.NFD)
-                .replaceAll("\\p{M}", "");
+                .replaceAll(
+                        "\\p{M}",
+                        "");
 
         return withoutAccents
                 .toLowerCase(Locale.ROOT)
