@@ -74,14 +74,6 @@ public class NubankPixCreditBridgeDetector {
         return Map.copyOf(detected);
     }
 
-    public boolean matchesKnownDescriptions(
-            String fundingDescription,
-            String reversalDescription) {
-
-        return normalizedText(fundingDescription).contains(FUNDING_DESCRIPTION)
-                && normalizedText(reversalDescription).contains(PIX_OUT_DESCRIPTION);
-    }
-
     private boolean isNubankPixCreditFundingEntry(Transaction transaction) {
 
         BigDecimal amount = transaction.getBigDecimalAmount();
