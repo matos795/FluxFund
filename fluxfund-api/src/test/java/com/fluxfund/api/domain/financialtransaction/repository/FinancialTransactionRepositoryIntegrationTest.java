@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,9 +26,20 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
 import com.fluxfund.api.domain.financialtransaction.TechnicalMovementType;
 import com.fluxfund.api.domain.organization.Organization;
 
+import org.springframework.context.annotation.Import;
+
+import com.fluxfund.api.domain.financialtransaction.service.NubankPixCreditBridgeDetector;
+import com.fluxfund.api.domain.financialtransaction.service.TechnicalMovementBackfillService;
+import com.fluxfund.api.shared.ofx.OfxTextNormalizer;
+
 @DataJpaTest
 @Testcontainers
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@Import({
+                TechnicalMovementBackfillService.class,
+                NubankPixCreditBridgeDetector.class,
+                OfxTextNormalizer.class
+})
 class FinancialTransactionRepositoryIntegrationTest {
 
         @Container
@@ -46,6 +58,9 @@ class FinancialTransactionRepositoryIntegrationTest {
 
         @Autowired
         private FinancialTransactionRepository repository;
+
+        @Autowired
+        private TechnicalMovementBackfillService backfillService;
 
         @Test
         void shouldExcludeTechnicalMovementsFromEconomicMetricsButKeepBankMovement() {
@@ -240,6 +255,131 @@ class FinancialTransactionRepositoryIntegrationTest {
                 assertThat(
                                 candidate.getReversalTechnicalMovement())
                                 .isFalse();
+        }
+
+        @Test
+        void shouldExecutePixCreditBackfillAndBeIdempotent() {
+
+                Organization organization = createOrganization();
+
+                Account account = createAccount(
+                                organization);
+
+                FinancialTransaction funding = createLegacyOfxTransaction(
+                                organization,
+                                account,
+                                FinancialTransactionType.INCOME,
+                                "50.00",
+                                "pix-credit-execute",
+                                LocalDate.of(
+                                                2026,
+                                                8,
+                                                18),
+                                "Valor adicionado na conta por cartão de crédito - "
+                                                + "Valor adicionado para Pix no Crédito",
+                                false);
+
+                FinancialTransaction reversal = createLegacyOfxTransaction(
+                                organization,
+                                account,
+                                FinancialTransactionType.EXPENSE,
+                                "50.00",
+                                "pix-credit-execute:reversal",
+                                LocalDate.of(
+                                                2026,
+                                                8,
+                                                18),
+                                "Transferência enviada pelo Pix",
+                                false);
+
+                UUID fundingId = funding.getId();
+
+                UUID reversalId = reversal.getId();
+
+                entityManager.flush();
+                entityManager.clear();
+
+                var previewBefore = backfillService
+                                .previewNubankPixCreditBridge(
+                                                organization.getId());
+
+                assertThat(
+                                previewBefore.confirmedPairs())
+                                .isEqualTo(1);
+
+                assertThat(
+                                previewBefore.transactionsToMark())
+                                .isEqualTo(2);
+
+                var execution = backfillService
+                                .executeNubankPixCreditBridge(
+                                                organization.getId());
+
+                assertThat(
+                                execution.structuralCandidatePairs())
+                                .isEqualTo(1);
+
+                assertThat(
+                                execution.confirmedPairs())
+                                .isEqualTo(1);
+
+                assertThat(
+                                execution.transactionsMarked())
+                                .isEqualTo(2);
+
+                entityManager.flush();
+                entityManager.clear();
+
+                FinancialTransaction persistedFunding = repository
+                                .findByIdAndOrganizationId(
+                                                fundingId,
+                                                organization.getId())
+                                .orElseThrow();
+
+                FinancialTransaction persistedReversal = repository
+                                .findByIdAndOrganizationId(
+                                                reversalId,
+                                                organization.getId())
+                                .orElseThrow();
+
+                assertThat(
+                                persistedFunding.isTechnicalMovement())
+                                .isTrue();
+
+                assertThat(
+                                persistedFunding.getTechnicalMovementType())
+                                .isEqualTo(
+                                                TechnicalMovementType.NUBANK_PIX_CREDIT_BRIDGE);
+
+                assertThat(
+                                persistedReversal.isTechnicalMovement())
+                                .isTrue();
+
+                assertThat(
+                                persistedReversal.getTechnicalMovementType())
+                                .isEqualTo(
+                                                TechnicalMovementType.NUBANK_PIX_CREDIT_BRIDGE);
+
+                /*
+                 * Segunda prova:
+                 * depois de marcado, o par não aparece
+                 * novamente como candidato.
+                 */
+                var previewAfter = backfillService
+                                .previewNubankPixCreditBridge(
+                                                organization.getId());
+
+                assertThat(
+                                previewAfter.structuralCandidatePairs())
+                                .isZero();
+
+                assertThat(
+                                previewAfter.confirmedPairs())
+                                .isZero();
+
+                assertThat(
+                                previewAfter.transactionsToMark())
+                                .isZero();
         }
 
         private Organization createOrganization() {
