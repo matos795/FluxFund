@@ -18,10 +18,14 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "user_legal_acceptance", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_user_legal_acceptance_versions", columnNames = {
+        @UniqueConstraint(
+        name = "uk_user_legal_acceptance_document_set",
+        columnNames = {
                 "user_id",
                 "terms_version",
-                "privacy_notice_version"
+                "terms_hash",
+                "privacy_notice_version",
+                "privacy_notice_hash"
         })
 })
 @Getter

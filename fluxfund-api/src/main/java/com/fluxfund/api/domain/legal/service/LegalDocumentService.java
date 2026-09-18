@@ -11,49 +11,71 @@ import com.fluxfund.api.domain.legal.LegalDocumentHasher;
 import com.fluxfund.api.domain.legal.dto.LegalDocumentSnapshot;
 import com.fluxfund.api.domain.legal.dto.LegalDocumentProperties;
 
-import lombok.RequiredArgsConstructor;
-
 @Service
-@RequiredArgsConstructor
 public class LegalDocumentService {
 
-    private final LegalDocumentProperties properties;
+    private final LegalDocumentSnapshot currentTerms;
 
-    private final ResourceLoader resourceLoader;
+    private final LegalDocumentSnapshot currentPrivacyNotice;
 
-    private final LegalDocumentHasher hasher;
+    public LegalDocumentService(
+            LegalDocumentProperties properties,
+            ResourceLoader resourceLoader,
+            LegalDocumentHasher hasher) {
+
+        this.currentTerms =
+                load(
+                        properties.terms(),
+                        resourceLoader,
+                        hasher);
+
+        this.currentPrivacyNotice =
+                load(
+                        properties.privacyNotice(),
+                        resourceLoader,
+                        hasher);
+    }
 
     public LegalDocumentSnapshot currentTerms() {
-
-        return load(
-                properties.terms());
+        return currentTerms;
     }
 
     public LegalDocumentSnapshot currentPrivacyNotice() {
-
-        return load(
-                properties.privacyNotice());
+        return currentPrivacyNotice;
     }
 
-    private LegalDocumentSnapshot load(LegalDocumentProperties.Document document) {
+    private LegalDocumentSnapshot load(
+            LegalDocumentProperties.Document document,
+            ResourceLoader resourceLoader,
+            LegalDocumentHasher hasher) {
 
-        Resource resource = resourceLoader.getResource(
-                document.resource());
+        Resource resource =
+                resourceLoader.getResource(
+                        document.resource());
 
         try {
 
-            String content = new String(
-                    resource
-                            .getInputStream()
-                            .readAllBytes(),
-                    StandardCharsets.UTF_8);
+            String content =
+                    new String(
+                            resource
+                                    .getInputStream()
+                                    .readAllBytes(),
+                            StandardCharsets.UTF_8);
 
-            String hash = hasher.sha256(content);
+            String hash =
+                    hasher.sha256(content);
 
-            return new LegalDocumentSnapshot(document.version(), hash, content);
+            return new LegalDocumentSnapshot(
+                    document.version(),
+                    hash,
+                    content);
 
         } catch (IOException ex) {
-            throw new IllegalStateException("Unable to load legal document: " + document.resource(), ex);
+
+            throw new IllegalStateException(
+                    "Unable to load legal document: "
+                            + document.resource(),
+                    ex);
         }
     }
 }

@@ -18,12 +18,14 @@ CREATE TABLE user_legal_acceptance (
         FOREIGN KEY (user_id)
         REFERENCES app_user(id),
 
-    CONSTRAINT uk_user_legal_acceptance_versions
-        UNIQUE (
-            user_id,
-            terms_version,
-            privacy_notice_version
-        )
+    CONSTRAINT uk_user_legal_acceptance_document_set
+    UNIQUE (
+        user_id,
+        terms_version,
+        terms_hash,
+        privacy_notice_version,
+        privacy_notice_hash
+    )
 );
 
 CREATE INDEX idx_user_legal_acceptance_user
