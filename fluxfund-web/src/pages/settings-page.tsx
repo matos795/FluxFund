@@ -28,6 +28,7 @@ import { OrganizationUsersSettingsCard } from "@/features/organization-users/com
 import { PasswordSettingsCard } from "@/features/profile/components/password-settings-card"
 import { ProfileSettingsCard } from "@/features/profile/components/profile-settings-card"
 import { cn } from "@/lib/utils"
+import { LegalDocumentsSettingsCard } from "@/features/legal/components/legal-documents-settings-card"
 
 export function SettingsPage() {
   const {
@@ -146,10 +147,14 @@ export function SettingsPage() {
           value="account"
           className="mt-0"
         >
-          <div className="grid gap-6 xl:grid-cols-2">
-            <ProfileSettingsCard />
+          <div className="space-y-6">
+            <div className="grid gap-6 xl:grid-cols-2">
+              <ProfileSettingsCard />
 
-            <PasswordSettingsCard />
+              <PasswordSettingsCard />
+            </div>
+
+            <LegalDocumentsSettingsCard />
           </div>
         </TabsContent>
 
