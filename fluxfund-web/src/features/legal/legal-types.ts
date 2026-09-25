@@ -13,6 +13,7 @@ export type LegalAcceptanceStatus = {
     acceptanceRequired: boolean
     termsVersion: string
     privacyNoticeVersion: string
+    acceptedAt: string | null
 }
 
 export type AcceptLegalDocumentsRequest = {
