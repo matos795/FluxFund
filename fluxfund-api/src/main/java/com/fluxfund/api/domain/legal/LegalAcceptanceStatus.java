@@ -1,10 +1,12 @@
 package com.fluxfund.api.domain.legal;
 
-public record LegalAcceptanceStatus(
+import java.time.OffsetDateTime;
 
-        boolean acceptanceRequired,
-        String termsVersion,
-        String termsHash,
-        String privacyNoticeVersion,
-        String privacyNoticeHash) {
+public record LegalAcceptanceStatus(
+                boolean acceptanceRequired,
+                String termsVersion,
+                String termsHash,
+                String privacyNoticeVersion,
+                String privacyNoticeHash,
+                OffsetDateTime acceptedAt) {
 }

@@ -1,6 +1,7 @@
 package com.fluxfund.api.domain.legal.repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,4 +18,11 @@ public interface UserLegalAcceptanceRepository extends JpaRepository<UserLegalAc
             String privacyNoticeHash);
 
     List<UserLegalAcceptance> findAllByUser_IdOrderByAcceptedAtDesc(UUID userId);
+
+    Optional<UserLegalAcceptance> findFirstByUser_IdAndTermsVersionAndTermsHashAndPrivacyNoticeVersionAndPrivacyNoticeHashOrderByAcceptedAtDesc(
+            UUID userId,
+            String termsVersion,
+            String termsHash,
+            String privacyNoticeVersion,
+            String privacyNoticeHash);
 }

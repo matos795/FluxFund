@@ -79,6 +79,7 @@ public class LegalController {
         return new LegalAcceptanceStatusResponse(
                 status.acceptanceRequired(),
                 status.termsVersion(),
-                status.privacyNoticeVersion());
+                status.privacyNoticeVersion(),
+                status.acceptedAt());
     }
 }

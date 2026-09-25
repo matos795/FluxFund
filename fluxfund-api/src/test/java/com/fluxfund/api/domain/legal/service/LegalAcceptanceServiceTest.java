@@ -20,6 +20,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import java.time.OffsetDateTime;
 import java.util.Optional;
 
 import org.mockito.ArgumentCaptor;
@@ -29,215 +30,244 @@ import com.fluxfund.api.domain.user.AppUser;
 @ExtendWith(MockitoExtension.class)
 class LegalAcceptanceServiceTest {
 
-    @Mock
-    private UserLegalAcceptanceRepository acceptanceRepository;
+        @Mock
+        private UserLegalAcceptanceRepository acceptanceRepository;
 
-    @Mock
-    private LegalDocumentService documentService;
+        @Mock
+        private LegalDocumentService documentService;
 
-    @InjectMocks
-    private LegalAcceptanceService service;
+        @InjectMocks
+        private LegalAcceptanceService service;
 
-    @Mock
-    private AppUserRepository appUserRepository;
+        @Mock
+        private AppUserRepository appUserRepository;
 
-    @Test
-    void shouldRequireAcceptanceWhenCurrentDocumentsWereNotAccepted() {
+        @Test
+        void shouldRequireAcceptanceWhenCurrentDocumentsWereNotAccepted() {
 
-        UUID userId = UUID.randomUUID();
+                UUID userId = UUID.randomUUID();
 
-        LegalDocumentSnapshot terms = new LegalDocumentSnapshot(
-                "2026-09",
-                "terms-hash",
-                "Termos");
-
-        LegalDocumentSnapshot privacy = new LegalDocumentSnapshot(
-                "2026-09",
-                "privacy-hash",
-                "Privacidade");
-
-        when(documentService.currentTerms())
-                .thenReturn(terms);
-
-        when(documentService.currentPrivacyNotice())
-                .thenReturn(privacy);
-
-        when(
-                acceptanceRepository
-                        .existsByUser_IdAndTermsVersionAndTermsHashAndPrivacyNoticeVersionAndPrivacyNoticeHash(
-                                userId,
+                LegalDocumentSnapshot terms = new LegalDocumentSnapshot(
                                 "2026-09",
                                 "terms-hash",
+                                "Termos");
+
+                LegalDocumentSnapshot privacy = new LegalDocumentSnapshot(
                                 "2026-09",
-                                "privacy-hash"))
-                .thenReturn(false);
+                                "privacy-hash",
+                                "Privacidade");
 
-        LegalAcceptanceStatus status = service.getStatus(userId);
+                when(documentService.currentTerms())
+                                .thenReturn(terms);
 
-        assertThat(
-                status.acceptanceRequired())
-                .isTrue();
-    }
+                when(documentService.currentPrivacyNotice())
+                                .thenReturn(privacy);
 
-    @Test
-    void shouldRecognizeCurrentDocumentsAsAccepted() {
+                when(acceptanceRepository
+                                .findFirstByUser_IdAndTermsVersionAndTermsHashAndPrivacyNoticeVersionAndPrivacyNoticeHashOrderByAcceptedAtDesc(
+                                                userId,
+                                                "2026-09",
+                                                "terms-hash",
+                                                "2026-09",
+                                                "privacy-hash"))
+                                .thenReturn(Optional.empty());
 
-        UUID userId = UUID.randomUUID();
+                LegalAcceptanceStatus status = service.getStatus(userId);
 
-        LegalDocumentSnapshot terms = new LegalDocumentSnapshot(
-                "2026-09",
-                "terms-hash",
-                "Termos");
+                assertThat(status.acceptanceRequired()).isTrue();
+        }
 
-        LegalDocumentSnapshot privacy = new LegalDocumentSnapshot(
-                "2026-09",
-                "privacy-hash",
-                "Privacidade");
+        @Test
+        void shouldRecognizeCurrentDocumentsAsAccepted() {
 
-        when(documentService.currentTerms())
-                .thenReturn(terms);
+                UUID userId = UUID.randomUUID();
 
-        when(documentService.currentPrivacyNotice())
-                .thenReturn(privacy);
-
-        when(
-                acceptanceRepository
-                        .existsByUser_IdAndTermsVersionAndTermsHashAndPrivacyNoticeVersionAndPrivacyNoticeHash(
-                                userId,
+                LegalDocumentSnapshot terms = new LegalDocumentSnapshot(
                                 "2026-09",
                                 "terms-hash",
+                                "Termos");
+
+                LegalDocumentSnapshot privacy = new LegalDocumentSnapshot(
                                 "2026-09",
-                                "privacy-hash"))
-                .thenReturn(true);
+                                "privacy-hash",
+                                "Privacidade");
 
-        LegalAcceptanceStatus status = service.getStatus(userId);
+                OffsetDateTime acceptedAt = OffsetDateTime.parse("2026-09-24T11:30:00-03:00");
 
-        assertThat(
-                status.acceptanceRequired())
-                .isFalse();
+                UserLegalAcceptance acceptance = new UserLegalAcceptance();
 
-        assertThat(
-                status.termsVersion())
-                .isEqualTo(
-                        "2026-09");
+                acceptance.setAcceptedAt(acceptedAt);
 
-        assertThat(
-                status.privacyNoticeVersion())
-                .isEqualTo(
-                        "2026-09");
-    }
+                when(documentService.currentTerms()).thenReturn(terms);
 
-    @Test
-    void shouldPersistAcceptanceForCurrentDocuments() {
+                when(documentService.currentPrivacyNotice()).thenReturn(privacy);
 
-        UUID userId = UUID.randomUUID();
+                when(acceptanceRepository
+                                .findFirstByUser_IdAndTermsVersionAndTermsHashAndPrivacyNoticeVersionAndPrivacyNoticeHashOrderByAcceptedAtDesc(
+                                                userId,
+                                                "2026-09",
+                                                "terms-hash",
+                                                "2026-09",
+                                                "privacy-hash"))
+                                .thenReturn(Optional.of(acceptance));
 
-        AppUser user = new AppUser();
+                LegalAcceptanceStatus status = service.getStatus(userId);
 
-        user.setId(userId);
-        user.setActive(true);
+                assertThat(status.acceptedAt()).isEqualTo(acceptedAt);
 
-        LegalDocumentSnapshot terms = new LegalDocumentSnapshot(
-                "2026-09",
-                "terms-hash",
-                "Termos");
+                assertThat(status.acceptanceRequired()).isFalse();
 
-        LegalDocumentSnapshot privacy = new LegalDocumentSnapshot(
-                "2026-09",
-                "privacy-hash",
-                "Privacidade");
+                assertThat(status.termsVersion()).isEqualTo("2026-09");
 
-        when(documentService.currentTerms())
-                .thenReturn(terms);
+                assertThat(status.privacyNoticeVersion()).isEqualTo("2026-09");
+        }
 
-        when(documentService.currentPrivacyNotice())
-                .thenReturn(privacy);
+        @Test
+        void shouldPersistAcceptanceForCurrentDocuments() {
 
-        when(
-                acceptanceRepository
-                        .existsByUser_IdAndTermsVersionAndTermsHashAndPrivacyNoticeVersionAndPrivacyNoticeHash(
-                                userId,
+                UUID userId = UUID.randomUUID();
+
+                AppUser user = new AppUser();
+
+                user.setId(userId);
+                user.setActive(true);
+
+                LegalDocumentSnapshot terms = new LegalDocumentSnapshot(
                                 "2026-09",
                                 "terms-hash",
+                                "Termos");
+
+                LegalDocumentSnapshot privacy = new LegalDocumentSnapshot(
                                 "2026-09",
-                                "privacy-hash"))
-                .thenReturn(false);
+                                "privacy-hash",
+                                "Privacidade");
 
-        when(
-                appUserRepository
-                        .findByIdAndActiveTrue(
-                                userId))
-                .thenReturn(
-                        Optional.of(user));
+                when(documentService.currentTerms())
+                                .thenReturn(terms);
 
-        LegalAcceptanceStatus status = service.acceptCurrentDocuments(userId);
+                when(documentService.currentPrivacyNotice())
+                                .thenReturn(privacy);
 
-        ArgumentCaptor<UserLegalAcceptance> acceptanceCaptor = ArgumentCaptor.forClass(
-                UserLegalAcceptance.class);
+                when(
+                                acceptanceRepository
+                                                .findFirstByUser_IdAndTermsVersionAndTermsHashAndPrivacyNoticeVersionAndPrivacyNoticeHashOrderByAcceptedAtDesc(
+                                                                userId,
+                                                                "2026-09",
+                                                                "terms-hash",
+                                                                "2026-09",
+                                                                "privacy-hash"))
+                                .thenReturn(Optional.empty());
 
-        verify(acceptanceRepository)
-                .save(
-                        acceptanceCaptor.capture());
+                when(appUserRepository.findByIdAndActiveTrue(userId))
+                                .thenReturn(Optional.of(user));
 
-        UserLegalAcceptance saved = acceptanceCaptor.getValue();
+                LegalAcceptanceStatus status = service.acceptCurrentDocuments(userId);
 
-        assertThat(saved.getUser()).isSameAs(user);
+                ArgumentCaptor<UserLegalAcceptance> acceptanceCaptor = ArgumentCaptor.forClass(
+                                UserLegalAcceptance.class);
 
-        assertThat(saved.getTermsVersion()).isEqualTo("2026-09");
+                verify(acceptanceRepository).save(acceptanceCaptor.capture());
 
-        assertThat(saved.getTermsHash()).isEqualTo("terms-hash");
+                UserLegalAcceptance saved = acceptanceCaptor.getValue();
 
-        assertThat(saved.getPrivacyNoticeVersion()).isEqualTo("2026-09");
+                assertThat(saved.getUser()).isSameAs(user);
 
-        assertThat(saved.getPrivacyNoticeHash()).isEqualTo("privacy-hash");
+                assertThat(saved.getTermsVersion()).isEqualTo("2026-09");
 
-        assertThat(saved.getAcceptedAt()).isNotNull();
+                assertThat(saved.getTermsHash()).isEqualTo("terms-hash");
 
-        assertThat(status.acceptanceRequired()).isFalse();
-    }
+                assertThat(saved.getPrivacyNoticeVersion()).isEqualTo("2026-09");
 
-    @Test
-    void shouldNotDuplicateAcceptanceWhenCurrentDocumentsWereAlreadyAccepted() {
+                assertThat(saved.getPrivacyNoticeHash()).isEqualTo("privacy-hash");
 
-        UUID userId = UUID.randomUUID();
+                assertThat(saved.getAcceptedAt()).isNotNull();
 
-        LegalDocumentSnapshot terms = new LegalDocumentSnapshot(
-                "2026-09",
-                "terms-hash",
-                "Termos");
+                assertThat(status.acceptanceRequired()).isFalse();
+        }
 
-        LegalDocumentSnapshot privacy = new LegalDocumentSnapshot(
-                "2026-09",
-                "privacy-hash",
-                "Privacidade");
+        @Test
+        void shouldNotDuplicateAcceptanceWhenCurrentDocumentsWereAlreadyAccepted() {
 
-        when(documentService.currentTerms())
-                .thenReturn(terms);
+                UUID userId = UUID.randomUUID();
 
-        when(documentService.currentPrivacyNotice())
-                .thenReturn(privacy);
-
-        when(
-                acceptanceRepository
-                        .existsByUser_IdAndTermsVersionAndTermsHashAndPrivacyNoticeVersionAndPrivacyNoticeHash(
-                                userId,
+                LegalDocumentSnapshot terms = new LegalDocumentSnapshot(
                                 "2026-09",
                                 "terms-hash",
+                                "Termos");
+
+                LegalDocumentSnapshot privacy = new LegalDocumentSnapshot(
                                 "2026-09",
-                                "privacy-hash"))
-                .thenReturn(true);
+                                "privacy-hash",
+                                "Privacidade");
 
-        LegalAcceptanceStatus status = service.acceptCurrentDocuments(
-                userId);
+                OffsetDateTime acceptedAt = OffsetDateTime.parse(
+                                "2026-09-24T11:30:00-03:00");
 
-        verify(
-                acceptanceRepository,
-                never())
-                .save(any());
+                UserLegalAcceptance existingAcceptance = new UserLegalAcceptance();
 
-        verify(appUserRepository, never())
-                .findByIdAndActiveTrue(any());
+                existingAcceptance.setAcceptedAt(acceptedAt);
 
-        assertThat(status.acceptanceRequired()).isFalse();
-    }
+                when(documentService.currentTerms()).thenReturn(terms);
+
+                when(documentService.currentPrivacyNotice()).thenReturn(privacy);
+
+                when(acceptanceRepository
+                                .findFirstByUser_IdAndTermsVersionAndTermsHashAndPrivacyNoticeVersionAndPrivacyNoticeHashOrderByAcceptedAtDesc(
+                                                userId,
+                                                "2026-09",
+                                                "terms-hash",
+                                                "2026-09",
+                                                "privacy-hash"))
+                                .thenReturn(Optional.of(existingAcceptance));
+
+                LegalAcceptanceStatus status = service.acceptCurrentDocuments(userId);
+
+                verify(acceptanceRepository, never()).save(any());
+
+                verify(appUserRepository, never()).findByIdAndActiveTrue(any());
+
+                assertThat(status.acceptanceRequired()).isFalse();
+                assertThat(status.acceptedAt()).isEqualTo(acceptedAt);
+        }
+
+        @Test
+        void shouldReturnAcceptedAtForCurrentDocuments() {
+                UUID userId = UUID.randomUUID();
+
+                OffsetDateTime acceptedAt = OffsetDateTime.parse(
+                                "2026-09-24T11:30:00-03:00");
+
+                LegalDocumentSnapshot terms = new LegalDocumentSnapshot(
+                                "2026-09",
+                                "terms-hash",
+                                "Termos");
+
+                LegalDocumentSnapshot privacy = new LegalDocumentSnapshot(
+                                "2026-09",
+                                "privacy-hash",
+                                "Privacidade");
+
+                UserLegalAcceptance acceptance = new UserLegalAcceptance();
+
+                acceptance.setAcceptedAt(acceptedAt);
+
+                when(documentService.currentTerms()).thenReturn(terms);
+
+                when(documentService.currentPrivacyNotice()).thenReturn(privacy);
+
+                when(acceptanceRepository
+                                .findFirstByUser_IdAndTermsVersionAndTermsHashAndPrivacyNoticeVersionAndPrivacyNoticeHashOrderByAcceptedAtDesc(
+                                                userId,
+                                                "2026-09",
+                                                "terms-hash",
+                                                "2026-09",
+                                                "privacy-hash"))
+                                .thenReturn(Optional.of(acceptance));
+
+                LegalAcceptanceStatus status = service.getStatus(userId);
+
+                assertThat(status.acceptanceRequired()).isFalse();
+
+                assertThat(status.acceptedAt()).isEqualTo(acceptedAt);
+        }
 }

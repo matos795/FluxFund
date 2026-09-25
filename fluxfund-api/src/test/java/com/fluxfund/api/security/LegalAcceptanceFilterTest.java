@@ -26,179 +26,181 @@ import jakarta.servlet.FilterChain;
 
 class LegalAcceptanceFilterTest {
 
-    private final LegalAcceptanceService legalAcceptanceService = Mockito.mock(
-            LegalAcceptanceService.class);
+        private final LegalAcceptanceService legalAcceptanceService = Mockito.mock(
+                        LegalAcceptanceService.class);
 
-    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+        private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
-    private final LegalAcceptanceFilter filter = new LegalAcceptanceFilter(
-            legalAcceptanceService,
-            objectMapper);
+        private final LegalAcceptanceFilter filter = new LegalAcceptanceFilter(
+                        legalAcceptanceService,
+                        objectMapper);
 
-    @AfterEach
-    void clearSecurityContext() {
+        @AfterEach
+        void clearSecurityContext() {
 
-        SecurityContextHolder.clearContext();
-    }
+                SecurityContextHolder.clearContext();
+        }
 
-    @Test
-    void shouldBlockProtectedRequestWhenAcceptanceIsRequired() throws Exception {
+        @Test
+        void shouldBlockProtectedRequestWhenAcceptanceIsRequired() throws Exception {
 
-        UUID userId = UUID.randomUUID();
+                UUID userId = UUID.randomUUID();
 
-        authenticate(userId);
+                authenticate(userId);
 
-        when(legalAcceptanceService.getStatus(userId))
-                .thenReturn(new LegalAcceptanceStatus(
-                        true,
-                        "2026-09",
-                        "terms-hash",
-                        "2026-09",
-                        "privacy-hash"));
+                when(legalAcceptanceService.getStatus(userId))
+                                .thenReturn(new LegalAcceptanceStatus(
+                                                true,
+                                                "2026-09",
+                                                "terms-hash",
+                                                "2026-09",
+                                                "privacy-hash",
+                                                null));
 
-        MockHttpServletRequest request = new MockHttpServletRequest(
-                "GET",
-                "/api/v1/accounts");
+                MockHttpServletRequest request = new MockHttpServletRequest(
+                                "GET",
+                                "/api/v1/accounts");
 
-        MockHttpServletResponse response = new MockHttpServletResponse();
+                MockHttpServletResponse response = new MockHttpServletResponse();
 
-        FilterChain filterChain = Mockito.mock(
-                FilterChain.class);
+                FilterChain filterChain = Mockito.mock(
+                                FilterChain.class);
 
-        filter.doFilter(
-                request,
-                response,
-                filterChain);
+                filter.doFilter(
+                                request,
+                                response,
+                                filterChain);
 
-        assertThat(response.getStatus())
-                .isEqualTo(403);
+                assertThat(response.getStatus())
+                                .isEqualTo(403);
 
-        assertThat(response.getContentAsString())
-                .contains(LegalAcceptanceFilter.ERROR_NAME);
+                assertThat(response.getContentAsString())
+                                .contains(LegalAcceptanceFilter.ERROR_NAME);
 
-        verify(
-                filterChain,
-                never())
-                .doFilter(
-                        request,
-                        response);
-    }
+                verify(
+                                filterChain,
+                                never())
+                                .doFilter(
+                                                request,
+                                                response);
+        }
 
-    @Test
-    void shouldAllowProtectedRequestWhenCurrentDocumentsWereAccepted() throws Exception {
+        @Test
+        void shouldAllowProtectedRequestWhenCurrentDocumentsWereAccepted() throws Exception {
 
-        UUID userId = UUID.randomUUID();
+                UUID userId = UUID.randomUUID();
 
-        authenticate(userId);
+                authenticate(userId);
 
-        when(legalAcceptanceService.getStatus(userId))
-                .thenReturn(new LegalAcceptanceStatus(
-                        false,
-                        "2026-09",
-                        "terms-hash",
-                        "2026-09",
-                        "privacy-hash"));
+                when(legalAcceptanceService.getStatus(userId))
+                                .thenReturn(new LegalAcceptanceStatus(
+                                                false,
+                                                "2026-09",
+                                                "terms-hash",
+                                                "2026-09",
+                                                "privacy-hash",
+                                                null));
 
-        MockHttpServletRequest request = new MockHttpServletRequest(
-                "GET",
-                "/api/v1/accounts");
+                MockHttpServletRequest request = new MockHttpServletRequest(
+                                "GET",
+                                "/api/v1/accounts");
 
-        MockHttpServletResponse response = new MockHttpServletResponse();
+                MockHttpServletResponse response = new MockHttpServletResponse();
 
-        FilterChain filterChain = Mockito.mock(
-                FilterChain.class);
+                FilterChain filterChain = Mockito.mock(
+                                FilterChain.class);
 
-        filter.doFilter(
-                request,
-                response,
-                filterChain);
+                filter.doFilter(
+                                request,
+                                response,
+                                filterChain);
 
-        verify(filterChain)
-                .doFilter(
-                        request,
-                        response);
-    }
+                verify(filterChain)
+                                .doFilter(
+                                                request,
+                                                response);
+        }
 
-    @Test
-    void shouldAllowLegalEndpointsWhileAcceptanceIsPending()
-            throws Exception {
+        @Test
+        void shouldAllowLegalEndpointsWhileAcceptanceIsPending()
+                        throws Exception {
 
-        UUID userId = UUID.randomUUID();
+                UUID userId = UUID.randomUUID();
 
-        authenticate(userId);
+                authenticate(userId);
 
-        MockHttpServletRequest request = new MockHttpServletRequest(
-                "GET",
-                "/api/v1/legal/documents");
+                MockHttpServletRequest request = new MockHttpServletRequest(
+                                "GET",
+                                "/api/v1/legal/documents");
 
-        MockHttpServletResponse response = new MockHttpServletResponse();
+                MockHttpServletResponse response = new MockHttpServletResponse();
 
-        FilterChain filterChain = Mockito.mock(
-                FilterChain.class);
+                FilterChain filterChain = Mockito.mock(
+                                FilterChain.class);
 
-        filter.doFilter(
-                request,
-                response,
-                filterChain);
+                filter.doFilter(
+                                request,
+                                response,
+                                filterChain);
 
-        verify(filterChain)
-                .doFilter(
-                        request,
-                        response);
+                verify(filterChain)
+                                .doFilter(
+                                                request,
+                                                response);
 
-        verify(
-                legalAcceptanceService,
-                never())
-                .getStatus(userId);
-    }
+                verify(
+                                legalAcceptanceService,
+                                never())
+                                .getStatus(userId);
+        }
 
-    @Test
-    void shouldAllowAuthMeWhileAcceptanceIsPending()
-            throws Exception {
+        @Test
+        void shouldAllowAuthMeWhileAcceptanceIsPending()
+                        throws Exception {
 
-        UUID userId = UUID.randomUUID();
+                UUID userId = UUID.randomUUID();
 
-        authenticate(userId);
+                authenticate(userId);
 
-        MockHttpServletRequest request = new MockHttpServletRequest(
-                "GET",
-                "/api/v1/auth/me");
+                MockHttpServletRequest request = new MockHttpServletRequest(
+                                "GET",
+                                "/api/v1/auth/me");
 
-        MockHttpServletResponse response = new MockHttpServletResponse();
+                MockHttpServletResponse response = new MockHttpServletResponse();
 
-        FilterChain filterChain = Mockito.mock(
-                FilterChain.class);
+                FilterChain filterChain = Mockito.mock(
+                                FilterChain.class);
 
-        filter.doFilter(
-                request,
-                response,
-                filterChain);
+                filter.doFilter(
+                                request,
+                                response,
+                                filterChain);
 
-        verify(filterChain)
-                .doFilter(
-                        request,
-                        response);
+                verify(filterChain)
+                                .doFilter(
+                                                request,
+                                                response);
 
-        verify(
-                legalAcceptanceService,
-                never())
-                .getStatus(userId);
-    }
+                verify(
+                                legalAcceptanceService,
+                                never())
+                                .getStatus(userId);
+        }
 
-    private void authenticate(
-            UUID userId) {
+        private void authenticate(
+                        UUID userId) {
 
-        Instant now = Instant.now();
+                Instant now = Instant.now();
 
-        Jwt jwt = Jwt.withTokenValue("token")
-                .header("alg", "HS256")
-                .subject(userId.toString())
-                .issuedAt(now)
-                .expiresAt(now.plusSeconds(3600))
-                .build();
+                Jwt jwt = Jwt.withTokenValue("token")
+                                .header("alg", "HS256")
+                                .subject(userId.toString())
+                                .issuedAt(now)
+                                .expiresAt(now.plusSeconds(3600))
+                                .build();
 
-        JwtAuthenticationToken authentication = new JwtAuthenticationToken(jwt, List.of());
+                JwtAuthenticationToken authentication = new JwtAuthenticationToken(jwt, List.of());
 
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-    }
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+        }
 }
