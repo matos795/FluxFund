@@ -3,9 +3,11 @@ package com.fluxfund.api.domain.legal.service;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fluxfund.api.domain.legal.event.LegalAcceptanceRegisteredEvent;
 import com.fluxfund.api.domain.legal.LegalAcceptanceStatus;
 import com.fluxfund.api.domain.legal.UserLegalAcceptance;
 import com.fluxfund.api.domain.legal.dto.LegalDocumentSnapshot;
@@ -24,6 +26,7 @@ public class LegalAcceptanceService {
         private final UserLegalAcceptanceRepository acceptanceRepository;
         private final LegalDocumentService documentService;
         private final AppUserRepository appUserRepository;
+        private final ApplicationEventPublisher eventPublisher;
 
         public LegalAcceptanceStatus getStatus(UUID userId) {
 
@@ -101,8 +104,15 @@ public class LegalAcceptanceService {
                 acceptance.setAcceptedAt(
                                 acceptedAt);
 
-                acceptanceRepository.save(
-                                acceptance);
+                acceptanceRepository.save(acceptance);
+
+                eventPublisher.publishEvent(
+                                new LegalAcceptanceRegisteredEvent(
+                                                user.getName(),
+                                                user.getEmail(),
+                                                terms.version(),
+                                                privacyNotice.version(),
+                                                acceptedAt));
 
                 return new LegalAcceptanceStatus(
                                 false,

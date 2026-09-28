@@ -10,9 +10,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
+
 import com.fluxfund.api.domain.legal.UserLegalAcceptance;
 import com.fluxfund.api.domain.legal.LegalAcceptanceStatus;
 import com.fluxfund.api.domain.legal.dto.LegalDocumentSnapshot;
+import com.fluxfund.api.domain.legal.event.LegalAcceptanceRegisteredEvent;
 import com.fluxfund.api.domain.legal.repository.UserLegalAcceptanceRepository;
 import com.fluxfund.api.domain.user.AppUserRepository;
 
@@ -41,6 +44,9 @@ class LegalAcceptanceServiceTest {
 
         @Mock
         private AppUserRepository appUserRepository;
+
+        @Mock
+        private ApplicationEventPublisher eventPublisher;
 
         @Test
         void shouldRequireAcceptanceWhenCurrentDocumentsWereNotAccepted() {
@@ -131,6 +137,8 @@ class LegalAcceptanceServiceTest {
 
                 user.setId(userId);
                 user.setActive(true);
+                user.setName("Alexandre");
+                user.setEmail("alexandre@example.com");
 
                 LegalDocumentSnapshot terms = new LegalDocumentSnapshot(
                                 "2026-09",
@@ -169,6 +177,23 @@ class LegalAcceptanceServiceTest {
                 verify(acceptanceRepository).save(acceptanceCaptor.capture());
 
                 UserLegalAcceptance saved = acceptanceCaptor.getValue();
+
+                ArgumentCaptor<LegalAcceptanceRegisteredEvent> eventCaptor = ArgumentCaptor.forClass(
+                                LegalAcceptanceRegisteredEvent.class);
+
+                verify(eventPublisher).publishEvent(eventCaptor.capture());
+
+                LegalAcceptanceRegisteredEvent event = eventCaptor.getValue();
+
+                assertThat(event.termsVersion()).isEqualTo("2026-09");
+
+                assertThat(event.privacyNoticeVersion()).isEqualTo("2026-09");
+
+                assertThat(event.acceptedAt()).isEqualTo(saved.getAcceptedAt());
+
+                assertThat(event.recipientName()).isEqualTo("Alexandre");
+
+                assertThat(event.recipientEmail()).isEqualTo("alexandre@example.com");
 
                 assertThat(saved.getUser()).isSameAs(user);
 
@@ -225,6 +250,8 @@ class LegalAcceptanceServiceTest {
                 verify(acceptanceRepository, never()).save(any());
 
                 verify(appUserRepository, never()).findByIdAndActiveTrue(any());
+
+                verify(eventPublisher, never()).publishEvent(any());
 
                 assertThat(status.acceptanceRequired()).isFalse();
                 assertThat(status.acceptedAt()).isEqualTo(acceptedAt);
