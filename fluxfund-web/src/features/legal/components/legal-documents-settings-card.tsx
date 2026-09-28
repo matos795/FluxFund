@@ -26,6 +26,18 @@ export function LegalDocumentsSettingsCard() {
     const status =
         statusQuery.data
 
+    if (statusQuery.isPending) {
+        return null
+    }
+
+    if (statusQuery.isError) {
+        return null
+    }
+
+    if (!status?.enforcementEnabled) {
+        return null
+    }
+
     const acceptedAtLabel =
         status?.acceptedAt
             ? formatAcceptedAt(
@@ -80,9 +92,7 @@ export function LegalDocumentsSettingsCard() {
                             </p>
 
                             <p className="mt-0.5 text-xs text-muted-foreground">
-                                {status
-                                    ? `Versão ${status.termsVersion}`
-                                    : "Condições de uso da plataforma"}
+                                {`Versão ${status.termsVersion}`}
                             </p>
                         </div>
                     </div>
@@ -98,25 +108,11 @@ export function LegalDocumentsSettingsCard() {
                             </p>
 
                             <p className="mt-0.5 text-xs text-muted-foreground">
-                                {status
-                                    ? `Versão ${status.privacyNoticeVersion}`
-                                    : "Como tratamos informações"}
+                                {`Versão ${status.privacyNoticeVersion}`}
                             </p>
                         </div>
                     </div>
                 </div>
-
-                {statusQuery.isPending && (
-                    <div className="mb-5 rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
-                        Carregando registro dos documentos...
-                    </div>
-                )}
-
-                {statusQuery.isError && (
-                    <div className="mb-5 rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
-                        Não foi possível consultar o registro dos documentos.
-                    </div>
-                )}
 
                 {status &&
                     !statusQuery.isError && (

@@ -19,6 +19,7 @@ import org.springframework.security.web.SecurityFilterChain;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fluxfund.api.domain.legal.service.LegalAcceptanceService;
+import com.fluxfund.api.domain.legal.dto.LegalDocumentProperties;
 import com.fluxfund.api.security.LegalAcceptanceFilter;
 import com.fluxfund.api.security.RestAccessDeniedHandler;
 import com.fluxfund.api.security.RestAuthenticationEntryPoint;
@@ -58,12 +59,14 @@ public class SecurityConfig {
                         RestAuthenticationEntryPoint authenticationEntryPoint,
                         RestAccessDeniedHandler accessDeniedHandler,
                         LegalAcceptanceService legalAcceptanceService,
-                        ObjectMapper objectMapper)
+                        ObjectMapper objectMapper,
+                        LegalDocumentProperties properties)
                         throws Exception {
 
                 LegalAcceptanceFilter legalAcceptanceFilter = new LegalAcceptanceFilter(
                                 legalAcceptanceService,
-                                objectMapper);
+                                objectMapper,
+                                properties);
 
                 return http
                                 .csrf(csrf -> csrf.disable())

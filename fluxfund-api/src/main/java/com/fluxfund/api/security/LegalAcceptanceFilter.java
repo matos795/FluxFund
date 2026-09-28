@@ -12,8 +12,9 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fluxfund.api.domain.legal.service.LegalAcceptanceService;
 import com.fluxfund.api.domain.legal.LegalAcceptanceStatus;
+import com.fluxfund.api.domain.legal.dto.LegalDocumentProperties;
+import com.fluxfund.api.domain.legal.service.LegalAcceptanceService;
 import com.fluxfund.api.shared.exception.ApiErrorResponse;
 
 import jakarta.servlet.FilterChain;
@@ -31,12 +32,18 @@ public class LegalAcceptanceFilter extends OncePerRequestFilter {
 
     private final ObjectMapper objectMapper;
 
+    private final LegalDocumentProperties properties;
+
     @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
+    protected boolean shouldNotFilter(
+            HttpServletRequest request) {
 
         String path = request.getRequestURI();
 
-        return path.startsWith("/api/v1/legal/") || path.equals("/api/v1/auth/me");
+        return path.startsWith(
+                "/api/v1/legal/")
+                || path.equals(
+                        "/api/v1/auth/me");
     }
 
     @Override
@@ -46,6 +53,22 @@ public class LegalAcceptanceFilter extends OncePerRequestFilter {
             FilterChain filterChain)
             throws ServletException, IOException {
 
+        /*
+         * Feature desligada:
+         *
+         * não consulta aceite,
+         * não chama serviço jurídico,
+         * não interfere na requisição.
+         */
+        if (!properties.enforcementEnabled()) {
+
+            filterChain.doFilter(
+                    request,
+                    response);
+
+            return;
+        }
+
         Authentication authentication = SecurityContextHolder
                 .getContext()
                 .getAuthentication();
@@ -53,7 +76,9 @@ public class LegalAcceptanceFilter extends OncePerRequestFilter {
         if (!(authentication instanceof JwtAuthenticationToken jwtAuthentication)
                 || !authentication.isAuthenticated()) {
 
-            filterChain.doFilter(request, response);
+            filterChain.doFilter(
+                    request,
+                    response);
 
             return;
         }
@@ -63,10 +88,14 @@ public class LegalAcceptanceFilter extends OncePerRequestFilter {
                         .getToken()
                         .getSubject());
 
-        LegalAcceptanceStatus status = legalAcceptanceService.getStatus(userId);
+        LegalAcceptanceStatus status = legalAcceptanceService
+                .getStatus(userId);
 
         if (!status.acceptanceRequired()) {
-            filterChain.doFilter(request, response);
+
+            filterChain.doFilter(
+                    request,
+                    response);
 
             return;
         }
@@ -80,10 +109,14 @@ public class LegalAcceptanceFilter extends OncePerRequestFilter {
                         + "before accessing FluxFund",
                 request.getRequestURI());
 
-        response.setStatus(HttpStatus.FORBIDDEN.value());
+        response.setStatus(
+                HttpStatus.FORBIDDEN.value());
 
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setContentType(
+                MediaType.APPLICATION_JSON_VALUE);
 
-        objectMapper.writeValue(response.getOutputStream(), error);
+        objectMapper.writeValue(
+                response.getOutputStream(),
+                error);
     }
 }

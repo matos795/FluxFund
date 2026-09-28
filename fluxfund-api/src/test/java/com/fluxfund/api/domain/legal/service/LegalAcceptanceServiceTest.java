@@ -17,11 +17,13 @@ import com.fluxfund.api.domain.legal.LegalAcceptanceStatus;
 import com.fluxfund.api.domain.legal.dto.LegalDocumentSnapshot;
 import com.fluxfund.api.domain.legal.event.LegalAcceptanceRegisteredEvent;
 import com.fluxfund.api.domain.legal.repository.UserLegalAcceptanceRepository;
+import com.fluxfund.api.domain.legal.dto.LegalDocumentProperties;
 import com.fluxfund.api.domain.user.AppUserRepository;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.time.OffsetDateTime;
 import java.util.Optional;
@@ -39,6 +41,9 @@ class LegalAcceptanceServiceTest {
         @Mock
         private LegalDocumentService documentService;
 
+        @Mock
+        private LegalDocumentProperties properties;
+
         @InjectMocks
         private LegalAcceptanceService service;
 
@@ -52,6 +57,9 @@ class LegalAcceptanceServiceTest {
         void shouldRequireAcceptanceWhenCurrentDocumentsWereNotAccepted() {
 
                 UUID userId = UUID.randomUUID();
+
+                when(properties.enforcementEnabled())
+                                .thenReturn(true);
 
                 LegalDocumentSnapshot terms = new LegalDocumentSnapshot(
                                 "2026-09",
@@ -87,6 +95,9 @@ class LegalAcceptanceServiceTest {
         void shouldRecognizeCurrentDocumentsAsAccepted() {
 
                 UUID userId = UUID.randomUUID();
+
+                when(properties.enforcementEnabled())
+                                .thenReturn(true);
 
                 LegalDocumentSnapshot terms = new LegalDocumentSnapshot(
                                 "2026-09",
@@ -132,6 +143,9 @@ class LegalAcceptanceServiceTest {
         void shouldPersistAcceptanceForCurrentDocuments() {
 
                 UUID userId = UUID.randomUUID();
+
+                when(properties.enforcementEnabled())
+                                .thenReturn(true);
 
                 AppUser user = new AppUser();
 
@@ -215,6 +229,9 @@ class LegalAcceptanceServiceTest {
 
                 UUID userId = UUID.randomUUID();
 
+                when(properties.enforcementEnabled())
+                                .thenReturn(true);
+
                 LegalDocumentSnapshot terms = new LegalDocumentSnapshot(
                                 "2026-09",
                                 "terms-hash",
@@ -261,6 +278,9 @@ class LegalAcceptanceServiceTest {
         void shouldReturnAcceptedAtForCurrentDocuments() {
                 UUID userId = UUID.randomUUID();
 
+                when(properties.enforcementEnabled())
+                                .thenReturn(true);
+
                 OffsetDateTime acceptedAt = OffsetDateTime.parse(
                                 "2026-09-24T11:30:00-03:00");
 
@@ -296,5 +316,37 @@ class LegalAcceptanceServiceTest {
                 assertThat(status.acceptanceRequired()).isFalse();
 
                 assertThat(status.acceptedAt()).isEqualTo(acceptedAt);
+        }
+
+        @Test
+        void shouldNotQueryAcceptanceWhenEnforcementIsDisabled() {
+
+                UUID userId = UUID.randomUUID();
+
+                LegalDocumentSnapshot terms = new LegalDocumentSnapshot(
+                                "2026-09",
+                                "terms-hash",
+                                "Termos");
+
+                LegalDocumentSnapshot privacy = new LegalDocumentSnapshot(
+                                "2026-09",
+                                "privacy-hash",
+                                "Privacidade");
+
+                when(properties.enforcementEnabled()).thenReturn(false);
+
+                when(documentService.currentTerms()).thenReturn(terms);
+
+                when(documentService.currentPrivacyNotice()).thenReturn(privacy);
+
+                LegalAcceptanceStatus status = service.getStatus(userId);
+
+                assertThat(status.enforcementEnabled()).isFalse();
+
+                assertThat(status.acceptanceRequired()).isFalse();
+
+                assertThat(status.acceptedAt()).isNull();
+
+                verifyNoInteractions(acceptanceRepository);
         }
 }

@@ -10,6 +10,7 @@ export type LegalDocumentsResponse = {
 }
 
 export type LegalAcceptanceStatus = {
+    enforcementEnabled: boolean
     acceptanceRequired: boolean
     termsVersion: string
     privacyNoticeVersion: string

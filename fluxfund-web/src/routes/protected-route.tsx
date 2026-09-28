@@ -93,7 +93,9 @@ export function ProtectedRoute({
   if (
     requireLegalAcceptance &&
     legalStatusQuery.data
-      ?.acceptanceRequired &&
+      ?.enforcementEnabled &&
+    legalStatusQuery.data
+      .acceptanceRequired &&
     location.pathname !==
     "/legal/acceptance"
   ) {

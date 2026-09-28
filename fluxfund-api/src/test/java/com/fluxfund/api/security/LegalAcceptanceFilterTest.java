@@ -19,8 +19,9 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fluxfund.api.domain.legal.service.LegalAcceptanceService;
 import com.fluxfund.api.domain.legal.LegalAcceptanceStatus;
+import com.fluxfund.api.domain.legal.service.LegalAcceptanceService;
+import com.fluxfund.api.domain.legal.dto.LegalDocumentProperties;
 
 import jakarta.servlet.FilterChain;
 
@@ -29,11 +30,16 @@ class LegalAcceptanceFilterTest {
         private final LegalAcceptanceService legalAcceptanceService = Mockito.mock(
                         LegalAcceptanceService.class);
 
-        private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+        private final LegalDocumentProperties properties = Mockito.mock(
+                        LegalDocumentProperties.class);
+
+        private final ObjectMapper objectMapper = new ObjectMapper()
+                        .findAndRegisterModules();
 
         private final LegalAcceptanceFilter filter = new LegalAcceptanceFilter(
                         legalAcceptanceService,
-                        objectMapper);
+                        objectMapper,
+                        properties);
 
         @AfterEach
         void clearSecurityContext() {
@@ -42,20 +48,26 @@ class LegalAcceptanceFilterTest {
         }
 
         @Test
-        void shouldBlockProtectedRequestWhenAcceptanceIsRequired() throws Exception {
+        void shouldBlockProtectedRequestWhenAcceptanceIsRequired()
+                        throws Exception {
 
                 UUID userId = UUID.randomUUID();
 
                 authenticate(userId);
 
+                when(properties.enforcementEnabled())
+                                .thenReturn(true);
+
                 when(legalAcceptanceService.getStatus(userId))
-                                .thenReturn(new LegalAcceptanceStatus(
-                                                true,
-                                                "2026-09",
-                                                "terms-hash",
-                                                "2026-09",
-                                                "privacy-hash",
-                                                null));
+                                .thenReturn(
+                                                new LegalAcceptanceStatus(
+                                                                true,
+                                                                true,
+                                                                "2026-09",
+                                                                "terms-hash",
+                                                                "2026-09",
+                                                                "privacy-hash",
+                                                                null));
 
                 MockHttpServletRequest request = new MockHttpServletRequest(
                                 "GET",
@@ -75,7 +87,8 @@ class LegalAcceptanceFilterTest {
                                 .isEqualTo(403);
 
                 assertThat(response.getContentAsString())
-                                .contains(LegalAcceptanceFilter.ERROR_NAME);
+                                .contains(
+                                                LegalAcceptanceFilter.ERROR_NAME);
 
                 verify(
                                 filterChain,
@@ -86,20 +99,26 @@ class LegalAcceptanceFilterTest {
         }
 
         @Test
-        void shouldAllowProtectedRequestWhenCurrentDocumentsWereAccepted() throws Exception {
+        void shouldAllowProtectedRequestWhenCurrentDocumentsWereAccepted()
+                        throws Exception {
 
                 UUID userId = UUID.randomUUID();
 
                 authenticate(userId);
 
+                when(properties.enforcementEnabled())
+                                .thenReturn(true);
+
                 when(legalAcceptanceService.getStatus(userId))
-                                .thenReturn(new LegalAcceptanceStatus(
-                                                false,
-                                                "2026-09",
-                                                "terms-hash",
-                                                "2026-09",
-                                                "privacy-hash",
-                                                null));
+                                .thenReturn(
+                                                new LegalAcceptanceStatus(
+                                                                true,
+                                                                false,
+                                                                "2026-09",
+                                                                "terms-hash",
+                                                                "2026-09",
+                                                                "privacy-hash",
+                                                                null));
 
                 MockHttpServletRequest request = new MockHttpServletRequest(
                                 "GET",
@@ -128,6 +147,9 @@ class LegalAcceptanceFilterTest {
                 UUID userId = UUID.randomUUID();
 
                 authenticate(userId);
+
+                when(properties.enforcementEnabled())
+                                .thenReturn(true);
 
                 MockHttpServletRequest request = new MockHttpServletRequest(
                                 "GET",
@@ -162,9 +184,48 @@ class LegalAcceptanceFilterTest {
 
                 authenticate(userId);
 
+                when(properties.enforcementEnabled())
+                                .thenReturn(true);
+
                 MockHttpServletRequest request = new MockHttpServletRequest(
                                 "GET",
                                 "/api/v1/auth/me");
+
+                MockHttpServletResponse response = new MockHttpServletResponse();
+
+                FilterChain filterChain = Mockito.mock(
+                                FilterChain.class);
+
+                filter.doFilter(
+                                request,
+                                response,
+                                filterChain);
+
+                verify(filterChain)
+                                .doFilter(
+                                                request,
+                                                response);
+
+                verify(
+                                legalAcceptanceService,
+                                never())
+                                .getStatus(userId);
+        }
+
+        @Test
+        void shouldBypassLegalValidationWhenEnforcementIsDisabled()
+                        throws Exception {
+
+                UUID userId = UUID.randomUUID();
+
+                authenticate(userId);
+
+                when(properties.enforcementEnabled())
+                                .thenReturn(false);
+
+                MockHttpServletRequest request = new MockHttpServletRequest(
+                                "GET",
+                                "/api/v1/accounts");
 
                 MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -193,14 +254,24 @@ class LegalAcceptanceFilterTest {
                 Instant now = Instant.now();
 
                 Jwt jwt = Jwt.withTokenValue("token")
-                                .header("alg", "HS256")
-                                .subject(userId.toString())
+                                .header(
+                                                "alg",
+                                                "HS256")
+                                .subject(
+                                                userId.toString())
                                 .issuedAt(now)
-                                .expiresAt(now.plusSeconds(3600))
+                                .expiresAt(
+                                                now.plusSeconds(
+                                                                3600))
                                 .build();
 
-                JwtAuthenticationToken authentication = new JwtAuthenticationToken(jwt, List.of());
+                JwtAuthenticationToken authentication = new JwtAuthenticationToken(
+                                jwt,
+                                List.of());
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                SecurityContextHolder
+                                .getContext()
+                                .setAuthentication(
+                                                authentication);
         }
 }

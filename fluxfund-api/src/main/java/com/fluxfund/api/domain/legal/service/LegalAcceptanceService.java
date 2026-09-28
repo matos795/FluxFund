@@ -7,13 +7,15 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fluxfund.api.domain.legal.event.LegalAcceptanceRegisteredEvent;
 import com.fluxfund.api.domain.legal.LegalAcceptanceStatus;
 import com.fluxfund.api.domain.legal.UserLegalAcceptance;
+import com.fluxfund.api.domain.legal.dto.LegalDocumentProperties;
 import com.fluxfund.api.domain.legal.dto.LegalDocumentSnapshot;
+import com.fluxfund.api.domain.legal.event.LegalAcceptanceRegisteredEvent;
 import com.fluxfund.api.domain.legal.repository.UserLegalAcceptanceRepository;
 import com.fluxfund.api.domain.user.AppUser;
 import com.fluxfund.api.domain.user.AppUserRepository;
+import com.fluxfund.api.shared.exception.BusinessException;
 import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 
 import lombok.RequiredArgsConstructor;
@@ -27,12 +29,25 @@ public class LegalAcceptanceService {
         private final LegalDocumentService documentService;
         private final AppUserRepository appUserRepository;
         private final ApplicationEventPublisher eventPublisher;
+        private final LegalDocumentProperties properties;
 
         public LegalAcceptanceStatus getStatus(UUID userId) {
 
                 LegalDocumentSnapshot terms = documentService.currentTerms();
 
                 LegalDocumentSnapshot privacyNotice = documentService.currentPrivacyNotice();
+
+                if (!properties.enforcementEnabled()) {
+
+                        return new LegalAcceptanceStatus(
+                                        false,
+                                        false,
+                                        terms.version(),
+                                        terms.hash(),
+                                        privacyNotice.version(),
+                                        privacyNotice.hash(),
+                                        null);
+                }
 
                 var currentAcceptance = acceptanceRepository
                                 .findFirstByUser_IdAndTermsVersionAndTermsHashAndPrivacyNoticeVersionAndPrivacyNoticeHashOrderByAcceptedAtDesc(
@@ -43,19 +58,27 @@ public class LegalAcceptanceService {
                                                 privacyNotice.hash());
 
                 return new LegalAcceptanceStatus(
+                                true,
                                 currentAcceptance.isEmpty(),
                                 terms.version(),
                                 terms.hash(),
                                 privacyNotice.version(),
                                 privacyNotice.hash(),
                                 currentAcceptance
-                                                .map(UserLegalAcceptance::getAcceptedAt)
+                                                .map(
+                                                                UserLegalAcceptance::getAcceptedAt)
                                                 .orElse(null));
         }
 
         @Transactional
         public LegalAcceptanceStatus acceptCurrentDocuments(
                         UUID userId) {
+
+                if (!properties.enforcementEnabled()) {
+
+                        throw new BusinessException(
+                                        "Legal acceptance is not enabled");
+                }
 
                 LegalDocumentSnapshot terms = documentService.currentTerms();
 
@@ -72,6 +95,7 @@ public class LegalAcceptanceService {
                 if (currentAcceptance.isPresent()) {
 
                         return new LegalAcceptanceStatus(
+                                        true,
                                         false,
                                         terms.version(),
                                         terms.hash(),
@@ -84,8 +108,7 @@ public class LegalAcceptanceService {
 
                 AppUser user = appUserRepository
                                 .findByIdAndActiveTrue(userId)
-                                .orElseThrow(
-                                                () -> new ResourceNotFoundException(
+                                .orElseThrow(() -> new ResourceNotFoundException(
                                                                 "User not found"));
 
                 OffsetDateTime acceptedAt = OffsetDateTime.now();
@@ -93,16 +116,11 @@ public class LegalAcceptanceService {
                 UserLegalAcceptance acceptance = new UserLegalAcceptance();
 
                 acceptance.setUser(user);
-                acceptance.setTermsVersion(
-                                terms.version());
-                acceptance.setTermsHash(
-                                terms.hash());
-                acceptance.setPrivacyNoticeVersion(
-                                privacyNotice.version());
-                acceptance.setPrivacyNoticeHash(
-                                privacyNotice.hash());
-                acceptance.setAcceptedAt(
-                                acceptedAt);
+                acceptance.setTermsVersion(terms.version());
+                acceptance.setTermsHash(terms.hash());
+                acceptance.setPrivacyNoticeVersion(privacyNotice.version());
+                acceptance.setPrivacyNoticeHash(privacyNotice.hash());
+                acceptance.setAcceptedAt(acceptedAt);
 
                 acceptanceRepository.save(acceptance);
 
@@ -115,6 +133,7 @@ public class LegalAcceptanceService {
                                                 acceptedAt));
 
                 return new LegalAcceptanceStatus(
+                                true,
                                 false,
                                 terms.version(),
                                 terms.hash(),

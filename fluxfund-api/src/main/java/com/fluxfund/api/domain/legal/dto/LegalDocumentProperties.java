@@ -10,9 +10,8 @@ import jakarta.validation.constraints.NotNull;
 @Validated
 @ConfigurationProperties(prefix = "app.legal")
 public record LegalDocumentProperties(
-
+        boolean enforcementEnabled,
         @Valid @NotNull Document terms,
-
         @Valid @NotNull Document privacyNotice) {
 
     public record Document(

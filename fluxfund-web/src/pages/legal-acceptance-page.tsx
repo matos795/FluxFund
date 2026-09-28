@@ -31,8 +31,13 @@ export function LegalAcceptancePage() {
     const statusQuery =
         useLegalStatus()
 
+    const enforcementEnabled =
+        statusQuery.data?.enforcementEnabled === true
+
     const documentsQuery =
-        useLegalDocuments()
+        useLegalDocuments(
+            enforcementEnabled,
+        )
 
     const acceptMutation =
         useAcceptLegalDocuments()
@@ -47,10 +52,73 @@ export function LegalAcceptancePage() {
         setPrivacyAcknowledged,
     ] = useState(false)
 
+    if (statusQuery.isPending) {
+        return (
+            <main className="flex min-h-screen items-center justify-center bg-muted/40">
+                <p className="text-sm text-muted-foreground">
+                    Verificando os termos de acesso...
+                </p>
+            </main>
+        )
+    }
+
     if (
-        statusQuery.isPending ||
-        documentsQuery.isPending
+        statusQuery.isError ||
+        !statusQuery.data
     ) {
+        return (
+            <main className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
+                <Card className="w-full max-w-md">
+                    <CardHeader>
+                        <CardTitle>
+                            Não foi possível verificar seu acesso
+                        </CardTitle>
+
+                        <CardDescription>
+                            Tente novamente antes de continuar.
+                        </CardDescription>
+                    </CardHeader>
+
+                    <CardContent>
+                        <Button
+                            className="w-full"
+                            onClick={() =>
+                                statusQuery.refetch()
+                            }
+                        >
+                            Tentar novamente
+                        </Button>
+                    </CardContent>
+                </Card>
+            </main>
+        )
+    }
+
+    if (
+        !statusQuery.data
+            .enforcementEnabled
+    ) {
+        return (
+            <Navigate
+                to={resolveNextPath(session)}
+                replace
+            />
+        )
+    }
+
+    if (
+        !statusQuery.data
+            .acceptanceRequired
+    ) {
+        return (
+            <Navigate
+                to={resolveNextPath(session)}
+                replace
+            />
+        )
+    }
+
+    if (documentsQuery.isPending) {
         return (
             <main className="flex min-h-screen items-center justify-center bg-muted/40">
                 <p className="text-sm text-muted-foreground">
@@ -61,7 +129,6 @@ export function LegalAcceptancePage() {
     }
 
     if (
-        statusQuery.isError ||
         documentsQuery.isError ||
         !documentsQuery.data
     ) {
@@ -81,10 +148,9 @@ export function LegalAcceptancePage() {
                     <CardContent>
                         <Button
                             className="w-full"
-                            onClick={() => {
-                                statusQuery.refetch()
+                            onClick={() =>
                                 documentsQuery.refetch()
-                            }}
+                            }
                         >
                             Tentar novamente
                         </Button>

@@ -7,9 +7,12 @@ export const legalDocumentsQueryKey = [
     "documents",
 ] as const
 
-export function useLegalDocuments() {
+export function useLegalDocuments(
+    enabled = true,
+) {
     return useQuery({
         queryKey: legalDocumentsQueryKey,
         queryFn: getLegalDocuments,
+        enabled,
     })
 }

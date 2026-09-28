@@ -15,6 +15,8 @@ import com.fluxfund.api.domain.legal.dto.AcceptLegalDocumentsRequest;
 import com.fluxfund.api.domain.legal.dto.LegalAcceptanceStatusResponse;
 import com.fluxfund.api.domain.legal.dto.LegalDocumentResponse;
 import com.fluxfund.api.domain.legal.dto.LegalDocumentsResponse;
+import com.fluxfund.api.domain.legal.dto.LegalDocumentProperties;
+import com.fluxfund.api.shared.exception.ResourceNotFoundException;
 import com.fluxfund.api.security.CurrentUserService;
 
 import jakarta.validation.Valid;
@@ -31,13 +33,19 @@ public class LegalController {
 
     private final CurrentUserService currentUserService;
 
+    private final LegalDocumentProperties properties;
+
     @GetMapping("/documents")
     public ResponseEntity<LegalDocumentsResponse> findCurrentDocuments() {
 
+        if (!properties.enforcementEnabled()) {
+            throw new ResourceNotFoundException(
+                    "Legal documents are not available");
+        }
+
         LegalDocumentSnapshot terms = documentService.currentTerms();
 
-        LegalDocumentSnapshot privacy = documentService
-                .currentPrivacyNotice();
+        LegalDocumentSnapshot privacy = documentService.currentPrivacyNotice();
 
         return ResponseEntity.ok(
                 new LegalDocumentsResponse(
@@ -77,9 +85,12 @@ public class LegalController {
     private LegalAcceptanceStatusResponse toResponse(LegalAcceptanceStatus status) {
 
         return new LegalAcceptanceStatusResponse(
+                status.enforcementEnabled(),
                 status.acceptanceRequired(),
                 status.termsVersion(),
+                status.termsHash(),
                 status.privacyNoticeVersion(),
+                status.privacyNoticeHash(),
                 status.acceptedAt());
     }
 }
