@@ -37,6 +37,8 @@ import { FinancialPartyOverviewPage } from "@/pages/financial-party-overview-pag
 import { ImportBatchesPage } from "@/pages/import-batches-page"
 import { DocumentsPage } from "@/pages/documents-page"
 import { FinancialRelationshipReportPage } from "@/pages/results/financial-relationship-report-page"
+import { LegalAcceptancePage } from "@/pages/legal-acceptance-page"
+import { LegalDocumentsPage } from "@/pages/legal/legal-documents-page"
 
 export function AppRoutes() {
   return (
@@ -60,6 +62,22 @@ export function AppRoutes() {
         path="/accept-invitation"
         element={<AcceptInvitationPage />}
       />
+
+      <Route
+        element={
+          <ProtectedRoute
+            requireOrganization={false}
+            requireLegalAcceptance={false}
+          />
+        }
+      >
+        <Route
+          path="/legal/acceptance"
+          element={
+            <LegalAcceptancePage />
+          }
+        />
+      </Route>
 
       <Route
         element={
@@ -207,6 +225,10 @@ export function AppRoutes() {
             }
           />
           <Route path="/credit-card-statements" element={<CreditCardStatementsPage />} />
+          <Route
+            path="/settings/legal"
+            element={<LegalDocumentsPage />}
+          />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>

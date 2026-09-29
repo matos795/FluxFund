@@ -14,8 +14,13 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fluxfund.api.domain.legal.service.LegalAcceptanceService;
+import com.fluxfund.api.domain.legal.dto.LegalDocumentProperties;
+import com.fluxfund.api.security.LegalAcceptanceFilter;
 import com.fluxfund.api.security.RestAccessDeniedHandler;
 import com.fluxfund.api.security.RestAuthenticationEntryPoint;
 
@@ -52,7 +57,16 @@ public class SecurityConfig {
                         HttpSecurity http,
                         AuthenticationProvider authenticationProvider,
                         RestAuthenticationEntryPoint authenticationEntryPoint,
-                        RestAccessDeniedHandler accessDeniedHandler) throws Exception {
+                        RestAccessDeniedHandler accessDeniedHandler,
+                        LegalAcceptanceService legalAcceptanceService,
+                        ObjectMapper objectMapper,
+                        LegalDocumentProperties properties)
+                        throws Exception {
+
+                LegalAcceptanceFilter legalAcceptanceFilter = new LegalAcceptanceFilter(
+                                legalAcceptanceService,
+                                objectMapper,
+                                properties);
 
                 return http
                                 .csrf(csrf -> csrf.disable())
@@ -94,6 +108,9 @@ public class SecurityConfig {
                                                 .authenticationEntryPoint(authenticationEntryPoint)
                                                 .accessDeniedHandler(accessDeniedHandler)
                                                 .jwt(Customizer.withDefaults()))
+
+                                .addFilterAfter(legalAcceptanceFilter, BearerTokenAuthenticationFilter.class)
+
                                 .build();
         }
 }

@@ -29,6 +29,10 @@ httpClient.interceptors.response.use(
     const status = error.response?.status
     const requestUrl = error.config?.url
 
+    const errorName = error.response?.data?.error
+
+    const requiresLegalAcceptance = status === 403 && errorName === "Legal Acceptance Required"
+
     const isLoginRequest = requestUrl === "/api/v1/auth/login"
 
     if (status === 401 && !isLoginRequest) {
@@ -37,6 +41,10 @@ httpClient.interceptors.response.use(
       if (window.location.pathname !== "/login") {
         window.location.assign("/login")
       }
+    }
+
+    if (requiresLegalAcceptance && !requestUrl?.startsWith("/api/v1/legal/",) && window.location.pathname !== "/legal/acceptance") {
+      window.location.assign("/legal/acceptance")
     }
 
     return Promise.reject(error)

@@ -21,10 +21,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ApplicationMailService {
 
-    private static final DateTimeFormatter
-            DATE_TIME_FORMATTER =
-            DateTimeFormatter.ofPattern(
-                    "dd/MM/yyyy 'às' HH:mm");
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern(
+            "dd/MM/yyyy 'às' HH:mm");
 
     private final RestClient brevoClient;
 
@@ -39,34 +37,27 @@ public class ApplicationMailService {
     public ApplicationMailService(
             RestClient.Builder restClientBuilder,
 
-            @Value("${app.mail.enabled:false}")
-            boolean enabled,
+            @Value("${app.mail.enabled:false}") boolean enabled,
 
-            @Value("${app.mail.brevo-api-key:}")
-            String apiKey,
+            @Value("${app.mail.brevo-api-key:}") String apiKey,
 
-            @Value("${app.mail.from:}")
-            String from,
+            @Value("${app.mail.from:}") String from,
 
-            @Value("${app.mail.sender-name:FluxFund}")
-            String senderName) {
+            @Value("${app.mail.sender-name:FluxFund}") String senderName) {
 
-        this.brevoClient =
-                restClientBuilder
-                        .baseUrl(
-                                "https://api.brevo.com/v3")
+        this.brevoClient = restClientBuilder
+                .baseUrl(
+                        "https://api.brevo.com/v3")
 
-                        .defaultHeader(
-                                HttpHeaders.ACCEPT,
-                                MediaType
-                                        .APPLICATION_JSON_VALUE)
+                .defaultHeader(
+                        HttpHeaders.ACCEPT,
+                        MediaType.APPLICATION_JSON_VALUE)
 
-                        .defaultHeader(
-                                HttpHeaders.CONTENT_TYPE,
-                                MediaType
-                                        .APPLICATION_JSON_VALUE)
+                .defaultHeader(
+                        HttpHeaders.CONTENT_TYPE,
+                        MediaType.APPLICATION_JSON_VALUE)
 
-                        .build();
+                .build();
 
         this.enabled = enabled;
         this.apiKey = apiKey;
@@ -122,6 +113,31 @@ public class ApplicationMailService {
                 "Password reset");
     }
 
+    public boolean sendLegalAcceptanceConfirmation(
+            String recipientName,
+            String recipientEmail,
+            String termsVersion,
+            String privacyNoticeVersion,
+            OffsetDateTime acceptedAt,
+            String legalDocumentsUrl) {
+
+        return sendTransactionalEmail(
+                recipientName,
+                recipientEmail,
+
+                "Confirmação dos documentos legais do FluxFund",
+
+                buildLegalAcceptanceConfirmationHtml(
+                        recipientName,
+                        termsVersion,
+                        privacyNoticeVersion,
+                        acceptedAt,
+                        legalDocumentsUrl),
+
+                "legal-acceptance",
+                "Legal acceptance confirmation");
+    }
+
     private boolean sendTransactionalEmail(
             String recipientName,
             String recipientEmail,
@@ -157,40 +173,36 @@ public class ApplicationMailService {
             return false;
         }
 
-        BrevoEmailAddress sender =
-                new BrevoEmailAddress(
-                        from,
-                        senderName);
+        BrevoEmailAddress sender = new BrevoEmailAddress(
+                from,
+                senderName);
 
-        BrevoEmailAddress recipient =
-                new BrevoEmailAddress(
-                        recipientEmail,
-                        recipientName);
+        BrevoEmailAddress recipient = new BrevoEmailAddress(
+                recipientEmail,
+                recipientName);
 
-        BrevoEmailRequest request =
-                new BrevoEmailRequest(
-                        sender,
-                        List.of(recipient),
-                        sender,
-                        subject,
-                        htmlContent,
-                        List.of(tag));
+        BrevoEmailRequest request = new BrevoEmailRequest(
+                sender,
+                List.of(recipient),
+                sender,
+                subject,
+                htmlContent,
+                List.of(tag));
 
         try {
-            BrevoEmailResponse response =
-                    brevoClient
-                            .post()
-                            .uri("/smtp/email")
+            BrevoEmailResponse response = brevoClient
+                    .post()
+                    .uri("/smtp/email")
 
-                            .header(
-                                    "api-key",
-                                    apiKey)
+                    .header(
+                            "api-key",
+                            apiKey)
 
-                            .body(request)
-                            .retrieve()
+                    .body(request)
+                    .retrieve()
 
-                            .body(
-                                    BrevoEmailResponse.class);
+                    .body(
+                            BrevoEmailResponse.class);
 
             log.info(
                     "{} email sent through Brevo. "
@@ -205,9 +217,7 @@ public class ApplicationMailService {
 
             return true;
 
-        } catch (
-                RestClientResponseException exception
-        ) {
+        } catch (RestClientResponseException exception) {
             log.error(
                     "Brevo rejected {} email. "
                             + "recipient={} status={} body={}",
@@ -224,9 +234,7 @@ public class ApplicationMailService {
 
             return false;
 
-        } catch (
-                RestClientException exception
-        ) {
+        } catch (RestClientException exception) {
             log.error(
                     "Could not connect to Brevo for {}. "
                             + "recipient={}",
@@ -246,17 +254,14 @@ public class ApplicationMailService {
             String invitationUrl,
             OffsetDateTime expiresAt) {
 
-        String safeRecipientName =
-                HtmlUtils.htmlEscape(
-                        recipientName);
+        String safeRecipientName = HtmlUtils.htmlEscape(
+                recipientName);
 
-        String safeOrganizationName =
-                HtmlUtils.htmlEscape(
-                        organizationName);
+        String safeOrganizationName = HtmlUtils.htmlEscape(
+                organizationName);
 
-        String safeInvitationUrl =
-                HtmlUtils.htmlEscape(
-                        invitationUrl);
+        String safeInvitationUrl = HtmlUtils.htmlEscape(
+                invitationUrl);
 
         return """
                 <!doctype html>
@@ -337,13 +342,11 @@ public class ApplicationMailService {
             String resetUrl,
             OffsetDateTime expiresAt) {
 
-        String safeRecipientName =
-                HtmlUtils.htmlEscape(
-                        recipientName);
+        String safeRecipientName = HtmlUtils.htmlEscape(
+                recipientName);
 
-        String safeResetUrl =
-                HtmlUtils.htmlEscape(
-                        resetUrl);
+        String safeResetUrl = HtmlUtils.htmlEscape(
+                resetUrl);
 
         return """
                 <!doctype html>
@@ -418,6 +421,101 @@ public class ApplicationMailService {
                         safeResetUrl);
     }
 
+    private String buildLegalAcceptanceConfirmationHtml(
+            String recipientName,
+            String termsVersion,
+            String privacyNoticeVersion,
+            OffsetDateTime acceptedAt,
+            String legalDocumentsUrl) {
+
+        String safeRecipientName = HtmlUtils.htmlEscape(
+                recipientName);
+
+        String safeTermsVersion = HtmlUtils.htmlEscape(
+                termsVersion);
+
+        String safePrivacyVersion = HtmlUtils.htmlEscape(
+                privacyNoticeVersion);
+
+        String safeLegalDocumentsUrl = HtmlUtils.htmlEscape(
+                legalDocumentsUrl);
+
+        return """
+                <!doctype html>
+                <html lang="pt-BR">
+                <body style="margin:0;background:#f4f4f5;font-family:Arial,sans-serif;color:#18181b;">
+                    <div style="max-width:600px;margin:0 auto;padding:32px 16px;">
+                        <div style="background:#ffffff;border:1px solid #e4e4e7;border-radius:16px;padding:32px;">
+
+                            <div style="margin-bottom:24px;">
+                                <p style="margin:0;font-size:14px;font-weight:bold;color:#52525b;">
+                                    FLUXFUND
+                                </p>
+
+                                <h1 style="margin:8px 0 0;font-size:24px;">
+                                    Documentos confirmados
+                                </h1>
+                            </div>
+
+                            <p>
+                                Olá,
+                                <strong>%s</strong>!
+                            </p>
+
+                            <p style="line-height:1.6;">
+                                Registramos sua manifestação sobre os
+                                documentos legais vigentes do FluxFund.
+                            </p>
+
+                            <div style="background:#f4f4f5;border-radius:12px;padding:16px;margin:24px 0;">
+                                <p style="margin:0 0 12px;">
+                                    <strong>Termos de Uso</strong><br>
+                                    Versão %s
+                                </p>
+
+                                <p style="margin:0 0 12px;">
+                                    <strong>Aviso de Privacidade</strong><br>
+                                    Versão %s
+                                </p>
+
+                                <p style="margin:0;">
+                                    <strong>Registro:</strong>
+                                    %s
+                                </p>
+                            </div>
+
+                            <p style="line-height:1.6;">
+                                Os Termos de Uso foram aceitos e sua
+                                ciência do Aviso de Privacidade foi
+                                registrada.
+                            </p>
+
+                            <a
+                                href="%s"
+                                style="display:inline-block;margin-top:8px;background:#18181b;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:bold;"
+                            >
+                                Consultar documentos
+                            </a>
+
+                            <p style="margin-top:24px;font-size:13px;line-height:1.5;color:#71717a;">
+                                Este registro se refere ao seu acesso
+                                individual ao FluxFund e não substitui
+                                contratos ou documentos comerciais
+                                celebrados pela organização.
+                            </p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """
+                .formatted(
+                        safeRecipientName,
+                        safeTermsVersion,
+                        safePrivacyVersion,
+                        formatDateTime(acceptedAt),
+                        safeLegalDocumentsUrl);
+    }
+
     private String resolveRoleLabel(
             OrganizationRole role) {
 
@@ -438,8 +536,7 @@ public class ApplicationMailService {
 
     private record BrevoEmailAddress(
             String email,
-            String name
-    ) {
+            String name) {
     }
 
     private record BrevoEmailRequest(
@@ -448,12 +545,10 @@ public class ApplicationMailService {
             BrevoEmailAddress replyTo,
             String subject,
             String htmlContent,
-            List<String> tags
-    ) {
+            List<String> tags) {
     }
 
     private record BrevoEmailResponse(
-            String messageId
-    ) {
+            String messageId) {
     }
 }
