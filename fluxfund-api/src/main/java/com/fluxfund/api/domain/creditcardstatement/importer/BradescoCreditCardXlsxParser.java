@@ -80,7 +80,7 @@ public class BradescoCreditCardXlsxParser {
                 rows.add(new ImportedTransactionRow(
                         date,
                         normalizedDescription,
-                        amount.abs(),
+                        amount,
                         externalId,
                         null));
             }

@@ -30,6 +30,7 @@ export type FiscalDocumentPolicy =
 
 export type TechnicalMovementType =
   | "NUBANK_PIX_CREDIT_BRIDGE"
+  | "CREDIT_CARD_STATEMENT_CREDIT"
 
 export type TransferDirection = "IN" | "OUT"
 
