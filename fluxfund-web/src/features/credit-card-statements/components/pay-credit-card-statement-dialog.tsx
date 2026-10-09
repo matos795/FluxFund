@@ -123,6 +123,16 @@ export function PayCreditCardStatementDialog({
     name: "paymentTransactionId",
   })
 
+  const paymentAmount = useWatch({
+    control,
+    name: "amount",
+  })
+
+  const advanceCreditAmount = Math.max(
+    Number(paymentAmount ?? 0) - statement.outstandingAmount,
+    0,
+  )
+
   function handleOpenChange(value: boolean) {
     if (!value) {
       reset()
@@ -159,11 +169,6 @@ export function PayCreditCardStatementDialog({
 
     if (hasReviewIssues && !acknowledgePendingReview) {
       toast.error("Confirme que deseja pagar a fatura mesmo com pendências.")
-      return
-    }
-
-    if (data.amount > statement.outstandingAmount) {
-      toast.error("O pagamento não pode ser maior que o saldo restante da fatura.")
       return
     }
 
@@ -321,6 +326,13 @@ export function PayCreditCardStatementDialog({
                     <p className="text-sm text-destructive">
                       {errors.amount.message}
                     </p>
+                  )}
+                  {advanceCreditAmount > 0 && (
+                    <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                      {formatCurrency(statement.outstandingAmount)} serão aplicados nesta
+                      fatura e {formatCurrency(advanceCreditAmount)} ficarão como crédito
+                      para a próxima fatura.
+                    </div>
                   )}
                 </div>
               )}

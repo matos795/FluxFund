@@ -74,7 +74,7 @@ export function LinkCreditCardPaymentDialog({
           statement.status !== "PAID" &&
           statement.status !== "CANCELED" &&
           (statement.unlinkedPaymentCount > 0 ||
-            transactionAmount <= statement.outstandingAmount),
+            statement.outstandingAmount > 0),
       )
       .map((statement) => {
         let score = 0
@@ -111,6 +111,13 @@ export function LinkCreditCardPaymentDialog({
   const selectedStatement = availableStatements.find(
     (item) => item.statement.id === statementId,
   )?.statement
+
+  const advanceCreditAmount = selectedStatement
+    ? Math.max(
+      transactionAmount - selectedStatement.outstandingAmount,
+      0,
+    )
+    : 0
 
   const matchingUnlinkedPayments = useMemo(() => {
     const payments = paymentsQuery.data ?? []
@@ -276,15 +283,13 @@ export function LinkCreditCardPaymentDialog({
               options={availableStatements.map(
                 ({ statement, score }, index) => ({
                   value: statement.id,
-                  label: `${
-                    index === 0 && score > 0 ? "Sugestão: " : ""
-                  }${statement.name} · restante ${formatCurrency(
-                    statement.outstandingAmount,
-                  )}${
-                    statement.unlinkedPaymentCount > 0
+                  label: `${index === 0 && score > 0 ? "Sugestão: " : ""
+                    }${statement.name} · restante ${formatCurrency(
+                      statement.outstandingAmount,
+                    )}${statement.unlinkedPaymentCount > 0
                       ? ` · ${statement.unlinkedPaymentCount} vínculo(s) pendente(s)`
                       : ""
-                  } · vence ${formatDate(statement.dueDate)}`,
+                    } · vence ${formatDate(statement.dueDate)}`,
                 }),
               )}
               placeholder="Selecione a fatura paga por esta transação"
@@ -293,6 +298,15 @@ export function LinkCreditCardPaymentDialog({
               allowClear
               onChange={setStatementId}
             />
+
+            {selectedStatement && advanceCreditAmount > 0 && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                O pagamento é {formatCurrency(advanceCreditAmount)} maior que o
+                saldo restante desta fatura. Esse excedente será registrado como
+                crédito para a próxima fatura.
+              </div>
+            )}
+            
           </div>
 
           {statementId && paymentsQuery.isLoading && (
@@ -363,8 +377,8 @@ export function LinkCreditCardPaymentDialog({
               matchingUnlinkedPayments.length > 1 ||
               Boolean(
                 selectedStatement &&
-                  selectedStatement.unlinkedPaymentCount > 0 &&
-                  matchingUnlinkedPayments.length === 0,
+                selectedStatement.unlinkedPaymentCount > 0 &&
+                matchingUnlinkedPayments.length === 0,
               )
             }
             onClick={handleLink}

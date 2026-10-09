@@ -86,7 +86,6 @@ export function useCreditCardPaymentCandidates({
 
       const candidates = result.content
         .filter((transaction) => transaction.type !== "TRANSFER")
-        .filter((transaction) => getTransactionAmount(transaction) <= statement.outstandingAmount)
         .map((transaction) => ({
           transaction,
           score: scoreCandidate(transaction, statement),
