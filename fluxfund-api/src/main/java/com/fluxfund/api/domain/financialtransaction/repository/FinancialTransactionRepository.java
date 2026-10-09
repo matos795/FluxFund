@@ -544,11 +544,21 @@ findMonthlyCashFlow(
             UUID organizationId);
 
     @Query("""
-            select coalesce(sum(abs(ft.expectedAmount)), 0)
+            select coalesce(
+                sum(
+                    case
+                        when ft.technicalMovementType =
+                            com.fluxfund.api.domain.financialtransaction.TechnicalMovementType.CREDIT_CARD_STATEMENT_CREDIT
+                        then -1 * abs(ft.expectedAmount)
+                        else abs(ft.expectedAmount)
+                    end
+                ),
+                0
+            )
             from FinancialTransaction ft
             where ft.organization.id = :organizationId
-              and ft.creditCardStatement.id = :statementId
-              and ft.status <> com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.CANCELED
+            and ft.creditCardStatement.id = :statementId
+            and ft.status <> com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus.CANCELED
             """)
     BigDecimal sumCreditCardStatementTotal(
             @Param("organizationId") UUID organizationId,

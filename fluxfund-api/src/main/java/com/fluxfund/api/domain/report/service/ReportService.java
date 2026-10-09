@@ -9,7 +9,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -27,6 +26,7 @@ import com.fluxfund.api.domain.dashboard.dto.DashboardTransactionActionItemProje
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
+import com.fluxfund.api.domain.financialtransaction.TechnicalMovementType;
 import com.fluxfund.api.domain.financialtransaction.TransferDirection;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
 import com.fluxfund.api.domain.fund.Fund;
@@ -58,7 +58,6 @@ import com.fluxfund.api.domain.report.dto.fund.FundMovementAllocationProjection;
 import com.fluxfund.api.domain.report.dto.fund.FundMovementReportItemResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundMovementReportResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundReportItemResponse;
-import com.fluxfund.api.domain.report.dto.fund.FundReportProjection;
 import com.fluxfund.api.domain.report.dto.fund.FundReportResponse;
 import com.fluxfund.api.domain.report.dto.fund.FundTransferPeriodProjection;
 import com.fluxfund.api.domain.report.dto.income.SettledIncomeReportItemResponse;
@@ -640,7 +639,10 @@ public class ReportService {
                         String categoryName = resolveCreditCardStatementCategoryName(
                                         transaction);
 
-                        boolean classified = transaction.getCategory() != null;
+                        boolean statementCredit = transaction
+                                        .getTechnicalMovementType() == TechnicalMovementType.CREDIT_CARD_STATEMENT_CREDIT;
+
+                        boolean classified = statementCredit || transaction.getCategory() != null;
 
                         if (!classified) {
                                 unclassifiedItemCount++;
@@ -1404,22 +1406,16 @@ public class ReportService {
                 return "Sem descrição";
         }
 
-        private BigDecimal resolveCreditCardStatementItemAmount(
-                        FinancialTransaction transaction) {
+        private BigDecimal resolveCreditCardStatementItemAmount(FinancialTransaction transaction) {
 
-                BigDecimal amount = transaction.getExpectedAmount();
-
-                if (amount == null) {
-                        amount = transaction.getSettledAmount();
-                }
-
-                return amount != null
-                                ? amount.abs()
-                                : BigDecimal.ZERO;
+                return transaction.getSignedCreditCardStatementAmount();
         }
 
-        private String resolveCreditCardStatementCategoryName(
-                        FinancialTransaction transaction) {
+        private String resolveCreditCardStatementCategoryName(FinancialTransaction transaction) {
+
+                if (transaction.getTechnicalMovementType() == TechnicalMovementType.CREDIT_CARD_STATEMENT_CREDIT) {
+                        return "Créditos/estornos";
+                }
 
                 if (transaction.getCategory() == null
                                 || transaction.getCategory().getName() == null

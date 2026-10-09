@@ -224,7 +224,8 @@ public class ClosingDossierService {
                                         List.of());
 
                         List<FinancialTransaction> accountMovementTransactions = accountTransactions.stream()
-                                        .filter(transaction -> !creditCardStatementItemIds.contains(transaction.getId()))
+                                        .filter(transaction -> !creditCardStatementItemIds
+                                                        .contains(transaction.getId()))
                                         .toList();
 
                         List<FinancialTransaction> economicTransactions = accountMovementTransactions.stream()
@@ -485,6 +486,7 @@ public class ClosingDossierService {
                                                         .max(BigDecimal.ZERO);
 
                                         long unclassifiedItemCount = items.stream()
+                                                        .filter(item -> !item.isTechnicalMovement())
                                                         .filter(item -> item.getCategory() == null)
                                                         .count();
 
@@ -512,11 +514,7 @@ public class ClosingDossierService {
 
         private BigDecimal resolveCreditCardItemAmount(FinancialTransaction transaction) {
 
-                BigDecimal amount = transaction.getExpectedAmount() != null
-                                ? transaction.getExpectedAmount()
-                                : transaction.getSettledAmount();
-
-                return absoluteAmount(amount);
+                return transaction.getSignedCreditCardStatementAmount();
         }
 
         private Map<UUID, List<Attachment>> loadAttachmentsByTransactionId(

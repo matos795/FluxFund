@@ -18,6 +18,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import com.fluxfund.api.domain.account.Account;
 import com.fluxfund.api.domain.account.AccountType;
+import com.fluxfund.api.domain.creditcardstatement.CreditCardStatement;
+import com.fluxfund.api.domain.creditcardstatement.CreditCardStatementStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
@@ -125,6 +127,72 @@ class FinancialTransactionRepositoryIntegrationTest {
                 assertThat(unclassified).isEqualTo(2);
                 assertThat(dashboardTransactionCount).isEqualTo(2);
                 assertThat(bankMovements).hasSize(4);
+        }
+
+        @Test
+        void shouldSubtractStatementCreditFromCreditCardStatementTotal() {
+
+                // ARRANGE
+                Organization organization = createOrganization();
+
+                Account creditCardAccount = createAccount(organization);
+
+                creditCardAccount.setType(AccountType.CREDIT_CARD);
+
+                CreditCardStatement statement = new CreditCardStatement();
+                statement.setOrganization(organization);
+                statement.setCreditCardAccount(creditCardAccount);
+                statement.setName("Fatura Bradesco Setembro");
+                statement.setDueDate(LocalDate.of(2026, 9, 10));
+                statement.setStatus(CreditCardStatementStatus.OPEN);
+                statement.setPreviousBalanceAmount(BigDecimal.ZERO);
+                statement.setPreviousCreditAmount(BigDecimal.ZERO);
+
+                entityManager.persist(statement);
+
+                FinancialTransaction expense = new FinancialTransaction();
+                expense.setOrganization(organization);
+                expense.setAccount(creditCardAccount);
+                expense.setCreditCardStatement(statement);
+                expense.setType(FinancialTransactionType.EXPENSE);
+                expense.setSource(FinancialTransactionSource.CREDIT_CARD);
+                expense.setStatus(FinancialTransactionStatus.SETTLED);
+                expense.setPurchaseDate(LocalDate.of(2026, 8, 10));
+                expense.setSettlementDate(LocalDate.of(2026, 8, 10));
+                expense.setExpectedAmount(new BigDecimal("3073.73"));
+                expense.setSettledAmount(new BigDecimal("3073.73"));
+                expense.setInterestAmount(BigDecimal.ZERO);
+                expense.setDiscountAmount(BigDecimal.ZERO);
+                expense.setDescription("Compras da fatura");
+
+                entityManager.persist(expense);
+
+                FinancialTransaction credit = new FinancialTransaction();
+                credit.setOrganization(organization);
+                credit.setAccount(creditCardAccount);
+                credit.setCreditCardStatement(statement);
+                credit.setType(FinancialTransactionType.EXPENSE);
+                credit.setSource(FinancialTransactionSource.CREDIT_CARD);
+                credit.setStatus(FinancialTransactionStatus.SETTLED);
+                credit.setPurchaseDate(LocalDate.of(2026, 8, 20));
+                credit.setSettlementDate(LocalDate.of(2026, 8, 20));
+                credit.setExpectedAmount(new BigDecimal("27.90"));
+                credit.setSettledAmount(new BigDecimal("27.90"));
+                credit.setInterestAmount(BigDecimal.ZERO);
+                credit.setDiscountAmount(BigDecimal.ZERO);
+                credit.setDescription("MERCADOLIVRE*MERCADOLIVRE");
+                credit.markAsTechnicalMovement(TechnicalMovementType.CREDIT_CARD_STATEMENT_CREDIT);
+
+                entityManager.persist(credit);
+
+                entityManager.flush();
+                entityManager.clear();
+
+                // ACT
+                BigDecimal total = repository.sumCreditCardStatementTotal(organization.getId(), statement.getId());
+
+                // ASSERT
+                assertThat(total).isEqualByComparingTo("3045.83");
         }
 
         private Organization createOrganization() {

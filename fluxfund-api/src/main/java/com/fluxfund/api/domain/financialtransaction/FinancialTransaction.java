@@ -168,4 +168,24 @@ public class FinancialTransaction extends BaseEntity {
 
         this.technicalMovement = true;
     }
+
+    public BigDecimal getSignedCreditCardStatementAmount() {
+
+        BigDecimal amount = expectedAmount != null
+                ? expectedAmount
+                : settledAmount;
+
+        if (amount == null) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal absoluteAmount = amount.abs();
+
+        if (technicalMovementType == TechnicalMovementType.CREDIT_CARD_STATEMENT_CREDIT) {
+
+            return absoluteAmount.negate();
+        }
+
+        return absoluteAmount;
+    }
 }

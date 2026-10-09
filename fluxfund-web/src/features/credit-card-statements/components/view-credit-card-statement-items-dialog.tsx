@@ -19,7 +19,7 @@ import { formatCurrency, formatDate } from "@/utils/formatters"
 import type { CreditCardStatement } from "../credit-card-statement-types"
 import { useCreditCardStatementItems } from "../hooks/use-credit-card-statement-items"
 import { FinancialTransactionActions } from "@/features/financial-transactions/components/financial-transaction-actions"
-import { getCreditCardStatementItemsSummary } from "../credit-card-statement-items-summary"
+import { getCreditCardItemAmount, getCreditCardStatementItemsSummary, isCreditCardStatementCredit } from "../credit-card-statement-items-summary"
 import { AppDialogBody, AppDialogContent, AppDialogHeader } from "@/components/layout/app-dialog"
 import { getFinancialTransactionStatusLabel } from "@/features/financial-transactions/financial-transaction-labels"
 
@@ -173,6 +173,17 @@ export function ViewCreditCardStatementItemsDialog({
                   description={`${summary.itemCount} itens`}
                 />
 
+                {summary.creditCount > 0 && (
+                  <SummaryCard
+                    title="Créditos/estornos"
+                    value={`-${formatCurrency(summary.creditAmount)}`}
+                    description={`${summary.creditCount} ${summary.creditCount === 1
+                      ? "lançamento"
+                      : "lançamentos"
+                      } reduzindo a fatura`}
+                  />
+                )}
+
                 <SummaryCard
                   title="Classificado"
                   value={formatCurrency(summary.classifiedAmount)}
@@ -253,9 +264,9 @@ export function ViewCreditCardStatementItemsDialog({
                       item.rawDescription?.trim() ||
                       "Item sem descrição"
 
-                    const amount = Math.abs(
-                      item.settledAmount ?? item.expectedAmount ?? 0,
-                    )
+                    const amount = getCreditCardItemAmount(item)
+
+                    const statementCredit = isCreditCardStatementCredit(item)
 
                     return (
                       <TableRow key={item.id}>
@@ -279,8 +290,16 @@ export function ViewCreditCardStatementItemsDialog({
                         </TableCell>
 
                         <TableCell>
-                          {item.category?.name ?? (
-                            <Badge variant="outline">A classificar</Badge>
+                          {statementCredit ? (
+                            <Badge variant="secondary">
+                              Crédito/estorno
+                            </Badge>
+                          ) : (
+                            item.category?.name ?? (
+                              <Badge variant="outline">
+                                A classificar
+                              </Badge>
+                            )
                           )}
                         </TableCell>
 

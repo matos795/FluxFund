@@ -67,13 +67,24 @@ public interface CreditCardStatementRepository extends JpaRepository<CreditCardS
                 +
                 coalesce((
                     select sum(
-                        abs(
-                            coalesce(
-                                item.expected_amount,
-                                item.settled_amount,
-                                0
+                        case
+                            when item.technical_movement_type =
+                                'CREDIT_CARD_STATEMENT_CREDIT'
+                            then -abs(
+                                coalesce(
+                                    item.expected_amount,
+                                    item.settled_amount,
+                                    0
+                                )
                             )
-                        )
+                            else abs(
+                                coalesce(
+                                    item.expected_amount,
+                                    item.settled_amount,
+                                    0
+                                )
+                            )
+                        end
                     )
                     from financial_transaction item
                     where item.credit_card_statement_id = s.id
@@ -89,6 +100,7 @@ public interface CreditCardStatementRepository extends JpaRepository<CreditCardS
               from financial_transaction item
               where item.credit_card_statement_id = s.id
                 and item.organization_id = :organizationId
+                and item.technical_movement = false
                 and item.status <> 'CANCELED'
                 and (
                       item.category_id is null

@@ -20,6 +20,7 @@ import com.fluxfund.api.domain.financialtransaction.FinancialTransaction;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionSource;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionStatus;
 import com.fluxfund.api.domain.financialtransaction.FinancialTransactionType;
+import com.fluxfund.api.domain.financialtransaction.TechnicalMovementType;
 import com.fluxfund.api.domain.financialtransaction.dto.FinancialTransactionResponse;
 import com.fluxfund.api.domain.financialtransaction.mapper.FinancialTransactionMapper;
 import com.fluxfund.api.domain.financialtransaction.repository.FinancialTransactionRepository;
@@ -128,6 +129,8 @@ public class CreditCardStatementSpreadsheetImportService {
             throw new BusinessException("Valor da transação deve ser diferente de zero.");
         }
 
+        boolean statementCredit = amount.compareTo(BigDecimal.ZERO) < 0;
+
         FinancialTransaction transaction = new FinancialTransaction();
 
         transaction.setOrganization(organization);
@@ -149,6 +152,10 @@ public class CreditCardStatementSpreadsheetImportService {
 
         transaction.setInterestAmount(BigDecimal.ZERO);
         transaction.setDiscountAmount(BigDecimal.ZERO);
+
+        if (statementCredit) {
+            transaction.markAsTechnicalMovement(TechnicalMovementType.CREDIT_CARD_STATEMENT_CREDIT);
+        }
 
         transaction.setRawDescription(row.description());
         transaction.setDescription("");
